@@ -1,2 +1,268 @@
-# traffic-analyzer
-Analisador de tráfego Meshtastic com mapa visual, histórico e análise de rotas
+# Traffic Analyzer v1.14.0
+
+**Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.14.0
+
+A v1.14.0 simplifica a integração com o MeshMonitor e remove completamente do Traffic Analyzer o recurso **Remover nó**. A exclusão de nós deve ser feita diretamente no MeshMonitor, onde existem as operações oficiais para excluir do banco local ou fazer *purge* também na NodeDB do dispositivo conectado. O Traffic Analyzer volta a ser estritamente uma ferramenta de observação, análise e arquivo histórico.
+
+O mapa-base padrão passa a ser **Ruas (OpenStreetMap / OSM)**. Na primeira execução desta versão, a preferência antiga de mapa é migrada uma vez para OSM; depois disso, alterações manuais voltam a ser preservadas normalmente no navegador. Os mapas Topográfico, Claro, Escuro e Satélite continuam disponíveis.
+
+O cabeçalho foi simplificado: não exibe mais a linha `gerado em ... · fonte ...`. O título padrão agora aparece como **Traffic Analyzer v1.14.0 - MeshMonitor - por Alex, PT2VHF**.
+
+Permanece o painel discreto durante traceroutes animados, com origem e destino, distância direta, percurso total de IDA, percurso total de VOLTA e total ida + volta quando ambos os trajetos são completos. As distâncias continuam sendo calculadas apenas a partir de coordenadas conhecidas, sem estimar hops ausentes.
+
+Também permanecem as cores de atividade dos nós: verde até 2 horas, laranja entre 2 e 24 horas, vermelho acima de 24 horas e cinza sem timestamp confiável. A informação de firmware continua removida.
+
+## Arquitetura
+
+```text
+Meshtastic radio/source
+        |
+        v
+MeshMonitor
+  |- Nodes / Traceroutes
+  |- Packet Monitor
+  `- REST API v1
+        |
+        v
+Traffic Analyzer
+  |- descoberta/topologia/NodeInfo
+  |- interface web :8788
+  |- animações de mapa
+  `- arquivo persistente traffic.db
+        |
+        v
+Gerador de relatórios externo
+  `- /api/archive/*
+```
+
+O token `mm_v1_...` permanece no processo servidor. Ele não é enviado ao navegador.
+
+## Requisitos
+
+- MeshMonitor com API v1 por fonte; recomendado 4.16.1 ou superior;
+- Packet Monitor habilitado na fonte analisada;
+- token API com acesso à fonte e `packetmonitor:read`;
+- Python 3;
+- Linux com systemd para usar o instalador fornecido.
+
+## Instalação / atualização
+
+O bloco abaixo procura o ZIP no diretório atual, no home corrente, em `/home` e em `/root`. Assim ele também funciona quando o arquivo foi enviado para o home de um usuário comum, mas a sessão administrativa está como `root`.
+
+```bash
+TA_VER="1.14.0" && \
+TA_ZIP="$(find "$PWD" "$HOME" /home /root -maxdepth 3 -type f -name "traffic-analyzer-v${TA_VER}.zip" -print -quit 2>/dev/null)" && \
+[ -n "$TA_ZIP" ] && \
+TA_BASE="$(dirname "$TA_ZIP")" && \
+TA_STAGE="${TA_BASE}/.traffic-analyzer-stage" && \
+rm -rf "$TA_STAGE" && \
+mkdir -p "$TA_STAGE" && \
+unzip -q -o "$TA_ZIP" -d "$TA_STAGE" && \
+rm -rf "${TA_BASE}/traffic-analyzer" && \
+mv "$TA_STAGE/traffic-analyzer" "${TA_BASE}/traffic-analyzer" && \
+rm -rf "$TA_STAGE" && \
+cd "${TA_BASE}/traffic-analyzer" && \
+{ if [ "$(id -u)" -eq 0 ]; then bash install.sh; else sudo bash install.sh; fi; } && \
+systemctl status traffic-analyzer.timer --no-pager && \
+systemctl status traffic-analyzer-map.service --no-pager
+```
+
+O próprio `install.sh` mostra os dois `systemctl status` ao final; as duas últimas linhas mantêm a checagem explícita no bloco único de copiar/colar.
+
+A atualização preserva token, `MM_SOURCE`, `state.json`, `topology.json`, cooldowns, porta, preferências do navegador e `traffic.db`. O diretório extraído é sempre `traffic-analyzer/`, independentemente da versão, e não existe dependência de `/home/painel` nem de outro nome específico de conta.
+
+## Configuração
+
+Arquivo principal:
+
+```text
+/etc/traffic-analyzer.env
+```
+
+Exemplo mínimo:
+
+```text
+MM_BASE_URL=http://127.0.0.1:3001
+MM_API_TOKEN=mm_v1_...
+MM_SOURCE=<UUID_DA_FONTE>
+DRY_RUN=false
+```
+
+Parâmetros do arquivo histórico:
+
+```text
+TRAFFIC_ARCHIVE_DB=/var/lib/traffic-analyzer/traffic.db
+ARCHIVE_POLL_SECONDS=2
+ARCHIVE_PAGE_SIZE=500
+ARCHIVE_OVERLAP_MS=10000
+ARCHIVE_RETENTION_DAYS=0
+```
+
+`ARCHIVE_RETENTION_DAYS=0` significa **sem expiração automática** no Traffic Analyzer.
+
+Interface web:
+
+```text
+/etc/traffic-analyzer-map.env
+```
+
+Padrão:
+
+```text
+MAP_BIND=0.0.0.0
+MAP_PORT=8788
+MAP_TITLE=Traffic Analyzer - MeshMonitor - por Alex, PT2VHF
+```
+
+## Packet Monitor do MeshMonitor
+
+O arquivo histórico só consegue importar o que ainda existe no Packet Monitor no momento da primeira execução. Por isso, uma retenção razoável no MeshMonitor continua importante para cobrir indisponibilidades temporárias do Traffic Analyzer.
+
+Exemplo útil:
+
+```text
+Maximum Packets to Store: 10000
+Keep Packets For:         168 horas
+```
+
+Depois que um pacote é copiado para `traffic.db`, ele deixa de depender da retenção do MeshMonitor.
+
+## Interface
+
+### Mapa
+
+A reprodução inicia em **Ao vivo**. O modo Histórico continua disponível manualmente.
+
+Para traceroutes:
+
+- ida continua animada em ciano e volta em magenta;
+- vários traceroutes ao vivo podem ser reproduzidos ao mesmo tempo;
+- um traceroute novo começa imediatamente, sem aguardar animações anteriores;
+- **Auto Zoom** opcional enquadra os nós das animações ativas e restaura o enquadramento anterior 5 segundos após a última terminar;
+- origem, relays conhecidos e destino/resposta recebem pulsos conforme o marcador percorre o caminho;
+- ausência de posição ou hop inválido continua quebrando o caminho; não há teleporte nem hop inventado.
+
+Para demais pacotes:
+
+- o nó de origem do pacote observado recebe pulso de atividade;
+- uma resposta é realçada quando aparece como nova transmissão do nó que respondeu;
+- `relay_node` pode receber pulso amarelo quando resolve de forma não ambígua para um nó conhecido e posicionado;
+- a duração do pulso é configurável.
+
+**Cor dos nós por atividade:**
+
+- verde: último tráfego conhecido há até 2 horas;
+- laranja: entre 2 e 24 horas;
+- vermelho: há mais de 24 horas;
+- cinza: sem timestamp de atividade disponível.
+
+A exclusão de nós não é executada pelo Traffic Analyzer. Para apagar um nó, use as ações próprias do MeshMonitor na fonte correspondente; isso evita que a interface analítica faça operações destrutivas no banco ou na NodeDB do rádio.
+
+### Tráfego
+
+As colunas Hora, DIR, Origem, Destino, Tipo, SNR, RSSI, Hops e Canal permanecem compactas. O painel de detalhes usa o restante da largura disponível. Em telas menores, a tabela usa rolagem horizontal e o painel lateral pode ser ocultado.
+
+No detalhe do pacote:
+
+- `TEXT_MESSAGE_APP` broadcast: conteúdo exibido quando decodificado;
+- `TEXT_MESSAGE_APP` direto: conteúdo oculto por padrão;
+- Position, NodeInfo, Telemetry, Traceroute, NeighborInfo, Routing e outros: apresentação amigável quando o MeshMonitor fornece payload decodificado;
+- Dados técnicos: exibidos em formato amigável; **Ver JSON bruto** permanece apenas como diagnóstico secundário.
+
+O botão **Baixar dump JSON (.zip)** baixa todo o arquivo histórico disponível. O ZIP contém apenas `traffic.json`, com um bloco `export` de metadados e a lista `packets` com todos os registros arquivados.
+
+### Sons e viagem de pacote
+
+O som é emitido somente na primeira observação da viagem. A chave usa, em ordem: `packet_id`, ID disponível no metadata e fallbacks conservadores para registros sem ID. A animação visual é independente e pode acontecer em cada atividade observada.
+
+## Arquivo histórico persistente
+
+Banco padrão:
+
+```text
+/var/lib/traffic-analyzer/traffic.db
+```
+
+O banco usa SQLite em modo WAL. Na primeira inicialização, o serviço percorre o histórico ainda retido no Packet Monitor. Depois consulta continuamente uma janela sobreposta; a mesma janela é percorrida duas vezes e inserções usam deduplicação para reduzir o risco de lacunas quando novos registros chegam durante a paginação por offset.
+
+São preservados, quando disponíveis: timestamp, `packet_id`, direção RX/TX, origem, destino, tipo/portnum, canal, SNR, RSSI, `hop_start`, `hop_limit`, `relay_node`, tamanho, criptografia, mecanismo de transporte, flags e metadata permitida.
+
+### Privacidade
+
+Antes da gravação:
+
+- mensagem direta `TEXT_MESSAGE_APP`: `payload_preview` é substituído por `[conteúdo oculto]` e `metadata` é removido;
+- broadcast: payload pode ser preservado;
+- demais tipos: metadata é preservada quando fornecida pelo MeshMonitor.
+
+## API para o gerador de relatórios
+
+Endpoints locais do Traffic Analyzer:
+
+```text
+GET /api/archive/status
+GET /api/archive/packets
+GET /api/archive/stats
+GET /api/archive/nodes
+GET /api/archive/links
+GET /api/archive/export?format=jsonl
+GET /api/archive/export?format=csv
+GET /api/archive/dump
+```
+
+Filtros aceitos nos endpoints de consulta incluem `since`, `until`, `direction=rx|tx`, `type`, `node`, `limit` e `offset`, conforme aplicável.
+
+Exemplos:
+
+```text
+/api/archive/packets?since=1790000000000&direction=rx&limit=1000
+/api/archive/stats?type=TELEMETRY_APP
+/api/archive/nodes?since=1790000000000
+/api/archive/export?format=jsonl&limit=100000
+/api/archive/dump
+```
+
+`/api/archive/links` representa pares lógicos origem-destino observados nos pacotes; não deve ser interpretado automaticamente como adjacência RF física.
+
+O endpoint `/health` também inclui o estado do coletor histórico e a quantidade arquivada.
+
+## Fluxo NodeInfo
+
+Pacotes comuns, inclusive `NODEINFO_APP`, não carregam a cadeia completa de relays como um traceroute. Quando existe traceroute próximo no tempo entre os mesmos endpoints, o Traffic Analyzer pode usá-lo como **evidência de uma rota observada**, sem afirmar que aquele pacote NodeInfo específico percorreu exatamente os mesmos relays.
+
+## Serviços systemd
+
+```bash
+sudo systemctl status traffic-analyzer.timer --no-pager
+sudo systemctl status traffic-analyzer-map.service --no-pager
+```
+
+Logs:
+
+```bash
+sudo journalctl -u traffic-analyzer.service -n 100 --no-pager
+sudo journalctl -u traffic-analyzer-map.service -n 100 --no-pager
+```
+
+## Backup
+
+`/var/lib/traffic-analyzer/traffic.db` passa a ser um ativo persistente. Para uma cópia simples e consistente, pare brevemente `traffic-analyzer-map.service`, copie o banco e inicie o serviço novamente; ou use uma rotina SQLite-aware no projeto de backup.
+
+## Segurança e limitações
+
+- a porta 8788 não possui autenticação própria; proteja-a por firewall/VLAN, bind local ou reverse proxy autenticado;
+- tráfego apagado pelo MeshMonitor antes da primeira execução do arquivo histórico não pode ser reconstruído;
+- se o Traffic Analyzer ficar indisponível por mais tempo que a retenção do Packet Monitor, pode existir lacuna histórica;
+- `relay_node` normalmente representa apenas o último relay observado e pode ser somente um byte; relays ambíguos não são escolhidos arbitrariamente;
+- a animação representa sequência visual dos dados observados, não o tempo RF real;
+- o SQLite não expira dados por padrão e pode crescer continuamente.
+
+## Changelog
+
+Consulte `CHANGELOG.md`. O mesmo histórico detalhado é incluído como **última seção do manual PDF**.
+
+## Autoria
+
+**Por Alex, PT2VHF**

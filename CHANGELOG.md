@@ -1,0 +1,156 @@
+# Changelog
+
+## 1.14.0
+
+- Remove completamente do Traffic Analyzer o recurso **Remover nó**, incluindo botão do popup, endpoint local de exclusão e proxy destrutivo para o MeshMonitor. A exclusão volta a ser responsabilidade exclusiva do próprio MeshMonitor.
+- Define **Ruas (OpenStreetMap / OSM)** como mapa-base padrão. A migração da v1.14.0 troca o antigo padrão Satélite por OSM uma única vez; escolhas manuais posteriores continuam persistidas.
+- Simplifica o cabeçalho e remove a linha `gerado em ... · fonte ...`.
+- Atualiza o título padrão para **Traffic Analyzer v1.14.0 - MeshMonitor - por Alex, PT2VHF**.
+- Mantém o painel de traceroute com origem/destino e distâncias de ida, volta e total, sem estimar segmentos sem coordenadas.
+- Mantém o diretório de instalação/extração fixo `traffic-analyzer/`, embora o arquivo ZIP continue versionado.
+- Atualiza documentação, exemplos de configuração e instalador para a nova versão.
+
+## 1.13.0
+
+- Corrige o botão **Remover nó** para usar a rota real do MeshMonitor 4.16.x: `DELETE /api/messages/nodes/:nodeNum?sourceId=<fonte>`.
+- Mantém a exclusão restrita ao banco local do MeshMonitor da fonte configurada e preserva o histórico já arquivado em `traffic.db`.
+- Converte erros `401`, `403` e `404` de remoção em mensagens amigáveis; respostas HTML do MeshMonitor não são mais despejadas na interface.
+- Informa especificamente quando o token não possui `messages:write`, quando o nó já não existe e quando o endpoint de remoção não é suportado.
+- Após exclusão confirmada, poda imediatamente nó, adjacências e traceroutes correspondentes do `topology.json` e recarrega a interface.
+- Padroniza o pacote para extrair sempre no diretório **`traffic-analyzer/`**, mantendo o ZIP versionado sem acumular uma pasta de trabalho diferente para cada release.
+- Mantém cores de atividade: verde até 2 h, laranja entre 2 e 24 h, vermelho acima de 24 h e cinza sem timestamp confiável.
+- Mantém firmware removido, Dados técnicos amigáveis, dump JSON, arquivo SQLite, traceroutes concorrentes, Auto Zoom, pulsos e sons por viagem.
+- Adiciona um painel discreto durante traceroutes animados, exibindo origem e destino, distância direta, distância total da IDA, distância total da VOLTA e o total combinado ida + volta quando ambas as pernas são conhecidas.
+- Em traceroutes simultâneos, mantém uma entrada independente por animação ativa; distâncias são calculadas apenas a partir dos hops com coordenadas conhecidas, sem estimar lacunas.
+
+## 1.12.0
+
+- Colore os nós do mapa pela recência de atividade observada: **verde** para tráfego nas últimas 2 horas, **laranja** entre 2 e 24 horas e **vermelho** para atividade mais antiga que 24 horas; nós sem timestamp confiável ficam cinza.
+- A recência usa o maior timestamp disponível entre o arquivo histórico do Traffic Analyzer (`/api/archive/nodes`) e `lastHeard` do MeshMonitor, evitando depender apenas dos pacotes carregados no navegador.
+- Atualiza a legenda do mapa para explicar as faixas de atividade por tempo.
+- Adiciona **Remover nó** ao popup de cada nó. A ação pede confirmação e remove o nó do banco local do MeshMonitor para a fonte configurada, preservando o histórico já arquivado em `traffic.db`.
+- Após remoção bem-sucedida, o nó e as adjacências correspondentes são retirados imediatamente da topologia local; se o nó voltar a ser ouvido pelo MeshMonitor, ele poderá reaparecer.
+- A remoção depende de o token configurado no Traffic Analyzer possuir a permissão de escrita exigida pelo MeshMonitor; falhas de autorização são apresentadas na interface.
+- Remove totalmente a informação de **firmware** dos dados gerados e do popup dos nós, pois essa informação não é obtida de forma confiável para os nós remotos.
+- Mantém Dados técnicos em formato amigável, dump JSON, histórico SQLite, Ao vivo por padrão, traceroutes concorrentes, Auto Zoom, pulsos e sons por viagem.
+
+## 1.11.0
+
+- Reformula a seção **Dados técnicos** do detalhe de pacote para apresentar os metadados em formato amigável, com pares rótulo/valor em vez de JSON bruto como visualização principal.
+- Adiciona nomes legíveis para campos comuns, incluindo ID do pacote, tipo de telemetria, destino, direção, canal, relay, transporte, horário de recepção e indicadores MQTT.
+- Destinos numéricos passam a ser exibidos como Node ID hexadecimal e, quando o nó está presente na topologia, com o nome conhecido do nó.
+- Valores técnicos reconhecidos reutilizam a formatação amigável de unidades, datas, booleanos, SNR/RSSI, tensão, bateria, temperatura, umidade e pressão.
+- `decoded_payload` não é duplicado em Dados técnicos, pois já aparece na seção Payload em formato amigável.
+- Mantém **Ver JSON bruto** somente como diagnóstico secundário e recolhido, para troubleshooting avançado.
+- Preserva integralmente os recursos da v1.10.0: dump JSON completo em ZIP, histórico SQLite, Ao vivo por padrão, traceroutes concorrentes, Auto Zoom e realce de atividade.
+
+## 1.10.0
+
+- Exibe a versão instalada ao lado do nome **Traffic Analyzer** no cabeçalho superior e também no título da página do navegador; o servidor lê o arquivo `VERSION` instalado para reduzir risco de divergência entre interface e pacote.
+- Adiciona o botão **Baixar dump JSON (.zip)** na aba Tráfego.
+- O dump contém todo o histórico persistente em um único `traffic.json`, compactado em ZIP, sem o limite de 100.000 linhas do endpoint de exportação tabular.
+- O JSON inclui metadados da exportação: versão, horário de geração, fonte, quantidade de pacotes, primeiro/último timestamp, versão do esquema e aviso de privacidade.
+- A geração do dump é feita por streaming para o ZIP e por lotes de SQLite, evitando carregar todo o histórico em memória.
+- Adiciona `GET /api/archive/dump` com `Content-Disposition` para integração com outras ferramentas.
+- Mantém a política de privacidade: mensagens diretas `TEXT_MESSAGE_APP` já chegam ao arquivo com conteúdo e metadata sensível removidos; o dump não reintroduz esses dados.
+- Corrige o procedimento genérico de instalação/atualização: o bloco passa a localizar o ZIP em diretórios pessoais comuns (`$PWD`, `$HOME`, `/home` e `/root`) e funciona também quando o administrador está logado diretamente como `root`.
+- O instalador passa a copiar o arquivo `VERSION` para `/opt/traffic-analyzer`, usado pelo cabeçalho da aplicação.
+- Preserva os recursos da v1.9.0: Ao vivo por padrão, traceroutes concorrentes, Auto Zoom, pulsos de atividade e arquivo histórico SQLite.
+
+## 1.9.0
+
+- Define **Ao vivo** como modo padrão de reprodução do mapa e inicia o polling de novos traceroutes automaticamente ao abrir a interface.
+- Permite **múltiplas animações de traceroute simultâneas**: um novo traceroute começa imediatamente mesmo que outro ainda esteja em curso; nenhuma animação ao vivo entra em fila aguardando a anterior terminar.
+- Adiciona **Auto Zoom opcional para traceroutes**: ao iniciar uma animação, enquadra os nós envolvidos; com traceroutes simultâneos usa a área combinada e, 5 segundos após a última animação terminar, retorna ao enquadramento anterior.
+- Mantém a animação ao longo das linhas de traceroute e acrescenta pulso visual nos nós conhecidos à medida que o marcador alcança origem, relays e destino/resposta.
+- Amplia o realce de atividade para tráfego comum: cada pacote observado pode realçar o nó transmissor/resposta e o `relay_node` quando ele puder ser resolvido sem ambiguidade.
+- Mantém a regra de não inventar hops ou relays intermediários quando o Packet Monitor não fornece evidência suficiente.
+- Mantém sons separados da animação visual: o som toca somente na primeira observação de uma **nova viagem de pacote**, e cópias/retransmissões do mesmo `packet_id` não geram novos sons.
+- Adiciona arquivo histórico persistente SQLite em `/var/lib/traffic-analyzer/traffic.db`, preservado entre reinicializações e atualizações.
+- Na primeira execução, importa todo o tráfego ainda retido no Packet Monitor; depois sincroniza continuamente novos registros com sobreposição temporal, duas passagens por janela e deduplicação.
+- Preserva a privacidade no arquivo: conteúdo e metadata de `TEXT_MESSAGE_APP` direto são removidos antes da persistência; broadcast continua disponível quando decodificado.
+- Adiciona API para integração com geradores de relatório: `/api/archive/status`, `/api/archive/packets`, `/api/archive/stats`, `/api/archive/nodes`, `/api/archive/links` e `/api/archive/export` (JSONL ou CSV).
+- O endpoint `/health` passa a incluir o estado do arquivo histórico.
+- O serviço web passa a usar o usuário de sistema dedicado `traffic-analyzer`, com escrita restrita ao diretório persistente necessário.
+- O instalador preserva `traffic.db`, acrescenta automaticamente as novas variáveis de arquivo histórico em instalações existentes e não depende de `/home/painel` nem de outro nome de usuário específico.
+- Padroniza os exemplos para começar em `cd ~` e funcionar a partir do home corrente.
+- Ao final da instalação, o próprio `install.sh` executa `systemctl status traffic-analyzer.timer --no-pager` e `systemctl status traffic-analyzer-map.service --no-pager`.
+- Mantém o ajuste da v1.8.0 para colunas compactas na aba Tráfego e painel de detalhes usando o restante da largura disponível.
+
+## 1.8.0
+
+- Ajusta a aba **Tráfego** para usar colunas compactas e de largura previsível; o painel de detalhes passa a ocupar o restante da largura disponível.
+- Mantém rolagem horizontal em telas menores e oculta o painel lateral quando a largura não comporta as duas áreas com legibilidade.
+- Adiciona animação de **atividade em tempo real** no mapa, independente dos traceroutes.
+- Realça a origem/resposta de uma nova viagem com pulso e ícone de rádio.
+- Realça o `relay_node` observado com pulso amarelo quando ele pode ser resolvido sem ambiguidade para um nó posicionado.
+- Não inventa relays intermediários quando o byte de relay é ambíguo ou não há posição.
+- Adiciona controles em Configurações para ligar/desligar a animação, origem/resposta, retransmissor e duração do pulso.
+- Altera as notificações sonoras: o áudio toca apenas no **início de uma nova viagem de pacote**, não para cada cópia/retransmissão observada.
+- Usa `packet_id` (ou ID no metadata) para deduplicar a mesma viagem sonora; TX interno sem ID continua sendo tratado como nova viagem individual.
+- Mantém os cinco timbres, volume e botão de teste.
+- Atualiza documentação e manual com a distinção entre **som por viagem** e **animação por atividade observável**.
+
+## 1.7.0
+
+- Move os controles de visualização do mapa para a aba **Configurações**: janela temporal, mínimo de observações, mapa-base, brilho, cor das linhas, linhas, nós, mapa de calor, nomes curtos e somente identificados.
+- Mantém no mapa apenas os comandos operacionais **Enquadrar** e **Atualizar**, junto da barra de reprodução.
+- Remove a mensagem **"aguardando novo traceroute"** do modo Ao vivo; o estado ocioso passa a mostrar somente **AO VIVO**.
+- Adiciona cinco perfis de som de notificação sintetizados localmente: **Plim, Campainha, Click, Duplo e Suave**.
+- Mantém volume, filtro RX/TX, botão de teste e proteção anti-spam sonora.
+- Mensagens `TEXT_MESSAGE_APP` em **broadcast** passam a exibir o payload no detalhe do pacote.
+- Mensagens diretas continuam com o conteúdo oculto por padrão no proxy web.
+- Payloads decodificados dos demais tipos passam a ser exibidos em formato amigável, com rótulos e unidades quando reconhecidos, em vez de JSON como visualização principal.
+- O JSON bruto continua disponível de forma secundária, recolhido em **Dados técnicos**.
+- Preferências de mapa antes posicionadas no cabeçalho passam a ser persistidas junto das demais preferências locais.
+- Manual revisado para evitar extrapolação de textos em diagramas/caixas.
+- O PDF agora termina com uma seção **Changelog** detalhada, sincronizada com este arquivo.
+
+## 1.6.0
+
+- Adiciona visualização automática de fluxo para NodeInfo dirigido.
+- Pedidos NodeInfo TX registrados pelo MeshMonitor são reconhecidos imediatamente.
+- NodeInfo RX remoto usa correlação ida/volta para evitar chamar toda mensagem dirigida de pedido.
+- Procura traceroute completo entre os mesmos endpoints dentro de uma janela temporal de 180 s.
+- Quando existe evidência, anima o fluxo pelos hops observados no traceroute.
+- Quando não existe, desenha apenas linha lógica tracejada e não inventa relays.
+- Adiciona botão **Mostrar fluxo** ao detalhe de NodeInfo.
+- Adiciona preferência para ligar/desligar fluxo NodeInfo no mapa.
+- Corrige a diagramação inicial do manual, ampliando caixas e aplicando quebra de linha controlada.
+
+## 1.5.0
+
+- Renomeia a aplicação para **Traffic Analyzer**.
+- Adiciona aba **Tráfego** com Packet Monitor RX/TX em tempo quase real.
+- Adiciona filtros, detalhes de pacote, contadores e som "plim" configurável.
+- Mantém mapa/topologia/traceroutes da série anterior e migração automática.
+
+## 1.4.0
+
+- Adiciona reprodução cronológica de traceroutes em modo Histórico e Ao vivo.
+- Anima ida e volta com velocidade visual constante e sem pausa nos nós.
+- Adiciona janela **Todos** e aumenta o limite padrão de traceroutes carregados.
+- Passa a preservar lacunas quando um hop é desconhecido, evitando criar adjacências RF falsas.
+- Adiciona eventos por enlace para estatísticas filtradas pela janela temporal.
+
+## 1.3.0
+
+- Adiciona mapa de calor de atividade de roteamento.
+- Adiciona controles independentes de linhas e círculos dos nós.
+- Consolida manual técnico dentro do ZIP.
+
+## 1.2.0 - 1.2.2
+
+- Adiciona escolha de mapa-base, brilho, cor de linhas e nomes curtos.
+- Define Satélite como mapa padrão e amarelo como cor padrão dos enlaces.
+
+## 1.1.0 - 1.1.1
+
+- Adiciona `topology.json` e interface web separada na porta 8788.
+- Corrige carregamento do Leaflet e redimensionamento inicial do mapa.
+
+## 1.0.0
+
+- Primeira versão do serviço de descoberta por traceroutes.
+- Descobre hops intermediários e classifica nós identificados, stubs e route-only.
+- Implementa solicitação controlada de NodeInfo com cooldown e limite de tentativas.

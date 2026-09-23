@@ -1,0 +1,23 @@
+[Unit]
+Description=Traffic Analyzer - interface web, mapa, monitor e arquivo historico de trafego
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# O token fica apenas no processo servidor. Nao e enviado ao navegador.
+EnvironmentFile=/etc/traffic-analyzer.env
+EnvironmentFile=/etc/traffic-analyzer-map.env
+ExecStart=/usr/bin/python3 /opt/traffic-analyzer/traffic_analyzer_web.py
+User=traffic-analyzer
+Group=traffic-analyzer
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/traffic-analyzer
+
+[Install]
+WantedBy=multi-user.target

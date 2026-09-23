@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.db
+*.db-wal
+*.db-shm
+.env
+traffic-analyzer.env
+traffic-analyzer-map.env
+state.json
+topology.json
+*.zip
+.DS_Store

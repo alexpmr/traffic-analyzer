@@ -1,0 +1,12 @@
+[Unit]
+Description=Executa descoberta/topologia do Traffic Analyzer a cada 5 minutos
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+RandomizedDelaySec=20s
+Persistent=true
+Unit=traffic-analyzer.service
+
+[Install]
+WantedBy=timers.target
