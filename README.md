@@ -13,6 +13,7 @@
 - O ranking de chat usa as mensagens `TEXT_MESSAGE_APP` do canal 0 preservadas no histórico `traffic.db`.
 - O atualizador por Git passa a operar sem prompt interativo de credenciais, adequado a repositórios públicos.
 - Documentação ampliada com download por ZIP e comandos prontos para descompactar e instalar.
+- [Baixar o manual PDF da v1.17.0](./Documentacao_Traffic_Analyzer_v1.17.0.pdf)
 
 ## Novidades da v1.16.0
 
