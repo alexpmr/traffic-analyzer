@@ -1636,11 +1636,11 @@ async function loadPrimaryMessages(force=false,preserveScroll=false){
     }
     updateUnreadBadge();
     renderMessages(force||messageNewestSeen>previousNewest);
+    if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();
     if(preserveScroll){
       const delta=Math.max(0,list.scrollHeight-oldHeight);
       list.scrollTop=oldTop+delta;
     }
-    if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();
     return true;
   }catch(e){
     document.getElementById('messageStatus').textContent=`Erro: ${e}`;
