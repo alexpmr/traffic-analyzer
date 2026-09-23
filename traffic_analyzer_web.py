@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.15.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.16.0 para MeshMonitor."""
 
 import csv
 import io
@@ -18,7 +18,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.15.0"
+APP_VERSION = "1.16.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -118,6 +118,22 @@ HTML = r'''<!doctype html>
   @media(max-width:1000px){.dashGrid{grid-template-columns:repeat(2,minmax(160px,1fr))}.anomalyRow{grid-template-columns:90px 1fr}.anomalyRow .anomalyMsg,.anomalyRow .anomalyTime{grid-column:2}.anomalyTime{text-align:left}}
   @media(max-width:620px){.dashGrid{grid-template-columns:1fr}.dashboardWrap{padding:9px}}
 
+
+  /* v1.16 - Mensagens do canal primário */
+  #viewMessages{background:#0b141a;min-height:0;position:relative}
+  #messageHeader{padding:9px 14px;background:#17212b;border-bottom:1px solid #293744;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #messageHeader .msgTitle{font-weight:800}.msgHint{font-size:11px;color:#91a4b3}.msgSpacer{flex:1}
+  #messageList{flex:1;overflow:auto;padding:18px max(12px,calc((100% - 980px)/2));box-sizing:border-box;background:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96));scroll-behavior:smooth}
+  .msgDay{text-align:center;margin:12px 0}.msgDay span{background:#182229;color:#b8c7d1;padding:5px 10px;border-radius:8px;font-size:11px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .msgRow{display:flex;margin:4px 0}.msgRow.mine{justify-content:flex-end}.msgBubble{max-width:min(76%,720px);min-width:120px;border-radius:9px;padding:6px 8px 5px;box-shadow:0 1px 2px rgba(0,0,0,.28);overflow-wrap:anywhere;position:relative}.msgRow.theirs .msgBubble{background:#202c33;border-top-left-radius:2px}.msgRow.mine .msgBubble{background:#005c4b;border-top-right-radius:2px}
+  .msgSender{font-size:11px;color:#70cfff;font-weight:800;margin-bottom:2px}.msgText{white-space:pre-wrap;font-size:13px;line-height:1.35;padding-right:58px}.msgMeta{font-size:10px;color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
+  .msgNewMark{display:inline-block;background:#1f6f8b;color:white;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:5px}
+  #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:9px max(12px,calc((100% - 980px)/2));background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font:inherit;line-height:1.25;background:#2a3942}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
+  #messagesNav.unread{animation:messagesUnread 1.15s ease-in-out infinite;border-color:#53bdeb;box-shadow:0 0 0 1px rgba(83,189,235,.25)}@keyframes messagesUnread{0%,100%{background:#233443;color:#edf3f8}50%{background:#0b6f81;color:#fff}}
+  .unreadCount{display:none;background:#25d366;color:#07140c;border-radius:10px;min-width:18px;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:900}.unread .unreadCount{display:inline-block}
+  #messagePopup{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10050;width:min(390px,calc(100vw - 28px));background:#17212b;border:1px solid #4f697d;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:14px;box-sizing:border-box}#messagePopup.show{display:block}.popupHead{font-weight:900;margin-bottom:9px;color:#78d9ff}.popupSender{font-size:12px;font-weight:800;color:#b7e7ff;margin-bottom:4px}.popupText{font-size:14px;line-height:1.4;white-space:pre-wrap;max-height:180px;overflow:auto}.popupFoot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:#91a4b3;font-size:11px}.popupFoot button{min-width:70px;font-weight:800;background:#00a884;border-color:#00a884}
+  @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter{display:none}}
+
 </style>
 </head>
 <body>
@@ -128,6 +144,7 @@ HTML = r'''<!doctype html>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
+    <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
     <button class="navbtn" data-view="health">Saúde da Rede</button>
     <button class="navbtn" data-view="anomalies">Anomalias</button>
     <button class="navbtn" data-view="settings">Configurações</button>
@@ -181,6 +198,22 @@ HTML = r'''<!doctype html>
     <aside id="packetDetail"><div class="emptyDetail">Clique em um pacote para ver os detalhes.</div></aside>
   </div>
 </section>
+
+
+<section id="viewMessages" class="view">
+  <div id="messageHeader">
+    <span class="msgTitle">Canal primário</span><span class="msgHint">Canal 0 - mensagens de broadcast</span>
+    <span class="msgSpacer"></span><span id="messageStatus" class="msgHint">Carregando...</span><button id="messageReload">Atualizar</button>
+  </div>
+  <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
+  <div id="messageComposer">
+    <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><button id="messageSend" title="Enviar">➤</button>
+  </div>
+</section>
+<div id="messagePopup" role="dialog" aria-live="assertive">
+  <div class="popupHead">Nova mensagem no canal primário</div><div id="popupSender" class="popupSender"></div><div id="popupText" class="popupText"></div>
+  <div class="popupFoot"><span id="popupTime"></span><button id="popupOk">OK</button></div>
+</div>
 
 <section id="viewHealth" class="view">
   <div class="dashboardWrap">
@@ -395,7 +428,7 @@ function applyBrightness(){
 function initVisualPrefs(){
   const prefs = loadPrefs();
 
-  // v1.15.0: Ruas (OSM) volta a ser o mapa-base padrão.
+  // v1.16.0: Ruas (OSM) volta a ser o mapa-base padrão.
   // A migração roda uma única vez para neutralizar o antigo padrão Satélite;
   // depois disso, qualquer escolha manual do usuário volta a ser preservada.
   if(Number(prefs.defaultsVersion || 0) < 140){
@@ -1001,11 +1034,12 @@ const NODEINFO_ROUTE_WAIT_MS=30000;
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',traffic:'viewTraffic',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings'};
+  const ids={map:'viewMap',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
+  if(name==='messages'){ loadPrimaryMessages(true); markMessagesRead(); }
   if(name==='health') loadNetworkHealth();
   if(name==='anomalies') loadAnomalies();
 }
@@ -1568,6 +1602,34 @@ document.getElementById('reload').addEventListener('click', () => load(false));
 document.getElementById('fit').addEventListener('click', () => { if(lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds.pad(.08)); });
 
 
+
+// ===== Canal primário / chat =====
+let primaryMessages=[];
+let messagesInitialized=false;
+let messageFetchLimit=250;
+let messageNewestSeen=0;
+let messageSeenIds=new Set();
+let messagePopupQueue=[];
+let popupShowing=false;
+const MESSAGE_READ_KEY='trafficAnalyzerPrimaryLastReadV116';
+function msgTimeMs(m){return Number(m.receivedAt||m.createdAt||m.timestamp||0)||0;}
+function messageKey(m){return String(m.id||`${m.fromNodeId||''}|${m.requestId||''}|${msgTimeMs(m)}|${m.text||''}`);}
+function dateKey(ms){const d=new Date(ms);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function dayLabel(ms){const d=new Date(ms),now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const that=new Date(d.getFullYear(),d.getMonth(),d.getDate());const delta=Math.round((today-that)/86400000);if(delta===0)return 'Hoje';if(delta===1)return 'Ontem';return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});}
+function lastReadMs(){return Number(localStorage.getItem(MESSAGE_READ_KEY)||0)||0;}
+function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();renderMessages();}
+function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
+function deliveryVisual(m){const st=String(m.deliveryState||'').toLowerCase();if(m.ackFailed||m.routingErrorReceived||st==='failed')return {icon:'!',cls:'failed',tip:'Falha de entrega/roteamento reportada pelo MeshMonitor'};if(st==='confirmed'||m.ackFromNode)return {icon:'✓✓',cls:'confirmed',tip:'ACK confirmado pelo protocolo; não significa leitura humana'};if(st==='delivered')return {icon:'✓',cls:'',tip:'Transmitida para a malha pelo rádio local'};if(st==='queued'||st==='pending'||!st)return {icon:'◷',cls:'',tip:'Aguardando confirmação de transmissão'};return {icon:'✓',cls:'',tip:`Estado: ${st}`};}
+function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${esc(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
+function enqueueMessagePopup(m){messagePopupQueue.push(m);showNextMessagePopup();}
+function showNextMessagePopup(){if(popupShowing||!messagePopupQueue.length)return;const m=messagePopupQueue.shift();popupShowing=true;document.getElementById('popupSender').textContent=m.fromName||m.fromNodeId||'Nó';document.getElementById('popupText').textContent=m.text||'';document.getElementById('popupTime').textContent=new Date(msgTimeMs(m)).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});document.getElementById('messagePopup').classList.add('show');}
+function closeMessagePopup(){document.getElementById('messagePopup').classList.remove('show');popupShowing=false;setTimeout(showNextMessagePopup,80);}
+async function loadPrimaryMessages(force=false){try{const r=await fetch(`/api/messages?limit=${messageFetchLimit}`,{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);const rows=(b.data||[]).slice().sort((a,b)=>msgTimeMs(a)-msgTimeMs(b));const previousNewest=messageNewestSeen;primaryMessages=rows;messageNewestSeen=Math.max(...rows.map(msgTimeMs),0);document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString('pt-BR')}`;if(!messagesInitialized){messagesInitialized=true;messageSeenIds=new Set(rows.map(messageKey));if(!localStorage.getItem(MESSAGE_READ_KEY))localStorage.setItem(MESSAGE_READ_KEY,String(messageNewestSeen));}else{for(const m of rows){const key=messageKey(m);if(!messageSeenIds.has(key)&&!m.mine)enqueueMessagePopup(m);messageSeenIds.add(key);}}updateUnreadBadge();renderMessages(force||messageNewestSeen>previousNewest);if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();}catch(e){document.getElementById('messageStatus').textContent=`Erro: ${e}`;}}
+async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=input.value.trim();if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.');return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(`Não foi possível enviar: ${e}`);}finally{btn.disabled=false;input.focus();}}
+function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
+document.getElementById('messageReload').addEventListener('click',()=>loadPrimaryMessages(true));document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',updateMessageCounter);document.getElementById('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.getElementById('popupOk').addEventListener('click',closeMessagePopup);document.getElementById('messageList').addEventListener('scroll',()=>{const el=document.getElementById('messageList');if(el.scrollTop<25&&messageFetchLimit<1500){messageFetchLimit=Math.min(1500,messageFetchLimit+250);loadPrimaryMessages(false);}});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
+
+
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 for(const id of ['trafficDirection','trafficType']) document.getElementById(id).addEventListener('change',renderTraffic);
 document.getElementById('trafficSearch').addEventListener('input',renderTraffic);
@@ -1600,22 +1662,89 @@ setInterval(() => load(false), 60000);
 </html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
 
 
-def _mm_api_get(path: str):
+def _mm_api_request(path: str, method: str = "GET", payload=None):
     if not MM_API_TOKEN:
-        raise RuntimeError("MM_API_TOKEN não configurado; modo ao vivo indisponível")
+        raise RuntimeError("MM_API_TOKEN não configurado; integração com MeshMonitor indisponível")
     url = f"{MM_BASE_URL}{path}"
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {MM_API_TOKEN}",
-        "Accept": "application/json",
-    })
+    headers = {"Authorization": f"Bearer {MM_API_TOKEN}", "Accept": "application/json"}
+    data = None
+    if payload is not None:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw = resp.read().decode("utf-8")
+            return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
         raw = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"MeshMonitor HTTP {e.code}: {raw[:500]}") from e
+        raise RuntimeError(f"MeshMonitor HTTP {e.code}: {raw[:800]}") from e
     except urllib.error.URLError as e:
         raise RuntimeError(f"Falha ao acessar MeshMonitor: {e}") from e
+
+
+def _mm_api_get(path: str):
+    return _mm_api_request(path, "GET")
+
+
+def _mm_api_post(path: str, payload: dict):
+    return _mm_api_request(path, "POST", payload)
+
+
+def _message_name_index():
+    try:
+        top = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        top = {}
+    by_num, by_id = {}, {}
+    for n in top.get("nodes", []) or []:
+        name = n.get("longName") or n.get("name") or n.get("shortName") or n.get("nodeId")
+        try:
+            by_num[int(n.get("nodeNum"))] = name
+        except Exception:
+            pass
+        if n.get("nodeId"):
+            by_id[str(n.get("nodeId"))] = name
+    return by_num, by_id
+
+
+def _primary_messages(limit: int = 250):
+    source = urllib.parse.quote(MM_SOURCE, safe="")
+    body = _mm_api_get(f"/api/v1/sources/{source}/messages?channel=0&limit={max(1, min(limit, 1500))}")
+    rows = body.get("data", []) if isinstance(body, dict) else []
+    by_num, by_id = _message_name_index()
+    keep = {
+        "id", "fromNodeNum", "toNodeNum", "fromNodeId", "toNodeId", "text", "channel",
+        "requestId", "timestamp", "createdAt", "hopStart", "hopLimit", "relayNode",
+        "viaMqtt", "viaStoreForward", "xeddsaSigned", "rxSnr", "rxRssi", "ackFailed",
+        "routingErrorReceived", "deliveryState", "wantAck", "ackFromNode", "routingErrorCode",
+        "sourcePath", "spoofSuspected"
+    }
+    out = []
+    for row in rows:
+        if not isinstance(row, dict) or int(row.get("channel") or 0) != 0:
+            continue
+        item = {k: row.get(k) for k in keep if k in row}
+        fnum = row.get("fromNodeNum")
+        fid = row.get("fromNodeId")
+        try:
+            item["fromName"] = by_num.get(int(fnum)) or by_id.get(str(fid)) or fid
+        except Exception:
+            item["fromName"] = by_id.get(str(fid)) or fid
+        item["receivedAt"] = row.get("createdAt") or row.get("timestamp")
+        item["mine"] = bool(row.get("sourcePath") == "http_api" and not row.get("spoofSuspected"))
+        out.append(item)
+    return {"success": True, "count": len(out), "data": out}
+
+
+def _send_primary_message(text: str):
+    clean = str(text or "").strip()
+    if not clean:
+        raise ValueError("Mensagem vazia")
+    if len(clean.encode("utf-8")) > 800:
+        raise ValueError("Mensagem excede o limite de segurança do Traffic Analyzer")
+    source = urllib.parse.quote(MM_SOURCE, safe="")
+    return _mm_api_post(f"/api/v1/sources/{source}/messages", {"text": clean, "channel": 0})
 
 
 def _live_traceroutes(limit: int):
@@ -2272,7 +2401,7 @@ def _archive_dump_zip():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.15.0"
+    server_version = "TrafficAnalyzer/1.16.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
@@ -2347,6 +2476,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(502, "application/json; charset=utf-8", json.dumps({
                     "success": False, "error": "packet_monitor_unavailable", "message": str(e),
                 }, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/messages":
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                limit = max(1, min(int((query.get("limit") or ["250"])[0]), 1500))
+                body = _primary_messages(limit)
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "error": "messages_unavailable", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/network-health":
             try:
@@ -2423,6 +2561,24 @@ class Handler(BaseHTTPRequestHandler):
                 "topologyFile": str(TOPOLOGY_FILE),
                 "archive": _archive_status_snapshot(),
             }, ensure_ascii=False).encode("utf-8"))
+            return
+        self._send(404, "text/plain; charset=utf-8", b"Not found\n")
+
+    def do_POST(self):
+        path = self.path.split("?", 1)[0]
+        if path == "/api/messages/send":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 8192:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                body = _send_primary_message(payload.get("text") if isinstance(payload, dict) else "")
+                status = 201 if body.get("success") else 502
+                self._send(status, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "error": "bad_request", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "error": "send_failed", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         self._send(404, "text/plain; charset=utf-8", b"Not found\n")
 

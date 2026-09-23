@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16.0 - 2026-09-23
+
+- Adicionada aba Mensagens para o canal primário (0), com interface de chat.
+- Adicionados GET `/api/messages` e POST `/api/messages/send` no backend local do Traffic Analyzer.
+- Envio é feito server-side para `/api/v1/sources/{sourceId}/messages`; o token MeshMonitor não é exposto ao navegador.
+- Adicionados pop-up de nova mensagem, contador de não lidas e animação da aba Mensagens.
+- Estados de entrega respeitam semântica real do MeshMonitor: `delivered` = transmitida à malha e `confirmed` = ACK do protocolo; não há recibo de leitura humana em broadcast.
+- Mantidas as abas Saúde da Rede e Anomalias e o tempo amigável de última audição no popup dos nós.
+- Manual PDF teve tabelas reconstruídas para evitar textos sobrepostos.
+
 ## 1.15.0 - 2026-09-23
 
 - Adicionadas as abas superiores **Saúde da Rede** e **Anomalias**.

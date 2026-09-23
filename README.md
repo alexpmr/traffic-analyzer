@@ -1,6 +1,21 @@
-# Traffic Analyzer v1.15.0
+# Traffic Analyzer v1.16.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+
+## Novidades da v1.16.0
+
+- Nova aba **Mensagens** para o canal primário (canal 0), com visual estilo WhatsApp.
+- Campo inferior para envio pelo MeshMonitor v1 API, usando o token apenas no servidor.
+- Balões com remetente, data/hora, indicação RF/MQTT e estado real de entrega.
+- Ícones de entrega: relógio (pendente), um check (transmitida), dois checks (ACK de protocolo quando disponível) e alerta em falha. Não existe confirmação de leitura humana em broadcast Meshtastic.
+- Pop-up central para cada nova mensagem recebida, com botão **OK**.
+- A aba **Mensagens** pisca e mostra contador enquanto houver mensagens não lidas. O estado de leitura fica persistido no navegador.
+- Enter envia; Shift+Enter quebra linha; contador de bytes protege contra mensagens excessivamente longas.
+- Ao rolar para o topo, a interface amplia progressivamente a janela de histórico consultada.
+- Manual PDF refeito com tabelas de texto quebrável e altura dinâmica para evitar sobreposição.
+- [Baixar o manual PDF da v1.16.0](./Documentacao_Traffic_Analyzer_v1.16.0.pdf)
+
 
 ## Novidades da v1.15.0
 
@@ -71,7 +86,7 @@ O token `mm_v1_...` permanece no processo servidor. Ele não é enviado ao naveg
 O bloco abaixo procura o ZIP no diretório atual, no home corrente, em `/home` e em `/root`. Assim ele também funciona quando o arquivo foi enviado para o home de um usuário comum, mas a sessão administrativa está como `root`.
 
 ```bash
-TA_VER="1.14.0" && \
+TA_VER="1.16.0" && \
 TA_ZIP="$(find "$PWD" "$HOME" /home /root -maxdepth 3 -type f -name "traffic-analyzer-v${TA_VER}.zip" -print -quit 2>/dev/null)" && \
 [ -n "$TA_ZIP" ] && \
 TA_BASE="$(dirname "$TA_ZIP")" && \
