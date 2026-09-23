@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.14.0"
+VERSION="1.15.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -48,8 +48,9 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR"
 install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
 install -m 0644 "$BASE_DIR/VERSION" "$APP_DIR/VERSION"
+install -m 0755 "$BASE_DIR/update.sh" /usr/local/sbin/traffic-analyzer-update
 
-# Migracao/atualizacao para Traffic Analyzer v1.14.0.
+# Migracao/atualizacao para Traffic Analyzer v1.15.0.
 if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -f "$LEGACY_ENV_FILE" ]]; then
     cp "$LEGACY_ENV_FILE" "$ENV_FILE"
@@ -160,6 +161,9 @@ Aplicacao:
 
 Interface web:
   http://IP_DO_SERVIDOR:8788/
+
+Atualização futura pelo GitHub:
+  traffic-analyzer-update
 
 O token, MM_SOURCE, estado, topologia, cooldowns e traffic.db sao preservados nas atualizacoes.
 Os servicos antigos meshmonitor-route-* sao desativados para evitar duplicidade.

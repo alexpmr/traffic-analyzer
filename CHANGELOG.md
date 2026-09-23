@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.15.0 - 2026-09-23
+
+- Adicionadas as abas superiores **Saúde da Rede** e **Anomalias**.
+- Saúde da Rede consolida atividade de nós, tráfego 24 h, enlaces, traceroutes, hops, série dos últimos 7 dias e nós silenciosos.
+- Detecção de Anomalias adiciona heurísticas de silêncio >24 h/>7 dias, degradação de SNR, mudança de hops e traceroute assimétrico.
+- Adicionados `/api/network-health` e `/api/anomalies` para consumo pela interface e pelo futuro relatório.
+- Popup de nó agora informa há quanto tempo ocorreu o último tráfego observado.
+- Adicionado `update.sh` e o comando instalado `traffic-analyzer-update` para atualização direta pelo GitHub.
+- Mantido OSM como mapa padrão e preservadas todas as funções de tráfego, arquivo histórico e traceroute da v1.14.0.
+
 ## 1.14.0
 
 - Remove completamente do Traffic Analyzer o recurso **Remover nó**, incluindo botão do popup, endpoint local de exclusão e proxy destrutivo para o MeshMonitor. A exclusão volta a ser responsabilidade exclusiva do próprio MeshMonitor.

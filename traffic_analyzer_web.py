@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.14.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.15.0 para MeshMonitor."""
 
 import csv
 import io
 import json
 import os
 import sqlite3
+import statistics
 import threading
 import time
 import tempfile
@@ -17,7 +18,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.14.0"
+APP_VERSION = "1.15.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -99,6 +100,24 @@ HTML = r'''<!doctype html>
   #flowToast b{color:#d8c8ff}.flowNote{color:#aebbc7;margin-top:3px}.flowUnknown{border-left-color:#ffb347!important}.flowKnown{border-left-color:#a970ff!important}
   .activityLeafletIcon{background:transparent!important;border:0!important}.activityPulse{position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;transform:translate(-1px,-1px);pointer-events:none}.activityPulse .activityCore{position:relative;z-index:3;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid #fff;box-shadow:0 0 12px rgba(255,255,255,.75);animation:activityBounce var(--taDur,1s) ease-out both}.activityPulse:before,.activityPulse:after{content:'';position:absolute;inset:7px;border-radius:50%;border:3px solid currentColor;opacity:.9;animation:activityRing var(--taDur,1s) ease-out both}.activityPulse:after{animation-delay:.16s}.activityPulse.origin{color:#38d6ff}.activityPulse.origin .activityCore{background:#0c6b82}.activityPulse.relay{color:#ffcf4a}.activityPulse.relay .activityCore{background:#8a6810}.activityPulse.response{color:#a970ff}.activityPulse.response .activityCore{background:#5a3482}@keyframes activityRing{0%{transform:scale(.45);opacity:.95}100%{transform:scale(1.65);opacity:0}}@keyframes activityBounce{0%{transform:scale(.7)}35%{transform:scale(1.25)}100%{transform:scale(1)}}
   .traceHud{background:rgba(14,22,33,.90);border:1px solid #405668;border-radius:8px;color:#e8edf2;padding:7px 9px;min-width:260px;max-width:410px;max-height:34vh;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.28);pointer-events:none}.traceHud:empty{display:none}.traceHudItem{padding:5px 0;border-bottom:1px solid rgba(64,86,104,.55)}.traceHudItem:last-child{border-bottom:0}.traceHudHead{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.traceHudTotal{color:#ffd166;font-weight:700;margin-left:5px}.traceHudLeg{font-size:10px;color:#b9c7d2;margin-top:2px}.traceHudLeg.active{color:#fff;font-weight:800}.traceHudLeg .forward{color:#54e8ff}.traceHudLeg .return{color:#ff83e7}.traceHudDim{color:#8093a3}
+
+  /* v1.15 - Saúde da Rede e Anomalias */
+  #viewHealth,#viewAnomalies{overflow:auto;background:#0e1621}
+  .dashboardWrap{width:100%;box-sizing:border-box;padding:14px;max-width:1500px;margin:0 auto}
+  .dashboardToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .dashboardToolbar h2{margin:0 auto 0 0;font-size:18px}
+  .dashGrid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+  .dashCard{background:#17212b;border:1px solid #304353;border-radius:9px;padding:12px;min-width:0}
+  .dashCard .value{font-size:27px;font-weight:800;line-height:1.05;margin:4px 0}.dashCard .label{font-size:12px;color:#aebbc7}.dashCard .sub{font-size:11px;color:#8194a5;margin-top:5px}
+  .dashSection{background:#111a24;border:1px solid #293744;border-radius:9px;margin:10px 0;overflow:hidden}.dashSection h3{font-size:14px;margin:0;padding:10px 12px;background:#17212b;border-bottom:1px solid #293744}.dashSectionBody{padding:10px 12px;overflow:auto}
+  .dashTable{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}.dashTable th{position:sticky;top:0;background:#17212b;color:#cbd6df;text-align:left;padding:8px;border-bottom:1px solid #405668}.dashTable td{padding:8px;border-bottom:1px solid #22313f}.dashTable tr:last-child td{border-bottom:0}
+  .miniBars{display:flex;align-items:flex-end;gap:7px;height:130px;padding:8px 4px 22px}.miniBarWrap{flex:1;min-width:42px;text-align:center;position:relative;height:100%}.miniBar{position:absolute;bottom:19px;left:12%;right:12%;background:#3a8fbd;border-radius:4px 4px 0 0;min-height:2px}.miniBarLabel{position:absolute;bottom:0;left:0;right:0;font-size:10px;color:#91a4b3}.miniBarValue{position:absolute;bottom:calc(var(--h) + 23px);left:0;right:0;font-size:10px;color:#dbe6ee}
+  .severity{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800}.sev-critical{background:#6e2020;color:#ffb2b2}.sev-warning{background:#6a4a13;color:#ffd98a}.sev-info{background:#174f64;color:#9ce8ff}.sev-ok{background:#174f37;color:#9df2bc}
+  .anomalyRow{display:grid;grid-template-columns:92px minmax(150px,240px) minmax(300px,1fr) 160px;gap:8px;align-items:start;padding:10px 12px;border-bottom:1px solid #22313f;font-size:12px}.anomalyRow:last-child{border-bottom:0}.anomalyTitle{font-weight:800}.anomalyEvidence{color:#9fb0bf;margin-top:3px}.anomalyTime{color:#8194a5;text-align:right}
+  .emptyPanel{padding:22px;color:#8194a5;text-align:center}.methodNote{font-size:11px;color:#8194a5;line-height:1.45}
+  @media(max-width:1000px){.dashGrid{grid-template-columns:repeat(2,minmax(160px,1fr))}.anomalyRow{grid-template-columns:90px 1fr}.anomalyRow .anomalyMsg,.anomalyRow .anomalyTime{grid-column:2}.anomalyTime{text-align:left}}
+  @media(max-width:620px){.dashGrid{grid-template-columns:1fr}.dashboardWrap{padding:9px}}
+
 </style>
 </head>
 <body>
@@ -109,6 +128,8 @@ HTML = r'''<!doctype html>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
+    <button class="navbtn" data-view="health">Saúde da Rede</button>
+    <button class="navbtn" data-view="anomalies">Anomalias</button>
     <button class="navbtn" data-view="settings">Configurações</button>
   </div>
 </header>
@@ -160,6 +181,26 @@ HTML = r'''<!doctype html>
     <aside id="packetDetail"><div class="emptyDetail">Clique em um pacote para ver os detalhes.</div></aside>
   </div>
 </section>
+
+<section id="viewHealth" class="view">
+  <div class="dashboardWrap">
+    <div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div>
+    <div id="healthCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div>
+    <div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div>
+    <div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div>
+    <div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div>
+    <div class="methodNote">Os indicadores usam o histórico persistente do Traffic Analyzer e a topologia observada pelo MeshMonitor. Ausência de tráfego não prova falha física; pode representar um nó silencioso, desligado ou fora do alcance da fonte.</div>
+  </div>
+</section>
+<section id="viewAnomalies" class="view">
+  <div class="dashboardWrap">
+    <div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><button id="anomalyReload">Reanalisar</button></div>
+    <div id="anomalyCards" class="dashGrid"><div class="dashCard"><div class="label">Analisando...</div></div></div>
+    <div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div>
+    <div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas: silêncio prolongado, degradação de SNR, mudança relevante na quantidade de hops e traceroute assimétrico. Elas servem para priorizar investigação e não constituem prova isolada de defeito, indisponibilidade ou causalidade.</div></div>
+  </div>
+</section>
+
 <section id="viewSettings" class="view">
   <div class="settingsCard">
     <h2>Configurações do Traffic Analyzer</h2>
@@ -354,7 +395,7 @@ function applyBrightness(){
 function initVisualPrefs(){
   const prefs = loadPrefs();
 
-  // v1.14.0: Ruas (OSM) volta a ser o mapa-base padrão.
+  // v1.15.0: Ruas (OSM) volta a ser o mapa-base padrão.
   // A migração roda uma única vez para neutralizar o antigo padrão Satélite;
   // depois disso, qualquer escolha manual do usuário volta a ser preservada.
   if(Number(prefs.defaultsVersion || 0) < 140){
@@ -398,6 +439,17 @@ function nodeLastTrafficMs(n){
   const heard=Number(n.lastHeard||0)>0 ? Number(n.lastHeard)*1000 : 0;
   return Math.max(Number.isFinite(archived)?archived:0, Number.isFinite(heard)?heard:0);
 }
+function humanAge(ms){
+  if(!ms) return 'sem registro';
+  let sec=Math.max(0,Math.floor((Date.now()-Number(ms))/1000));
+  if(sec<60) return sec<=1?'há poucos segundos':`há ${sec} segundos`;
+  const min=Math.floor(sec/60); if(min<60) return `há ${min} ${min===1?'minuto':'minutos'}`;
+  const h=Math.floor(min/60), m=min%60;
+  if(h<24) return `há ${h} ${h===1?'hora':'horas'}${m?` e ${m} ${m===1?'minuto':'minutos'}`:''}`;
+  const d=Math.floor(h/24), rh=h%24;
+  return `há ${d} ${d===1?'dia':'dias'}${rh?` e ${rh} ${rh===1?'hora':'horas'}`:''}`;
+}
+
 function nodeTrafficAge(n){
   const ts=nodeLastTrafficMs(n);
   if(!ts) return {color:'#7f8c8d',label:'Sem tráfego registrado',className:'trafficUnknown',ts:0};
@@ -539,7 +591,7 @@ function render(){
       `Hardware: ${esc(n.hwModel ?? '—')} | Role: ${esc(n.role ?? '—')}<br>`+
       `Public key: ${n.publicKey ? 'sim' : 'não'}<br>`+
       `Último tráfego: ${trafficAge.ts ? new Date(trafficAge.ts).toLocaleString('pt-BR') : '—'}<br>`+
-      `Situação: <b>${esc(trafficAge.label)}</b>`
+      `Situação: <b>${esc(trafficAge.label)}</b>${trafficAge.ts ? ` - ouvido ${esc(humanAge(trafficAge.ts))}` : ''}`
     );
     marker.addTo(nodeLayer); markerCount++;
   }
@@ -949,10 +1001,13 @@ const NODEINFO_ROUTE_WAIT_MS=30000;
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const target=document.getElementById(name==='map'?'viewMap':name==='traffic'?'viewTraffic':'viewSettings');
+  const ids={map:'viewMap',traffic:'viewTraffic',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings'};
+  const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
+  if(name==='health') loadNetworkHealth();
+  if(name==='anomalies') loadAnomalies();
 }
 
 function packetTypeClass(name){
@@ -1421,6 +1476,46 @@ async function pollTraffic(){
 }
 function startTrafficPolling(){ if(trafficTimer)clearInterval(trafficTimer); trafficTimer=setInterval(pollTraffic,2000); }
 function toggleTrafficPause(){ trafficPaused=!trafficPaused; document.getElementById('trafficPause').textContent=trafficPaused?'Retomar':'Pausar'; document.getElementById('trafficLive').textContent=trafficPaused?'● PAUSADO':'● AO VIVO'; if(!trafficPaused)pollTraffic(); }
+
+
+let healthLoadedAt=0, anomalyLoadedAt=0;
+function fmtNum(v,dec=0){ const n=Number(v); return Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—'; }
+function healthCard(value,label,sub=''){return `<div class="dashCard"><div class="value">${esc(value)}</div><div class="label">${esc(label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;}
+async function loadNetworkHealth(force=false){
+  if(!force && Date.now()-healthLoadedAt<30000)return;
+  const cards=document.getElementById('healthCards');
+  cards.innerHTML=healthCard('…','Calculando indicadores');
+  try{
+    const r=await fetch('/api/network-health',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json();
+    healthLoadedAt=Date.now(); document.getElementById('healthUpdated').textContent=`atualizado ${new Date(b.generatedAtMs).toLocaleTimeString('pt-BR')}`;
+    cards.innerHTML=[
+      healthCard(b.nodes.active2h,'Nós ativos - 2 h',`${b.nodes.total} nós conhecidos`),
+      healthCard(b.nodes.active24h,'Nós ativos - 24 h',`${b.nodes.silent24h} sem tráfego > 24 h`),
+      healthCard(b.traffic.packets24h,'Pacotes - 24 h',`${b.traffic.rx24h} RX · ${b.traffic.tx24h} TX`),
+      healthCard(b.links.observed,'Enlaces observados',`${b.links.recent24h} vistos nas últimas 24 h`),
+      healthCard(b.traceroutes.total,'Traceroutes','histórico carregado'),
+      healthCard(`${fmtNum(b.traceroutes.roundTripRate,1)}%`,'Com ida e volta',`${b.traceroutes.roundTrip} completos nos 2 sentidos`),
+      healthCard(fmtNum(b.traceroutes.medianHops,1),'Mediana de hops','por perna observada'),
+      healthCard(b.nodes.noTraffic,'Sem registro','nós sem timestamp confiável')
+    ].join('');
+    const daily=b.daily||[], max=Math.max(1,...daily.map(x=>Number(x.packets||0)));
+    document.getElementById('healthDaily').innerHTML=daily.map(x=>{const pct=Math.max(2,Math.round(90*Number(x.packets||0)/max));return `<div class="miniBarWrap"><div class="miniBarValue" style="--h:${pct}px">${fmtNum(x.packets)}</div><div class="miniBar" style="height:${pct}px"></div><div class="miniBarLabel">${esc(x.label)}</div></div>`}).join('')||'<div class="emptyPanel">Sem dados no período.</div>';
+    document.getElementById('healthRoutes').innerHTML=`<div class="dashGrid">${healthCard(b.traceroutes.forward,'Idas observadas')}${healthCard(b.traceroutes.return,'Voltas observadas')}${healthCard(b.traceroutes.incomplete,'Traceroutes incompletos')}${healthCard(fmtNum(b.traceroutes.avgHops,1),'Média de hops')}</div>`;
+    document.getElementById('healthSilentRows').innerHTML=(b.attentionNodes||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId)}</b><br><span class="settingDesc">${esc(n.nodeId||'')}</span></td><td>${n.lastSeen?new Date(n.lastSeen).toLocaleString('pt-BR'):'—'}</td><td>${esc(n.lastSeen?humanAge(n.lastSeen):'sem registro')}</td><td>${fmtNum(n.packets7d)}</td><td>${n.avgSnr7d==null?'—':`${fmtNum(n.avgSnr7d,1)} dB`}</td></tr>`).join('')||'<tr><td colspan="5" class="emptyPanel">Nenhum nó requer atenção pelo critério atual.</td></tr>';
+  }catch(e){cards.innerHTML=healthCard('Erro','Não foi possível calcular',String(e));}
+}
+function sevLabel(s){return s==='critical'?'Crítica':s==='warning'?'Atenção':s==='info'?'Informativa':'OK';}
+async function loadAnomalies(force=false){
+  if(!force && Date.now()-anomalyLoadedAt<30000)return;
+  try{
+    const r=await fetch('/api/anomalies',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json(); anomalyLoadedAt=Date.now();
+    document.getElementById('anomalyUpdated').textContent=`analisado ${new Date(b.generatedAtMs).toLocaleTimeString('pt-BR')}`;
+    document.getElementById('anomalyCards').innerHTML=[healthCard(b.summary.total,'Anomalias'),healthCard(b.summary.critical,'Críticas'),healthCard(b.summary.warning,'Atenção'),healthCard(b.summary.info,'Informativas')].join('');
+    document.getElementById('anomalyList').innerHTML=(b.data||[]).map(a=>`<div class="anomalyRow"><div><span class="severity sev-${esc(a.severity)}">${esc(sevLabel(a.severity))}</span></div><div><div class="anomalyTitle">${esc(a.title)}</div><div class="anomalyEvidence">${esc(a.subject||'')}</div></div><div class="anomalyMsg">${esc(a.message)}${a.evidence?`<div class="anomalyEvidence">${esc(a.evidence)}</div>`:''}</div><div class="anomalyTime">${a.timestampMs?esc(humanAge(a.timestampMs)):'—'}</div></div>`).join('')||'<div class="emptyPanel"><span class="severity sev-ok">OK</span> Nenhuma anomalia foi detectada pelos critérios atuais.</div>';
+  }catch(e){document.getElementById('anomalyList').innerHTML=`<div class="emptyPanel">Erro ao analisar: ${esc(e)}</div>`;}
+}
+document.getElementById('healthReload').addEventListener('click',()=>loadNetworkHealth(true));
+document.getElementById('anomalyReload').addEventListener('click',()=>loadAnomalies(true));
 
 async function loadNodeTrafficActivity(){
   try{
@@ -1966,6 +2061,160 @@ def _archive_export(query, fmt="jsonl"):
     return "application/x-ndjson; charset=utf-8", body.encode("utf-8")
 
 
+
+def _load_topology_safe():
+    try:
+        raw = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except Exception:
+        return {}
+
+
+def _node_last_seen_map(topology):
+    result = {}
+    for n in topology.get("nodes", []) or []:
+        try:
+            num = int(n.get("nodeNum"))
+        except Exception:
+            continue
+        heard = n.get("lastHeard")
+        try:
+            heard_ms = int(float(heard) * 1000) if float(heard or 0) < 10_000_000_000 else int(float(heard))
+        except Exception:
+            heard_ms = 0
+        result[num] = {"lastSeen": heard_ms, "name": n.get("name") or n.get("longName") or n.get("nodeId"), "nodeId": n.get("nodeId")}
+    with _archive_connect() as conn:
+        rows = conn.execute("""SELECT from_node AS nodeNum, MAX(timestamp) AS lastSeen, MAX(from_node_long_name) AS longName, MAX(from_node_id) AS nodeId FROM packets WHERE from_node IS NOT NULL GROUP BY from_node""").fetchall()
+    for r in rows:
+        num = int(r["nodeNum"])
+        cur = result.setdefault(num, {"lastSeen": 0, "name": None, "nodeId": None})
+        cur["lastSeen"] = max(int(cur.get("lastSeen") or 0), int(r["lastSeen"] or 0))
+        cur["name"] = cur.get("name") or r["longName"] or r["nodeId"] or f"!{num & 0xffffffff:08x}"
+        cur["nodeId"] = cur.get("nodeId") or r["nodeId"] or f"!{num & 0xffffffff:08x}"
+    return result
+
+
+def _trace_leg_hops(path):
+    if not isinstance(path, list) or len(path) < 2:
+        return None
+    return max(0, len(path) - 1)
+
+
+def _network_health():
+    now = int(time.time() * 1000)
+    topology = _load_topology_safe()
+    nodes = _node_last_seen_map(topology)
+    cutoff2 = now - 2 * 3600 * 1000
+    cutoff24 = now - 24 * 3600 * 1000
+    cutoff7 = now - 7 * 86400 * 1000
+    seen = [int(x.get("lastSeen") or 0) for x in nodes.values()]
+    active2 = sum(1 for ts in seen if ts >= cutoff2)
+    active24 = sum(1 for ts in seen if ts >= cutoff24)
+    active7 = sum(1 for ts in seen if ts >= cutoff7)
+    no_traffic = sum(1 for ts in seen if ts <= 0)
+    silent24 = sum(1 for ts in seen if 0 < ts < cutoff24)
+
+    with _archive_connect() as conn:
+        r24 = conn.execute("""SELECT COUNT(*) AS total, SUM(direction='rx') AS rx, SUM(direction='tx') AS tx FROM packets WHERE timestamp>=?""", (cutoff24,)).fetchone()
+        daily_rows = conn.execute("""SELECT strftime('%Y-%m-%d', timestamp/1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS packets, COUNT(DISTINCT from_node) AS nodes FROM packets WHERE timestamp>=? GROUP BY day ORDER BY day""", (cutoff7,)).fetchall()
+        node7 = conn.execute("""SELECT from_node AS nodeNum, COUNT(*) AS packets, AVG(snr) AS avgSnr, MAX(timestamp) AS lastSeen, MAX(from_node_long_name) AS longName, MAX(from_node_id) AS nodeId FROM packets WHERE timestamp>=? AND from_node IS NOT NULL GROUP BY from_node""", (cutoff7,)).fetchall()
+    by_node7 = {int(r['nodeNum']): dict(r) for r in node7}
+    daily_map = {r['day']: dict(r) for r in daily_rows}
+    daily=[]
+    for i in range(6,-1,-1):
+        ts = now - i*86400*1000
+        day = datetime.fromtimestamp(ts/1000).strftime('%Y-%m-%d')
+        row=daily_map.get(day,{})
+        daily.append({"day":day,"label":datetime.fromtimestamp(ts/1000).strftime('%d/%m'),"packets":int(row.get('packets') or 0),"nodes":int(row.get('nodes') or 0)})
+
+    traces = topology.get("traces", []) or []
+    forward=ret=roundtrip=incomplete=0; hop_samples=[]
+    for tr in traces:
+        fh=_trace_leg_hops(tr.get('forwardPath')); rh=_trace_leg_hops(tr.get('returnPath'))
+        if fh is not None: forward += 1; hop_samples.append(fh)
+        if rh is not None: ret += 1; hop_samples.append(rh)
+        if fh is not None and rh is not None: roundtrip += 1
+        if fh is None or rh is None: incomplete += 1
+    avg_hops = round(sum(hop_samples)/len(hop_samples),2) if hop_samples else None
+    med_hops = round(float(statistics.median(hop_samples)),2) if hop_samples else None
+
+    edges=topology.get('edges',[]) or []
+    recent_edges=sum(1 for e in edges if int(e.get('lastSeenMs') or 0)>=cutoff24)
+    attention=[]
+    for num, info in nodes.items():
+        ts=int(info.get('lastSeen') or 0)
+        if ts and ts>=cutoff24: continue
+        seven=by_node7.get(num,{})
+        attention.append({"nodeNum":num,"nodeId":info.get('nodeId'),"name":info.get('name'),"lastSeen":ts or None,"packets7d":int(seven.get('packets') or 0),"avgSnr7d":round(float(seven['avgSnr']),2) if seven.get('avgSnr') is not None else None})
+    attention.sort(key=lambda x: (x['lastSeen'] is None, x['lastSeen'] or 0))
+    attention=attention[:25]
+    total_tr=len(traces)
+    return {"success":True,"generatedAtMs":now,"nodes":{"total":len(nodes),"active2h":active2,"active24h":active24,"active7d":active7,"silent24h":silent24,"noTraffic":no_traffic},"traffic":{"packets24h":int(r24['total'] or 0),"rx24h":int(r24['rx'] or 0),"tx24h":int(r24['tx'] or 0)},"links":{"observed":len(edges),"recent24h":recent_edges},"traceroutes":{"total":total_tr,"forward":forward,"return":ret,"roundTrip":roundtrip,"incomplete":incomplete,"roundTripRate":round(100*roundtrip/total_tr,2) if total_tr else 0,"avgHops":avg_hops,"medianHops":med_hops},"daily":daily,"attentionNodes":attention}
+
+
+def _path_signature(path):
+    if not isinstance(path,list) or len(path)<2: return None
+    vals=[]
+    for p in path:
+        if isinstance(p,dict): vals.append(str(p.get('nodeNum') or p.get('nodeId') or p.get('name') or '?'))
+        else: vals.append(str(p))
+    return ' > '.join(vals)
+
+
+def _anomalies():
+    now=int(time.time()*1000); topology=_load_topology_safe(); nodes=_node_last_seen_map(topology); data=[]
+    cutoff24=now-24*3600*1000
+    for num,info in nodes.items():
+        ts=int(info.get('lastSeen') or 0)
+        if ts<=0: continue
+        age=now-ts
+        if age>7*86400*1000:
+            data.append({"severity":"critical","type":"node_silent","title":"Nó silencioso há mais de 7 dias","subject":info.get('name') or info.get('nodeId'),"message":"Não há tráfego recente deste nó no histórico disponível.","evidence":f"Última observação: {datetime.fromtimestamp(ts/1000).strftime('%d/%m/%Y %H:%M')}","timestampMs":ts})
+        elif age>24*3600*1000:
+            data.append({"severity":"warning","type":"node_silent","title":"Nó silencioso há mais de 24 h","subject":info.get('name') or info.get('nodeId'),"message":"O nó ultrapassou a janela de 24 horas sem tráfego observado.","evidence":f"Última observação: {datetime.fromtimestamp(ts/1000).strftime('%d/%m/%Y %H:%M')}","timestampMs":ts})
+
+    for e in topology.get('edges',[]) or []:
+        recent=[]; prev=[]
+        for ev in e.get('events',[]) or []:
+            sn=ev.get('snr'); ts=int(ev.get('timestampMs') or 0)
+            if sn is None: continue
+            try: sn=float(sn)
+            except Exception: continue
+            if ts>=cutoff24: recent.append(sn)
+            elif ts>=now-48*3600*1000: prev.append(sn)
+        if len(recent)>=2 and len(prev)>=2:
+            a=sum(recent)/len(recent); b=sum(prev)/len(prev); delta=a-b
+            if delta<=-4.0:
+                data.append({"severity":"warning" if delta>-8 else "critical","type":"snr_degradation","title":"Queda de SNR no enlace","subject":f"{e.get('aName') or e.get('aId')} ↔ {e.get('bName') or e.get('bId')}","message":f"SNR médio caiu {abs(delta):.1f} dB entre as duas janelas de 24 h.","evidence":f"Anterior: {b:.1f} dB · Atual: {a:.1f} dB · amostras {len(prev)}/{len(recent)}","timestampMs":int(e.get('lastSeenMs') or now)})
+
+    groups={}
+    for tr in topology.get('traces',[]) or []:
+        a=tr.get('fromNodeNum'); b=tr.get('toNodeNum')
+        if a is None or b is None: continue
+        key=(int(a),int(b)); groups.setdefault(key,[]).append(tr)
+    for key,arr in groups.items():
+        arr=sorted(arr,key=lambda x:int(x.get('timestampMs') or 0))
+        latest=arr[-1]; fh=_trace_leg_hops(latest.get('forwardPath')); rh=_trace_leg_hops(latest.get('returnPath'))
+        subj=f"{latest.get('fromName')} → {latest.get('toName')}"
+        if (fh is None) != (rh is None):
+            data.append({"severity":"info","type":"asymmetric_trace","title":"Traceroute assimétrico","subject":subj,"message":"A observação mais recente contém apenas um dos sentidos do traceroute.","evidence":f"Ida: {'sem rota' if fh is None else str(fh)+' hops'} · Volta: {'sem rota' if rh is None else str(rh)+' hops'}","timestampMs":int(latest.get('timestampMs') or now)})
+        current=fh if fh is not None else rh
+        historical=[]
+        for tr in arr[:-1][-12:]:
+            h=_trace_leg_hops(tr.get('forwardPath'))
+            if h is None: h=_trace_leg_hops(tr.get('returnPath'))
+            if h is not None: historical.append(h)
+        if current is not None and len(historical)>=2:
+            base=float(statistics.median(historical)); diff=current-base
+            if abs(diff)>=2:
+                data.append({"severity":"warning","type":"route_hops_change","title":"Mudança relevante de hops","subject":subj,"message":f"O traceroute mais recente mudou {diff:+.0f} hops em relação à mediana recente.","evidence":f"Atual: {current} hops · mediana anterior: {base:.1f} · {_path_signature(latest.get('forwardPath') or latest.get('returnPath')) or ''}","timestampMs":int(latest.get('timestampMs') or now)})
+
+    rank={'critical':0,'warning':1,'info':2}
+    data.sort(key=lambda x:(rank.get(x['severity'],9),-int(x.get('timestampMs') or 0)))
+    summary={"total":len(data),"critical":sum(1 for x in data if x['severity']=='critical'),"warning":sum(1 for x in data if x['severity']=='warning'),"info":sum(1 for x in data if x['severity']=='info')}
+    return {"success":True,"generatedAtMs":now,"summary":summary,"data":data[:100],"method":"Heurísticas sobre silêncio, SNR e traceroutes; resultados devem ser interpretados com contexto RF."}
+
+
 def _archive_dump_zip():
     """Build a ZIP containing one valid JSON document with every archived packet.
 
@@ -2023,7 +2272,7 @@ def _archive_dump_zip():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.14.0"
+    server_version = "TrafficAnalyzer/1.15.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
@@ -2098,6 +2347,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(502, "application/json; charset=utf-8", json.dumps({
                     "success": False, "error": "packet_monitor_unavailable", "message": str(e),
                 }, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/network-health":
+            try:
+                self._send(200, "application/json; charset=utf-8", json.dumps(_network_health(), ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "error": "health_error", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/anomalies":
+            try:
+                self._send(200, "application/json; charset=utf-8", json.dumps(_anomalies(), ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "error": "anomaly_error", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/archive/dump":
             tmp_path = None

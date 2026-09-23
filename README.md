@@ -1,6 +1,25 @@
-# Traffic Analyzer v1.14.0
+# Traffic Analyzer v1.15.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.15.0
+
+- Nova aba **Saúde da Rede** com nós ativos em 2 h/24 h/7 dias, pacotes, enlaces, traceroutes, média/mediana de hops, série diária e nós que merecem atenção.
+- Nova aba **Anomalias** com heurísticas para silêncio prolongado, queda de SNR, mudança relevante de hops e traceroute assimétrico.
+- Popup do nó mostra a situação com tempo amigável desde a última observação, por exemplo `ouvido há 2 horas e 21 minutos`.
+- Novo comando `traffic-analyzer-update` para baixar `main` do GitHub e executar a atualização automaticamente.
+- Novos endpoints locais `/api/network-health` e `/api/anomalies`, preparados para alimentar o futuro relatório PDF estruturado.
+
+### Atualizar diretamente do GitHub
+
+Após instalar a v1.15.0, as próximas atualizações podem ser feitas com:
+
+```bash
+sudo traffic-analyzer-update
+```
+
+Por padrão o comando usa `https://github.com/alexpmr/traffic-analyzer.git`, branch `main`, e mantém configuração e dados persistentes em `/etc` e `/var/lib/traffic-analyzer`.
+
 
 ## Novidades da v1.14.0
 
