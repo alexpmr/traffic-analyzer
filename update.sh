@@ -9,9 +9,18 @@ REPO_URL="${TA_REPO_URL:-https://github.com/alexpmr/traffic-analyzer.git}"
 CHECKOUT_DIR="${TA_CHECKOUT_DIR:-/opt/traffic-analyzer-source}"
 BRANCH="${TA_BRANCH:-main}"
 
+# Repositórios públicos devem atualizar sem solicitar usuário/senha.
+export GIT_TERMINAL_PROMPT=0
+
 echo "Traffic Analyzer - atualização pelo GitHub"
 echo "Repositório: $REPO_URL"
 echo "Branch: $BRANCH"
+
+if ! git ls-remote --exit-code "$REPO_URL" "refs/heads/$BRANCH" >/dev/null 2>&1; then
+  echo "ERRO: não foi possível acessar $REPO_URL sem autenticação." >&2
+  echo "Para atualização anônima, o repositório precisa estar público e usar HTTPS." >&2
+  exit 1
+fi
 
 if [[ ! -d "$CHECKOUT_DIR/.git" ]]; then
   rm -rf "$CHECKOUT_DIR"
