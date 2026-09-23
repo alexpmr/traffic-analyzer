@@ -95,11 +95,12 @@ O token `mm_v1_...` permanece no processo servidor. Ele não é enviado ao naveg
 
 ## Download rápido (ZIP)
 
-Quando o repositório estiver **público**, qualquer usuário poderá baixar a versão mais recente sem conta, token ou chave SSH:
+A v1.17.0 publica dois pacotes prontos no próprio repositório:
 
-```text
-https://github.com/alexpmr/traffic-analyzer/archive/refs/heads/main.zip
-```
+- [Baixar ZIP da versão mais recente](./traffic-analyzer-latest.zip)
+- [Baixar ZIP da v1.17.0](./traffic-analyzer-v1.17.0.zip)
+
+Quando o repositório estiver **público**, qualquer usuário poderá baixar o pacote sem conta, token ou chave SSH.
 
 ### Baixar e instalar pelo terminal
 
@@ -107,11 +108,10 @@ https://github.com/alexpmr/traffic-analyzer/archive/refs/heads/main.zip
 cd /tmp
 
 wget -O traffic-analyzer-latest.zip \
-  https://github.com/alexpmr/traffic-analyzer/archive/refs/heads/main.zip
+  https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/traffic-analyzer-latest.zip
 
-rm -rf traffic-analyzer-main traffic-analyzer
+rm -rf traffic-analyzer
 unzip -q -o traffic-analyzer-latest.zip
-mv traffic-analyzer-main traffic-analyzer
 
 cd traffic-analyzer
 sudo bash install.sh
@@ -129,8 +129,7 @@ mkdir -p /tmp/traffic-analyzer-install
 
 unzip -q -o "$ZIP" -d /tmp/traffic-analyzer-install
 
-cd "$(find /tmp/traffic-analyzer-install -maxdepth 2 -type f -name install.sh -printf '%h\n' | head -n 1)"
-
+cd /tmp/traffic-analyzer-install/traffic-analyzer
 sudo bash install.sh
 ```
 
