@@ -1,7 +1,18 @@
-# Traffic Analyzer v1.16.0
+# Traffic Analyzer v1.17.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.17.0
+
+- Na aba **Mensagens**, o texto digitado no campo de composição agora é branco.
+- Removido completamente o **pop-up de nova mensagem**. Mensagens não lidas são sinalizadas apenas pelo contador e pelo destaque piscante da aba superior **Mensagens**.
+- **Carregar anteriores** agora amplia explicitamente a janela do histórico e preserva a posição de leitura.
+- **Atualizar** agora força uma consulta imediata e mostra o horário/resultado da atualização.
+- A aba **Saúde da Rede** ganhou **Interações por chat no canal primário**, em ordem da maior para a menor quantidade acumulada.
+- O ranking de chat usa as mensagens `TEXT_MESSAGE_APP` do canal 0 preservadas no histórico `traffic.db`.
+- O atualizador por Git passa a operar sem prompt interativo de credenciais, adequado a repositórios públicos.
+- Documentação ampliada com download por ZIP e comandos prontos para descompactar e instalar.
 
 ## Novidades da v1.16.0
 
@@ -81,12 +92,55 @@ O token `mm_v1_...` permanece no processo servidor. Ele não é enviado ao naveg
 - Python 3;
 - Linux com systemd para usar o instalador fornecido.
 
+## Download rápido (ZIP)
+
+Quando o repositório estiver **público**, qualquer usuário poderá baixar a versão mais recente sem conta, token ou chave SSH:
+
+```text
+https://github.com/alexpmr/traffic-analyzer/archive/refs/heads/main.zip
+```
+
+### Baixar e instalar pelo terminal
+
+```bash
+cd /tmp
+
+wget -O traffic-analyzer-latest.zip \
+  https://github.com/alexpmr/traffic-analyzer/archive/refs/heads/main.zip
+
+rm -rf traffic-analyzer-main traffic-analyzer
+unzip -q -o traffic-analyzer-latest.zip
+mv traffic-analyzer-main traffic-analyzer
+
+cd traffic-analyzer
+sudo bash install.sh
+```
+
+### Se o ZIP já estiver no servidor
+
+Execute no diretório onde o arquivo foi baixado:
+
+```bash
+ZIP="$(ls -t traffic-analyzer*.zip | head -n 1)"
+
+rm -rf /tmp/traffic-analyzer-install
+mkdir -p /tmp/traffic-analyzer-install
+
+unzip -q -o "$ZIP" -d /tmp/traffic-analyzer-install
+
+cd "$(find /tmp/traffic-analyzer-install -maxdepth 2 -type f -name install.sh -printf '%h\n' | head -n 1)"
+
+sudo bash install.sh
+```
+
+> **Importante:** o download anônimo do GitHub só funciona se o repositório estiver configurado como **Public**.
+
 ## Instalação / atualização
 
 O bloco abaixo procura o ZIP no diretório atual, no home corrente, em `/home` e em `/root`. Assim ele também funciona quando o arquivo foi enviado para o home de um usuário comum, mas a sessão administrativa está como `root`.
 
 ```bash
-TA_VER="1.16.0" && \
+TA_VER="1.17.0" && \
 TA_ZIP="$(find "$PWD" "$HOME" /home /root -maxdepth 3 -type f -name "traffic-analyzer-v${TA_VER}.zip" -print -quit 2>/dev/null)" && \
 [ -n "$TA_ZIP" ] && \
 TA_BASE="$(dirname "$TA_ZIP")" && \
