@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.16.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.17.0 para MeshMonitor."""
 
 import csv
 import io
@@ -18,7 +18,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.16.0"
+APP_VERSION = "1.17.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -128,10 +128,9 @@ HTML = r'''<!doctype html>
   .msgRow{display:flex;margin:4px 0}.msgRow.mine{justify-content:flex-end}.msgBubble{max-width:min(76%,720px);min-width:120px;border-radius:9px;padding:6px 8px 5px;box-shadow:0 1px 2px rgba(0,0,0,.28);overflow-wrap:anywhere;position:relative}.msgRow.theirs .msgBubble{background:#202c33;border-top-left-radius:2px}.msgRow.mine .msgBubble{background:#005c4b;border-top-right-radius:2px}
   .msgSender{font-size:11px;color:#70cfff;font-weight:800;margin-bottom:2px}.msgText{white-space:pre-wrap;font-size:13px;line-height:1.35;padding-right:58px}.msgMeta{font-size:10px;color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
   .msgNewMark{display:inline-block;background:#1f6f8b;color:white;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:5px}
-  #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:9px max(12px,calc((100% - 980px)/2));background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font:inherit;line-height:1.25;background:#2a3942}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
+  #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:9px max(12px,calc((100% - 980px)/2));background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font:inherit;line-height:1.25;background:#2a3942;color:#fff;caret-color:#fff}#messageInput::placeholder{color:#9fb0bf;opacity:1}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;color:#fff;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
   #messagesNav.unread{animation:messagesUnread 1.15s ease-in-out infinite;border-color:#53bdeb;box-shadow:0 0 0 1px rgba(83,189,235,.25)}@keyframes messagesUnread{0%,100%{background:#233443;color:#edf3f8}50%{background:#0b6f81;color:#fff}}
   .unreadCount{display:none;background:#25d366;color:#07140c;border-radius:10px;min-width:18px;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:900}.unread .unreadCount{display:inline-block}
-  #messagePopup{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10050;width:min(390px,calc(100vw - 28px));background:#17212b;border:1px solid #4f697d;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.55);padding:14px;box-sizing:border-box}#messagePopup.show{display:block}.popupHead{font-weight:900;margin-bottom:9px;color:#78d9ff}.popupSender{font-size:12px;font-weight:800;color:#b7e7ff;margin-bottom:4px}.popupText{font-size:14px;line-height:1.4;white-space:pre-wrap;max-height:180px;overflow:auto}.popupFoot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:#91a4b3;font-size:11px}.popupFoot button{min-width:70px;font-weight:800;background:#00a884;border-color:#00a884}
   @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter{display:none}}
 
 </style>
@@ -203,26 +202,22 @@ HTML = r'''<!doctype html>
 <section id="viewMessages" class="view">
   <div id="messageHeader">
     <span class="msgTitle">Canal primário</span><span class="msgHint">Canal 0 - mensagens de broadcast</span>
-    <span class="msgSpacer"></span><span id="messageStatus" class="msgHint">Carregando...</span><button id="messageReload">Atualizar</button>
+    <span class="msgSpacer"></span><span id="messageStatus" class="msgHint">Carregando...</span><button id="messageLoadOlder" title="Carregar mais mensagens antigas">Carregar anteriores</button><button id="messageReload" title="Consultar novas mensagens agora">Atualizar</button>
   </div>
   <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
   <div id="messageComposer">
     <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><button id="messageSend" title="Enviar">➤</button>
   </div>
 </section>
-<div id="messagePopup" role="dialog" aria-live="assertive">
-  <div class="popupHead">Nova mensagem no canal primário</div><div id="popupSender" class="popupSender"></div><div id="popupText" class="popupText"></div>
-  <div class="popupFoot"><span id="popupTime"></span><button id="popupOk">OK</button></div>
-</div>
-
 <section id="viewHealth" class="view">
   <div class="dashboardWrap">
     <div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div>
     <div id="healthCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div>
     <div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div>
     <div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div>
+    <div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable" style="min-width:520px"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div>
     <div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div>
-    <div class="methodNote">Os indicadores usam o histórico persistente do Traffic Analyzer e a topologia observada pelo MeshMonitor. Ausência de tráfego não prova falha física; pode representar um nó silencioso, desligado ou fora do alcance da fonte.</div>
+    <div class="methodNote">Os indicadores usam o histórico persistente do Traffic Analyzer e a topologia observada pelo MeshMonitor. O ranking de chat conta interações acumuladas registradas no canal primário. Ausência de tráfego não prova falha física; pode representar um nó silencioso, desligado ou fora do alcance da fonte.</div>
   </div>
 </section>
 <section id="viewAnomalies" class="view">
@@ -1535,6 +1530,7 @@ async function loadNetworkHealth(force=false){
     const daily=b.daily||[], max=Math.max(1,...daily.map(x=>Number(x.packets||0)));
     document.getElementById('healthDaily').innerHTML=daily.map(x=>{const pct=Math.max(2,Math.round(90*Number(x.packets||0)/max));return `<div class="miniBarWrap"><div class="miniBarValue" style="--h:${pct}px">${fmtNum(x.packets)}</div><div class="miniBar" style="height:${pct}px"></div><div class="miniBarLabel">${esc(x.label)}</div></div>`}).join('')||'<div class="emptyPanel">Sem dados no período.</div>';
     document.getElementById('healthRoutes').innerHTML=`<div class="dashGrid">${healthCard(b.traceroutes.forward,'Idas observadas')}${healthCard(b.traceroutes.return,'Voltas observadas')}${healthCard(b.traceroutes.incomplete,'Traceroutes incompletos')}${healthCard(fmtNum(b.traceroutes.avgHops,1),'Média de hops')}</div>`;
+    document.getElementById('healthChatRows').innerHTML=(b.chatInteractions||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId||'Nó desconhecido')}</b>${n.nodeId?`<br><span class="settingDesc">${esc(n.nodeId)}</span>`:''}</td><td><b>${fmtNum(n.interactions)}</b></td></tr>`).join('')||'<tr><td colspan="2" class="emptyPanel">Nenhuma interação de chat registrada no canal primário.</td></tr>';
     document.getElementById('healthSilentRows').innerHTML=(b.attentionNodes||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId)}</b><br><span class="settingDesc">${esc(n.nodeId||'')}</span></td><td>${n.lastSeen?new Date(n.lastSeen).toLocaleString('pt-BR'):'—'}</td><td>${esc(n.lastSeen?humanAge(n.lastSeen):'sem registro')}</td><td>${fmtNum(n.packets7d)}</td><td>${n.avgSnr7d==null?'—':`${fmtNum(n.avgSnr7d,1)} dB`}</td></tr>`).join('')||'<tr><td colspan="5" class="emptyPanel">Nenhum nó requer atenção pelo critério atual.</td></tr>';
   }catch(e){cards.innerHTML=healthCard('Erro','Não foi possível calcular',String(e));}
 }
@@ -1609,9 +1605,7 @@ let messagesInitialized=false;
 let messageFetchLimit=250;
 let messageNewestSeen=0;
 let messageSeenIds=new Set();
-let messagePopupQueue=[];
-let popupShowing=false;
-const MESSAGE_READ_KEY='trafficAnalyzerPrimaryLastReadV116';
+const MESSAGE_READ_KEY='trafficAnalyzerPrimaryLastReadV117';
 function msgTimeMs(m){return Number(m.receivedAt||m.createdAt||m.timestamp||0)||0;}
 function messageKey(m){return String(m.id||`${m.fromNodeId||''}|${m.requestId||''}|${msgTimeMs(m)}|${m.text||''}`);}
 function dateKey(ms){const d=new Date(ms);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
@@ -1621,13 +1615,68 @@ function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.
 function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
 function deliveryVisual(m){const st=String(m.deliveryState||'').toLowerCase();if(m.ackFailed||m.routingErrorReceived||st==='failed')return {icon:'!',cls:'failed',tip:'Falha de entrega/roteamento reportada pelo MeshMonitor'};if(st==='confirmed'||m.ackFromNode)return {icon:'✓✓',cls:'confirmed',tip:'ACK confirmado pelo protocolo; não significa leitura humana'};if(st==='delivered')return {icon:'✓',cls:'',tip:'Transmitida para a malha pelo rádio local'};if(st==='queued'||st==='pending'||!st)return {icon:'◷',cls:'',tip:'Aguardando confirmação de transmissão'};return {icon:'✓',cls:'',tip:`Estado: ${st}`};}
 function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${esc(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
-function enqueueMessagePopup(m){messagePopupQueue.push(m);showNextMessagePopup();}
-function showNextMessagePopup(){if(popupShowing||!messagePopupQueue.length)return;const m=messagePopupQueue.shift();popupShowing=true;document.getElementById('popupSender').textContent=m.fromName||m.fromNodeId||'Nó';document.getElementById('popupText').textContent=m.text||'';document.getElementById('popupTime').textContent=new Date(msgTimeMs(m)).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});document.getElementById('messagePopup').classList.add('show');}
-function closeMessagePopup(){document.getElementById('messagePopup').classList.remove('show');popupShowing=false;setTimeout(showNextMessagePopup,80);}
-async function loadPrimaryMessages(force=false){try{const r=await fetch(`/api/messages?limit=${messageFetchLimit}`,{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);const rows=(b.data||[]).slice().sort((a,b)=>msgTimeMs(a)-msgTimeMs(b));const previousNewest=messageNewestSeen;primaryMessages=rows;messageNewestSeen=Math.max(...rows.map(msgTimeMs),0);document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString('pt-BR')}`;if(!messagesInitialized){messagesInitialized=true;messageSeenIds=new Set(rows.map(messageKey));if(!localStorage.getItem(MESSAGE_READ_KEY))localStorage.setItem(MESSAGE_READ_KEY,String(messageNewestSeen));}else{for(const m of rows){const key=messageKey(m);if(!messageSeenIds.has(key)&&!m.mine)enqueueMessagePopup(m);messageSeenIds.add(key);}}updateUnreadBadge();renderMessages(force||messageNewestSeen>previousNewest);if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();}catch(e){document.getElementById('messageStatus').textContent=`Erro: ${e}`;}}
+async function loadPrimaryMessages(force=false,preserveScroll=false){
+  const list=document.getElementById('messageList');
+  const oldHeight=list.scrollHeight,oldTop=list.scrollTop;
+  try{
+    const r=await fetch(`/api/messages?limit=${messageFetchLimit}&_=${Date.now()}`,{cache:'no-store'});
+    const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+    const rows=(b.data||[]).slice().sort((a,b)=>msgTimeMs(a)-msgTimeMs(b));
+    const previousNewest=messageNewestSeen;
+    primaryMessages=rows;
+    messageNewestSeen=Math.max(...rows.map(msgTimeMs),0);
+    document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString('pt-BR')}`;
+    if(!messagesInitialized){
+      messagesInitialized=true;
+      messageSeenIds=new Set(rows.map(messageKey));
+      if(!localStorage.getItem(MESSAGE_READ_KEY))localStorage.setItem(MESSAGE_READ_KEY,String(messageNewestSeen));
+    }else{
+      for(const m of rows)messageSeenIds.add(messageKey(m));
+    }
+    updateUnreadBadge();
+    renderMessages(force||messageNewestSeen>previousNewest);
+    if(preserveScroll){
+      const delta=Math.max(0,list.scrollHeight-oldHeight);
+      list.scrollTop=oldTop+delta;
+    }
+    if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();
+    return true;
+  }catch(e){
+    document.getElementById('messageStatus').textContent=`Erro: ${e}`;
+    return false;
+  }
+}
+async function reloadPrimaryMessages(){
+  const btn=document.getElementById('messageReload');
+  btn.disabled=true;
+  document.getElementById('messageStatus').textContent='Atualizando...';
+  try{await loadPrimaryMessages(false,false);}finally{btn.disabled=false;}
+}
+async function loadOlderPrimaryMessages(){
+  const btn=document.getElementById('messageLoadOlder');
+  btn.disabled=true;
+  try{
+    if(messageFetchLimit>=1500){
+      document.getElementById('messageStatus').textContent='Limite de 1.500 mensagens já carregado.';
+      return;
+    }
+    const before=primaryMessages.map(msgTimeMs).filter(Boolean);
+    const oldestBefore=before.length?Math.min(...before):Infinity;
+    messageFetchLimit=Math.min(1500,messageFetchLimit+250);
+    document.getElementById('messageStatus').textContent=`Carregando histórico anterior (até ${messageFetchLimit})...`;
+    const ok=await loadPrimaryMessages(false,true);
+    if(!ok)return;
+    const after=primaryMessages.map(msgTimeMs).filter(Boolean);
+    const oldestAfter=after.length?Math.min(...after):Infinity;
+    document.getElementById('messageStatus').textContent=oldestAfter<oldestBefore
+      ? `${primaryMessages.length} mensagens · histórico ampliado`
+      : 'Nenhuma mensagem anterior adicional disponível.';
+  }finally{btn.disabled=false;}
+}
 async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=input.value.trim();if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.');return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(`Não foi possível enviar: ${e}`);}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
-document.getElementById('messageReload').addEventListener('click',()=>loadPrimaryMessages(true));document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',updateMessageCounter);document.getElementById('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.getElementById('popupOk').addEventListener('click',closeMessagePopup);document.getElementById('messageList').addEventListener('scroll',()=>{const el=document.getElementById('messageList');if(el.scrollTop<25&&messageFetchLimit<1500){messageFetchLimit=Math.min(1500,messageFetchLimit+250);loadPrimaryMessages(false);}});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
+document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',updateMessageCounter);document.getElementById('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
@@ -2247,7 +2296,36 @@ def _network_health():
         r24 = conn.execute("""SELECT COUNT(*) AS total, SUM(direction='rx') AS rx, SUM(direction='tx') AS tx FROM packets WHERE timestamp>=?""", (cutoff24,)).fetchone()
         daily_rows = conn.execute("""SELECT strftime('%Y-%m-%d', timestamp/1000, 'unixepoch', 'localtime') AS day, COUNT(*) AS packets, COUNT(DISTINCT from_node) AS nodes FROM packets WHERE timestamp>=? GROUP BY day ORDER BY day""", (cutoff7,)).fetchall()
         node7 = conn.execute("""SELECT from_node AS nodeNum, COUNT(*) AS packets, AVG(snr) AS avgSnr, MAX(timestamp) AS lastSeen, MAX(from_node_long_name) AS longName, MAX(from_node_id) AS nodeId FROM packets WHERE timestamp>=? AND from_node IS NOT NULL GROUP BY from_node""", (cutoff7,)).fetchall()
+        chat_rows = conn.execute("""
+            SELECT
+              from_node AS nodeNum,
+              COUNT(DISTINCT (CAST(from_node AS TEXT) || ':' || COALESCE(CAST(packet_id AS TEXT), archive_key))) AS interactions,
+              MAX(from_node_long_name) AS longName,
+              MAX(from_node_id) AS nodeId
+            FROM packets
+            WHERE from_node IS NOT NULL
+              AND channel = 0
+              AND portnum_name = 'TEXT_MESSAGE_APP'
+              AND (
+                to_node IN (4294967295, -1)
+                OR lower(COALESCE(to_node_id,'')) IN ('!ffffffff','broadcast')
+              )
+            GROUP BY from_node
+            ORDER BY interactions DESC, longName COLLATE NOCASE
+        """).fetchall()
     by_node7 = {int(r['nodeNum']): dict(r) for r in node7}
+    chat_interactions = []
+    for r in chat_rows:
+        num = int(r["nodeNum"])
+        info = nodes.get(num, {})
+        node_id = info.get("nodeId") or r["nodeId"] or f"!{num & 0xffffffff:08x}"
+        name = info.get("name") or r["longName"] or node_id
+        chat_interactions.append({
+            "nodeNum": num,
+            "nodeId": node_id,
+            "name": name,
+            "interactions": int(r["interactions"] or 0),
+        })
     daily_map = {r['day']: dict(r) for r in daily_rows}
     daily=[]
     for i in range(6,-1,-1):
@@ -2278,7 +2356,7 @@ def _network_health():
     attention.sort(key=lambda x: (x['lastSeen'] is None, x['lastSeen'] or 0))
     attention=attention[:25]
     total_tr=len(traces)
-    return {"success":True,"generatedAtMs":now,"nodes":{"total":len(nodes),"active2h":active2,"active24h":active24,"active7d":active7,"silent24h":silent24,"noTraffic":no_traffic},"traffic":{"packets24h":int(r24['total'] or 0),"rx24h":int(r24['rx'] or 0),"tx24h":int(r24['tx'] or 0)},"links":{"observed":len(edges),"recent24h":recent_edges},"traceroutes":{"total":total_tr,"forward":forward,"return":ret,"roundTrip":roundtrip,"incomplete":incomplete,"roundTripRate":round(100*roundtrip/total_tr,2) if total_tr else 0,"avgHops":avg_hops,"medianHops":med_hops},"daily":daily,"attentionNodes":attention}
+    return {"success":True,"generatedAtMs":now,"nodes":{"total":len(nodes),"active2h":active2,"active24h":active24,"active7d":active7,"silent24h":silent24,"noTraffic":no_traffic},"traffic":{"packets24h":int(r24['total'] or 0),"rx24h":int(r24['rx'] or 0),"tx24h":int(r24['tx'] or 0)},"links":{"observed":len(edges),"recent24h":recent_edges},"traceroutes":{"total":total_tr,"forward":forward,"return":ret,"roundTrip":roundtrip,"incomplete":incomplete,"roundTripRate":round(100*roundtrip/total_tr,2) if total_tr else 0,"avgHops":avg_hops,"medianHops":med_hops},"daily":daily,"chatInteractions":chat_interactions,"attentionNodes":attention}
 
 
 def _path_signature(path):
