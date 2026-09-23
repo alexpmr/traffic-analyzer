@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.17.0 - 2026-09-23
+
+- **Mensagens:** texto branco no campo de composição.
+- **Mensagens:** pop-up de nova mensagem removido; permanecem somente contador e destaque piscante na aba superior enquanto houver não lidas.
+- **Mensagens:** adicionada ação explícita **Carregar anteriores**, com preservação da posição de leitura.
+- **Mensagens:** botão **Atualizar** passa a forçar consulta imediata com feedback visual.
+- **Saúde da Rede:** ranking acumulado de interações por chat no canal primário, ordenado em ordem decrescente.
+- **Distribuição:** atualização Git sem prompt de autenticação e documentação de download/instalação via ZIP.
+
+
 ## 1.16.0 - 2026-09-23
 
 - Adicionada aba Mensagens para o canal primário (0), com interface de chat.
