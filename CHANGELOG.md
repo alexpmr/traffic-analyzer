@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.19.0 - 2026-09-24
+
+- Unifica os controles de reprodução e pausa em um único botão alternável ▶/⏸.
+- No modo Ao vivo, a pausa continua afetando somente a animação, preservando coleta e processamento em segundo plano.
+- Ao retomar o Ao vivo, traceroutes acumulados durante a pausa são iniciados simultaneamente.
+- No Histórico, a pausa passa a congelar e retomar a animação exatamente do ponto atual.
+- Ativa zoom fracionário no Leaflet com `zoomSnap=0.05` e `zoomDelta=0.25`.
+- Refaz o comando Enquadrar para maximizar a ocupação da tela com margem aproximada de 6 px.
+- O ajuste fino do enquadramento verifica os círculos dos nós e rótulos permanentes antes de aceitar um nível maior de zoom.
+- Mantém screenshots anonimizados nas notas da Release e no README.
+
+
 ## 1.18.0 - 2026-09-23
 
 - Pausa no modo Ao vivo congela somente a animação; coleta e processamento continuam ativos.
