@@ -31,6 +31,19 @@ jobs:
         shell: bash
         run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py
 
+      - name: Validar JavaScript embutido
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src = Path("traffic_analyzer_web.py").read_text(encoding="utf-8")
+          marker = "<script>\n"
+          start = src.index(marker) + len(marker)
+          end = src.index("</script>\n</body>", start)
+          Path("/tmp/traffic-analyzer.js").write_text(src[start:end], encoding="utf-8")
+          PY
+          node --check /tmp/traffic-analyzer.js
+
       - name: Montar ZIPs
         shell: bash
         run: |
