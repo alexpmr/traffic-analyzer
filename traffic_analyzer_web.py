@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.21.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.22.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.21.0"
+APP_VERSION = "1.22.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -175,6 +175,12 @@ HTML = r'''<!doctype html>
   #messageComposer{position:relative}.mentionSuggestions{position:absolute;left:12px;bottom:58px;width:min(560px,calc(100% - 88px));max-height:260px;overflow:auto;background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);z-index:1500;display:none}.mentionSuggestions.open{display:block}.mentionItem{display:grid;grid-template-columns:minmax(70px,100px) minmax(0,1fr);gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #293744}.mentionItem:last-child{border-bottom:0}.mentionItem:hover,.mentionItem.active{background:#263b4d}.mentionShort{font-weight:900;color:#e9d46d}.mentionLong{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mentionId{font-size:10px;color:#8194a5}.chatMention{color:#70cfff;font-weight:800}.mentionHelp{font-size:10px;color:#91a4b3;margin-left:6px}
   body[data-theme="light"] .tracklogToolbar{background:#f5f7f9;border-color:#cbd5dd}body[data-theme="light"] .tracklogSummary{color:#627582}body[data-theme="light"] .tracklogLegend{background:rgba(255,255,255,.96);color:#17212b;border-color:#aebbc5}body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
 
+  /* v1.22 - internacionalização e ajuda */
+  .languageControl{display:flex;align-items:center;gap:5px;font-size:11px;color:#cbd6df;white-space:nowrap}.languageControl select{font-size:11px;padding:4px 6px}.languageControl span{font-weight:700}
+  #viewHelp{overflow:auto}.helpCard{max-width:1100px;margin:18px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:22px;width:calc(100% - 36px);box-sizing:border-box;line-height:1.5}.helpCard h2{margin:0 0 8px}.helpCard h3{margin:22px 0 7px;color:#e9d46d}.helpCard h4{margin:15px 0 5px;color:#9fc6e4}.helpCard p,.helpCard li{font-size:13px}.helpCard ul{padding-left:22px}.helpCard code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:4px;padding:1px 4px}.helpCode{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:7px;padding:10px 12px;font-size:12px;overflow:auto}.helpCallout{background:#132a38;border-left:4px solid #3a8fbd;border-radius:6px;padding:10px 12px;margin:10px 0;font-size:12px}.helpWarn{background:#382d13;border-left-color:#d6a700}.helpGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 18px}.helpMini{background:#111a24;border:1px solid #293744;border-radius:8px;padding:11px}.helpMini b{display:block;margin-bottom:4px}.i18nNoTranslate{unicode-bidi:plaintext}
+  body[data-theme="light"] .languageControl{color:#344654}body[data-theme="light"] .helpCard{background:#fff;border-color:#cbd5dd;color:#18232d}body[data-theme="light"] .helpCard h3{color:#7a6500}body[data-theme="light"] .helpCard h4{color:#245f7c}body[data-theme="light"] .helpMini{background:#f5f7f9;border-color:#dce3e8}body[data-theme="light"] .helpCode,body[data-theme="light"] .helpCard code{background:#f5f7f9;border-color:#cbd5dd;color:#17212b}body[data-theme="light"] .helpCallout{background:#e8f3f8}body[data-theme="light"] .helpWarn{background:#fff6d9}
+  @media(max-width:780px){.helpGrid{grid-template-columns:1fr}.helpCard{width:calc(100% - 20px);margin:10px auto;padding:15px}}
+
 </style>
 </head>
 <body>
@@ -190,6 +196,7 @@ HTML = r'''<!doctype html>
 <div id="app">
 <header>
   <h1>__DISPLAY_TITLE__</h1>
+  <label class="languageControl"><span>Idioma:</span><select id="uiLanguage" aria-label="Idioma da interface"><option value="pt-BR" selected>Português</option><option value="en">English</option></select></label>
   <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
@@ -199,6 +206,7 @@ HTML = r'''<!doctype html>
     <button class="navbtn" data-view="health">Saúde da Rede</button>
     <button class="navbtn" data-view="anomalies">Anomalias</button>
     <button class="navbtn" data-view="settings">Configurações</button>
+    <button class="navbtn" data-view="help">Ajuda</button>
   </div>
 </header>
 <section id="viewMap" class="view active">
@@ -399,11 +407,204 @@ HTML = r'''<!doctype html>
     </div>
   </div>
 </section>
+<section id="viewHelp" class="view">
+  <div id="helpContent" class="helpCard"></div>
+</section>
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <script>
+const LANGUAGE_KEY='trafficAnalyzerLanguageV122';
+let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
+function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
+
+const I18N_PAIRS=[
+  ['Mapa','Map'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Configurações','Settings'],['Ajuda','Help'],
+  ['Idioma:','Language:'],['Idioma da interface','Interface language'],['Português','Portuguese'],
+  ['Reprodução:','Playback:'],['Histórico','History'],['Ao vivo','Live'],['Velocidade:','Speed:'],['Enquadrar','Fit'],['Atualizar','Refresh'],
+  ['Traceroute anterior','Previous traceroute'],['Próximo traceroute','Next traceroute'],['Pausar animações ao vivo','Pause live animations'],['Retomar animações ao vivo','Resume live animations'],['Reproduzir/retomar histórico','Play/resume history'],['Pausar histórico','Pause history'],
+  ['Tráfego ao vivo','Live traffic'],['Direção:','Direction:'],['Todos','All'],['Tipo:','Type:'],['Mensagem','Message'],['Buscar:','Search:'],['Pausar','Pause'],['Retomar','Resume'],['Baixar dump JSON (.zip)','Download JSON dump (.zip)'],
+  ['Baixa todo o histórico persistente em traffic.json dentro de um ZIP','Downloads the entire persistent history as traffic.json inside a ZIP'],['Hora','Time'],['DIR','DIR'],['Origem','Source'],['Destino','Destination'],['Tipo','Type'],['Hops','Hops'],
+  ['Clique em um pacote para ver os detalhes.','Click a packet to view details.'],['Clique para ver o payload formatado','Click to view the formatted payload'],['Nenhum pacote corresponde ao filtro.','No packet matches the filter.'],
+  ['Tracklog de estações móveis','Mobile station tracklog'],['Período:','Period:'],['Nó:','Node:'],['Todos com mobilidade observada','All with observed mobility'],['Aguardando dados…','Waiting for data…'],['Sem trajetos carregados','No tracks loaded'],['posição mais recente do período','latest position in the period'],
+  ['Canal primário','Primary channel'],['Canal 0 - mensagens de broadcast','Channel 0 - broadcast messages'],['Carregando...','Loading...'],['Carregar anteriores','Load older'],['Carregar mais mensagens antigas','Load older messages'],['Consultar novas mensagens agora','Check for new messages now'],['Digite uma mensagem','Type a message'],['Digite @ para mencionar um nó','Type @ to mention a node'],['Enviar','Send'],['nova','new'],['Sem mensagens não lidas','No unread messages'],['Nenhuma mensagem encontrada no canal primário.','No messages found on the primary channel.'],
+  ['Saúde da Rede','Network Health'],['Atividade dos últimos 7 dias','Activity over the last 7 days'],['Traceroutes e roteamento','Traceroutes and routing'],['Interações por chat no canal primário','Chat interactions on the primary channel'],['Nós que merecem atenção','Nodes that need attention'],['Último tráfego','Last traffic'],['Tempo sem ouvir','Time since heard'],['Pacotes 7d','Packets 7d'],['SNR médio 7d','Average SNR 7d'],['Reanalisar','Reanalyze'],
+  ['Os indicadores usam o histórico persistente do Traffic Analyzer e a topologia observada pelo MeshMonitor. O ranking de chat conta interações acumuladas registradas no canal primário. Ausência de tráfego não prova falha física; pode representar um nó silencioso, desligado ou fora do alcance da fonte.','Indicators use the Traffic Analyzer persistent history and the topology observed by MeshMonitor. The chat ranking counts accumulated interactions recorded on the primary channel. Lack of traffic does not prove a physical failure; it may represent a silent node, a powered-off node, or a node outside the source range.'],
+  ['Detecção de Anomalias','Anomaly Detection'],['Ocorrências detectadas','Detected occurrences'],['Como interpretar','How to interpret'],['As anomalias são heurísticas: silêncio prolongado, degradação de SNR, mudança relevante na quantidade de hops e traceroute assimétrico. Elas servem para priorizar investigação e não constituem prova isolada de defeito, indisponibilidade ou causalidade.','Anomalies are heuristics: prolonged silence, SNR degradation, significant hop-count changes, and asymmetric traceroutes. They help prioritize investigation and are not standalone proof of failure, outage, or causality.'],
+  ['Configurações do Traffic Analyzer','Traffic Analyzer Settings'],['Aparência','Appearance'],['Tema da interface:','Interface theme:'],['Escuro (padrão)','Dark (default)'],['Escuro','Dark'],['Claro','Light'],['Altera a interface inteira. O mapa-base continua sendo configurado separadamente.','Changes the entire interface. The base map remains configured separately.'],
+  ['Mapa e topologia','Map and topology'],['Janela:','Window:'],['Filtra enlaces e traceroutes pela idade da observação.','Filters links and traceroutes by observation age.'],['Mínimo de observações:','Minimum observations:'],['Oculta enlaces com menos observações que o valor escolhido.','Hides links with fewer observations than the selected value.'],['Mapa base:','Base map:'],['Ruas (OSM)','Streets (OSM)'],['Topográfico','Topographic'],['Satélite','Satellite'],['Brilho:','Brightness:'],['Cor das linhas:','Line color:'],['Mostrar linhas','Show lines'],['Mostrar nós','Show nodes'],['Mapa de calor','Heat map'],['Mostrar nomes curtos','Show short names'],['Mostrar somente identificados','Show identified only'],['Auto Zoom durante traceroutes','Auto Zoom during traceroutes'],['Enquadra automaticamente todos os nós envolvidos nas animações de traceroute. Se houver animações simultâneas, usa a área combinada. Cinco segundos após a última terminar, retorna ao enquadramento anterior.','Automatically fits all nodes involved in traceroute animations. If animations overlap, it uses the combined area. Five seconds after the last one finishes, it returns to the previous framing.'],
+  ['Notificações sonoras','Sound notifications'],['Som no início de uma nova viagem de pacote','Sound at the start of a new packet journey'],['O som toca uma única vez quando uma nova viagem de pacote é observada. Cópias/retransmissões do mesmo packet_id não geram novos sons.','The sound plays once when a new packet journey is observed. Copies/retransmissions of the same packet_id do not generate new sounds.'],['Som:','Sound:'],['Plim','Chime'],['Campainha','Bell'],['Duplo','Double'],['Suave','Soft'],['Testar som','Test sound'],['Todos os sons são sintetizados localmente; nenhum arquivo de áudio é baixado.','All sounds are synthesized locally; no audio file is downloaded.'],['Volume:','Volume:'],['A preferência fica salva neste navegador. O primeiro clique libera o Web Audio quando exigido pelo navegador.','The preference is saved in this browser. The first click enables Web Audio when required by the browser.'],
+  ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
+  ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
+  ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
+  ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Verificar agora','Check now'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
+  ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
+  ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['círculos visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
+  ['Observações:','Observations:'],['Ida:','Outbound:'],['Volta:','Return:'],['SNR médio:','Average SNR:'],['Faixa SNR:','SNR range:'],['Última observação:','Last observation:'],['canal:','channel:'],['Estado:','State:'],['Posição:','Position:'],['Último tráfego:','Last traffic:'],['Situação:','Status:'],['Public key:','Public key:'],['Short name:','Short name:'],['sim','yes'],['não','no'],
+  ['Dados técnicos','Technical data'],['Nenhum dado técnico adicional disponível.','No additional technical data available.'],['Ver JSON bruto','View raw JSON'],['Mostrar fluxo','Show flow'],['Criptografado','Encrypted'],['Canal','Channel'],['Nome','Name'],['Nome curto','Short name'],['Chave pública','Public key'],['Licenciado','Licensed'],['Nó','Node'],['Última recepção','Last reception'],['Vizinhos','Neighbors'],['Rota','Route'],['Rota de volta','Return route'],['Erro de roteamento','Routing error'],['Motivo','Reason'],['ID da solicitação','Request ID'],['ID da resposta','Reply ID'],['ID do pacote','Packet ID'],['Tipo de telemetria','Telemetry type'],['Solicita resposta','Requests response'],['Solicita ACK','Requests ACK'],['Tipo de pacote','Packet type'],['Transporte','Transport'],['Recebido em','Received at'],['Prioridade','Priority'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Estatísticas locais','Local statistics'],['Métricas de energia','Power metrics'],['Qualidade do ar','Air quality'],['Bateria','Battery'],['Tensão','Voltage'],['Utilização do canal','Channel utilization'],['Horário','Time'],['Temperatura','Temperature'],['Umidade','Humidity'],['Pressão','Pressure'],['Resistência do gás','Gas resistance'],['Corrente','Current'],['Luminosidade','Illuminance'],
+  ['Calculando indicadores','Calculating indicators'],['Nós ativos - 2 h','Active nodes - 2 h'],['nós conhecidos','known nodes'],['Nós ativos - 24 h','Active nodes - 24 h'],['sem tráfego > 24 h','no traffic > 24 h'],['Pacotes - 24 h','Packets - 24 h'],['Enlaces observados','Observed links'],['vistos nas últimas 24 h','seen in the last 24 h'],['histórico carregado','loaded history'],['Com ida e volta','With outbound and return'],['completos nos 2 sentidos','complete in both directions'],['Mediana de hops','Median hops'],['por perna observada','per observed leg'],['Sem registro','No record'],['nós sem timestamp confiável','nodes without a reliable timestamp'],['Idas observadas','Observed outbound legs'],['Voltas observadas','Observed return legs'],['Traceroutes incompletos','Incomplete traceroutes'],['Média de hops','Average hops'],['Nenhuma interação de chat registrada no canal primário.','No chat interaction recorded on the primary channel.'],['Nenhum nó requer atenção pelo critério atual.','No node requires attention under the current criterion.'],['Não foi possível calcular','Could not calculate'],
+  ['Crítica','Critical'],['Críticas','Critical'],['Atenção','Warning'],['Informativa','Informational'],['Informativas','Informational'],['Nenhuma anomalia foi detectada pelos critérios atuais.','No anomaly was detected by the current criteria.'],['Erro ao analisar:','Analysis error:'],['Nó silencioso há mais de 24 h','Node silent for more than 24 h'],['Nó silencioso há mais de 7 dias','Node silent for more than 7 days'],['Não há tráfego recente deste nó no histórico disponível.','There is no recent traffic from this node in the available history.'],['O nó ultrapassou a janela de 24 horas sem tráfego observado.','The node exceeded the 24-hour window without observed traffic.'],['Queda de SNR no enlace','SNR drop on link'],['Mudança relevante de hops','Significant hop-count change'],['Traceroute assimétrico','Asymmetric traceroute'],['A observação mais recente contém apenas um dos sentidos do traceroute.','The latest observation contains only one direction of the traceroute.'],
+  ['AO VIVO','LIVE'],['ANIMAÇÃO PAUSADA','ANIMATION PAUSED'],['conectando…','connecting…'],['IDA','OUTBOUND'],['VOLTA','RETURN'],['sem percurso completo','no complete path'],['Histórico pausado.','History paused.'],['Histórico: nenhum traceroute completamente mapeável no filtro atual.','History: no fully mappable traceroute in the current filter.'],['A atualização excedeu 90 segundos.','The update exceeded 90 seconds.'],['Atualizando...','Updating...'],['Atualizado ✓','Updated ✓'],['Erro','Error'],
+  ['Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.','Message too long. Reduce the text to approximately 600 bytes or less.'],['Enviando...','Sending...'],['Mensagem enviada ao MeshMonitor','Message sent to MeshMonitor'],['Limite de 1.500 mensagens já carregado.','The 1,500-message limit is already loaded.'],['Nenhuma mensagem anterior adicional disponível.','No additional older messages are available.'],['Nó desconhecido','Unknown node'],['pedido provável','probable request'],
+  ['Linha lógica exibida; procurando um traceroute próximo no tempo para não inventar hops.','Logical line displayed; looking for a nearby traceroute in time so no hops are invented.'],['Sem coordenadas suficientes para desenhar o fluxo no mapa.','Not enough coordinates to draw the flow on the map.'],['O pacote comum não carrega a cadeia completa de relays. A linha tracejada é apenas origem/destino; nenhum hop foi inventado.','A regular packet does not carry the complete relay chain. The dashed line is only source/destination; no hop was invented.'],['caminho intermediário ainda não observado','intermediate path not observed yet'],
+  ['Nenhuma mobilidade observada neste período.','No mobility observed in this period.'],['Hoje','Today'],['Ontem','Yesterday'],['há poucos segundos','a few seconds ago'],['[conteúdo oculto]','[content hidden]']
+];
+const I18N_PT_EN=new Map(I18N_PAIRS);
+const I18N_EN_PT=new Map(I18N_PAIRS.map(([pt,en])=>[en,pt]));
+function translateDynamic(text,target){
+  let s=String(text??'');
+  if(target==='en'){
+    s=s.replace(/^Histórico pausado · posição (\d+)\/(\d+)$/,'History paused · position $1/$2');
+    s=s.replace(/^Histórico: (\d+) traceroutes animáveis · posição (\d+)\/(\d+)$/,'History: $1 animatable traceroutes · position $2/$3');
+    s=s.replace(/^Histórico concluído · (\d+) traceroutes reproduzidos$/,'History complete · $1 traceroutes played');
+    s=s.replace(/^Histórico (\d+)\/(\d+)$/,'History $1/$2');
+    s=s.replace(/^· ANIMAÇÃO PAUSADA · (\d+) traceroute\(s\) represado\(s\) · (\d+) pulso\(s\) represado\(s\) · (\d+) congelado\(s\)( · (\d+) descartado\(s\) por limite)?$/,(m,a,b,c,d,e)=>`· ANIMATION PAUSED · ${a} queued traceroute(s) · ${b} queued pulse(s) · ${c} frozen${e?` · ${e} dropped by limit`:''}`);
+    s=s.replace(/^· (\d+) traceroutes simultâneos$/,'· $1 simultaneous traceroutes');
+    s=s.replace(/^· 1 traceroute em animação$/,'· 1 traceroute animating');
+    s=s.replace(/^· erro: (.+)$/,'· error: $1');
+    s=s.replace(/^(\d+) mensagens · atualizado (.+)$/,'$1 messages · updated $2');
+    s=s.replace(/^(\d+) mensagens · histórico ampliado$/,'$1 messages · history expanded');
+    s=s.replace(/^(\d+) mensagem\(ns\) não lida\(s\)$/,'$1 unread message(s)');
+    s=s.replace(/^Carregando histórico anterior \(até (\d+)\)\.\.\.$/,'Loading older history (up to $1)...');
+    s=s.replace(/^Falha no envio: (.+)$/,'Send failed: $1');
+    s=s.replace(/^Não foi possível enviar: (.+)$/,'Could not send: $1');
+    s=s.replace(/^Erro: (.+)$/,'Error: $1').replace(/^erro: (.+)$/,'error: $1').replace(/^erro (.+)$/,'error $1');
+    s=s.replace(/^Falha ao atualizar: (.+)$/,'Update failed: $1');
+    s=s.replace(/^Erro ao carregar topologia: (.+)$/,'Error loading topology: $1');
+    s=s.replace(/^(\d+) nó\(s\) · (\d+) pontos · (.+) acumulados$/,'$1 node(s) · $2 points · $3 accumulated');
+    s=s.replace(/^Instalada: v([^ ]+) · disponível: v([^ ]+) · publicada em (.+)\.$/,'Installed: v$1 · available: v$2 · published $3.');
+    s=s.replace(/^Instalada: v([^ ]+)\. Esta é a versão mais recente publicada\.$/,'Installed: v$1. This is the latest published version.');
+    s=s.replace(/^Instalada: v([^ ]+)\. Não foi possível consultar o GitHub agora\.$/,'Installed: v$1. GitHub could not be checked right now.');
+    s=s.replace(/^v([^ ]+) → v([^ ]+) disponível$/,'v$1 → v$2 available');
+    s=s.replace(/^v([^ ]+) · não verificado$/,'v$1 · not checked');
+    s=s.replace(/^v([^ ]+) · ATUALIZADO$/,'v$1 · UP TO DATE');
+    s=s.replace(/^analisado (.+)$/,'analyzed $1').replace(/^atualizado (.+)$/,'updated $1');
+    s=s.replace(/^há (\d+) segundos$/,'$1 seconds ago').replace(/^há (\d+) minuto$/,'$1 minute ago').replace(/^há (\d+) minutos$/,'$1 minutes ago');
+    s=s.replace(/^há (\d+) hora$/,'$1 hour ago').replace(/^há (\d+) horas$/,'$1 hours ago');
+    s=s.replace(/^há (\d+) dia$/,'$1 day ago').replace(/^há (\d+) dias$/,'$1 days ago');
+    s=s.replace(/^há (\d+) hora e (\d+) minuto$/,'$1 hour and $2 minute ago').replace(/^há (\d+) hora e (\d+) minutos$/,'$1 hour and $2 minutes ago').replace(/^há (\d+) horas e (\d+) minuto$/,'$1 hours and $2 minute ago').replace(/^há (\d+) horas e (\d+) minutos$/,'$1 hours and $2 minutes ago');
+    s=s.replace(/^há (\d+) dia e (\d+) hora$/,'$1 day and $2 hour ago').replace(/^há (\d+) dia e (\d+) horas$/,'$1 day and $2 hours ago').replace(/^há (\d+) dias e (\d+) hora$/,'$1 days and $2 hour ago').replace(/^há (\d+) dias e (\d+) horas$/,'$1 days and $2 hours ago');
+    s=s.replace(/^Estado: (.+)$/,'State: $1').replace(/^Posição: (.+)$/,'Position: $1').replace(/^Último tráfego: (.+)$/,'Last traffic: $1').replace(/^Situação: (.+)$/,'Status: $1');
+    s=s.replace(/^Observações: (.+)$/,'Observations: $1').replace(/^Ida: (.+)$/,'Outbound: $1').replace(/^Volta: (.+)$/,'Return: $1').replace(/^SNR médio: (.+)$/,'Average SNR: $1').replace(/^Faixa SNR: (.+)$/,'SNR range: $1').replace(/^Última observação: (.+)$/,'Last observation: $1').replace(/ \| canal: /,' | channel: ');
+    s=s.replace(/^NodeInfo (.+) · caminho intermediário ainda não observado$/,'NodeInfo $1 · intermediate path not observed yet');
+    s=s.replace(/^Rota observada por traceroute próximo \((\d+)s\) · não prova que o NodeInfo usou exatamente os mesmos relays$/,'Route observed by a nearby traceroute ($1s) · this does not prove NodeInfo used exactly the same relays');
+    s=s.replace(/^por Alex, PT2VHF$/,'by Alex, PT2VHF').replace(/ - por Alex, PT2VHF$/,' - by Alex, PT2VHF');
+  }else{
+    s=s.replace(/^History paused · position (\d+)\/(\d+)$/,'Histórico pausado · posição $1/$2');
+    s=s.replace(/^History: (\d+) animatable traceroutes · position (\d+)\/(\d+)$/,'Histórico: $1 traceroutes animáveis · posição $2/$3');
+    s=s.replace(/^History complete · (\d+) traceroutes played$/,'Histórico concluído · $1 traceroutes reproduzidos');
+    s=s.replace(/^History (\d+)\/(\d+)$/,'Histórico $1/$2');
+    s=s.replace(/^· ANIMATION PAUSED · (\d+) queued traceroute\(s\) · (\d+) queued pulse\(s\) · (\d+) frozen( · (\d+) dropped by limit)?$/,(m,a,b,c,d,e)=>`· ANIMAÇÃO PAUSADA · ${a} traceroute(s) represado(s) · ${b} pulso(s) represado(s) · ${c} congelado(s)${e?` · ${e} descartado(s) por limite`:''}`);
+    s=s.replace(/^· (\d+) simultaneous traceroutes$/,'· $1 traceroutes simultâneos').replace(/^· 1 traceroute animating$/,'· 1 traceroute em animação').replace(/^· error: (.+)$/,'· erro: $1');
+    s=s.replace(/^(\d+) messages · updated (.+)$/,'$1 mensagens · atualizado $2').replace(/^(\d+) messages · history expanded$/,'$1 mensagens · histórico ampliado').replace(/^(\d+) unread message\(s\)$/,'$1 mensagem(ns) não lida(s)');
+    s=s.replace(/^Loading older history \(up to (\d+)\)\.\.\.$/,'Carregando histórico anterior (até $1)...').replace(/^Send failed: (.+)$/,'Falha no envio: $1').replace(/^Could not send: (.+)$/,'Não foi possível enviar: $1');
+    s=s.replace(/^Error: (.+)$/,'Erro: $1').replace(/^error: (.+)$/,'erro: $1').replace(/^error (.+)$/,'erro $1').replace(/^Update failed: (.+)$/,'Falha ao atualizar: $1').replace(/^Error loading topology: (.+)$/,'Erro ao carregar topologia: $1');
+    s=s.replace(/^(\d+) node\(s\) · (\d+) points · (.+) accumulated$/,'$1 nó(s) · $2 pontos · $3 acumulados');
+    s=s.replace(/^Installed: v([^ ]+) · available: v([^ ]+) · published (.+)\.$/,'Instalada: v$1 · disponível: v$2 · publicada em $3.').replace(/^Installed: v([^ ]+)\. This is the latest published version\.$/,'Instalada: v$1. Esta é a versão mais recente publicada.').replace(/^Installed: v([^ ]+)\. GitHub could not be checked right now\.$/,'Instalada: v$1. Não foi possível consultar o GitHub agora.');
+    s=s.replace(/^v([^ ]+) → v([^ ]+) available$/,'v$1 → v$2 disponível').replace(/^v([^ ]+) · not checked$/,'v$1 · não verificado').replace(/^v([^ ]+) · UP TO DATE$/,'v$1 · ATUALIZADO');
+    s=s.replace(/^analyzed (.+)$/,'analisado $1').replace(/^updated (.+)$/,'atualizado $1');
+    s=s.replace(/^(\d+) seconds ago$/,'há $1 segundos').replace(/^(\d+) minute ago$/,'há $1 minuto').replace(/^(\d+) minutes ago$/,'há $1 minutos').replace(/^(\d+) hour ago$/,'há $1 hora').replace(/^(\d+) hours ago$/,'há $1 horas').replace(/^(\d+) day ago$/,'há $1 dia').replace(/^(\d+) days ago$/,'há $1 dias');
+    s=s.replace(/^State: (.+)$/,'Estado: $1').replace(/^Position: (.+)$/,'Posição: $1').replace(/^Last traffic: (.+)$/,'Último tráfego: $1').replace(/^Status: (.+)$/,'Situação: $1');
+    s=s.replace(/^Observations: (.+)$/,'Observações: $1').replace(/^Outbound: (.+)$/,'Ida: $1').replace(/^Return: (.+)$/,'Volta: $1').replace(/^Average SNR: (.+)$/,'SNR médio: $1').replace(/^SNR range: (.+)$/,'Faixa SNR: $1').replace(/^Last observation: (.+)$/,'Última observação: $1').replace(/ \| channel: /,' | canal: ');
+    s=s.replace(/^NodeInfo (.+) · intermediate path not observed yet$/,'NodeInfo $1 · caminho intermediário ainda não observado');
+    s=s.replace(/^Route observed by a nearby traceroute \((\d+)s\) · this does not prove NodeInfo used exactly the same relays$/,'Rota observada por traceroute próximo ($1s) · não prova que o NodeInfo usou exatamente os mesmos relays');
+    s=s.replace(/^by Alex, PT2VHF$/,'por Alex, PT2VHF').replace(/ - by Alex, PT2VHF$/,' - por Alex, PT2VHF');
+  }
+  return s;
+}
+function translateUiString(value,target=currentLang){
+  const raw=String(value??'');
+  const lead=(raw.match(/^\s*/)||[''])[0],trail=(raw.match(/\s*$/)||[''])[0];
+  const core=raw.slice(lead.length,raw.length-trail.length);
+  if(!core)return raw;
+  const map=target==='en'?I18N_PT_EN:I18N_EN_PT;
+  const exact=map.get(core);
+  const out=exact!==undefined?exact:translateDynamic(core,target);
+  return lead+out+trail;
+}
+function tr(value){return translateUiString(value,currentLang);}
+function skipI18nElement(el){return !!el?.closest?.('script,style,.msgText,.msgSender,.mentionLong,.mentionShort,.mentionId,.versionNotes,.rawJson,pre,.updateCmd,.i18nNoTranslate');}
+function translateUiElement(el){
+  if(!el||el.nodeType!==1||skipI18nElement(el))return;
+  for(const attr of ['title','placeholder','aria-label']){
+    if(el.hasAttribute?.(attr)){const old=el.getAttribute(attr),neu=translateUiString(old,currentLang);if(neu!==old)el.setAttribute(attr,neu);}
+  }
+}
+function translateUiTree(root){
+  if(!root)return;
+  if(root.nodeType===3){const p=root.parentElement;if(!skipI18nElement(p)){const neu=translateUiString(root.data,currentLang);if(neu!==root.data)root.data=neu;}return;}
+  if(root.nodeType!==1 && root.nodeType!==9)return;
+  if(root.nodeType===1)translateUiElement(root);
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);
+  let n; while((n=walker.nextNode())){if(n.nodeType===3){if(!skipI18nElement(n.parentElement)){const neu=translateUiString(n.data,currentLang);if(neu!==n.data)n.data=neu;}}else translateUiElement(n);}
+}
+let i18nBusy=false,i18nObserver=null;
+function initI18nObserver(){
+  if(i18nObserver)return;
+  i18nObserver=new MutationObserver(ms=>{
+    if(i18nBusy)return;i18nBusy=true;
+    try{for(const m of ms){if(m.type==='characterData')translateUiTree(m.target);else if(m.type==='attributes')translateUiElement(m.target);else for(const n of m.addedNodes)translateUiTree(n);}}finally{i18nBusy=false;}
+  });
+  i18nObserver.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','placeholder','aria-label']});
+}
+function renderHelp(){
+  const el=document.getElementById('helpContent');if(!el)return;
+  if(currentLang==='en'){
+    el.innerHTML=`<h2>Traffic Analyzer Help</h2>
+      <p>Traffic Analyzer is a companion web application for MeshMonitor. It analyzes Meshtastic traffic, observed RF topology, traceroutes, messages, node activity, historical positions, network health, and anomalies without taking over the radio connection used by MeshMonitor.</p>
+      <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
+      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node color indicates the age of the last observed traffic. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
+      <ul><li><b>History:</b> replays stored traceroutes chronologically.</li><li><b>Live:</b> animates new complete traceroutes as MeshMonitor reports them.</li><li><b>Pause:</b> freezes visual animations only. Collection and processing continue, and queued animations are released when playback resumes.</li><li><b>Auto Zoom:</b> optionally follows the nodes involved in traceroute animations.</li></ul>
+      <h3>2. Tracklog</h3><p>Tracklog uses real decoded POSITION_APP packets stored in <code>traffic.db</code>. Nodes appear when actual movement is observed; the Meshtastic role alone does not classify a node as mobile.</p>
+      <ul><li>Choose 1 h, 6 h, 24 h, 7 days, or 30 days.</li><li>Select all moving nodes or one specific node.</li><li>Click a point to inspect timestamp, coordinates, altitude, SNR, and RSSI when available.</li><li>Very small GPS jitter and clearly impossible terrestrial jumps are filtered.</li></ul>
+      <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
+      <h3>4. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
+      <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The selected shortcut is replaced by the node's full name before transmission. Mentions are plain Meshtastic text, so other clients remain compatible.</p>
+      <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
+      <h3>6. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
+      <h3>7. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Enable and tune notifications for a new packet journey.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust the chat font size.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
+      <h3>8. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
+      <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Click it to view release information.</p>
+      <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
+cat /opt/traffic-analyzer/VERSION</div>
+      <p>After an update that changes JavaScript or CSS, use <b>Ctrl+F5</b> if the browser is still showing cached interface files.</p>
+      <h3>10. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path; tracklog distance depends on the positions actually received.</div>`;
+  }else{
+    el.innerHTML=`<h2>Ajuda do Traffic Analyzer</h2>
+      <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, posições históricas, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
+      <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
+      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A cor do nó indica a idade do último tráfego observado. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
+      <ul><li><b>Histórico:</b> reproduz traceroutes armazenados em ordem cronológica.</li><li><b>Ao vivo:</b> anima novos traceroutes completos à medida que o MeshMonitor os informa.</li><li><b>Pausa:</b> congela apenas as animações visuais. Coleta e processamento continuam, e o que ficou represado é liberado ao retomar.</li><li><b>Auto Zoom:</b> opcionalmente acompanha os nós envolvidos nas animações de traceroute.</li></ul>
+      <h3>2. Tracklog</h3><p>O Tracklog usa pacotes POSITION_APP realmente decodificados e armazenados em <code>traffic.db</code>. Um nó aparece quando existe deslocamento real observado; a role do Meshtastic, isoladamente, não classifica o nó como móvel.</p>
+      <ul><li>Escolha 1 h, 6 h, 24 h, 7 dias ou 30 dias.</li><li>Mostre todos os nós móveis ou apenas um nó.</li><li>Clique em um ponto para ver data/hora, coordenadas, altitude, SNR e RSSI quando disponíveis.</li><li>Pequeno jitter de GPS e saltos terrestres claramente impossíveis são filtrados.</li></ul>
+      <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
+      <h3>4. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
+      <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O atalho selecionado é substituído pelo nome completo do nó antes do envio. A menção continua sendo texto Meshtastic normal, preservando compatibilidade com outros clientes.</p>
+      <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
+      <h3>6. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
+      <h3>7. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Ative e ajuste notificações para uma nova viagem de pacote.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste o tamanho da fonte do chat.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
+      <h3>8. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
+      <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Clique nele para abrir as informações da Release.</p>
+      <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
+cat /opt/traffic-analyzer/VERSION</div>
+      <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
+      <h3>10. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho; a distância do Tracklog depende das posições que efetivamente foram recebidas.</div>`;
+  }
+}
+function applyLanguage(lang,persist=true){
+  currentLang=lang==='en'?'en':'pt-BR';
+  if(persist)localStorage.setItem(LANGUAGE_KEY,currentLang);
+  const sel=document.getElementById('uiLanguage');if(sel)sel.value=currentLang;
+  document.documentElement.lang=currentLang==='en'?'en':'pt-BR';
+  renderHelp();
+  i18nBusy=true;try{translateUiTree(document.body);document.title=translateUiString(document.title,currentLang);}finally{i18nBusy=false;}
+  if(typeof updatePlaybackStatusIdle==='function')updatePlaybackStatusIdle();
+  if(typeof tracklogLoaded!=='undefined'&&tracklogLoaded&&typeof renderTracklog==='function')renderTracklog();
+}
+
+document.getElementById('uiLanguage').addEventListener('change',e=>applyLanguage(e.target.value,true));
+
 const map = L.map('map', {preferCanvas:true, zoomSnap:0.05, zoomDelta:0.25}).setView([-15.8,-47.9], 9);
 
 const baseMaps = {
@@ -545,7 +746,7 @@ function trackColor(nodeNum){
   let x=(Number(nodeNum)>>>0)||1; x=((x*2654435761)>>>0)%360;
   return `hsl(${x} 78% 55%)`;
 }
-function fmtTrackDistance(m){const n=Number(m||0);return n>=1000?`${(n/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} km`:`${Math.round(n)} m`;}
+function fmtTrackDistance(m){const n=Number(m||0);return n>=1000?`${(n/1000).toLocaleString(uiLocale(),{maximumFractionDigits:1})} km`:`${Math.round(n)} m`;}
 function renderTracklog(){
   initTrackMap();
   trackLayer.clearLayers();
@@ -565,7 +766,7 @@ function renderTracklog(){
     (t.points||[]).forEach((p,i)=>{
       const current=i===(t.points.length-1);
       const m=L.circleMarker([p.lat,p.lon],{radius:current?6:3,color,fillColor:color,fillOpacity:current?1:.55,weight:current?2:1}).addTo(trackLayer);
-      m.bindPopup(`<div class="trackPointPopup"><b>${esc(t.name||t.nodeId)}</b><br>${new Date(Number(p.timestampMs)).toLocaleString('pt-BR')}<br>Posição: ${Number(p.lat).toFixed(5)}, ${Number(p.lon).toFixed(5)}${p.altitude!=null?`<br>Altitude: ${esc(p.altitude)} m`:''}${p.snr!=null?`<br>SNR: ${esc(p.snr)} dB`:''}${p.rssi!=null?`<br>RSSI: ${esc(p.rssi)} dBm`:''}${current?'<br><span class="trackCurrent">posição mais recente do período</span>':''}</div>`);
+      m.bindPopup(`<div class="trackPointPopup"><b>${esc(t.name||t.nodeId)}</b><br>${new Date(Number(p.timestampMs)).toLocaleString(uiLocale())}<br>Posição: ${Number(p.lat).toFixed(5)}, ${Number(p.lon).toFixed(5)}${p.altitude!=null?`<br>Altitude: ${esc(p.altitude)} m`:''}${p.snr!=null?`<br>SNR: ${esc(p.snr)} dB`:''}${p.rssi!=null?`<br>RSSI: ${esc(p.rssi)} dBm`:''}${current?'<br><span class="trackCurrent">posição mais recente do período</span>':''}</div>`);
     });
   }
   if(trackLegend){
@@ -644,7 +845,7 @@ function initVisualPrefs(){
 }
 
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const dt = (ms) => ms ? new Date(ms).toLocaleString('pt-BR') : '—';
+const dt = (ms) => ms ? new Date(ms).toLocaleString(uiLocale()) : '—';
 const snr = (v) => (v === null || v === undefined) ? '—' : `${Number(v).toFixed(1)} dB`;
 
 function nodeLastTrafficMs(n){
@@ -803,7 +1004,7 @@ function render(){
       `Hops: ${esc(n.hopsAway ?? '—')} | SNR: ${snr(n.snr)} | RSSI: ${esc(n.rssi ?? '—')}<br>`+
       `Hardware: ${esc(n.hwModel ?? '—')} | Role: ${esc(n.role ?? '—')}<br>`+
       `Public key: ${n.publicKey ? 'sim' : 'não'}<br>`+
-      `Último tráfego: ${trafficAge.ts ? new Date(trafficAge.ts).toLocaleString('pt-BR') : '—'}<br>`+
+      `Último tráfego: ${trafficAge.ts ? new Date(trafficAge.ts).toLocaleString(uiLocale()) : '—'}<br>`+
       `Situação: <b>${esc(trafficAge.label)}</b>${trafficAge.ts ? ` - ouvido ${esc(humanAge(trafficAge.ts))}` : ''}`
     );
     marker.addTo(nodeLayer); markerCount++;
@@ -897,8 +1098,8 @@ function pathDistanceMeters(points){
 function fmtDistance(m){
   if(!Number.isFinite(Number(m))) return '—';
   const v=Number(m);
-  if(v<1000) return `${Math.round(v).toLocaleString('pt-BR')} m`;
-  return `${(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:v<10000?1:0,maximumFractionDigits:1})} km`;
+  if(v<1000) return `${Math.round(v).toLocaleString(uiLocale())} m`;
+  return `${(v/1000).toLocaleString(uiLocale(),{minimumFractionDigits:v<10000?1:0,maximumFractionDigits:1})} km`;
 }
 function traceDistanceInfo(trace){
   const forward=pathDistanceMeters(trace?.forwardPath);
@@ -1267,7 +1468,7 @@ const NODEINFO_ROUTE_WAIT_MS=30000;
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',tracklog:'viewTracklog',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings'};
+  const ids={map:'viewMap',tracklog:'viewTracklog',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
@@ -1292,7 +1493,7 @@ function packetTypeLabel(name){ return String(name||'UNKNOWN').replace(/_APP$/,'
 function packetNode(p,prefix){ return p[`${prefix}_node_longName`] || p[`${prefix}_node_id`] || (p[`${prefix}_node`]!==null && p[`${prefix}_node`]!==undefined ? String(p[`${prefix}_node`]) : '—'); }
 function packetHops(p){ const hs=Number(p.hop_start), hl=Number(p.hop_limit); return Number.isFinite(hs)&&Number.isFinite(hl) ? hs-hl : null; }
 function packetTime(p){ let t=Number(p.timestamp||0); if(t>0&&t<10000000000)t*=1000; return t; }
-function fmtTime(ms){ return ms?new Date(ms).toLocaleTimeString('pt-BR',{hour12:false}):'—'; }
+function fmtTime(ms){ return ms?new Date(ms).toLocaleTimeString(uiLocale(),{hour12:false}):'—'; }
 function fmtNum(v,d=1){ return v===null||v===undefined||v===''?'—':Number(v).toFixed(d); }
 function trafficKey(p){ return `${p.id ?? ''}:${p.packet_id ?? ''}:${p.timestamp ?? ''}:${p.from_node ?? ''}:${p.to_node ?? ''}:${p.portnum ?? ''}:${p.direction ?? ''}`; }
 function packetNodeNum(p,prefix){
@@ -1517,7 +1718,7 @@ function friendlyScalar(k,v){
     if(/uptimeSeconds/i.test(k)){
       const d=Math.floor(v/86400),h=Math.floor((v%86400)/3600),m=Math.floor((v%3600)/60); return [d?`${d}d`:null,h?`${h}h`:null,`${m}min`].filter(Boolean).join(' ');
     }
-    if((/time|timestamp|lastRxTime/i.test(k)) && v>1000000000){const ms=v<10000000000?v*1000:v;return new Date(ms).toLocaleString('pt-BR');}
+    if((/time|timestamp|lastRxTime/i.test(k)) && v>1000000000){const ms=v<10000000000?v*1000:v;return new Date(ms).toLocaleString(uiLocale());}
     return String(v);
   }
   return String(v);
@@ -1600,7 +1801,7 @@ function selectPacket(key){
   selectedPacketId=key; const p=trafficPackets.find(x=>trafficKey(x)===key); if(!p)return;
   const hops=packetHops(p); const broadcast=isBroadcastPacket(p);
   document.getElementById('packetDetail').innerHTML=`<div class="detailTitle">${esc(packetTypeLabel(p.portnum_name))}${broadcast?'<span class="broadcastTag">BROADCAST</span>':''}</div>`+
-    `<div class="detailGrid"><b>Hora</b><span>${esc(new Date(packetTime(p)).toLocaleString('pt-BR'))}</span>`+
+    `<div class="detailGrid"><b>Hora</b><span>${esc(new Date(packetTime(p)).toLocaleString(uiLocale()))}</span>`+
     `<b>Direção</b><span>${esc(String(p.direction||'?').toUpperCase())}</span>`+
     `<b>Origem</b><span>${esc(packetNode(p,'from'))}<br>${esc(p.from_node_id||'')}</span>`+
     `<b>Destino</b><span>${esc(packetNode(p,'to'))}<br>${esc(p.to_node_id||'')}</span>`+
@@ -1757,7 +1958,7 @@ function toggleTrafficPause(){ trafficPaused=!trafficPaused; document.getElement
 
 
 let healthLoadedAt=0, anomalyLoadedAt=0;
-function fmtNum(v,dec=0){ const n=Number(v); return Number.isFinite(n)?n.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—'; }
+function fmtNum(v,dec=0){ const n=Number(v); return Number.isFinite(n)?n.toLocaleString(uiLocale(),{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—'; }
 function healthCard(value,label,sub=''){return `<div class="dashCard"><div class="value">${esc(value)}</div><div class="label">${esc(label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;}
 async function loadNetworkHealth(force=false){
   if(!force && Date.now()-healthLoadedAt<30000)return;
@@ -1765,7 +1966,7 @@ async function loadNetworkHealth(force=false){
   cards.innerHTML=healthCard('…','Calculando indicadores');
   try{
     const r=await fetch('/api/network-health',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json();
-    healthLoadedAt=Date.now(); document.getElementById('healthUpdated').textContent=`atualizado ${new Date(b.generatedAtMs).toLocaleTimeString('pt-BR')}`;
+    healthLoadedAt=Date.now(); document.getElementById('healthUpdated').textContent=`atualizado ${new Date(b.generatedAtMs).toLocaleTimeString(uiLocale())}`;
     cards.innerHTML=[
       healthCard(b.nodes.active2h,'Nós ativos - 2 h',`${b.nodes.total} nós conhecidos`),
       healthCard(b.nodes.active24h,'Nós ativos - 24 h',`${b.nodes.silent24h} sem tráfego > 24 h`),
@@ -1780,15 +1981,15 @@ async function loadNetworkHealth(force=false){
     document.getElementById('healthDaily').innerHTML=daily.map(x=>{const pct=Math.max(2,Math.round(90*Number(x.packets||0)/max));return `<div class="miniBarWrap"><div class="miniBarValue" style="--h:${pct}px">${fmtNum(x.packets)}</div><div class="miniBar" style="height:${pct}px"></div><div class="miniBarLabel">${esc(x.label)}</div></div>`}).join('')||'<div class="emptyPanel">Sem dados no período.</div>';
     document.getElementById('healthRoutes').innerHTML=`<div class="dashGrid">${healthCard(b.traceroutes.forward,'Idas observadas')}${healthCard(b.traceroutes.return,'Voltas observadas')}${healthCard(b.traceroutes.incomplete,'Traceroutes incompletos')}${healthCard(fmtNum(b.traceroutes.avgHops,1),'Média de hops')}</div>`;
     document.getElementById('healthChatRows').innerHTML=(b.chatInteractions||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId||'Nó desconhecido')}</b>${n.nodeId?`<br><span class="settingDesc">${esc(n.nodeId)}</span>`:''}</td><td><b>${fmtNum(n.interactions)}</b></td></tr>`).join('')||'<tr><td colspan="2" class="emptyPanel">Nenhuma interação de chat registrada no canal primário.</td></tr>';
-    document.getElementById('healthSilentRows').innerHTML=(b.attentionNodes||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId)}</b><br><span class="settingDesc">${esc(n.nodeId||'')}</span></td><td>${n.lastSeen?new Date(n.lastSeen).toLocaleString('pt-BR'):'—'}</td><td>${esc(n.lastSeen?humanAge(n.lastSeen):'sem registro')}</td><td>${fmtNum(n.packets7d)}</td><td>${n.avgSnr7d==null?'—':`${fmtNum(n.avgSnr7d,1)} dB`}</td></tr>`).join('')||'<tr><td colspan="5" class="emptyPanel">Nenhum nó requer atenção pelo critério atual.</td></tr>';
+    document.getElementById('healthSilentRows').innerHTML=(b.attentionNodes||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId)}</b><br><span class="settingDesc">${esc(n.nodeId||'')}</span></td><td>${n.lastSeen?new Date(n.lastSeen).toLocaleString(uiLocale()):'—'}</td><td>${esc(n.lastSeen?humanAge(n.lastSeen):'sem registro')}</td><td>${fmtNum(n.packets7d)}</td><td>${n.avgSnr7d==null?'—':`${fmtNum(n.avgSnr7d,1)} dB`}</td></tr>`).join('')||'<tr><td colspan="5" class="emptyPanel">Nenhum nó requer atenção pelo critério atual.</td></tr>';
   }catch(e){cards.innerHTML=healthCard('Erro','Não foi possível calcular',String(e));}
 }
-function sevLabel(s){return s==='critical'?'Crítica':s==='warning'?'Atenção':s==='info'?'Informativa':'OK';}
+function sevLabel(s){if(currentLang==='en')return s==='critical'?'Critical':s==='warning'?'Warning':s==='info'?'Informational':'OK';return s==='critical'?'Crítica':s==='warning'?'Atenção':s==='info'?'Informativa':'OK';}
 async function loadAnomalies(force=false){
   if(!force && Date.now()-anomalyLoadedAt<30000)return;
   try{
     const r=await fetch('/api/anomalies',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json(); anomalyLoadedAt=Date.now();
-    document.getElementById('anomalyUpdated').textContent=`analisado ${new Date(b.generatedAtMs).toLocaleTimeString('pt-BR')}`;
+    document.getElementById('anomalyUpdated').textContent=`analisado ${new Date(b.generatedAtMs).toLocaleTimeString(uiLocale())}`;
     document.getElementById('anomalyCards').innerHTML=[healthCard(b.summary.total,'Anomalias'),healthCard(b.summary.critical,'Críticas'),healthCard(b.summary.warning,'Atenção'),healthCard(b.summary.info,'Informativas')].join('');
     document.getElementById('anomalyList').innerHTML=(b.data||[]).map(a=>`<div class="anomalyRow"><div><span class="severity sev-${esc(a.severity)}">${esc(sevLabel(a.severity))}</span></div><div><div class="anomalyTitle">${esc(a.title)}</div><div class="anomalyEvidence">${esc(a.subject||'')}</div></div><div class="anomalyMsg">${esc(a.message)}${a.evidence?`<div class="anomalyEvidence">${esc(a.evidence)}</div>`:''}</div><div class="anomalyTime">${a.timestampMs?esc(humanAge(a.timestampMs)):'—'}</div></div>`).join('')||'<div class="emptyPanel"><span class="severity sev-ok">OK</span> Nenhuma anomalia foi detectada pelos critérios atuais.</div>';
   }catch(e){document.getElementById('anomalyList').innerHTML=`<div class="emptyPanel">Erro ao analisar: ${esc(e)}</div>`;}
@@ -1962,7 +2163,7 @@ const MESSAGE_READ_KEY='trafficAnalyzerPrimaryLastReadV117';
 function msgTimeMs(m){return Number(m.receivedAt||m.createdAt||m.timestamp||0)||0;}
 function messageKey(m){return String(m.id||`${m.fromNodeId||''}|${m.requestId||''}|${msgTimeMs(m)}|${m.text||''}`);}
 function dateKey(ms){const d=new Date(ms);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function dayLabel(ms){const d=new Date(ms),now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const that=new Date(d.getFullYear(),d.getMonth(),d.getDate());const delta=Math.round((today-that)/86400000);if(delta===0)return 'Hoje';if(delta===1)return 'Ontem';return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});}
+function dayLabel(ms){const d=new Date(ms),now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const that=new Date(d.getFullYear(),d.getMonth(),d.getDate());const delta=Math.round((today-that)/86400000);if(delta===0)return 'Hoje';if(delta===1)return 'Ontem';return d.toLocaleDateString(uiLocale(),{day:'2-digit',month:'long',year:'numeric'});}
 function lastReadMs(){return Number(localStorage.getItem(MESSAGE_READ_KEY)||0)||0;}
 function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();renderMessages();}
 function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
@@ -1985,7 +2186,7 @@ function refreshMentionSuggestions(){
   const q=ctx.query;
   mentionMatches=mentionNodeList().filter(n=>!q||[n.shortName,n.name,n.nodeId].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>{
     const ae=String(a.shortName||'').toLowerCase()===q?0:1,be=String(b.shortName||'').toLowerCase()===q?0:1;
-    return ae-be||String(a.shortName||a.name).localeCompare(String(b.shortName||b.name),'pt-BR');
+    return ae-be||String(a.shortName||a.name).localeCompare(String(b.shortName||b.name),uiLocale());
   }).slice(0,12);
   mentionActiveIndex=Math.min(mentionActiveIndex,Math.max(0,mentionMatches.length-1));
   const box=document.getElementById('mentionSuggestions');
@@ -2011,7 +2212,7 @@ function renderChatText(text){
   return html;
 }
 function deliveryVisual(m){const st=String(m.deliveryState||'').toLowerCase();if(m.ackFailed||m.routingErrorReceived||st==='failed')return {icon:'!',cls:'failed',tip:'Falha de entrega/roteamento reportada pelo MeshMonitor'};if(st==='confirmed'||m.ackFromNode)return {icon:'✓✓',cls:'confirmed',tip:'ACK confirmado pelo protocolo; não significa leitura humana'};if(st==='delivered')return {icon:'✓',cls:'',tip:'Transmitida para a malha pelo rádio local'};if(st==='queued'||st==='pending'||!st)return {icon:'◷',cls:'',tip:'Aguardando confirmação de transmissão'};return {icon:'✓',cls:'',tip:`Estado: ${st}`};}
-function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
+function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
 async function loadPrimaryMessages(force=false,preserveScroll=false){
   const list=document.getElementById('messageList');
   const oldHeight=list.scrollHeight,oldTop=list.scrollTop;
@@ -2023,7 +2224,7 @@ async function loadPrimaryMessages(force=false,preserveScroll=false){
     const previousNewest=messageNewestSeen;
     primaryMessages=rows;
     messageNewestSeen=Math.max(...rows.map(msgTimeMs),0);
-    document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString('pt-BR')}`;
+    document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString(uiLocale())}`;
     if(!messagesInitialized){
       messagesInitialized=true;
       messageSeenIds=new Set(rows.map(messageKey));
@@ -2071,7 +2272,7 @@ async function loadOlderPrimaryMessages(){
       : 'Nenhuma mensagem anterior adicional disponível.';
   }finally{btn.disabled=false;}
 }
-async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=input.value.trim();if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.');return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(`Não foi possível enviar: ${e}`);}finally{btn.disabled=false;input.focus();}}
+async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=input.value.trim();if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
 document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target))closeMentionSuggestions();});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
@@ -2130,7 +2331,7 @@ function openVersionModal(){
   const summary=document.getElementById('versionModalSummary');
   const notes=document.getElementById('versionNotes');
   const link=document.getElementById('versionReleaseLink');
-  if(d.updateAvailable) summary.textContent=`Instalada: v${d.localVersion} · disponível: v${d.latestVersion} · publicada em ${d.publishedAt?new Date(d.publishedAt).toLocaleString('pt-BR'):'data não informada'}.`;
+  if(d.updateAvailable) summary.textContent=`Instalada: v${d.localVersion} · disponível: v${d.latestVersion} · publicada em ${d.publishedAt?new Date(d.publishedAt).toLocaleString(uiLocale()):'data não informada'}.`;
   else if(d.status==='unavailable') summary.textContent=`Instalada: v${d.localVersion}. Não foi possível consultar o GitHub agora.`;
   else summary.textContent=`Instalada: v${d.localVersion}. Esta é a versão mais recente publicada.`;
   notes.textContent=d.notes||d.message||'Não há notas de versão disponíveis.';
@@ -2154,6 +2355,8 @@ legend.onAdd = () => {
 legend.addTo(map);
 
 initVisualPrefs();
+applyLanguage(currentLang,false);
+initI18nObserver();
 checkVersionStatus(false);
 setInterval(()=>checkVersionStatus(false),30*60*1000);
 load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
@@ -3210,7 +3413,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.21.0"
+    server_version = "TrafficAnalyzer/1.22.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
