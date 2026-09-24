@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.17.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.18.0 para MeshMonitor."""
 
 import csv
 import io
@@ -7,6 +7,8 @@ import json
 import os
 import sqlite3
 import statistics
+import subprocess
+import sys
 import threading
 import time
 import tempfile
@@ -18,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.17.0"
+APP_VERSION = "1.18.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -52,6 +54,7 @@ ARCHIVE_RETENTION_DAYS = max(0, int(os.getenv("ARCHIVE_RETENTION_DAYS", "0")))
 _archive_stop = threading.Event()
 _archive_status_lock = threading.Lock()
 _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "inserted_last_sync": 0}
+_topology_refresh_lock = threading.Lock()
 
 HTML = r'''<!doctype html>
 <html lang="pt-BR">
@@ -80,11 +83,11 @@ HTML = r'''<!doctype html>
   #trafficStats{display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#14202b;border-bottom:1px solid #293744}
   #trafficBody{display:grid;grid-template-columns:max-content minmax(360px,1fr);flex:1;min-height:0;min-width:0}
   #trafficTableWrap{overflow:auto;min-height:0;min-width:0;max-width:100vw}.trafficTable{width:auto;border-collapse:collapse;font-size:12px;table-layout:fixed}.trafficTable th{position:sticky;top:0;background:#17212b;color:#cbd6df;text-align:left;padding:8px;border-bottom:1px solid #405668;z-index:2}.trafficTable td{padding:7px 8px;border-bottom:1px solid #22313f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trafficTable tr{cursor:pointer}.trafficTable tbody tr:hover{background:#1d2b38}.trafficTable tbody tr.selected{background:#263b4d}
-  .trafficTable th:nth-child(1),.trafficTable td:nth-child(1){width:72px}.trafficTable th:nth-child(2),.trafficTable td:nth-child(2){width:48px}.trafficTable th:nth-child(3),.trafficTable td:nth-child(3){width:185px;max-width:185px}.trafficTable th:nth-child(4),.trafficTable td:nth-child(4){width:185px;max-width:185px}.trafficTable th:nth-child(5),.trafficTable td:nth-child(5){width:118px;max-width:118px}.trafficTable th:nth-child(6),.trafficTable td:nth-child(6){width:58px}.trafficTable th:nth-child(7),.trafficTable td:nth-child(7){width:58px}.trafficTable th:nth-child(8),.trafficTable td:nth-child(8){width:48px}.trafficTable th:nth-child(9),.trafficTable td:nth-child(9){width:48px}
+  .trafficTable th:nth-child(1),.trafficTable td:nth-child(1){width:72px}.trafficTable th:nth-child(2),.trafficTable td:nth-child(2){width:48px}.trafficTable th:nth-child(3),.trafficTable td:nth-child(3){width:185px;max-width:185px}.trafficTable th:nth-child(4),.trafficTable td:nth-child(4){width:185px;max-width:185px}.trafficTable th:nth-child(5),.trafficTable td:nth-child(5){width:118px;max-width:118px}.trafficTable th:nth-child(6),.trafficTable td:nth-child(6){width:58px}.trafficTable th:nth-child(7),.trafficTable td:nth-child(7){width:58px}.trafficTable th:nth-child(8),.trafficTable td:nth-child(8){width:48px}
   .badge{display:inline-block;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:800}.rx{background:#174f37;color:#7af0ad}.tx{background:#164a64;color:#7ddcff}.typeBadge{background:#374657;color:#e8edf2}.type-text{background:#5d3b7c}.type-position{background:#365f3a}.type-nodeinfo{background:#795628}.type-telemetry{background:#1f5d69}.type-traceroute{background:#5a487d}.type-routing{background:#754044}.type-neighbor{background:#4d5b25}
   #packetDetail{overflow:auto;border-left:1px solid #293744;background:#111a24;padding:14px}.detailTitle{font-size:16px;font-weight:800;margin-bottom:8px}.detailGrid{display:grid;grid-template-columns:120px minmax(0,1fr);gap:7px;font-size:12px}.detailGrid b{color:#9fb0bf}.emptyDetail{color:#8194a5;font-size:13px;padding-top:8px}.payloadBox{background:#172532;border:1px solid #304353;border-radius:7px;padding:9px;line-height:1.45;overflow-wrap:anywhere}.payloadRows{display:grid;grid-template-columns:minmax(110px,38%) minmax(0,1fr);gap:4px 9px}.payloadRows .k{color:#9fb0bf;font-weight:700}.payloadRows .v{overflow-wrap:anywhere}.techDetails{margin-top:8px}.techDetails summary{cursor:pointer;color:#9fc6e4;font-weight:700}.techDetails .payloadBox{margin-top:7px}.rawJson{margin-top:9px;border-top:1px solid #304353;padding-top:7px}.rawJson summary{font-size:11px;color:#8194a5;font-weight:600}.techDetails pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1620;border:1px solid #2e4050;border-radius:6px;padding:8px;font-size:10px;max-height:320px;overflow:auto}.broadcastTag{display:inline-block;background:#345d39;color:#a8f0b0;border-radius:9px;padding:2px 6px;font-size:10px;font-weight:800;margin-left:6px}
   #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:7px}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:0}}
-  @media(max-width:1150px){#trafficBody{grid-template-columns:minmax(0,1fr)}#packetDetail{display:none}header{align-items:flex-start}.trafficTable{min-width:820px}}
+  @media(max-width:1150px){#trafficBody{grid-template-columns:minmax(0,1fr)}#packetDetail{display:none}header{align-items:flex-start}.trafficTable{min-width:760px}}
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
@@ -120,15 +123,15 @@ HTML = r'''<!doctype html>
 
 
   /* v1.16 - Mensagens do canal primário */
-  #viewMessages{background:#0b141a;min-height:0;position:relative}
-  #messageHeader{padding:9px 14px;background:#17212b;border-bottom:1px solid #293744;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #viewMessages{background:#0b141a;min-height:0;position:relative;--message-font-size:13px}
+  #messageHeader{padding:7px 12px;background:#17212b;border-bottom:1px solid #293744;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   #messageHeader .msgTitle{font-weight:800}.msgHint{font-size:11px;color:#91a4b3}.msgSpacer{flex:1}
-  #messageList{flex:1;overflow:auto;padding:18px max(12px,calc((100% - 980px)/2));box-sizing:border-box;background:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96));scroll-behavior:smooth}
+  #messageList{flex:1;overflow:auto;padding:12px 14px;box-sizing:border-box;background:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96));scroll-behavior:smooth}
   .msgDay{text-align:center;margin:12px 0}.msgDay span{background:#182229;color:#b8c7d1;padding:5px 10px;border-radius:8px;font-size:11px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
-  .msgRow{display:flex;margin:4px 0}.msgRow.mine{justify-content:flex-end}.msgBubble{max-width:min(76%,720px);min-width:120px;border-radius:9px;padding:6px 8px 5px;box-shadow:0 1px 2px rgba(0,0,0,.28);overflow-wrap:anywhere;position:relative}.msgRow.theirs .msgBubble{background:#202c33;border-top-left-radius:2px}.msgRow.mine .msgBubble{background:#005c4b;border-top-right-radius:2px}
-  .msgSender{font-size:11px;color:#70cfff;font-weight:800;margin-bottom:2px}.msgText{white-space:pre-wrap;font-size:13px;line-height:1.35;padding-right:58px}.msgMeta{font-size:10px;color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
+  .msgRow{display:flex;margin:4px 0}.msgRow.mine{justify-content:flex-end}.msgBubble{max-width:min(92%,1200px);min-width:120px;border-radius:9px;padding:6px 8px 5px;box-shadow:0 1px 2px rgba(0,0,0,.28);overflow-wrap:anywhere;position:relative}.msgRow.theirs .msgBubble{background:#202c33;border-top-left-radius:2px}.msgRow.mine .msgBubble{background:#005c4b;border-top-right-radius:2px}
+  .msgSender{font-size:calc(var(--message-font-size,13px) - 2px);color:#70cfff;font-weight:800;margin-bottom:2px}.msgText{white-space:pre-wrap;font-size:var(--message-font-size,13px);line-height:1.35;padding-right:58px}.msgMeta{font-size:calc(var(--message-font-size,13px) - 3px);color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
   .msgNewMark{display:inline-block;background:#1f6f8b;color:white;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:5px}
-  #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:9px max(12px,calc((100% - 980px)/2));background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font:inherit;line-height:1.25;background:#2a3942;color:#fff;caret-color:#fff}#messageInput::placeholder{color:#9fb0bf;opacity:1}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;color:#fff;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
+  #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:8px 12px;background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font-family:inherit;font-size:var(--message-font-size,13px);line-height:1.25;background:#2a3942;color:#fff;caret-color:#fff}#messageInput::placeholder{color:#9fb0bf;opacity:1}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;color:#fff;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
   #messagesNav.unread{animation:messagesUnread 1.15s ease-in-out infinite;border-color:#53bdeb;box-shadow:0 0 0 1px rgba(83,189,235,.25)}@keyframes messagesUnread{0%,100%{background:#233443;color:#edf3f8}50%{background:#0b6f81;color:#fff}}
   .unreadCount{display:none;background:#25d366;color:#07140c;border-radius:10px;min-width:18px;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:900}.unread .unreadCount{display:inline-block}
   @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter{display:none}}
@@ -190,8 +193,8 @@ HTML = r'''<!doctype html>
   <div id="trafficBody">
     <div id="trafficTableWrap">
       <table class="trafficTable">
-        <thead><tr><th>Hora</th><th>DIR</th><th>Origem</th><th>Destino</th><th>Tipo</th><th>SNR</th><th>RSSI</th><th>Hops</th><th>Canal</th></tr></thead>
-        <tbody id="trafficRows"><tr><td colspan="9">Carregando pacotes...</td></tr></tbody>
+        <thead><tr><th>Hora</th><th>DIR</th><th>Origem</th><th>Destino</th><th>Tipo</th><th>SNR</th><th>RSSI</th><th>Hops</th></tr></thead>
+        <tbody id="trafficRows"><tr><td colspan="8">Carregando pacotes...</td></tr></tbody>
       </table>
     </div>
     <aside id="packetDetail"><div class="emptyDetail">Clique em um pacote para ver os detalhes.</div></aside>
@@ -298,6 +301,21 @@ HTML = r'''<!doctype html>
       </div>
     </div>
 
+    <h3>Mensagens</h3>
+    <div class="settingsGrid">
+      <div class="settingRow">
+        <label>Tamanho da fonte:
+          <input id="messageFontSize" type="range" min="10" max="20" step="1" value="13">
+          <span id="messageFontSizeValue">13 px</span>
+        </label>
+        <div class="settingDesc">Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.</div>
+      </div>
+      <div class="settingRow">
+        <b>Uso da tela</b>
+        <div class="settingDesc">A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.</div>
+      </div>
+    </div>
+
     <h3>Fluxos e privacidade</h3>
     <div class="settingRow">
       <label><input id="nodeInfoFlowEnabled" type="checkbox" checked> Mostrar fluxo de NodeInfo no mapa</label>
@@ -363,6 +381,7 @@ let liveSeen = new Set();
 let liveQueue = [];
 let liveProcessing = false;
 let liveAnimationSeq = 0;
+let liveAnimationPaused = false;
 const activeLiveAnimations = new Map();
 let autoZoomSavedCenter = null;
 let autoZoomSavedZoom = null;
@@ -403,7 +422,8 @@ function savePrefs(){
     activityRelayEnabled: document.getElementById('activityRelayEnabled').checked,
     activityDuration: Number(document.getElementById('activityDuration').value || 1000),
     autoZoomTraceroute: document.getElementById('autoZoomTraceroute').checked,
-    nodeInfoFlowEnabled: document.getElementById('nodeInfoFlowEnabled').checked
+    nodeInfoFlowEnabled: document.getElementById('nodeInfoFlowEnabled').checked,
+    messageFontSize: Number(document.getElementById('messageFontSize').value || 13)
   };
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
 }
@@ -419,6 +439,13 @@ function applyBrightness(){
   document.getElementById('mapBrightnessValue').textContent = `${value}%`;
   const pane = map.getPane('tilePane');
   if(pane) pane.style.filter = `brightness(${value}%)`;
+}
+function applyMessageFontSize(){
+  const input=document.getElementById('messageFontSize');
+  const size=Math.max(10,Math.min(20,Number(input?.value||13)));
+  document.getElementById('viewMessages')?.style.setProperty('--message-font-size',`${size}px`);
+  const label=document.getElementById('messageFontSizeValue');
+  if(label) label.textContent=`${size} px`;
 }
 function initVisualPrefs(){
   const prefs = loadPrefs();
@@ -453,6 +480,8 @@ function initVisualPrefs(){
   if([650,1000,1500,2000].includes(Number(prefs.activityDuration))) document.getElementById('activityDuration').value = String(prefs.activityDuration);
   document.getElementById('autoZoomTraceroute').checked = (typeof prefs.autoZoomTraceroute === 'boolean') ? prefs.autoZoomTraceroute : false;
   document.getElementById('nodeInfoFlowEnabled').checked = (typeof prefs.nodeInfoFlowEnabled === 'boolean') ? prefs.nodeInfoFlowEnabled : true;
+  if(Number.isFinite(Number(prefs.messageFontSize))) document.getElementById('messageFontSize').value = String(Math.max(10,Math.min(20,Number(prefs.messageFontSize))));
+  applyMessageFontSize();
   document.getElementById('soundVolumeValue').textContent = `${document.getElementById('soundVolume').value}%`;
   setBaseMap(document.getElementById('mapType').value);
   applyBrightness();
@@ -760,6 +789,7 @@ function updatePlaybackStatusIdle(){
   const el = document.getElementById('playStatus');
   if(document.getElementById('playMode').value === 'live'){
     if(!liveInitialized) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · conectando…';
+    else if(liveAnimationPaused) el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ANIMAÇÃO PAUSADA · ${liveQueue.length} represado(s) · ${activeLiveAnimations.size} congelado(s)`;
     else if(!liveQueue.length && activeLiveAnimations.size===0) el.innerHTML = '<span class="liveBadge">AO VIVO</span>';
     else if(activeLiveAnimations.size>1) el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ${activeLiveAnimations.size} traceroutes simultâneos`;
     else if(activeLiveAnimations.size===1) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · 1 traceroute em animação';
@@ -795,8 +825,9 @@ function traceBounds(trace){
   const b=L.latLngBounds(pts.map(p=>[Number(p.lat),Number(p.lon)]));
   return b.isValid()?b:null;
 }
+function autoMapMotionAllowed(){ return !!document.getElementById('autoZoomTraceroute')?.checked; }
 function refitAutoZoom(){
-  if(!autoZoomEngaged || !document.getElementById('autoZoomTraceroute').checked) return;
+  if(!autoZoomEngaged || !autoMapMotionAllowed()) return;
   let combined=null;
   for(const b of autoZoomActive.values()){
     if(!b || !b.isValid()) continue;
@@ -808,7 +839,7 @@ function refitAutoZoom(){
   }
 }
 function beginAutoZoom(key,trace){
-  if(!document.getElementById('autoZoomTraceroute').checked) return false;
+  if(!autoMapMotionAllowed()) return false;
   const b=traceBounds(trace);
   if(!b) return false;
   if(autoZoomRestoreTimer){ clearTimeout(autoZoomRestoreTimer); autoZoomRestoreTimer=null; }
@@ -833,15 +864,15 @@ function endAutoZoom(key){
     if(center && Number.isFinite(Number(zoom)) && document.getElementById('viewMap').classList.contains('active')) map.setView(center,zoom,{animate:true});
   },5000);
 }
-function disableAutoZoomAndRestore(){
+function disableAutoZoomAndRestore(restore=true){
   if(autoZoomRestoreTimer){ clearTimeout(autoZoomRestoreTimer); autoZoomRestoreTimer=null; }
   autoZoomActive.clear();
   const center=autoZoomSavedCenter, zoom=autoZoomSavedZoom;
-  const shouldRestore=autoZoomEngaged && center && Number.isFinite(Number(zoom));
+  const shouldRestore=restore && autoZoomEngaged && center && Number.isFinite(Number(zoom));
   autoZoomEngaged=false; autoZoomSavedCenter=null; autoZoomSavedZoom=null;
   if(shouldRestore && document.getElementById('viewMap').classList.contains('active')) map.setView(center,zoom,{animate:true});
 }
-function animatePath(points, color, isActive){
+function animatePath(points, color, isActive, isPaused=()=>false){
   return new Promise(resolve => {
     if(!points || points.length < 2){ resolve(true); return; }
     const latlngs = points.map(p => L.latLng(p.lat,p.lon));
@@ -862,14 +893,14 @@ function animatePath(points, color, isActive){
       activityPulseAtPoint(points[idx],n>>>0,kind);
     };
     emitNode(0);
-    const start=performance.now();
-    function cleanup(){
-      try{ animationLayer.removeLayer(pulse); }catch{}
-      try{ animationLayer.removeLayer(routeGlow); }catch{}
-    }
+    let travelled=0;
+    let lastFrame=performance.now();
+    function cleanup(){ try{ animationLayer.removeLayer(pulse); }catch{} try{ animationLayer.removeLayer(routeGlow); }catch{} }
     function frame(now){
       if(!isActive()){ cleanup(); resolve(false); return; }
-      const travelled=((now-start)/1000)*speed;
+      const dt=Math.max(0,Math.min(250,now-lastFrame)); lastFrame=now;
+      if(isPaused()){ requestAnimationFrame(frame); return; }
+      travelled += (dt/1000)*speed;
       if(travelled >= total){
         pulse.setLatLng(latlngs[latlngs.length-1]);
         for(let i=1;i<points.length;i++) emitNode(i);
@@ -877,8 +908,6 @@ function animatePath(points, color, isActive){
       }
       let rem=travelled, seg=0;
       while(seg<lengths.length-1 && rem>lengths[seg]){ rem-=lengths[seg]; seg++; }
-      // Quando o marcador alcança um novo hop, o nó também recebe o pulso de
-      // atividade. A linha continua animada de forma independente.
       for(let i=1;i<=seg;i++) emitNode(i);
       const ratio=lengths[seg] ? Math.max(0,Math.min(1,rem/lengths[seg])) : 1;
       pulse.setLatLng(latLngAt(points,seg,ratio));
@@ -887,16 +916,16 @@ function animatePath(points, color, isActive){
     requestAnimationFrame(frame);
   });
 }
-async function animateTrace(trace, isActive, idx=0, total=1, hudKey=null){
+async function animateTrace(trace, isActive, idx=0, total=1, hudKey=null, isPaused=()=>false){
   if(trace.forwardPath?.length > 1){
     if(hudKey) setTraceHudLeg(hudKey,'forward');
     setTraceStatus(trace,'forward',idx,total);
-    if(!await animatePath(trace.forwardPath,'#00e5ff',isActive)) return false;
+    if(!await animatePath(trace.forwardPath,'#00e5ff',isActive,isPaused)) return false;
   }
   if(trace.returnPath?.length > 1){
     if(hudKey) setTraceHudLeg(hudKey,'return');
     setTraceStatus(trace,'return',idx,total);
-    if(!await animatePath(trace.returnPath,'#ff4fd8',isActive)) return false;
+    if(!await animatePath(trace.returnPath,'#ff4fd8',isActive,isPaused)) return false;
   }
   return true;
 }
@@ -973,7 +1002,7 @@ function runLiveTrace(trace){
   const active=()=>playbackRunning && document.getElementById('playMode').value==='live' && activeLiveAnimations.has(token);
   (async()=>{
     try{
-      await animateTrace(trace,active,0,1,autoKey);
+      await animateTrace(trace,active,0,1,autoKey,()=>liveAnimationPaused);
     } finally {
       endTraceHud(autoKey);
       if(zoomed) endAutoZoom(autoKey);
@@ -984,7 +1013,7 @@ function runLiveTrace(trace){
   })();
 }
 function processLiveQueue(){
-  if(!playbackRunning || document.getElementById('playMode').value !== 'live') return;
+  if(!playbackRunning || liveAnimationPaused || document.getElementById('playMode').value !== 'live') return;
   // Cada traceroute novo ganha sua própria animação. Assim, um novo evento começa
   // imediatamente mesmo quando outro traceroute ainda está percorrendo o mapa.
   while(liveQueue.length){ runLiveTrace(liveQueue.shift()); }
@@ -992,7 +1021,7 @@ function processLiveQueue(){
 }
 function startLivePolling(){
   if(livePollTimer) clearInterval(livePollTimer);
-  liveSeen=new Set(); liveQueue=[]; liveInitialized=false; liveProcessing=false;
+  liveSeen=new Set(); liveQueue=[]; liveInitialized=false; liveProcessing=false; liveAnimationPaused=false;
   activeLiveAnimations.clear();
   playbackRunning=true;
   pollLive();
@@ -1001,7 +1030,7 @@ function startLivePolling(){
 function stopLivePolling(){
   if(livePollTimer){ clearInterval(livePollTimer); livePollTimer=null; }
   activeLiveAnimations.clear();
-  liveProcessing=false;
+  liveProcessing=false; liveAnimationPaused=false;
   for(const key of [...traceHudEntries.keys()]) if(String(key).startsWith('live:')) traceHudEntries.delete(key);
   renderTraceHud();
 }
@@ -1120,7 +1149,7 @@ function drawLogicalNodeInfoLine(p,generation){
   if(!a || !b) return null;
   const line=L.polyline([[a.lat,a.lon],[b.lat,b.lon]],{color:'#ffb347',weight:3,opacity:.86,dashArray:'7 8',interactive:true}).addTo(flowLayer);
   line.bindTooltip(`NodeInfo ${a.name} → ${b.name} · caminho intermediário ainda não observado`);
-  if(document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds().pad(.18),{maxZoom:13});
+  if(autoMapMotionAllowed() && document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds(),{padding:[18,18],maxZoom:13,animate:true});
   return {a,b,line};
 }
 function animateFlowPath(points,generation,color='#a970ff'){
@@ -1175,7 +1204,7 @@ async function showNodeInfoFlow(p,opts={}){
   const deltaS=Math.round(evidence.delta/1000);
   line.bindTooltip(`Rota observada por traceroute próximo (${deltaS}s) · não prova que o NodeInfo usou exatamente os mesmos relays`);
   evidence.path.forEach((pt,i)=>L.circleMarker([pt.lat,pt.lon],{radius:i===0||i===evidence.path.length-1?6:4,color:'#d8c8ff',fillColor:'#a970ff',fillOpacity:.85,weight:1,interactive:false}).addTo(flowLayer));
-  if(document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds().pad(.18),{maxZoom:13});
+  if(autoMapMotionAllowed() && document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds(),{padding:[18,18],maxZoom:13,animate:true});
   flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Animando pela rota observada em traceroute entre os mesmos nós, ${deltaS}s distante deste evento. É evidência de rota, não o caminho codificado no pacote NodeInfo.</div>`,true);
   await animateFlowPath(evidence.path,generation,'#a970ff');
   clearFlowLater(generation,45000);
@@ -1234,8 +1263,8 @@ function renderTraffic(){
       `<td>${fmtTime(packetTime(p))}</td><td><span class="badge ${dir==='rx'?'rx':'tx'}">${esc(dir.toUpperCase())}</span></td>`+
       `<td title="${esc(p.from_node_id||'')}">${esc(packetNode(p,'from'))}</td><td title="${esc(p.to_node_id||'')}">${esc(packetNode(p,'to'))}</td>`+
       `<td><span class="badge typeBadge ${packetTypeClass(p.portnum_name)}" title="Clique para ver o payload formatado">${esc(packetTypeLabel(p.portnum_name))}</span></td>`+
-      `<td>${p.snr==null?'—':fmtNum(p.snr,2)}</td><td>${p.rssi==null?'—':esc(p.rssi)}</td><td>${hops==null?'—':esc(hops)}</td><td>${p.channel==null?'—':esc(p.channel)}</td></tr>`;
-  }).join(''):'<tr><td colspan="9">Nenhum pacote corresponde ao filtro.</td></tr>';
+      `<td>${p.snr==null?'—':fmtNum(p.snr,2)}</td><td>${p.rssi==null?'—':esc(p.rssi)}</td><td>${hops==null?'—':esc(hops)}</td></tr>`;
+  }).join(''):'<tr><td colspan="8">Nenhum pacote corresponde ao filtro.</td></tr>';
   body.querySelectorAll('tr[data-packet]').forEach(tr=>tr.addEventListener('click',()=>selectPacket(tr.dataset.packet)));
 }
 function isBroadcastPacket(p){
@@ -1569,11 +1598,32 @@ async function load(fit=false){
     render();
     map.invalidateSize();
     if(document.getElementById('playMode').value === 'history') updatePlaybackStatusIdle();
-    if(fit && lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds.pad(.08));
+    if(fit && lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds,{paddingTopLeft:[22,22],paddingBottomRight:[22,22],animate:true});
   }catch(e){
     console.error('Erro ao carregar topologia:', e);
     document.getElementById('summary').innerHTML = `<span class="metric warn">Erro ao carregar topologia: ${esc(e.message||e)}</span>`;
   }
+}
+
+async function refreshTopologyNow(){
+  const btn=document.getElementById('reload'); if(btn.disabled) return;
+  btn.disabled=true; btn.textContent='Atualizando...';
+  try{
+    const r=await fetch('/api/topology/refresh',{method:'POST',cache:'no-store'});
+    const b=await r.json();
+    if(!r.ok||!b.success) throw new Error(b.message||`HTTP ${r.status}`);
+    await load(false);
+    btn.textContent='Atualizado ✓';
+    setTimeout(()=>{btn.textContent='Atualizar';},1600);
+  }catch(e){
+    console.error('Falha ao atualizar topologia:',e);
+    btn.textContent='Erro';
+    document.getElementById('playStatus').textContent=`Falha ao atualizar: ${String(e.message||e)}`;
+    setTimeout(()=>{btn.textContent='Atualizar';},2500);
+  }finally{ btn.disabled=false; }
+}
+function fitMapTight(){
+  if(lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds,{paddingTopLeft:[22,22],paddingBottomRight:[22,22],animate:true});
 }
 
 for(const id of ['ageHours','minObs','onlyIdentified']) document.getElementById(id).addEventListener('change', () => { historyIndex=0; savePrefs(); render(); });
@@ -1585,17 +1635,26 @@ document.getElementById('lineColor').addEventListener('input', () => { savePrefs
 document.getElementById('animSpeed').addEventListener('change', savePrefs);
 document.getElementById('playMode').addEventListener('change', () => {
   stopAnimation(); stopLivePolling();
+  document.getElementById('pauseTrace').textContent='⏸'; document.getElementById('pauseTrace').title='Pausar';
   if(document.getElementById('playMode').value === 'live') startLivePolling(); else updatePlaybackStatusIdle();
 });
 document.getElementById('playTrace').addEventListener('click', () => {
-  if(document.getElementById('playMode').value === 'live'){ playbackRunning=true; if(!livePollTimer) startLivePolling(); else processLiveQueue(); }
+  if(document.getElementById('playMode').value === 'live'){ playbackRunning=true; liveAnimationPaused=false; document.getElementById('pauseTrace').textContent='⏸'; document.getElementById('pauseTrace').title='Pausar animações ao vivo'; if(!livePollTimer) startLivePolling(); else processLiveQueue(); }
   else playHistoryLoop();
 });
-document.getElementById('pauseTrace').addEventListener('click', () => { stopAnimation(); });
+document.getElementById('pauseTrace').addEventListener('click', () => {
+  if(document.getElementById('playMode').value==='live'){
+    liveAnimationPaused=!liveAnimationPaused;
+    document.getElementById('pauseTrace').textContent=liveAnimationPaused?'▶':'⏸';
+    document.getElementById('pauseTrace').title=liveAnimationPaused?'Retomar animações ao vivo':'Pausar animações ao vivo';
+    if(!liveAnimationPaused) processLiveQueue();
+    updatePlaybackStatusIdle();
+  }else{ stopAnimation(); }
+});
 document.getElementById('prevTrace').addEventListener('click', () => { if(document.getElementById('playMode').value==='history') playHistoryOnce(historyIndex-1); });
 document.getElementById('nextTrace').addEventListener('click', () => { if(document.getElementById('playMode').value==='history') playHistoryOnce(historyIndex+1); });
-document.getElementById('reload').addEventListener('click', () => load(false));
-document.getElementById('fit').addEventListener('click', () => { if(lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds.pad(.08)); });
+document.getElementById('reload').addEventListener('click',refreshTopologyNow);
+document.getElementById('fit').addEventListener('click',fitMapTight);
 
 
 
@@ -1690,8 +1749,9 @@ document.getElementById('soundVolume').addEventListener('input',()=>{ document.g
 document.getElementById('soundTone').addEventListener('change',savePrefs);
 document.getElementById('soundTest').addEventListener('click',()=>playNotification(true));
 for(const id of ['activityAnimationEnabled','activityOriginEnabled','activityRelayEnabled','activityDuration']) document.getElementById(id).addEventListener('change',()=>{savePrefs(); if(!document.getElementById('activityAnimationEnabled').checked){activityLayer.clearLayers();activityMarkers.clear();}});
-document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore();});
+document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore(false);});
 document.getElementById('nodeInfoFlowEnabled').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('nodeInfoFlowEnabled').checked){flowGeneration++;flowLayer.clearLayers();}});
+document.getElementById('messageFontSize').addEventListener('input',()=>{applyMessageFontSize();savePrefs();});
 document.getElementById('flowToast').addEventListener('click',()=>setView('map'));
 
 const legend = L.control({position:'bottomright'});
@@ -2478,6 +2538,21 @@ def _archive_dump_zip():
         raise
 
 
+def _refresh_topology_now():
+    if not _topology_refresh_lock.acquire(blocking=False):
+        return {"success": False, "busy": True, "message": "Atualização de topologia já está em andamento."}
+    try:
+        script = Path(__file__).with_name("traffic_analyzer.py")
+        proc = subprocess.run([sys.executable, str(script), "--topology-only"], capture_output=True, text=True, timeout=90, env=os.environ.copy())
+        if proc.returncode != 0:
+            detail = (proc.stderr or proc.stdout or "falha sem detalhes").strip()
+            raise RuntimeError(detail[-1800:])
+        updated_ms = int(TOPOLOGY_FILE.stat().st_mtime * 1000) if TOPOLOGY_FILE.exists() else int(time.time()*1000)
+        return {"success": True, "updatedAtMs": updated_ms, "message": "Topologia atualizada."}
+    finally:
+        _topology_refresh_lock.release()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "TrafficAnalyzer/1.16.0"
 
@@ -2644,6 +2719,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/topology/refresh":
+            try:
+                body = _refresh_topology_now()
+                self._send(200 if body.get("success") else 409, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except subprocess.TimeoutExpired:
+                self._send(504, "application/json; charset=utf-8", json.dumps({"success": False, "error": "refresh_timeout", "message": "A atualização excedeu 90 segundos."}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "error": "refresh_failed", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
         if path == "/api/messages/send":
             try:
                 length = int(self.headers.get("Content-Length", "0") or 0)
