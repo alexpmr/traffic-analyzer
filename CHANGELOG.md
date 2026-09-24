@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.20.0 - 2026-09-24
+
+- Corrige o represamento no modo Ao vivo: traceroutes incompletos não são mais marcados como vistos antes de se tornarem animáveis.
+- Mantém polling, coleta e processamento durante a pausa; traceroutes completos ficam em fila e animações ativas permanecem congeladas.
+- Amplia a fila de traceroutes ao vivo para 5.000 eventos e passa a informar descartes se o limite for atingido.
+- Represa também pulsos de atividade visual recebidos durante a pausa e os libera ao retomar.
+- Adiciona indicador de versão no topo com comparação contra a Latest Release do GitHub.
+- Adiciona janela com notas da Release, link para o GitHub e comando de atualização.
+- Adiciona tema Claro, mantendo Escuro como padrão, com persistência no navegador.
+- Remove do resumo do mapa o aviso "Linhas = adjacências observadas, não enlaces permanentes".
+- Mantém screenshots anonimizados no README e nas notas da Release.
+
 ## 1.19.0 - 2026-09-24
 
 - Unifica os controles de reprodução e pausa em um único botão alternável ▶/⏸.
