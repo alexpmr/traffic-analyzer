@@ -11,6 +11,7 @@
 - **Enquadrar mais justo:** o mapa usa zoom fracionário em passos de 0,05 e ajusta o nível até ocupar o máximo da tela sem cortar círculos ou rótulos permanentes.
 - A margem de segurança do enquadramento foi reduzida para cerca de 6 px; o ajuste fino verifica os elementos realmente renderizados.
 - Mantidos os screenshots anonimizados no README e nas notas da Release formal.
+- [Baixar o manual PDF da v1.19.0](./Documentacao_Traffic_Analyzer_v1.19.0.pdf)
 
 ## Novidades da v1.18.0
 
@@ -23,7 +24,7 @@
 - **Mensagens:** layout ampliado e novo controle de fonte (10 a 20 px) em Configurações.
 - **Screenshots:** galeria pública anonimizada adicionada ao README.
 - **Release:** GitHub Actions gera ZIP versionado, atualiza `traffic-analyzer-latest.zip` e cria Release formal marcada como Latest.
-- [Baixar o manual PDF da v1.18.0](./Documentacao_Traffic_Analyzer_v1.19.0.pdf)
+- [Baixar o manual PDF da v1.18.0](./Documentacao_Traffic_Analyzer_v1.18.0.pdf)
 
 ## Novidades da v1.17.0
 
