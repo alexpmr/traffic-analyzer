@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.18.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.19.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.18.0"
+APP_VERSION = "1.19.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -162,8 +162,7 @@ HTML = r'''<!doctype html>
     </select>
   </label>
   <button id="prevTrace" title="Traceroute anterior">⏮</button>
-  <button id="playTrace" title="Reproduzir">▶</button>
-  <button id="pauseTrace" title="Pausar">⏸</button>
+  <button id="playTrace" title="Pausar animações ao vivo">⏸</button>
   <button id="nextTrace" title="Próximo traceroute">⏭</button>
   <label>Velocidade:
     <select id="animSpeed">
@@ -336,7 +335,7 @@ HTML = r'''<!doctype html>
  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <script>
-const map = L.map('map', {preferCanvas:true}).setView([-15.8,-47.9], 9);
+const map = L.map('map', {preferCanvas:true, zoomSnap:0.05, zoomDelta:0.25}).setView([-15.8,-47.9], 9);
 
 const baseMaps = {
   osm: {
@@ -374,6 +373,7 @@ const nodeTrafficLastSeen = new Map();
 let lastBounds = null;
 let historyIndex = 0;
 let playbackRunning = false;
+let historyAnimationPaused = false;
 let animationGeneration = 0;
 let livePollTimer = null;
 let liveInitialized = false;
@@ -785,7 +785,18 @@ function setTraceHudLeg(key,leg){
 }
 function endTraceHud(key){ traceHudEntries.delete(key); renderTraceHud(); }
 function clearTraceHud(){ traceHudEntries.clear(); renderTraceHud(); }
+function updatePlaybackControl(){
+  const btn=document.getElementById('playTrace');
+  if(!btn) return;
+  const live=document.getElementById('playMode').value==='live';
+  const paused=live ? liveAnimationPaused : (!playbackRunning || historyAnimationPaused);
+  btn.textContent=paused?'▶':'⏸';
+  btn.title=live
+    ? (paused?'Retomar animações ao vivo':'Pausar animações ao vivo')
+    : (paused?'Reproduzir/retomar histórico':'Pausar histórico');
+}
 function updatePlaybackStatusIdle(){
+  updatePlaybackControl();
   const el = document.getElementById('playStatus');
   if(document.getElementById('playMode').value === 'live'){
     if(!liveInitialized) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · conectando…';
@@ -795,8 +806,13 @@ function updatePlaybackStatusIdle(){
     else if(activeLiveAnimations.size===1) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · 1 traceroute em animação';
     return;
   }
-  if(playbackRunning) return;
   const list = historyTraces();
+  if(historyAnimationPaused){
+    if(historyIndex >= list.length) historyIndex = Math.max(0, list.length-1);
+    el.textContent = list.length ? `Histórico pausado · posição ${historyIndex+1}/${list.length}` : 'Histórico pausado.';
+    return;
+  }
+  if(playbackRunning) return;
   if(historyIndex >= list.length) historyIndex = Math.max(0, list.length-1);
   el.textContent = list.length ? `Histórico: ${list.length} traceroutes animáveis · posição ${historyIndex+1}/${list.length}` : 'Histórico: nenhum traceroute completamente mapeável no filtro atual.';
 }
@@ -808,6 +824,8 @@ function setTraceStatus(trace, leg, idx, total){
 }
 function stopAnimation(){
   playbackRunning = false;
+  historyAnimationPaused = false;
+  liveAnimationPaused = false;
   animationGeneration++;
   activeLiveAnimations.clear();
   liveProcessing = false;
@@ -933,7 +951,9 @@ async function playHistoryLoop(){
   stopLivePolling();
   const list=historyTraces();
   if(!list.length){ updatePlaybackStatusIdle(); return; }
+  historyAnimationPaused=false;
   playbackRunning=true;
+  updatePlaybackControl();
   if(historyIndex>=list.length) historyIndex=0;
   const generation=++animationGeneration;
   const active=()=>playbackRunning && generation===animationGeneration && document.getElementById('playMode').value==='history';
@@ -943,13 +963,15 @@ async function playHistoryLoop(){
     const zoomed=beginAutoZoom(autoKey,trace);
     beginTraceHud(autoKey,trace);
     let ok=false;
-    try{ ok=await animateTrace(trace,active,historyIndex,list.length,autoKey); }
+    try{ ok=await animateTrace(trace,active,historyIndex,list.length,autoKey,()=>historyAnimationPaused); }
     finally{ endTraceHud(autoKey); if(zoomed) endAutoZoom(autoKey); }
     if(!ok) break;
     historyIndex++;
   }
   if(generation===animationGeneration){
     playbackRunning=false;
+    historyAnimationPaused=false;
+    updatePlaybackControl();
     if(historyIndex>=list.length){ historyIndex=0; document.getElementById('playStatus').textContent=`Histórico concluído · ${list.length} traceroutes reproduzidos`; }
     else updatePlaybackStatusIdle();
   }
@@ -959,16 +981,22 @@ async function playHistoryOnce(index){
   const list=historyTraces();
   if(!list.length){ updatePlaybackStatusIdle(); return; }
   historyIndex=Math.max(0,Math.min(index,list.length-1));
+  historyAnimationPaused=false;
   playbackRunning=true;
+  updatePlaybackControl();
   const generation=++animationGeneration;
   const active=()=>playbackRunning && generation===animationGeneration && document.getElementById('playMode').value==='history';
   const trace=list[historyIndex];
   const autoKey=`history-once:${generation}:${historyIndex}`;
   const zoomed=beginAutoZoom(autoKey,trace);
   beginTraceHud(autoKey,trace);
-  try{ await animateTrace(trace,active,historyIndex,list.length,autoKey); }
+  try{ await animateTrace(trace,active,historyIndex,list.length,autoKey,()=>historyAnimationPaused); }
   finally{ endTraceHud(autoKey); if(zoomed) endAutoZoom(autoKey); }
-  if(generation===animationGeneration){ playbackRunning=false; updatePlaybackStatusIdle(); }
+  if(generation===animationGeneration){
+    playbackRunning=false;
+    historyAnimationPaused=false;
+    updatePlaybackStatusIdle();
+  }
 }
 async function pollLive(){
   if(document.getElementById('playMode').value !== 'live') return;
@@ -1024,6 +1052,7 @@ function startLivePolling(){
   liveSeen=new Set(); liveQueue=[]; liveInitialized=false; liveProcessing=false; liveAnimationPaused=false;
   activeLiveAnimations.clear();
   playbackRunning=true;
+  updatePlaybackControl();
   pollLive();
   livePollTimer=setInterval(pollLive,3000);
 }
@@ -1033,6 +1062,7 @@ function stopLivePolling(){
   liveProcessing=false; liveAnimationPaused=false;
   for(const key of [...traceHudEntries.keys()]) if(String(key).startsWith('live:')) traceHudEntries.delete(key);
   renderTraceHud();
+  updatePlaybackControl();
 }
 
 
@@ -1598,7 +1628,7 @@ async function load(fit=false){
     render();
     map.invalidateSize();
     if(document.getElementById('playMode').value === 'history') updatePlaybackStatusIdle();
-    if(fit && lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds,{paddingTopLeft:[22,22],paddingBottomRight:[22,22],animate:true});
+    if(fit && lastBounds && lastBounds.isValid()) await fitMapTight();
   }catch(e){
     console.error('Erro ao carregar topologia:', e);
     document.getElementById('summary').innerHTML = `<span class="metric warn">Erro ao carregar topologia: ${esc(e.message||e)}</span>`;
@@ -1622,8 +1652,76 @@ async function refreshTopologyNow(){
     setTimeout(()=>{btn.textContent='Atualizar';},2500);
   }finally{ btn.disabled=false; }
 }
-function fitMapTight(){
-  if(lastBounds && lastBounds.isValid()) map.fitBounds(lastBounds,{paddingTopLeft:[22,22],paddingBottomRight:[22,22],animate:true});
+function nextPaint(){
+  return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+}
+function mapContentFits(margin=6){
+  const size=map.getSize();
+  if(!size || size.x<=0 || size.y<=0) return true;
+
+  if(lastBounds && lastBounds.isValid()){
+    const sw=map.latLngToContainerPoint(lastBounds.getSouthWest());
+    const ne=map.latLngToContainerPoint(lastBounds.getNorthEast());
+    const minX=Math.min(sw.x,ne.x), maxX=Math.max(sw.x,ne.x);
+    const minY=Math.min(sw.y,ne.y), maxY=Math.max(sw.y,ne.y);
+    if(minX<margin || minY<margin || maxX>size.x-margin || maxY>size.y-margin) return false;
+  }
+
+  const mapRect=map.getContainer().getBoundingClientRect();
+  let fits=true;
+  nodeLayer.eachLayer(layer=>{
+    if(!fits) return;
+    if(typeof layer.getLatLng==='function'){
+      const p=map.latLngToContainerPoint(layer.getLatLng());
+      const radius=Number(layer?.options?.radius||7)+Number(layer?.options?.weight||0)+2;
+      if(p.x-radius<margin || p.y-radius<margin || p.x+radius>size.x-margin || p.y+radius>size.y-margin){
+        fits=false; return;
+      }
+    }
+    const tooltip=typeof layer.getTooltip==='function' ? layer.getTooltip() : null;
+    if(tooltip?.options?.permanent){
+      const el=typeof tooltip.getElement==='function' ? tooltip.getElement() : null;
+      if(el){
+        const r=el.getBoundingClientRect();
+        if(r.left<mapRect.left+margin || r.top<mapRect.top+margin || r.right>mapRect.right-margin || r.bottom>mapRect.bottom-margin){
+          fits=false;
+        }
+      }
+    }
+  });
+  return fits;
+}
+async function fitMapTight(){
+  if(!lastBounds || !lastBounds.isValid()) return;
+
+  map.stop();
+  map.fitBounds(lastBounds,{padding:[6,6],animate:false,maxZoom:18});
+  await nextPaint();
+
+  let safeZoom=map.getZoom();
+  let attempts=0;
+
+  while(!mapContentFits(6) && attempts<20 && safeZoom>map.getMinZoom()){
+    safeZoom=Math.max(map.getMinZoom(),safeZoom-0.05);
+    map.setZoom(safeZoom,{animate:false});
+    await nextPaint();
+    attempts++;
+  }
+
+  attempts=0;
+  while(attempts<20){
+    const candidate=Math.min(map.getMaxZoom(),safeZoom+0.05);
+    if(candidate<=safeZoom+0.001) break;
+    map.setZoom(candidate,{animate:false});
+    await nextPaint();
+    if(!mapContentFits(6)){
+      map.setZoom(safeZoom,{animate:false});
+      await nextPaint();
+      break;
+    }
+    safeZoom=candidate;
+    attempts++;
+  }
 }
 
 for(const id of ['ageHours','minObs','onlyIdentified']) document.getElementById(id).addEventListener('change', () => { historyIndex=0; savePrefs(); render(); });
@@ -1635,21 +1733,27 @@ document.getElementById('lineColor').addEventListener('input', () => { savePrefs
 document.getElementById('animSpeed').addEventListener('change', savePrefs);
 document.getElementById('playMode').addEventListener('change', () => {
   stopAnimation(); stopLivePolling();
-  document.getElementById('pauseTrace').textContent='⏸'; document.getElementById('pauseTrace').title='Pausar';
-  if(document.getElementById('playMode').value === 'live') startLivePolling(); else updatePlaybackStatusIdle();
+  if(document.getElementById('playMode').value === 'live') startLivePolling();
+  else updatePlaybackStatusIdle();
 });
 document.getElementById('playTrace').addEventListener('click', () => {
-  if(document.getElementById('playMode').value === 'live'){ playbackRunning=true; liveAnimationPaused=false; document.getElementById('pauseTrace').textContent='⏸'; document.getElementById('pauseTrace').title='Pausar animações ao vivo'; if(!livePollTimer) startLivePolling(); else processLiveQueue(); }
-  else playHistoryLoop();
-});
-document.getElementById('pauseTrace').addEventListener('click', () => {
   if(document.getElementById('playMode').value==='live'){
+    if(!livePollTimer){
+      startLivePolling();
+      return;
+    }
+    playbackRunning=true;
     liveAnimationPaused=!liveAnimationPaused;
-    document.getElementById('pauseTrace').textContent=liveAnimationPaused?'▶':'⏸';
-    document.getElementById('pauseTrace').title=liveAnimationPaused?'Retomar animações ao vivo':'Pausar animações ao vivo';
     if(!liveAnimationPaused) processLiveQueue();
     updatePlaybackStatusIdle();
-  }else{ stopAnimation(); }
+    return;
+  }
+  if(playbackRunning){
+    historyAnimationPaused=!historyAnimationPaused;
+    updatePlaybackStatusIdle();
+  }else{
+    playHistoryLoop();
+  }
 });
 document.getElementById('prevTrace').addEventListener('click', () => { if(document.getElementById('playMode').value==='history') playHistoryOnce(historyIndex-1); });
 document.getElementById('nextTrace').addEventListener('click', () => { if(document.getElementById('playMode').value==='history') playHistoryOnce(historyIndex+1); });
