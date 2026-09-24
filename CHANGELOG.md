@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.22.0 - 2026-09-24
+
+- Adiciona internacionalização completa da interface em Português (PT-BR) e English (EN), mantendo PT-BR como padrão.
+- Adiciona seletor de idioma no cabeçalho com persistência no navegador e troca imediata.
+- Traduz navegação, configurações, abas, controles, filtros, status, legendas, tooltips, popups e painéis analíticos.
+- Datas e números da interface passam a usar locale compatível com o idioma selecionado.
+- Preserva nomes de nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas de Release sem tradução artificial.
+- Adiciona nova aba Ajuda/Help com instruções completas de uso do Traffic Analyzer.
+- A Ajuda/Help cobre mapa, reprodução, pausa e backlog, Tracklog, Tráfego, Mensagens/@menções, Saúde da Rede, Anomalias, Configurações, idioma, atualização e limites de interpretação.
+- Adiciona uma camada central de tradução com MutationObserver para também traduzir elementos criados dinamicamente.
+
 ## 1.21.0 - 2026-09-24
 
 - Adiciona aba Tracklog com mapa histórico de deslocamento por estação.
