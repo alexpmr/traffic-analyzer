@@ -1,7 +1,19 @@
-# Traffic Analyzer v1.17.0
+# Traffic Analyzer v1.18.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.18.0
+
+- **Pausa no modo Ao vivo:** congela somente a movimentação das animações no mapa. A coleta e o processamento continuam em segundo plano.
+- Ao retomar, todos os traceroutes que chegaram durante a pausa iniciam imediatamente, inclusive em paralelo; animações em andamento continuam do ponto congelado.
+- **Auto Zoom:** desligado passa a impedir também enquadramentos automáticos de NodeInfo.
+- **Enquadrar:** margem fixa mínima de 22 px para usar melhor a tela sem perder nós extremos.
+- **Atualizar:** força uma regeneração real da topologia e mostra sucesso/erro.
+- **Tráfego:** removida a coluna **Canal** da tabela principal; o canal permanece nos detalhes.
+- **Mensagens:** layout ampliado e novo controle de fonte (10 a 20 px) em Configurações.
+- **Screenshots:** galeria pública anonimizada adicionada ao README.
+- **Release:** GitHub Actions gera ZIP versionado, atualiza `traffic-analyzer-latest.zip` e cria Release formal marcada como Latest.
 
 ## Novidades da v1.17.0
 
@@ -59,6 +71,22 @@ O cabeçalho foi simplificado: não exibe mais a linha `gerado em ... · fonte .
 Permanece o painel discreto durante traceroutes animados, com origem e destino, distância direta, percurso total de IDA, percurso total de VOLTA e total ida + volta quando ambos os trajetos são completos. As distâncias continuam sendo calculadas apenas a partir de coordenadas conhecidas, sem estimar hops ausentes.
 
 Também permanecem as cores de atividade dos nós: verde até 2 horas, laranja entre 2 e 24 horas, vermelho acima de 24 horas e cinza sem timestamp confiável. A informação de firmware continua removida.
+
+## Screenshots
+
+As capturas abaixo são parcialmente anonimizadas para não expor dados operacionais da malha real.
+
+![Mapa e topologia](docs/screenshots/01-mapa-topologia.png)
+
+![Tráfego em tempo real](docs/screenshots/02-trafego-tempo-real.png)
+
+![Mensagens](docs/screenshots/03-mensagens.png)
+
+![Saúde da Rede](docs/screenshots/04-saude-da-rede.png)
+
+![Anomalias](docs/screenshots/05-anomalias.png)
+
+![Configurações](docs/screenshots/06-configuracoes.png)
 
 ## Arquitetura
 
@@ -140,7 +168,7 @@ sudo bash install.sh
 O bloco abaixo procura o ZIP no diretório atual, no home corrente, em `/home` e em `/root`. Assim ele também funciona quando o arquivo foi enviado para o home de um usuário comum, mas a sessão administrativa está como `root`.
 
 ```bash
-TA_VER="1.17.0" && \
+TA_VER="1.18.0" && \
 TA_ZIP="$(find "$PWD" "$HOME" /home /root -maxdepth 3 -type f -name "traffic-analyzer-v${TA_VER}.zip" -print -quit 2>/dev/null)" && \
 [ -n "$TA_ZIP" ] && \
 TA_BASE="$(dirname "$TA_ZIP")" && \
