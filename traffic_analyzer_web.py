@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.19.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.20.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.20.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -55,6 +55,10 @@ _archive_stop = threading.Event()
 _archive_status_lock = threading.Lock()
 _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "inserted_last_sync": 0}
 _topology_refresh_lock = threading.Lock()
+_version_status_lock = threading.Lock()
+_version_status_cache = {"checked_at": 0.0, "data": None}
+VERSION_CHECK_TTL_SECONDS = 900
+GITHUB_RELEASES_LATEST_URL = "https://api.github.com/repos/alexpmr/traffic-analyzer/releases/latest"
 
 HTML = r'''<!doctype html>
 <html lang="pt-BR">
@@ -136,13 +140,52 @@ HTML = r'''<!doctype html>
   .unreadCount{display:none;background:#25d366;color:#07140c;border-radius:10px;min-width:18px;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:900}.unread .unreadCount{display:inline-block}
   @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter{display:none}}
 
+  /* v1.20 - versão disponível e tema claro */
+  .versionBadge{font-size:11px;font-weight:800;padding:5px 8px;border-radius:999px;white-space:nowrap;cursor:pointer}
+  .versionBadge.checking{background:#263744;border-color:#405668;color:#cbd6df}.versionBadge.current{background:#174f37;border-color:#2f8b5e;color:#a9f5c5}.versionBadge.update{background:#6a4a13;border-color:#b98220;color:#ffe099}.versionBadge.error{background:#4c3940;border-color:#76535d;color:#f2bdca}
+  .versionModalBackdrop{position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;padding:18px;box-sizing:border-box}.versionModalBackdrop.open{display:flex}.versionModal{width:min(720px,96vw);max-height:min(78vh,760px);overflow:auto;background:#17212b;border:1px solid #405668;border-radius:12px;box-shadow:0 18px 55px rgba(0,0,0,.48);padding:18px;box-sizing:border-box}.versionModalHead{display:flex;align-items:center;gap:10px}.versionModalHead h2{margin:0;flex:1;font-size:18px}.versionClose{font-size:20px;line-height:1}.versionNotes{white-space:pre-wrap;background:#101820;border:1px solid #304353;border-radius:8px;padding:12px;font-size:12px;line-height:1.45;max-height:360px;overflow:auto}.versionActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}.versionActions a{display:inline-block;background:#234d63;color:#fff;border:1px solid #4c7e96;border-radius:6px;padding:6px 9px;text-decoration:none;font-weight:700}.updateCmd{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:6px;padding:6px 8px;font-size:12px}
+
+  body[data-theme="light"]{background:#f2f5f7;color:#18232d}
+  body[data-theme="light"] header{background:#ffffff;border-bottom-color:#cbd5dd}
+  body[data-theme="light"] #summary,body[data-theme="light"] #trafficToolbar{background:#f5f7f9;border-color:#cbd5dd}
+  body[data-theme="light"] #playback,body[data-theme="light"] #trafficStats{background:#edf2f5;border-color:#cbd5dd}
+  body[data-theme="light"] .metric,body[data-theme="light"] .settingsCard,body[data-theme="light"] .dashCard,body[data-theme="light"] .dashSection,body[data-theme="light"] #packetDetail{background:#ffffff;border-color:#cbd5dd;color:#18232d}
+  body[data-theme="light"] .dashSection h3,body[data-theme="light"] .trafficTable th,body[data-theme="light"] .dashTable th{background:#e9eef2;color:#263746;border-color:#cbd5dd}
+  body[data-theme="light"] .trafficTable td,body[data-theme="light"] .dashTable td,body[data-theme="light"] .settingRow,body[data-theme="light"] .anomalyRow{border-color:#dce3e8}
+  body[data-theme="light"] .trafficTable tbody tr:hover{background:#edf4f8}body[data-theme="light"] .trafficTable tbody tr.selected{background:#dcebf4}
+  body[data-theme="light"] select,body[data-theme="light"] input,body[data-theme="light"] button,body[data-theme="light"] textarea{background:#ffffff;color:#17212b;border-color:#aebbc5}
+  body[data-theme="light"] .navbtn.active{background:#e4b800;color:#101820;border-color:#b99700}
+  body[data-theme="light"] label,body[data-theme="light"] #playStatus{color:#344654}
+  body[data-theme="light"] .settingDesc,body[data-theme="light"] .methodNote,body[data-theme="light"] .emptyDetail,body[data-theme="light"] .emptyPanel{color:#627582}
+  body[data-theme="light"] #viewHealth,body[data-theme="light"] #viewAnomalies{background:#f2f5f7}
+  body[data-theme="light"] #viewMessages{background:#efeae2}
+  body[data-theme="light"] #messageHeader{background:#ffffff;border-color:#cbd5dd;color:#18232d}
+  body[data-theme="light"] #messageList{background:#efeae2}
+  body[data-theme="light"] .msgRow.theirs .msgBubble{background:#ffffff;color:#17212b}.msgRow.mine .msgBubble{color:#ffffff}
+  body[data-theme="light"] .msgRow.mine .msgBubble{background:#d9fdd3;color:#17212b}
+  body[data-theme="light"] .msgMeta{color:#5f6f78}body[data-theme="light"] .msgSender{color:#087c9d}
+  body[data-theme="light"] #messageComposer{background:#f0f2f5;border-color:#cbd5dd}body[data-theme="light"] #messageInput{background:#ffffff;color:#17212b;caret-color:#17212b}body[data-theme="light"] #messageInput::placeholder{color:#778894}
+  body[data-theme="light"] .legend,body[data-theme="light"] .traceHud{background:rgba(255,255,255,.96);color:#17212b;border-color:#aebbc5}
+  body[data-theme="light"] .short-label{background:rgba(255,255,255,.93);color:#17212b;border-color:#8ca0ae}
+  body[data-theme="light"] .leaflet-popup-content-wrapper,body[data-theme="light"] .leaflet-popup-tip{background:#ffffff;color:#17212b}
+  body[data-theme="light"] .versionModal{background:#ffffff;color:#17212b;border-color:#aebbc5}body[data-theme="light"] .versionNotes,body[data-theme="light"] .updateCmd{background:#f5f7f9;color:#17212b;border-color:#cbd5dd}
+
 </style>
 </head>
 <body>
 <div id="flowToast" title="Clique para abrir o mapa"></div>
+<div id="versionModalBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="versionModalTitle">
+  <div class="versionModal">
+    <div class="versionModalHead"><h2 id="versionModalTitle">Versão do Traffic Analyzer</h2><button id="versionModalClose" class="versionClose" type="button" title="Fechar">×</button></div>
+    <p id="versionModalSummary" class="settingDesc">Consultando a versão publicada…</p>
+    <div id="versionNotes" class="versionNotes">Sem informações carregadas.</div>
+    <div class="versionActions"><span class="updateCmd">sudo traffic-analyzer-update</span><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionCheckNow" type="button">Verificar agora</button></div>
+  </div>
+</div>
 <div id="app">
 <header>
   <h1>__DISPLAY_TITLE__</h1>
+  <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
@@ -234,6 +277,14 @@ HTML = r'''<!doctype html>
 <section id="viewSettings" class="view">
   <div class="settingsCard">
     <h2>Configurações do Traffic Analyzer</h2>
+
+    <h3>Aparência</h3>
+    <div class="settingsGrid">
+      <div class="settingRow">
+        <label>Tema da interface: <select id="uiTheme"><option value="dark" selected>Escuro (padrão)</option><option value="light">Claro</option></select></label>
+        <div class="settingDesc">Altera a interface inteira. O mapa-base continua sendo configurado separadamente.</div>
+      </div>
+    </div>
 
     <h3>Mapa e topologia</h3>
     <div class="settingsGrid">
@@ -379,6 +430,10 @@ let livePollTimer = null;
 let liveInitialized = false;
 let liveSeen = new Set();
 let liveQueue = [];
+let liveQueueDropped = 0;
+const LIVE_QUEUE_MAX = 5000;
+let pausedActivityQueue = [];
+const PAUSED_ACTIVITY_MAX = 5000;
 let liveProcessing = false;
 let liveAnimationSeq = 0;
 let liveAnimationPaused = false;
@@ -423,7 +478,8 @@ function savePrefs(){
     activityDuration: Number(document.getElementById('activityDuration').value || 1000),
     autoZoomTraceroute: document.getElementById('autoZoomTraceroute').checked,
     nodeInfoFlowEnabled: document.getElementById('nodeInfoFlowEnabled').checked,
-    messageFontSize: Number(document.getElementById('messageFontSize').value || 13)
+    messageFontSize: Number(document.getElementById('messageFontSize').value || 13),
+    uiTheme: document.getElementById('uiTheme').value || 'dark'
   };
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
 }
@@ -439,6 +495,10 @@ function applyBrightness(){
   document.getElementById('mapBrightnessValue').textContent = `${value}%`;
   const pane = map.getPane('tilePane');
   if(pane) pane.style.filter = `brightness(${value}%)`;
+}
+function applyTheme(){
+  const value=document.getElementById('uiTheme')?.value==='light'?'light':'dark';
+  document.body.dataset.theme=value;
 }
 function applyMessageFontSize(){
   const input=document.getElementById('messageFontSize');
@@ -481,6 +541,8 @@ function initVisualPrefs(){
   document.getElementById('autoZoomTraceroute').checked = (typeof prefs.autoZoomTraceroute === 'boolean') ? prefs.autoZoomTraceroute : false;
   document.getElementById('nodeInfoFlowEnabled').checked = (typeof prefs.nodeInfoFlowEnabled === 'boolean') ? prefs.nodeInfoFlowEnabled : true;
   if(Number.isFinite(Number(prefs.messageFontSize))) document.getElementById('messageFontSize').value = String(Math.max(10,Math.min(20,Number(prefs.messageFontSize))));
+  document.getElementById('uiTheme').value = prefs.uiTheme === 'light' ? 'light' : 'dark';
+  applyTheme();
   applyMessageFontSize();
   document.getElementById('soundVolumeValue').textContent = `${document.getElementById('soundVolume').value}%`;
   setBaseMap(document.getElementById('mapType').value);
@@ -663,8 +725,7 @@ function render(){
     `<span class="metric"><b>${mappableStates['route-only'] || 0}</b> route-only</span>`+
     `<span class="metric"><b>${traceCount}</b> traceroutes no histórico</span>`+
     (showNodes ? `<span class="metric"><b>${markerCount}</b> círculos visíveis</span>` : '')+
-    (showHeatmap ? `<span class="metric warn">Calor = atividade de roteamento observada</span>` : '')+
-    `<span class="metric warn">Linhas = adjacências observadas, não enlaces permanentes</span>`;
+    (showHeatmap ? `<span class="metric warn">Calor = atividade de roteamento observada</span>` : '');
   updatePlaybackStatusIdle();
 }
 
@@ -715,7 +776,11 @@ function normalizeLiveTrace(tr){
     animatable:Boolean((forward && forward.length>1) || (back && back.length>1))
   };
 }
-function traceKey(t){ return `${t.id ?? ''}:${t.packetId ?? ''}:${t.timestamp ?? t.timestampMs ?? ''}:${t.fromNodeNum}:${t.toNodeNum}`; }
+function traceKey(t){
+  if(t?.id !== null && t?.id !== undefined && String(t.id)!=='') return `id:${t.id}`;
+  if(t?.packetId !== null && t?.packetId !== undefined && String(t.packetId)!=='') return `packet:${t.packetId}:${t.fromNodeNum}:${t.toNodeNum}`;
+  return `fallback:${t?.timestamp ?? t?.timestampMs ?? ''}:${t?.fromNodeNum}:${t?.toNodeNum}`;
+}
 function historyTraces(){
   const cutoff = cutoffForSelection();
   return (topology?.traces || []).filter(t => t.animatable && (cutoff === null || Number(t.timestampMs||0) >= cutoff));
@@ -800,7 +865,11 @@ function updatePlaybackStatusIdle(){
   const el = document.getElementById('playStatus');
   if(document.getElementById('playMode').value === 'live'){
     if(!liveInitialized) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · conectando…';
-    else if(liveAnimationPaused) el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ANIMAÇÃO PAUSADA · ${liveQueue.length} represado(s) · ${activeLiveAnimations.size} congelado(s)`;
+    else if(liveAnimationPaused){
+      const queued=liveQueue.length, activity=pausedActivityQueue.length;
+      const dropped=liveQueueDropped ? ` · ${liveQueueDropped} descartado(s) por limite` : '';
+      el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ANIMAÇÃO PAUSADA · ${queued} traceroute(s) represado(s) · ${activity} pulso(s) represado(s) · ${activeLiveAnimations.size} congelado(s)${dropped}`;
+    }
     else if(!liveQueue.length && activeLiveAnimations.size===0) el.innerHTML = '<span class="liveBadge">AO VIVO</span>';
     else if(activeLiveAnimations.size>1) el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ${activeLiveAnimations.size} traceroutes simultâneos`;
     else if(activeLiveAnimations.size===1) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · 1 traceroute em animação';
@@ -1001,23 +1070,38 @@ async function playHistoryOnce(index){
 async function pollLive(){
   if(document.getElementById('playMode').value !== 'live') return;
   try{
-    const r=await fetch('/api/live-traceroutes?limit=100',{cache:'no-store'});
+    const r=await fetch('/api/live-traceroutes?limit=200',{cache:'no-store'});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const body=await r.json();
     const rows=(body.data || []).slice().sort((a,b)=>Number(a.timestamp||a.createdAt||0)-Number(b.timestamp||b.createdAt||0));
     if(!liveInitialized){
-      rows.forEach(x=>liveSeen.add(traceKey(x)));
+      // Traceroutes já completos ao abrir a tela são considerados históricos.
+      // Registros ainda incompletos NÃO são marcados como vistos: se o MeshMonitor
+      // completar a rota depois, o evento poderá ser animado normalmente.
+      for(const row of rows){
+        const t=normalizeLiveTrace(row);
+        if(t?.animatable) liveSeen.add(traceKey(row));
+      }
       liveInitialized=true; updatePlaybackStatusIdle(); return;
     }
     const fresh=[];
     for(const row of rows){
       const key=traceKey(row);
       if(liveSeen.has(key)) continue;
-      liveSeen.add(key);
       const t=normalizeLiveTrace(row);
-      if(t?.animatable) fresh.push(t);
+      if(!t?.animatable) continue;
+      liveSeen.add(key);
+      fresh.push(t);
     }
-    if(fresh.length){ liveQueue.push(...fresh); if(liveQueue.length>250) liveQueue=liveQueue.slice(-250); processLiveQueue(); }
+    if(liveSeen.size>12000) liveSeen=new Set([...liveSeen].slice(-6000));
+    if(fresh.length){
+      liveQueue.push(...fresh);
+      if(liveQueue.length>LIVE_QUEUE_MAX){
+        const excess=liveQueue.length-LIVE_QUEUE_MAX;
+        liveQueue.splice(0,excess); liveQueueDropped+=excess;
+      }
+      processLiveQueue();
+    }
   }catch(e){ document.getElementById('playStatus').innerHTML=`<span class="liveBadge">AO VIVO</span> · erro: ${esc(e)}`; }
 }
 function runLiveTrace(trace){
@@ -1049,7 +1133,7 @@ function processLiveQueue(){
 }
 function startLivePolling(){
   if(livePollTimer) clearInterval(livePollTimer);
-  liveSeen=new Set(); liveQueue=[]; liveInitialized=false; liveProcessing=false; liveAnimationPaused=false;
+  liveSeen=new Set(); liveQueue=[]; liveQueueDropped=0; pausedActivityQueue=[]; liveInitialized=false; liveProcessing=false; liveAnimationPaused=false;
   activeLiveAnimations.clear();
   playbackRunning=true;
   updatePlaybackControl();
@@ -1059,6 +1143,7 @@ function startLivePolling(){
 function stopLivePolling(){
   if(livePollTimer){ clearInterval(livePollTimer); livePollTimer=null; }
   activeLiveAnimations.clear();
+  liveQueue=[]; pausedActivityQueue=[]; liveQueueDropped=0;
   liveProcessing=false; liveAnimationPaused=false;
   for(const key of [...traceHudEntries.keys()]) if(String(key).startsWith('live:')) traceHudEntries.delete(key);
   renderTraceHud();
@@ -1509,17 +1594,27 @@ function activityPulse(nodeNum,kind='origin',p=null){
   const pt=nodePointForActivity(nodeNum,p); if(!pt) return;
   activityPulseAtPoint(pt,nodeNum,kind);
 }
-function animatePacketActivity(p,isNewJourney){
+function animatePacketActivityNow(p,isNewJourney){
   if(!document.getElementById('activityAnimationEnabled').checked) return;
   const from=packetNodeNum(p,'from');
   const relay=resolveRelayNodeNum(p.relay_node);
   const dir=String(p.direction||'').toLowerCase();
-  // Toda atividade observada realça a origem do pacote. Assim TXs, respostas RX
-  // e novas cópias observadas podem mostrar imediatamente qual nó está ativo.
   if(from!==null) activityPulse(from,dir==='rx'?'response':'origin',p);
-  // O relay_node é apenas o último relay observado. Só anima quando o byte
-  // resolve de forma não ambígua para um nó posicionado.
   if(relay!==null && relay!==from) activityPulse(relay,'relay',p);
+}
+function animatePacketActivity(p,isNewJourney){
+  if(document.getElementById('playMode').value==='live' && liveAnimationPaused){
+    pausedActivityQueue.push({p,isNewJourney});
+    if(pausedActivityQueue.length>PAUSED_ACTIVITY_MAX) pausedActivityQueue.splice(0,pausedActivityQueue.length-PAUSED_ACTIVITY_MAX);
+    updatePlaybackStatusIdle();
+    return;
+  }
+  animatePacketActivityNow(p,isNewJourney);
+}
+function flushPausedActivityQueue(){
+  if(liveAnimationPaused || !pausedActivityQueue.length) return;
+  const queued=pausedActivityQueue.splice(0);
+  queued.forEach(x=>animatePacketActivityNow(x.p,x.isNewJourney));
 }
 function mergeTraffic(rows, notify){
   const existing=new Set(trafficPackets.map(trafficKey)); const fresh=[];
@@ -1744,7 +1839,7 @@ document.getElementById('playTrace').addEventListener('click', () => {
     }
     playbackRunning=true;
     liveAnimationPaused=!liveAnimationPaused;
-    if(!liveAnimationPaused) processLiveQueue();
+    if(!liveAnimationPaused){ processLiveQueue(); flushPausedActivityQueue(); }
     updatePlaybackStatusIdle();
     return;
   }
@@ -1856,7 +1951,56 @@ for(const id of ['activityAnimationEnabled','activityOriginEnabled','activityRel
 document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore(false);});
 document.getElementById('nodeInfoFlowEnabled').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('nodeInfoFlowEnabled').checked){flowGeneration++;flowLayer.clearLayers();}});
 document.getElementById('messageFontSize').addEventListener('input',()=>{applyMessageFontSize();savePrefs();});
+document.getElementById('uiTheme').addEventListener('change',()=>{applyTheme();savePrefs();});
 document.getElementById('flowToast').addEventListener('click',()=>setView('map'));
+
+let versionStatusData=null;
+function renderVersionStatus(data){
+  versionStatusData=data||null;
+  const badge=document.getElementById('versionBadge');
+  if(!badge) return;
+  badge.classList.remove('checking','current','update','error');
+  if(!data || data.status==='unavailable'){
+    badge.classList.add('error'); badge.textContent=`v${data?.localVersion||'__APP_VERSION__'} · não verificado`; badge.title='Não foi possível verificar a versão mais recente'; return;
+  }
+  if(data.updateAvailable){
+    badge.classList.add('update'); badge.textContent=`v${data.localVersion} → v${data.latestVersion} disponível`; badge.title='Nova versão disponível - clique para ver as novidades';
+  }else{
+    badge.classList.add('current'); badge.textContent=`v${data.localVersion} · ATUALIZADO`; badge.title='Esta é a versão mais recente publicada';
+  }
+}
+async function checkVersionStatus(force=false){
+  const badge=document.getElementById('versionBadge');
+  if(badge && !versionStatusData){ badge.classList.add('checking'); badge.textContent='v__APP_VERSION__ · verificando…'; }
+  try{
+    const r=await fetch(`/api/version-status${force?'?force=1':''}`,{cache:'no-store'});
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.message||`HTTP ${r.status}`);
+    renderVersionStatus(data); return data;
+  }catch(e){
+    const data={status:'unavailable',localVersion:'__APP_VERSION__',message:String(e?.message||e)};
+    renderVersionStatus(data); return data;
+  }
+}
+function openVersionModal(){
+  const d=versionStatusData||{localVersion:'__APP_VERSION__',status:'unavailable'};
+  const summary=document.getElementById('versionModalSummary');
+  const notes=document.getElementById('versionNotes');
+  const link=document.getElementById('versionReleaseLink');
+  if(d.updateAvailable) summary.textContent=`Instalada: v${d.localVersion} · disponível: v${d.latestVersion} · publicada em ${d.publishedAt?new Date(d.publishedAt).toLocaleString('pt-BR'):'data não informada'}.`;
+  else if(d.status==='unavailable') summary.textContent=`Instalada: v${d.localVersion}. Não foi possível consultar o GitHub agora.`;
+  else summary.textContent=`Instalada: v${d.localVersion}. Esta é a versão mais recente publicada.`;
+  notes.textContent=d.notes||d.message||'Não há notas de versão disponíveis.';
+  if(d.releaseUrl && /^https:\/\/github\.com\/alexpmr\/traffic-analyzer\//.test(d.releaseUrl)) link.href=d.releaseUrl;
+  else link.href='https://github.com/alexpmr/traffic-analyzer/releases/latest';
+  document.getElementById('versionModalBackdrop').classList.add('open');
+}
+function closeVersionModal(){ document.getElementById('versionModalBackdrop').classList.remove('open'); }
+document.getElementById('versionBadge').addEventListener('click',openVersionModal);
+document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
+document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
+document.getElementById('versionCheckNow').addEventListener('click',async()=>{await checkVersionStatus(true);openVersionModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVersionModal();});
 
 const legend = L.control({position:'bottomright'});
 legend.onAdd = () => {
@@ -1867,12 +2011,14 @@ legend.onAdd = () => {
 legend.addTo(map);
 
 initVisualPrefs();
+checkVersionStatus(false);
+setInterval(()=>checkVersionStatus(false),30*60*1000);
 load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
 loadTrafficInitial();
 setInterval(() => load(false), 60000);
 </script>
 </body>
-</html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
+</html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replaceAll('__APP_VERSION__', APP_VERSION.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
 
 
 def _mm_api_request(path: str, method: str = "GET", payload=None):
@@ -2642,6 +2788,76 @@ def _archive_dump_zip():
         raise
 
 
+def _version_tuple(value: str):
+    raw = str(value or "").strip().lower()
+    if raw.startswith("v"):
+        raw = raw[1:]
+    out = []
+    for part in raw.split(".")[:4]:
+        digits = "".join(ch for ch in part if ch.isdigit())
+        out.append(int(digits or 0))
+    while len(out) < 4:
+        out.append(0)
+    return tuple(out)
+
+
+def _version_status(force: bool = False):
+    now = time.time()
+    with _version_status_lock:
+        cached = _version_status_cache.get("data")
+        checked_at = float(_version_status_cache.get("checked_at") or 0)
+        if cached and not force and now - checked_at < VERSION_CHECK_TTL_SECONDS:
+            return dict(cached)
+
+        req = urllib.request.Request(
+            GITHUB_RELEASES_LATEST_URL,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": f"Traffic-Analyzer/{APP_VERSION}",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                release = json.loads(resp.read().decode("utf-8"))
+            tag = str(release.get("tag_name") or "").strip()
+            latest = tag[1:] if tag.lower().startswith("v") else tag
+            if not latest:
+                raise RuntimeError("Release Latest sem tag de versão")
+            data = {
+                "success": True,
+                "status": "ok",
+                "localVersion": APP_VERSION,
+                "latestVersion": latest,
+                "updateAvailable": _version_tuple(latest) > _version_tuple(APP_VERSION),
+                "releaseUrl": release.get("html_url"),
+                "publishedAt": release.get("published_at"),
+                "notes": str(release.get("body") or "").strip(),
+                "checkedAtMs": int(now * 1000),
+            }
+            _version_status_cache["checked_at"] = now
+            _version_status_cache["data"] = dict(data)
+            return data
+        except Exception as exc:
+            if cached:
+                stale = dict(cached)
+                stale["status"] = "stale"
+                stale["message"] = f"Falha na consulta atual; exibindo último resultado conhecido: {exc}"
+                return stale
+            return {
+                "success": False,
+                "status": "unavailable",
+                "localVersion": APP_VERSION,
+                "latestVersion": None,
+                "updateAvailable": False,
+                "releaseUrl": "https://github.com/alexpmr/traffic-analyzer/releases/latest",
+                "publishedAt": None,
+                "notes": "",
+                "message": str(exc),
+                "checkedAtMs": int(now * 1000),
+            }
+
+
 def _refresh_topology_now():
     if not _topology_refresh_lock.acquire(blocking=False):
         return {"success": False, "busy": True, "message": "Atualização de topologia já está em andamento."}
@@ -2658,7 +2874,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.16.0"
+    server_version = "TrafficAnalyzer/1.20.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
@@ -2689,6 +2905,15 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
             self._send(200, "text/html; charset=utf-8", HTML.encode("utf-8"))
+            return
+        if path == "/api/version-status":
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                force = (query.get("force") or ["0"])[0] in {"1", "true", "yes"}
+                body = _version_status(force=force)
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "status": "unavailable", "localVersion": APP_VERSION, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path in ("/api/topology", "/topology.json"):
             try:
