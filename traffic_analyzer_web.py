@@ -2018,7 +2018,7 @@ loadTrafficInitial();
 setInterval(() => load(false), 60000);
 </script>
 </body>
-</html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replaceAll('__APP_VERSION__', APP_VERSION.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
+</html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__APP_VERSION__', APP_VERSION.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
 
 
 def _mm_api_request(path: str, method: str = "GET", payload=None):
