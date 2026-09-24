@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.18.0 - 2026-09-23
+
+- Pausa no modo Ao vivo congela somente a animação; coleta e processamento continuam ativos.
+- Traceroutes represados iniciam simultaneamente ao retomar; animações em andamento continuam do ponto congelado.
+- Auto Zoom desligado passa a bloquear enquadramentos automáticos de NodeInfo.
+- Enquadrar usa margem fixa mínima de 22 px.
+- Atualizar passa a regenerar a topologia imediatamente, com feedback visual.
+- Removida a coluna Canal da tabela principal de Tráfego.
+- Mensagens usam melhor a tela e ganham controle de tamanho de fonte em Configurações.
+- Adicionados screenshots públicos anonimizados.
+- Adicionado workflow de ZIP e Release formal marcada como Latest.
+
+
 ## v1.17.0 - 2026-09-23
 
 - **Mensagens:** texto branco no campo de composição.
