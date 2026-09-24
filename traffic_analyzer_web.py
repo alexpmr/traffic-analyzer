@@ -1970,7 +1970,7 @@ let mentionMatches=[];
 let mentionActiveIndex=0;
 let mentionStart=-1;
 function mentionNodeList(){
-  return (topology?.nodes||[]).filter(n=>n && (n.name||n.shortName||n.nodeId)).map(n=>({nodeNum:n.nodeNum,nodeId:n.nodeId||'',shortName:n.shortName||'',name:n.name||n.longName||n.shortName||n.nodeId||''}));
+  return (topology?.nodes||[]).filter(n=>n && (n.name||n.shortName||n.nodeId)).map(n=>({nodeNum:n.nodeNum,nodeId:n.nodeId||'',shortName:n.shortName||'',name:n.longName||n.name||n.shortName||n.nodeId||''}));
 }
 function mentionContext(){
   const input=document.getElementById('messageInput'),pos=input.selectionStart??input.value.length,before=input.value.slice(0,pos);
@@ -2439,8 +2439,12 @@ def _position_payload(metadata):
         if isinstance(val, dict):
             candidates.insert(0, val)
     for d in candidates:
-        lat = d.get("latitude", d.get("latitudeI"))
-        lon = d.get("longitude", d.get("longitudeI"))
+        lat = d.get("latitude")
+        lon = d.get("longitude")
+        if lat is None:
+            lat = d.get("latitudeI")
+        if lon is None:
+            lon = d.get("longitudeI")
         try:
             lat = float(lat); lon = float(lon)
         except Exception:
