@@ -14,6 +14,7 @@
 - **Mensagens:** layout ampliado e novo controle de fonte (10 a 20 px) em Configurações.
 - **Screenshots:** galeria pública anonimizada adicionada ao README.
 - **Release:** GitHub Actions gera ZIP versionado, atualiza `traffic-analyzer-latest.zip` e cria Release formal marcada como Latest.
+- [Baixar o manual PDF da v1.18.0](./Documentacao_Traffic_Analyzer_v1.18.0.pdf)
 
 ## Novidades da v1.17.0
 
@@ -76,17 +77,17 @@ Também permanecem as cores de atividade dos nós: verde até 2 horas, laranja e
 
 As capturas abaixo são parcialmente anonimizadas para não expor dados operacionais da malha real.
 
-![Mapa e topologia](docs/screenshots/01-mapa-topologia.png)
+### Mapa e topologia
 
-![Tráfego em tempo real](docs/screenshots/02-trafego-tempo-real.png)
+![Mapa e topologia](docs/screenshots/01-mapa-topologia.webp)
 
-![Mensagens](docs/screenshots/03-mensagens.png)
+### Mensagens
 
-![Saúde da Rede](docs/screenshots/04-saude-da-rede.png)
+![Mensagens](docs/screenshots/03-mensagens.webp)
 
-![Anomalias](docs/screenshots/05-anomalias.png)
+### Saúde da Rede
 
-![Configurações](docs/screenshots/06-configuracoes.png)
+![Saúde da Rede](docs/screenshots/04-saude-da-rede.webp)
 
 ## Arquitetura
 
