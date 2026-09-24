@@ -789,7 +789,7 @@ function updatePlaybackControl(){
   const btn=document.getElementById('playTrace');
   if(!btn) return;
   const live=document.getElementById('playMode').value==='live';
-  const paused=live ? liveAnimationPaused : (!playbackRunning || historyAnimationPaused);
+  const paused=live ? (!playbackRunning || liveAnimationPaused) : (!playbackRunning || historyAnimationPaused);
   btn.textContent=paused?'▶':'⏸';
   btn.title=live
     ? (paused?'Retomar animações ao vivo':'Pausar animações ao vivo')
