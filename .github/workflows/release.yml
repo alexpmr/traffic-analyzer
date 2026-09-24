@@ -1,0 +1,142 @@
+name: Publicar Traffic Analyzer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ler versao
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Montar ZIPs
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          rm -rf dist /tmp/traffic-analyzer
+          mkdir -p dist /tmp/traffic-analyzer
+
+          for f in \
+            traffic_analyzer.py \
+            traffic_analyzer_web.py \
+            install.sh \
+            update.sh \
+            VERSION \
+            README.md \
+            CHANGELOG.md \
+            traffic-analyzer.env.example \
+            traffic-analyzer-map.env.example \
+            traffic-analyzer.service \
+            traffic-analyzer-map.service \
+            traffic-analyzer.timer; do
+            cp "$f" /tmp/traffic-analyzer/
+          done
+
+          if [ -d docs ]; then
+            cp -a docs /tmp/traffic-analyzer/
+          fi
+
+          if [ -f "Documentacao_Traffic_Analyzer_v${VERSION}.pdf" ]; then
+            cp "Documentacao_Traffic_Analyzer_v${VERSION}.pdf" /tmp/traffic-analyzer/
+          fi
+
+          (
+            cd /tmp
+            zip -q -r "$GITHUB_WORKSPACE/dist/traffic-analyzer-v${VERSION}.zip" traffic-analyzer
+          )
+          cp "dist/traffic-analyzer-v${VERSION}.zip" "dist/traffic-analyzer-latest.zip"
+
+      - name: Atualizar ZIPs na branch main
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          cp "dist/traffic-analyzer-v${VERSION}.zip" "traffic-analyzer-v${VERSION}.zip"
+          cp "dist/traffic-analyzer-latest.zip" "traffic-analyzer-latest.zip"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "traffic-analyzer-v${VERSION}.zip" traffic-analyzer-latest.zip
+          if ! git diff --cached --quiet; then
+            git commit -m "Atualiza pacotes ZIP da v${VERSION} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Preparar notas da Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## (v)?" v "([ -]|$)" {found=1; print; next}
+            found && /^## / {exit}
+            found {print}
+          ' CHANGELOG.md > release-notes.md
+
+          cat >> release-notes.md <<EOF
+
+          ## Screenshots
+
+          ### Mapa e topologia
+          ![Mapa e topologia](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/01-mapa-topologia.png)
+
+          ### Trafego em tempo real
+          ![Trafego](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/02-trafego-tempo-real.png)
+
+          ### Mensagens
+          ![Mensagens](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/03-mensagens.png)
+
+          ### Saude da Rede
+          ![Saude da Rede](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/04-saude-da-rede.png)
+
+          ### Anomalias
+          ![Anomalias](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/05-anomalias.png)
+
+          ### Configuracoes
+          ![Configuracoes](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/06-configuracoes.png)
+          EOF
+
+      - name: Criar Release formal
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v${VERSION}"
+          ASSETS=(
+            "dist/traffic-analyzer-v${VERSION}.zip"
+            "dist/traffic-analyzer-latest.zip"
+          )
+          if [ -f "Documentacao_Traffic_Analyzer_v${VERSION}.pdf" ]; then
+            ASSETS+=("Documentacao_Traffic_Analyzer_v${VERSION}.pdf")
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title "Traffic Analyzer v${VERSION}" --notes-file release-notes.md --latest
+          else
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --target main \
+              --title "Traffic Analyzer v${VERSION}" \
+              --notes-file release-notes.md \
+              --latest
+          fi
