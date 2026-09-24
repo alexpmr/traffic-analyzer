@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.20.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.21.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.20.0"
+APP_VERSION = "1.21.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -170,6 +170,11 @@ HTML = r'''<!doctype html>
   body[data-theme="light"] .leaflet-popup-content-wrapper,body[data-theme="light"] .leaflet-popup-tip{background:#ffffff;color:#17212b}
   body[data-theme="light"] .versionModal{background:#ffffff;color:#17212b;border-color:#aebbc5}body[data-theme="light"] .versionNotes,body[data-theme="light"] .updateCmd{background:#f5f7f9;color:#17212b;border-color:#cbd5dd}
 
+  /* v1.21 - tracklog e menções */
+  #viewTracklog{min-height:0}.tracklogToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#111c27;border-bottom:1px solid #293744}.tracklogSummary{font-size:11px;color:#9fb0bf;margin-left:auto}.tracklogMap{flex:1;min-height:260px}.tracklogLegend{background:rgba(23,33,43,.95);border:1px solid #405668;border-radius:7px;padding:7px 9px;color:#edf3f8;font-size:11px;max-width:280px}.tracklogLegend .trackNode{display:flex;align-items:center;gap:6px;margin:3px 0}.trackSwatch{width:20px;height:4px;border-radius:3px;display:inline-block}.trackPointPopup{font-size:12px;line-height:1.45}.trackCurrent{font-weight:800}
+  #messageComposer{position:relative}.mentionSuggestions{position:absolute;left:12px;bottom:58px;width:min(560px,calc(100% - 88px));max-height:260px;overflow:auto;background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);z-index:1500;display:none}.mentionSuggestions.open{display:block}.mentionItem{display:grid;grid-template-columns:minmax(70px,100px) minmax(0,1fr);gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #293744}.mentionItem:last-child{border-bottom:0}.mentionItem:hover,.mentionItem.active{background:#263b4d}.mentionShort{font-weight:900;color:#e9d46d}.mentionLong{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mentionId{font-size:10px;color:#8194a5}.chatMention{color:#70cfff;font-weight:800}.mentionHelp{font-size:10px;color:#91a4b3;margin-left:6px}
+  body[data-theme="light"] .tracklogToolbar{background:#f5f7f9;border-color:#cbd5dd}body[data-theme="light"] .tracklogSummary{color:#627582}body[data-theme="light"] .tracklogLegend{background:rgba(255,255,255,.96);color:#17212b;border-color:#aebbc5}body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
+
 </style>
 </head>
 <body>
@@ -188,6 +193,7 @@ HTML = r'''<!doctype html>
   <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
+    <button class="navbtn" data-view="tracklog">Tracklog</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
     <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
     <button class="navbtn" data-view="health">Saúde da Rede</button>
@@ -220,6 +226,17 @@ HTML = r'''<!doctype html>
 </div>
 <div id="map"></div>
 </section>
+<section id="viewTracklog" class="view">
+  <div class="tracklogToolbar">
+    <b>Tracklog de estações móveis</b>
+    <label>Período: <select id="tracklogHours"><option value="1">1 h</option><option value="6">6 h</option><option value="24" selected>24 h</option><option value="168">7 dias</option><option value="720">30 dias</option></select></label>
+    <label>Nó: <select id="tracklogNode"><option value="all">Todos com mobilidade observada</option></select></label>
+    <button id="tracklogReload">Atualizar</button>
+    <button id="tracklogFit">Enquadrar</button>
+    <span id="tracklogSummary" class="tracklogSummary">Aguardando dados…</span>
+  </div>
+  <div id="tracklogMap" class="tracklogMap"></div>
+</section>
 <section id="viewTraffic" class="view">
   <div id="trafficToolbar">
     <b>Tráfego ao vivo</b>
@@ -251,7 +268,8 @@ HTML = r'''<!doctype html>
   </div>
   <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
   <div id="messageComposer">
-    <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><button id="messageSend" title="Enviar">➤</button>
+    <div id="mentionSuggestions" class="mentionSuggestions"></div>
+    <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><span class="mentionHelp">Digite @ para mencionar um nó</span><button id="messageSend" title="Enviar">➤</button>
   </div>
 </section>
 <section id="viewHealth" class="view">
@@ -412,6 +430,12 @@ const baseMaps = {
 };
 
 let baseLayer = null;
+let trackMap = null;
+let trackBaseLayer = null;
+let trackLayer = null;
+let trackLegend = null;
+let tracklogLoaded = false;
+let tracklogData = null;
 const lineLayer = L.layerGroup().addTo(map);
 const nodeLayer = L.layerGroup().addTo(map);
 const animationLayer = L.layerGroup().addTo(map);
@@ -489,12 +513,82 @@ function setBaseMap(type){
   baseLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
   baseLayer.bringToBack();
   applyBrightness();
+  setTrackBaseMap();
 }
 function applyBrightness(){
   const value = Math.max(30, Math.min(150, Number(document.getElementById('mapBrightness').value || 100)));
   document.getElementById('mapBrightnessValue').textContent = `${value}%`;
   const pane = map.getPane('tilePane');
   if(pane) pane.style.filter = `brightness(${value}%)`;
+  if(trackMap){const tp=trackMap.getPane('tilePane');if(tp)tp.style.filter=`brightness(${value}%)`;}
+}
+function setTrackBaseMap(){
+  if(!trackMap) return;
+  const type=document.getElementById('mapType')?.value||'osm';
+  const cfg=baseMaps[type]||baseMaps.osm;
+  if(trackBaseLayer) trackMap.removeLayer(trackBaseLayer);
+  trackBaseLayer=L.tileLayer(cfg.url,cfg.options).addTo(trackMap);
+  trackBaseLayer.bringToBack();
+  const pane=trackMap.getPane('tilePane');
+  if(pane) pane.style.filter=`brightness(${Math.max(30,Math.min(150,Number(document.getElementById('mapBrightness')?.value||100)))}%)`;
+}
+function initTrackMap(){
+  if(trackMap) return;
+  trackMap=L.map('tracklogMap',{preferCanvas:true,zoomSnap:0.1,zoomDelta:0.5}).setView([-15.8,-47.9],9);
+  trackLayer=L.layerGroup().addTo(trackMap);
+  setTrackBaseMap();
+  const ctrl=L.control({position:'bottomright'});
+  ctrl.onAdd=()=>{trackLegend=L.DomUtil.create('div','tracklogLegend');trackLegend.innerHTML='<b>Tracklog</b><br>Sem trajetos carregados';return trackLegend;};
+  ctrl.addTo(trackMap);
+}
+function trackColor(nodeNum){
+  let x=(Number(nodeNum)>>>0)||1; x=((x*2654435761)>>>0)%360;
+  return `hsl(${x} 78% 55%)`;
+}
+function fmtTrackDistance(m){const n=Number(m||0);return n>=1000?`${(n/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})} km`:`${Math.round(n)} m`;}
+function renderTracklog(){
+  initTrackMap();
+  trackLayer.clearLayers();
+  const tracks=tracklogData?.tracks||[];
+  const selected=document.getElementById('tracklogNode').value;
+  const visible=tracks.filter(t=>selected==='all'||String(t.nodeNum)===selected);
+  const bounds=[];
+  for(const t of visible){
+    const color=trackColor(t.nodeNum);
+    const pts=(t.points||[]).map(p=>[Number(p.lat),Number(p.lon)]).filter(x=>Number.isFinite(x[0])&&Number.isFinite(x[1]));
+    if(!pts.length) continue;
+    pts.forEach(x=>bounds.push(x));
+    if(pts.length>1){
+      const line=L.polyline(pts,{color,weight:4,opacity:.82}).addTo(trackLayer);
+      line.bindTooltip(`${esc(t.name||t.nodeId)} · ${fmtTrackDistance(t.distanceMeters)} · ${t.pointCount} pontos`);
+    }
+    (t.points||[]).forEach((p,i)=>{
+      const current=i===(t.points.length-1);
+      const m=L.circleMarker([p.lat,p.lon],{radius:current?6:3,color,fillColor:color,fillOpacity:current?1:.55,weight:current?2:1}).addTo(trackLayer);
+      m.bindPopup(`<div class="trackPointPopup"><b>${esc(t.name||t.nodeId)}</b><br>${new Date(Number(p.timestampMs)).toLocaleString('pt-BR')}<br>Posição: ${Number(p.lat).toFixed(5)}, ${Number(p.lon).toFixed(5)}${p.altitude!=null?`<br>Altitude: ${esc(p.altitude)} m`:''}${p.snr!=null?`<br>SNR: ${esc(p.snr)} dB`:''}${p.rssi!=null?`<br>RSSI: ${esc(p.rssi)} dBm`:''}${current?'<br><span class="trackCurrent">posição mais recente do período</span>':''}</div>`);
+    });
+  }
+  if(trackLegend){
+    trackLegend.innerHTML='<b>Tracklog</b>'+visible.map(t=>`<div class="trackNode"><span class="trackSwatch" style="background:${trackColor(t.nodeNum)}"></span><span>${esc(t.shortName||t.name||t.nodeId)} · ${fmtTrackDistance(t.distanceMeters)}</span></div>`).join('');
+  }
+  document.getElementById('tracklogSummary').textContent=visible.length?`${visible.length} nó(s) · ${visible.reduce((a,t)=>a+Number(t.pointCount||0),0)} pontos · ${fmtTrackDistance(visible.reduce((a,t)=>a+Number(t.distanceMeters||0),0))} acumulados`:'Nenhuma mobilidade observada neste período.';
+  if(bounds.length) trackMap.fitBounds(L.latLngBounds(bounds),{padding:[18,18],maxZoom:16});
+  setTimeout(()=>trackMap.invalidateSize(),30);
+}
+async function loadTracklog(force=false){
+  initTrackMap();
+  const hours=document.getElementById('tracklogHours').value;
+  const btn=document.getElementById('tracklogReload'); if(btn) btn.disabled=true;
+  try{
+    const r=await fetch(`/api/tracklog?hours=${encodeURIComponent(hours)}&_=${Date.now()}`,{cache:'no-store'});
+    const b=await r.json(); if(!r.ok||!b.success) throw new Error(b.message||`HTTP ${r.status}`);
+    tracklogData=b; tracklogLoaded=true;
+    const sel=document.getElementById('tracklogNode'),old=sel.value;
+    sel.innerHTML='<option value="all">Todos com mobilidade observada</option>'+(b.tracks||[]).map(t=>`<option value="${esc(t.nodeNum)}">${esc(t.shortName||t.name||t.nodeId)} — ${esc(t.name||t.nodeId)} (${t.pointCount})</option>`).join('');
+    if([...sel.options].some(o=>o.value===old)) sel.value=old;
+    renderTracklog();
+  }catch(e){document.getElementById('tracklogSummary').textContent=`Erro: ${String(e.message||e)}`;}
+  finally{if(btn)btn.disabled=false;}
 }
 function applyTheme(){
   const value=document.getElementById('uiTheme')?.value==='light'?'light':'dark';
@@ -1173,10 +1267,11 @@ const NODEINFO_ROUTE_WAIT_MS=30000;
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings'};
+  const ids={map:'viewMap',tracklog:'viewTracklog',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
+  if(name==='tracklog'){initTrackMap();setTimeout(()=>trackMap.invalidateSize(),40);if(!tracklogLoaded)loadTracklog();}
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
   if(name==='messages'){ loadPrimaryMessages(true); markMessagesRead(); }
   if(name==='health') loadNetworkHealth();
@@ -1871,8 +1966,52 @@ function dayLabel(ms){const d=new Date(ms),now=new Date();const today=new Date(n
 function lastReadMs(){return Number(localStorage.getItem(MESSAGE_READ_KEY)||0)||0;}
 function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();renderMessages();}
 function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
+let mentionMatches=[];
+let mentionActiveIndex=0;
+let mentionStart=-1;
+function mentionNodeList(){
+  return (topology?.nodes||[]).filter(n=>n && (n.name||n.shortName||n.nodeId)).map(n=>({nodeNum:n.nodeNum,nodeId:n.nodeId||'',shortName:n.shortName||'',name:n.name||n.longName||n.shortName||n.nodeId||''}));
+}
+function mentionContext(){
+  const input=document.getElementById('messageInput'),pos=input.selectionStart??input.value.length,before=input.value.slice(0,pos);
+  const m=before.match(/(^|[\s,;:!?])@([^@\s,;:!?]*)$/);
+  if(!m) return null;
+  return {query:(m[2]||'').toLowerCase(),start:pos-(m[2]||'').length-1,end:pos};
+}
+function closeMentionSuggestions(){const box=document.getElementById('mentionSuggestions');box.classList.remove('open');box.innerHTML='';mentionMatches=[];mentionStart=-1;}
+function refreshMentionSuggestions(){
+  const ctx=mentionContext(); if(!ctx){closeMentionSuggestions();return;}
+  mentionStart=ctx.start;
+  const q=ctx.query;
+  mentionMatches=mentionNodeList().filter(n=>!q||[n.shortName,n.name,n.nodeId].some(v=>String(v||'').toLowerCase().includes(q))).sort((a,b)=>{
+    const ae=String(a.shortName||'').toLowerCase()===q?0:1,be=String(b.shortName||'').toLowerCase()===q?0:1;
+    return ae-be||String(a.shortName||a.name).localeCompare(String(b.shortName||b.name),'pt-BR');
+  }).slice(0,12);
+  mentionActiveIndex=Math.min(mentionActiveIndex,Math.max(0,mentionMatches.length-1));
+  const box=document.getElementById('mentionSuggestions');
+  if(!mentionMatches.length){closeMentionSuggestions();return;}
+  box.innerHTML=mentionMatches.map((n,i)=>`<div class="mentionItem ${i===mentionActiveIndex?'active':''}" data-mi="${i}"><div class="mentionShort">${esc(n.shortName||'@')}</div><div><div class="mentionLong">${esc(n.name)}</div><div class="mentionId">${esc(n.nodeId)}</div></div></div>`).join('');
+  box.classList.add('open');
+  box.querySelectorAll('.mentionItem').forEach(el=>el.addEventListener('mousedown',e=>{e.preventDefault();selectMention(Number(el.dataset.mi));}));
+}
+function selectMention(index){
+  const n=mentionMatches[index]; if(!n)return;
+  const input=document.getElementById('messageInput'),pos=input.selectionStart??input.value.length,start=mentionStart>=0?mentionStart:pos;
+  const full=n.name||n.shortName||n.nodeId;
+  input.value=input.value.slice(0,start)+'@'+full+' '+input.value.slice(pos);
+  const next=start+full.length+2; input.setSelectionRange(next,next);closeMentionSuggestions();updateMessageCounter();input.focus();
+}
+function renderChatText(text){
+  let html=esc(text||'');
+  const names=[...new Set(mentionNodeList().flatMap(n=>[n.name,n.shortName].filter(Boolean)))].sort((a,b)=>b.length-a.length);
+  for(const name of names){
+    const token=esc('@'+name);
+    if(token) html=html.split(token).join(`<span class="chatMention">${token}</span>`);
+  }
+  return html;
+}
 function deliveryVisual(m){const st=String(m.deliveryState||'').toLowerCase();if(m.ackFailed||m.routingErrorReceived||st==='failed')return {icon:'!',cls:'failed',tip:'Falha de entrega/roteamento reportada pelo MeshMonitor'};if(st==='confirmed'||m.ackFromNode)return {icon:'✓✓',cls:'confirmed',tip:'ACK confirmado pelo protocolo; não significa leitura humana'};if(st==='delivered')return {icon:'✓',cls:'',tip:'Transmitida para a malha pelo rádio local'};if(st==='queued'||st==='pending'||!st)return {icon:'◷',cls:'',tip:'Aguardando confirmação de transmissão'};return {icon:'✓',cls:'',tip:`Estado: ${st}`};}
-function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${esc(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
+function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
 async function loadPrimaryMessages(force=false,preserveScroll=false){
   const list=document.getElementById('messageList');
   const oldHeight=list.scrollHeight,oldTop=list.scrollTop;
@@ -1934,10 +2073,14 @@ async function loadOlderPrimaryMessages(){
 }
 async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=input.value.trim();if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.');return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(`Não foi possível enviar: ${e}`);}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
-document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',updateMessageCounter);document.getElementById('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
+document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target))closeMentionSuggestions();});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+document.getElementById('tracklogHours').addEventListener('change',()=>loadTracklog(true));
+document.getElementById('tracklogNode').addEventListener('change',renderTracklog);
+document.getElementById('tracklogReload').addEventListener('click',()=>loadTracklog(true));
+document.getElementById('tracklogFit').addEventListener('click',()=>{if(!trackMap||!tracklogData)return;const selected=document.getElementById('tracklogNode').value;const pts=(tracklogData.tracks||[]).filter(t=>selected==='all'||String(t.nodeNum)===selected).flatMap(t=>(t.points||[]).map(p=>[p.lat,p.lon]));if(pts.length)trackMap.fitBounds(L.latLngBounds(pts),{padding:[18,18],maxZoom:16});});
 for(const id of ['trafficDirection','trafficType']) document.getElementById(id).addEventListener('change',renderTraffic);
 document.getElementById('trafficSearch').addEventListener('input',renderTraffic);
 document.getElementById('trafficPause').addEventListener('click',toggleTrafficPause);
@@ -2229,7 +2372,26 @@ def _archive_init():
         CREATE INDEX IF NOT EXISTS idx_packets_portnum_name ON packets(portnum_name);
         CREATE INDEX IF NOT EXISTS idx_packets_direction ON packets(direction);
         CREATE INDEX IF NOT EXISTS idx_packets_relay_node ON packets(relay_node);
+
+        CREATE TABLE IF NOT EXISTS positions (
+          position_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          position_key TEXT NOT NULL UNIQUE,
+          source_id TEXT NOT NULL,
+          node_num INTEGER NOT NULL,
+          node_id TEXT,
+          node_name TEXT,
+          timestamp INTEGER NOT NULL,
+          latitude REAL NOT NULL,
+          longitude REAL NOT NULL,
+          altitude REAL,
+          snr REAL,
+          rssi REAL,
+          archived_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_positions_node_time ON positions(source_id,node_num,timestamp);
+        CREATE INDEX IF NOT EXISTS idx_positions_time ON positions(timestamp);
         """)
+    _tracklog_backfill()
 
 
 def _archive_key(item: dict):
@@ -2260,6 +2422,105 @@ def _archive_metadata(value):
         return str(value)
 
 
+def _position_payload(metadata):
+    if metadata is None:
+        return None
+    obj = metadata
+    if isinstance(obj, str):
+        try:
+            obj = json.loads(obj)
+        except Exception:
+            return None
+    if not isinstance(obj, dict):
+        return None
+    candidates = [obj]
+    for key in ("decoded_payload", "decoded", "position", "payload"):
+        val = obj.get(key)
+        if isinstance(val, dict):
+            candidates.insert(0, val)
+    for d in candidates:
+        lat = d.get("latitude", d.get("latitudeI"))
+        lon = d.get("longitude", d.get("longitudeI"))
+        try:
+            lat = float(lat); lon = float(lon)
+        except Exception:
+            continue
+        if abs(lat) > 90:
+            lat /= 1e7
+        if abs(lon) > 180:
+            lon /= 1e7
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180) or (abs(lat) < 1e-9 and abs(lon) < 1e-9):
+            continue
+        alt = d.get("altitude", d.get("altitudeHae"))
+        try:
+            alt = float(alt) if alt is not None else None
+        except Exception:
+            alt = None
+        return lat, lon, alt
+    return None
+
+
+def _tracklog_position_tuple(item, ts, now_ms):
+    try:
+        portnum = int(item.get("portnum")) if item.get("portnum") is not None else None
+    except Exception:
+        portnum = None
+    if item.get("portnum_name") != "POSITION_APP" and portnum != 3:
+        return None
+    try:
+        node_num = int(item.get("from_node"))
+    except Exception:
+        return None
+    pos = _position_payload(item.get("metadata"))
+    if not pos:
+        return None
+    lat, lon, alt = pos
+    key = _archive_key(item)
+    name = item.get("from_node_longName") or item.get("from_node_id")
+    return (key, MM_SOURCE, node_num, item.get("from_node_id"), name, ts, lat, lon, alt, item.get("snr"), item.get("rssi"), now_ms)
+
+
+def _tracklog_insert_values(conn, values):
+    if not values:
+        return 0
+    before = conn.total_changes
+    conn.executemany("""
+      INSERT OR IGNORE INTO positions (
+        position_key,source_id,node_num,node_id,node_name,timestamp,latitude,longitude,altitude,snr,rssi,archived_at
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    """, values)
+    return conn.total_changes - before
+
+
+def _tracklog_backfill():
+    try:
+        now_ms = int(time.time() * 1000)
+        with _archive_connect() as conn:
+            rows = conn.execute("""
+              SELECT archive_key,source_id,mm_row_id AS id,packet_id,timestamp,created_at,direction,
+                     from_node,from_node_id,from_node_long_name AS from_node_longName,
+                     to_node,to_node_id,to_node_long_name AS to_node_longName,channel,portnum,portnum_name,
+                     snr,rssi,relay_node,metadata
+              FROM packets
+              WHERE source_id=? AND (portnum_name='POSITION_APP' OR portnum=3)
+              ORDER BY timestamp ASC
+            """, (MM_SOURCE,)).fetchall()
+            vals=[]
+            for row in rows:
+                item=dict(row)
+                item["id"]=item.get("id")
+                v=_tracklog_position_tuple(item,int(item.get("timestamp") or now_ms),now_ms)
+                if v:
+                    # preserve the original packet archive key exactly
+                    v=(str(item.get("archive_key")),)+v[1:]
+                    vals.append(v)
+                if len(vals)>=1000:
+                    _tracklog_insert_values(conn,vals); vals=[]
+            _tracklog_insert_values(conn,vals)
+    except Exception as exc:
+        print(f"AVISO: não foi possível reconstruir tracklog histórico: {exc}", flush=True)
+
+
 def _archive_insert_rows(rows):
     if not rows:
         return 0
@@ -2274,6 +2535,7 @@ def _archive_insert_rows(rows):
       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """
     values = []
+    position_values = []
     for raw in rows:
         item = _sanitize_packet(raw)
         ts = item.get("timestamp") or item.get("created_at") or now_ms
@@ -2283,8 +2545,9 @@ def _archive_insert_rows(rows):
             ts = now_ms
         if ts < 10_000_000_000:
             ts *= 1000
+        archive_key = _archive_key(item)
         values.append((
-            _archive_key(item), MM_SOURCE, item.get("id"), item.get("packet_id"), ts,
+            archive_key, MM_SOURCE, item.get("id"), item.get("packet_id"), ts,
             item.get("created_at"), item.get("direction"), item.get("from_node"),
             item.get("from_node_id"), item.get("from_node_longName"), item.get("to_node"),
             item.get("to_node_id"), item.get("to_node_longName"), item.get("channel"),
@@ -2297,10 +2560,15 @@ def _archive_insert_rows(rows):
             int(bool(item.get("xeddsa_signed"))) if item.get("xeddsa_signed") is not None else None,
             now_ms,
         ))
+        posv = _tracklog_position_tuple(item, ts, now_ms)
+        if posv:
+            position_values.append((archive_key,)+posv[1:])
     with _archive_connect() as conn:
         before = conn.total_changes
         conn.executemany(sql, values)
-        return conn.total_changes - before
+        inserted_packets = conn.total_changes - before
+        _tracklog_insert_values(conn, position_values)
+        return inserted_packets
 
 
 def _archive_last_timestamp():
@@ -2315,6 +2583,7 @@ def _archive_cleanup():
     cutoff = int(time.time() * 1000) - ARCHIVE_RETENTION_DAYS * 86400 * 1000
     with _archive_connect() as conn:
         cur = conn.execute("DELETE FROM packets WHERE timestamp < ?", (cutoff,))
+        conn.execute("DELETE FROM positions WHERE timestamp < ?", (cutoff,))
         return max(0, cur.rowcount or 0)
 
 
@@ -2788,6 +3057,69 @@ def _archive_dump_zip():
         raise
 
 
+def _haversine_m(lat1, lon1, lat2, lon2):
+    import math
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2-lat1); dl = math.radians(lon2-lon1)
+    a = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+    return 2*r*math.atan2(math.sqrt(a), math.sqrt(max(0.0,1-a)))
+
+
+def _tracklog_query(hours: int = 24):
+    hours = max(1, min(int(hours or 24), 24*30))
+    cutoff = int(time.time()*1000) - hours*3600*1000
+    with _archive_connect() as conn:
+        rows = conn.execute("""
+          SELECT node_num,node_id,node_name,timestamp,latitude,longitude,altitude,snr,rssi
+          FROM positions WHERE source_id=? AND timestamp>=?
+          ORDER BY node_num,timestamp ASC
+        """, (MM_SOURCE, cutoff)).fetchall()
+    by_node = {}
+    for row in rows:
+        n = int(row["node_num"])
+        by_node.setdefault(n, []).append(row)
+    tracks=[]
+    try:
+        top=json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        top={}
+    node_meta={int(n.get("nodeNum")):n for n in (top.get("nodes") or []) if n.get("nodeNum") is not None}
+    total_points=0
+    for node_num, pts in by_node.items():
+        cleaned=[]; distance=0.0; last=None
+        for row in pts:
+            lat=float(row["latitude"]); lon=float(row["longitude"]); ts=int(row["timestamp"])
+            if last:
+                d=_haversine_m(last["lat"],last["lon"],lat,lon)
+                dt=max(1,(ts-last["timestampMs"])/1000.0)
+                speed_kmh=(d/dt)*3.6
+                # elimina jitter submétrico e saltos manifestamente incompatíveis com deslocamento terrestre
+                if d < 3.0:
+                    continue
+                if speed_kmh > 300.0 and d > 5000.0:
+                    continue
+                distance += d
+            point={"timestampMs":ts,"lat":lat,"lon":lon,"altitude":row["altitude"],"snr":row["snr"],"rssi":row["rssi"]}
+            cleaned.append(point); last=point
+        if len(cleaned)<2 or distance<100.0:
+            continue
+        meta=node_meta.get(node_num) or {}
+        name=meta.get("name") or meta.get("longName") or (pts[-1]["node_name"] if pts else None) or meta.get("nodeId") or f"!{node_num & 0xffffffff:08x}"
+        short=meta.get("shortName") or ""
+        node_id=meta.get("nodeId") or (pts[-1]["node_id"] if pts else None) or f"!{node_num & 0xffffffff:08x}"
+        # proteção de resposta: amostra no máximo ~2500 pontos por nó
+        if len(cleaned)>2500:
+            step=max(1,len(cleaned)//2500)
+            sampled=cleaned[::step]
+            if sampled[-1] is not cleaned[-1]: sampled.append(cleaned[-1])
+            cleaned=sampled
+        total_points += len(cleaned)
+        tracks.append({"nodeNum":node_num,"nodeId":node_id,"name":name,"shortName":short,"pointCount":len(cleaned),"distanceMeters":round(distance,1),"firstTimestampMs":cleaned[0]["timestampMs"],"lastTimestampMs":cleaned[-1]["timestampMs"],"points":cleaned})
+    tracks.sort(key=lambda t:(-t["distanceMeters"],str(t["name"])))
+    return {"success":True,"hours":hours,"generatedAtMs":int(time.time()*1000),"trackCount":len(tracks),"pointCount":total_points,"tracks":tracks}
+
+
 def _version_tuple(value: str):
     raw = str(value or "").strip().lower()
     if raw.startswith("v"):
@@ -2874,7 +3206,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.20.0"
+    server_version = "TrafficAnalyzer/1.21.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
@@ -2914,6 +3246,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "status": "unavailable", "localVersion": APP_VERSION, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/tracklog":
+            try:
+                query=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                hours=int((query.get("hours") or ["24"])[0])
+                body=_tracklog_query(hours)
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"error":"tracklog_error","message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
         if path in ("/api/topology", "/topology.json"):
             try:
