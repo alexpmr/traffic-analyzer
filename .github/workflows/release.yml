@@ -27,6 +27,10 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Validar Python
+        shell: bash
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py
+
       - name: Montar ZIPs
         shell: bash
         run: |
@@ -96,22 +100,13 @@ jobs:
           ## Screenshots
 
           ### Mapa e topologia
-          ![Mapa e topologia](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/01-mapa-topologia.png)
-
-          ### Trafego em tempo real
-          ![Trafego](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/02-trafego-tempo-real.png)
+          ![Mapa e topologia](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/01-mapa-topologia.webp)
 
           ### Mensagens
-          ![Mensagens](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/03-mensagens.png)
+          ![Mensagens](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/03-mensagens.webp)
 
           ### Saude da Rede
-          ![Saude da Rede](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/04-saude-da-rede.png)
-
-          ### Anomalias
-          ![Anomalias](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/05-anomalias.png)
-
-          ### Configuracoes
-          ![Configuracoes](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/06-configuracoes.png)
+          ![Saude da Rede](https://raw.githubusercontent.com/alexpmr/traffic-analyzer/main/docs/screenshots/04-saude-da-rede.webp)
           EOF
 
       - name: Criar Release formal
