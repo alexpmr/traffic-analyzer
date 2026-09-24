@@ -1,7 +1,16 @@
-# Traffic Analyzer v1.18.0
+# Traffic Analyzer v1.19.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.19.0
+
+- **Controle de animação simplificado:** um único botão alterna entre **▶ Reproduzir/Retomar** e **⏸ Pausar**; o segundo botão de play/pause foi removido.
+- No modo **Ao vivo**, pausar continua congelando somente a animação visual. Coleta e processamento seguem ativos, e os traceroutes represados iniciam juntos ao retomar.
+- No modo **Histórico**, o mesmo botão agora pausa e retoma a animação no ponto exato, sem reiniciar o traceroute em andamento.
+- **Enquadrar mais justo:** o mapa usa zoom fracionário em passos de 0,05 e ajusta o nível até ocupar o máximo da tela sem cortar círculos ou rótulos permanentes.
+- A margem de segurança do enquadramento foi reduzida para cerca de 6 px; o ajuste fino verifica os elementos realmente renderizados.
+- Mantidos os screenshots anonimizados no README e nas notas da Release formal.
 
 ## Novidades da v1.18.0
 
@@ -14,7 +23,7 @@
 - **Mensagens:** layout ampliado e novo controle de fonte (10 a 20 px) em Configurações.
 - **Screenshots:** galeria pública anonimizada adicionada ao README.
 - **Release:** GitHub Actions gera ZIP versionado, atualiza `traffic-analyzer-latest.zip` e cria Release formal marcada como Latest.
-- [Baixar o manual PDF da v1.18.0](./Documentacao_Traffic_Analyzer_v1.18.0.pdf)
+- [Baixar o manual PDF da v1.18.0](./Documentacao_Traffic_Analyzer_v1.19.0.pdf)
 
 ## Novidades da v1.17.0
 
