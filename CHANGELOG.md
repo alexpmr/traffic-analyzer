@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.21.0 - 2026-09-24
+
+- Adiciona aba Tracklog com mapa histórico de deslocamento por estação.
+- Cria tabela persistente `positions` em `traffic.db`, alimentada por pacotes POSITION_APP decodificados.
+- Reconstrói posições antigas a partir do histórico de pacotes existente quando possível.
+- Detecta mobilidade por deslocamento observado, ignora jitter submétrico e filtra saltos incompatíveis com deslocamento terrestre.
+- Adiciona filtros de período, seleção de nó, enquadramento, distância acumulada e detalhes por ponto.
+- Adiciona autocomplete de menções no chat ao digitar `@`, pesquisando short name, nome completo e node ID.
+- Ao selecionar uma menção, substitui o atalho pelo nome completo do nó antes do envio.
+- Destaca menções reconhecidas nos balões do chat.
+- Mantém as correções de pausa/represamento, indicador de versão e tema claro/escuro da v1.20.0.
+
 ## 1.20.0 - 2026-09-24
 
 - Corrige o represamento no modo Ao vivo: traceroutes incompletos não são mais marcados como vistos antes de se tornarem animáveis.
