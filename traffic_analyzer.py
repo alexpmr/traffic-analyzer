@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.17.0
+Traffic Analyzer v1.18.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -671,7 +671,7 @@ def build_topology(nodes, traceroutes, now_ms):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.17.0",
+        "version": "1.18.0",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
         "lookbackHours": TOPOLOGY_LOOKBACK_HOURS,
@@ -845,7 +845,7 @@ def run_discovery(nodes, traceroutes, now_ms, state):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Traffic Analyzer v1.17.0")
+    p = argparse.ArgumentParser(description="Traffic Analyzer v1.18.0")
     p.add_argument(
         "--topology-only",
         action="store_true",
@@ -866,8 +866,6 @@ def main():
         return 2
 
     now_ms = int(time.time() * 1000)
-    state = load_state()
-    prune_state(state, now_ms)
 
     try:
         nodes = fetch_nodes()
@@ -883,10 +881,11 @@ def main():
         return 4
 
     if args.topology_only:
-        LOG.info("Modo --topology-only: nenhuma solicitação NodeInfo foi executada.")
-        save_state(state)
+        LOG.info("Modo --topology-only: topologia atualizada sem ler ou alterar cooldowns/estado de NodeInfo.")
         return 0
 
+    state = load_state()
+    prune_state(state, now_ms)
     run_discovery(nodes, traceroutes, now_ms, state)
     save_state(state)
     return 0
