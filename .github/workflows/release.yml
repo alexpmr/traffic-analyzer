@@ -44,6 +44,15 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
+      - name: Gerar manual PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          python -m pip install --disable-pip-version-check --quiet reportlab
+          python docs/build_manual_pdf.py             --version "$VERSION"             --output "Documentacao_Traffic_Analyzer_v${VERSION}.pdf"
+          test -s "Documentacao_Traffic_Analyzer_v${VERSION}.pdf"
+
       - name: Montar ZIPs
         shell: bash
         run: |
@@ -92,6 +101,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f "traffic-analyzer-v${VERSION}.zip" traffic-analyzer-latest.zip
+          if [ -f "Documentacao_Traffic_Analyzer_v${VERSION}.pdf" ]; then
+            git add -f "Documentacao_Traffic_Analyzer_v${VERSION}.pdf"
+          fi
           if ! git diff --cached --quiet; then
             git commit -m "Atualiza pacotes ZIP da v${VERSION} [skip ci]"
             git push origin HEAD:main
