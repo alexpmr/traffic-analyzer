@@ -2438,6 +2438,71 @@ document.getElementById('messageRowGap').addEventListener('input',()=>{applyMess
 document.getElementById('uiTheme').addEventListener('change',()=>{applyTheme();savePrefs();});
 document.getElementById('flowToast').addEventListener('click',()=>setView('map'));
 
+let updateRuntimeData=null;
+function updateStateLabel(state){
+  const labels={idle:'—',pending:'Pendente',running:'Atualizando',success:'Concluída',failed:'Falhou',rolled_back:'Rollback executado',no_change:'Concluída'};
+  return tr(labels[state]||state||'—');
+}
+function renderUpdateStatus(data){
+  updateRuntimeData=data||{};
+  const box=document.getElementById('updateStatusBox');if(!box)return;
+  const settings=data?.settings||{};
+  document.getElementById('autoUpdateEnabled').checked=Boolean(settings.enabled);
+  document.getElementById('rollbackEnabled').checked=settings.rollbackEnabled!==false;
+  const state=String(data?.state||'idle');
+  const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
+  const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
+  const completed=data?.completedAtMs?new Date(Number(data.completedAtMs)).toLocaleString(uiLocale()):tr('Nunca');
+  const msg=data?.message?`<br>${esc(data.message)}`:'';
+  box.innerHTML=`<b>${tr('Versão atual:')}</b> v__APP_VERSION__<br><b>${tr('Status:')}</b> <span class="updateState-${esc(state)}">${esc(updateStateLabel(state))}</span> · <b>${tr('Destino')}</b> ${target}<br><b>${tr('Versão anterior:')}</b> ${previous} · <b>${tr('Última atualização:')}</b> ${esc(completed)}${msg}`;
+}
+async function loadUpdateStatus(){
+  try{
+    const r=await fetch('/api/update/status',{cache:'no-store'});const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+    renderUpdateStatus(b);return b;
+  }catch(e){
+    const box=document.getElementById('updateStatusBox');if(box)box.textContent=`${tr('Erro')}: ${e}`;return null;
+  }
+}
+async function saveUpdateSettings(){
+  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked};
+  const r=await fetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
+}
+async function triggerUpdateNow(){
+  const btn=document.getElementById('updateNow');btn.disabled=true;btn.textContent=tr('Atualizando...');
+  try{
+    const r=await fetch('/api/update/trigger',{method:'POST'});const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+    await loadUpdateStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
+  }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
+  finally{setTimeout(()=>{btn.disabled=false;btn.textContent=tr('Atualizar agora');},2200);}
+}
+document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
+document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
+document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
+
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV123';
+async function showWhatsNewIfNeeded(){
+  try{
+    const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
+    const current=String(b.version||'__APP_VERSION__'),install=b.lastInstall||{},previous=String(install.previousVersion||'');
+    if(!previous||previous===current||localStorage.getItem(WHATS_NEW_SEEN_KEY)===current)return;
+    document.getElementById('whatsNewTitle').textContent=currentLang==='en'?'Traffic Analyzer updated':'Traffic Analyzer atualizado';
+    document.getElementById('whatsNewSummary').textContent=currentLang==='en'?`Updated from v${previous} to v${current}.`:`Atualizado da v${previous} para a v${current}.`;
+    const notes=b.notes||[];
+    document.getElementById('whatsNewNotes').innerHTML=notes.length?notes.map(n=>`<div class="wnItem">• ${esc(tr(n))}</div>`).join(''):`<div>${esc(tr('Não há notas de versão disponíveis.'))}</div>`;
+    const link=document.getElementById('whatsNewReleaseLink');if(b.releaseUrl)link.href=b.releaseUrl;
+    document.getElementById('whatsNewBackdrop').classList.add('open');
+    localStorage.setItem(WHATS_NEW_SEEN_KEY,current);
+  }catch{}
+}
+function closeWhatsNew(){document.getElementById('whatsNewBackdrop').classList.remove('open');}
+document.getElementById('whatsNewClose').addEventListener('click',closeWhatsNew);
+document.getElementById('whatsNewOk').addEventListener('click',closeWhatsNew);
+document.getElementById('whatsNewBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeWhatsNew();});
+
 let versionStatusData=null;
 function renderVersionStatus(data){
   versionStatusData=data||null;
@@ -2484,7 +2549,7 @@ document.getElementById('versionBadge').addEventListener('click',openVersionModa
 document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
 document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
 document.getElementById('versionCheckNow').addEventListener('click',async()=>{await checkVersionStatus(true);openVersionModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVersionModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();}});
 
 const legend = L.control({position:'bottomright'});
 legend.onAdd = () => {
@@ -2498,7 +2563,10 @@ initVisualPrefs();
 applyLanguage(currentLang,false);
 initI18nObserver();
 checkVersionStatus(false);
+loadUpdateStatus();
+showWhatsNewIfNeeded();
 setInterval(()=>checkVersionStatus(false),30*60*1000);
+setInterval(()=>loadUpdateStatus(),15000);
 load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
 loadTrafficInitial();
 setInterval(() => load(false), 60000);
