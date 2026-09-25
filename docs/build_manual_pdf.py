@@ -61,6 +61,7 @@ def main() -> None:
                               spaceBefore=4, spaceAfter=7))
 
     def P(text: str, style: str = "TA_Body") -> Paragraph:
+        text = text.replace("🇧🇷", "Brasil -").replace("🇺🇸", "Estados Unidos -")
         return Paragraph(text, styles[style])
 
     def bullet(text: str) -> Paragraph:
