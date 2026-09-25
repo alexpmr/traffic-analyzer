@@ -61,3 +61,57 @@ jobs:
           test -s traffic-analyzer-auto-update.path
           grep -q 'PathExists=/var/lib/traffic-analyzer/update-request.json' traffic-analyzer-auto-update.path
           grep -q 'ExecStart=/usr/bin/python3 /opt/traffic-analyzer/auto_update.py' traffic-analyzer-auto-update.service
+
+      - name: Smoke test da interface no navegador
+        run: |
+          python -m pip install --disable-pip-version-check --quiet selenium
+          cat >/tmp/topology.json <<'JSON'
+          {"generatedAtMs":0,"summary":{"nodesInApi":1,"traceroutesRead":0,"traceroutesInWindow":0,"routeParticipants":0,"identified":1,"stub":0,"routeOnly":0,"mappableNodes":1,"observedEdges":0,"mappableEdges":0},"nodes":[{"nodeNum":1,"nodeId":"!00000001","name":"TESTE","shortName":"TST","latitude":-15.8,"longitude":-47.9,"state":"identified"}],"edges":[],"traces":[]}
+          JSON
+          MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
+          echo $! >/tmp/ta-web.pid
+          python - <<'PY'
+          import time, urllib.request
+          for _ in range(40):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8788/health", timeout=1) as r:
+                      if r.status == 200:
+                          break
+              except Exception:
+                  time.sleep(.25)
+          else:
+              raise SystemExit(open("/tmp/ta-web.log").read())
+          PY
+          python - <<'PY'
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          import json, time
+          opt=Options()
+          opt.add_argument("--headless=new")
+          opt.add_argument("--no-sandbox")
+          opt.add_argument("--disable-dev-shm-usage")
+          opt.add_argument("--window-size=1600,1000")
+          opt.set_capability("goog:loggingPrefs", {"browser":"ALL"})
+          d=webdriver.Chrome(options=opt)
+          try:
+              d.get("http://127.0.0.1:8788/")
+              WebDriverWait(d,20).until(EC.presence_of_element_located((By.ID,"nav")))
+              time.sleep(2)
+              for view in ["traffic","messages","health","anomalies","settings","help","map"]:
+                  b=d.find_element(By.CSS_SELECTOR, f'.navbtn[data-view="{view}"]')
+                  d.execute_script("arguments[0].click()", b)
+                  time.sleep(.15)
+                  active=d.find_element(By.CSS_SELECTOR, ".view.active").get_attribute("id")
+                  expected={"traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
+                  assert active==expected,(view,active,expected)
+              logs=d.get_log("browser")
+              print(json.dumps(logs,ensure_ascii=False,indent=2))
+              severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
+              assert not severe,severe
+          finally:
+              d.quit()
+          PY
+          kill "$(cat /tmp/ta-web.pid)" || true
