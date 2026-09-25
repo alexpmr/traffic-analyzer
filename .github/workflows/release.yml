@@ -48,6 +48,64 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
+      - name: Smoke test real da interface
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check --quiet selenium
+          cat >/tmp/topology.json <<'JSON'
+          {"generatedAtMs":0,"summary":{"nodesInApi":1,"traceroutesRead":0,"traceroutesInWindow":0,"routeParticipants":0,"identified":1,"stub":0,"routeOnly":0,"mappableNodes":1,"observedEdges":0,"mappableEdges":0},"nodes":[{"nodeNum":1,"nodeId":"!00000001","name":"TESTE","shortName":"TST","latitude":-15.8,"longitude":-47.9,"state":"identified"}],"edges":[],"traces":[]}
+          JSON
+          MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
+          echo $! >/tmp/ta-web.pid
+          python - <<'PY'
+          import time, urllib.request
+          for _ in range(40):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8788/health", timeout=1) as r:
+                      if r.status == 200: break
+              except Exception:
+                  time.sleep(.25)
+          else:
+              raise SystemExit(open("/tmp/ta-web.log").read())
+          PY
+          python - <<'PY'
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.chrome.options import Options
+          import json, time
+          opt=Options()
+          for a in ["--headless=new","--no-sandbox","--disable-dev-shm-usage","--window-size=1600,1000"]: opt.add_argument(a)
+          opt.set_capability("goog:loggingPrefs",{"browser":"ALL"})
+          d=webdriver.Chrome(options=opt)
+          try:
+              d.get("http://127.0.0.1:8788/")
+              time.sleep(2)
+              logs=d.get_log("browser")
+              severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
+              assert not severe,severe
+              labels=[o.text for o in d.find_element(By.ID,"uiLanguage").find_elements(By.TAG_NAME,"option")]
+              assert labels==["🇧🇷 Português","🇺🇸 English"],labels
+              for view in ["traffic","messages","health","anomalies","settings","help","map"]:
+                  d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,f'.navbtn[data-view="{view}"]'))
+                  time.sleep(.1)
+                  assert d.find_element(By.CSS_SELECTOR,".view.active").get_attribute("id")=={"traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionBadge"))
+              assert d.find_element(By.ID,"versionContinue").text=="Continuar"
+              assert not d.find_elements(By.CSS_SELECTOR,"#versionModalBackdrop .updateCmd")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionContinue"))
+              sound=d.find_element(By.ID,"soundTheme")
+              assert [o.get_attribute("value") for o in sound.find_elements(By.TAG_NAME,"option")]==["pinball70","formal","radio","silent"]
+              d.execute_script("arguments[0].value='pinball70';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",sound)
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"soundTest"))
+              time.sleep(1.2)
+              logs=d.get_log("browser")
+              severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
+              assert not severe,severe
+          finally:
+              d.quit()
+          PY
+          kill "$(cat /tmp/ta-web.pid)" || true
+
       - name: Gerar manual PDF
         shell: bash
         run: |
