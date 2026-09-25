@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.24.0 - 2026-09-25
+
+- Adiciona temas sonoros Fliperama anos 70, Formal, Rádio / Telecom e Silencioso.
+- No tema Fliperama, diferencia lançamento do pacote, ricochete em relay observado, chegada/ACK, mensagem e falha.
+- Sonoriza traceroutes hop a hop somente a partir dos caminhos efetivamente observados.
+- Adiciona densidade sonora, intervalo mínimo, limite de sons simultâneos, filtros por tipo de evento e estéreo espacial opcional.
+- Adiciona teste de tema com sequência demonstrativa.
+- Adiciona som para novas mensagens e alerta para falha de envio.
+- Remove o comando de atualização em linha do popup de informações da versão.
+- Substitui Verificar agora por Continuar no popup de versão; o botão apenas fecha a janela.
+- Mantém Ver Release no GitHub e Fechar no popup de novidades.
+- Remove do popup o Markdown bruto da seção de screenshots das notas da Release.
+- Garante seletor principal com 🇧🇷 Português e 🇺🇸 English, sem abreviações BR/US/ENG.
+
 ## 1.23.1 - 2026-09-25
 
 - Corrige falha crítica de inicialização da interface da v1.23.0.
