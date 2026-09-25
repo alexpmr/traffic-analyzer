@@ -1,7 +1,24 @@
-# Traffic Analyzer v1.24.1
+# Traffic Analyzer v1.25.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.25.0
+
+- A aba **Mensagens** agora permite **responder diretamente a uma mensagem** usando o `replyId` nativo do Meshtastic/MeshMonitor.
+- A resposta mostra, dentro do novo balão, o remetente e um trecho da mensagem original quando ela está carregada.
+- Adiciona **seletor de emojis** ao compositor de mensagens.
+- Adiciona **reações Meshtastic/tapback** nas mensagens recebidas, com atalhos 👍 👎 ❤️ 😂 😮 😢.
+- Reações iguais são agrupadas sob a mensagem original com contador quando houver mais de uma.
+- Pacotes de reação não aparecem como mensagens isoladas na conversa; são vinculados ao `replyId` correspondente.
+- O autocomplete por `@` permanece disponível para localizar um nó, mas o nome selecionado é inserido sem o caractere `@`.
+- O mapa em **Ao vivo** mantém múltiplos traceroutes/pacotes animados simultaneamente.
+- O **Histórico** passa a iniciar traceroutes conforme sua ordem temporal e permite vários pacotes percorrendo a malha ao mesmo tempo.
+- Não há limite artificial de quantidade de pacotes/traceroutes em trânsito, tanto no modo ao vivo quanto no histórico. Filas pausadas também não descartam eventos por quantidade.
+- Pausar congela todas as animações ativas; retomar continua todas. Alterar a velocidade afeta animações que já estão em andamento e também a linha do tempo do histórico.
+- O status do mapa mostra quantos pacotes estão em trânsito ou congelados.
+- Intervalos históricos curtos são preservados; janelas muito longas são comprimidas proporcionalmente para uma reprodução observável sem serializar os pacotes.
+- Continua valendo a regra de não inventar hops: somente caminhos realmente observados são animados como rota.
 
 ## Correções da v1.24.1
 
