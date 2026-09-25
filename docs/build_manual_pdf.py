@@ -109,7 +109,7 @@ def main() -> None:
         "<b>Mensagens:</b> canal primário, envio e menções de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
         "<b>Anomalias:</b> heurísticas para silêncio, SNR, hops e assimetria de rotas.",
-        "<b>Configurações:</b> aparência, mapa, espessura/cor dos enlaces, som, leitura do chat, atualizações, atividade e privacidade.",
+        "<b>Configurações:</b> aparência, mapa, espessura/cor dos enlaces, temas sonoros, leitura do chat, atualizações, atividade e privacidade.",
         "<b>Ajuda/Help:</b> instruções incorporadas à própria interface.",
     ]:
         story.append(bullet(item))
@@ -124,6 +124,8 @@ def main() -> None:
               P("O Tracklog utiliza posições realmente recebidas. Distância e percurso dependem da frequência dos POSITION_APP observados e não substituem um odômetro/GPS dedicado."),
               P("Mensagens e ACK", "TA_H2"),
               P("Estados de ACK indicam confirmação de protocolo/roteamento quando disponível. Eles não significam que uma pessoa leu a mensagem. O @ é usado apenas para localizar um nó no autocomplete e é removido antes da transmissão."),
+              P("Temas sonoros", "TA_H2"),
+              P("A interface oferece Fliperama anos 70, Formal, Rádio / Telecom e Silencioso. No modo Fliperama, o início da viagem lembra um lançador mecânico, relays observados recebem ricochetes metálicos e chegada/ACK recebe efeito de alvo/pontuação. Os sons usam somente eventos e hops observados; o sistema não inventa retransmissões."),
               P("Privacidade", "TA_H2"),
               P("O token do MeshMonitor permanece no processo servidor. Conteúdo de mensagens diretas é redigido no histórico conforme a política da aplicação."),
               PageBreak(), P("4. Atualização e diagnóstico", "TA_H1"),
