@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.26.0"
+VERSION="1.27.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -52,12 +52,14 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR"
 install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
 install -m 0755 "$BASE_DIR/auto_update.py" "$APP_DIR/auto_update.py"
+install -m 0755 "$BASE_DIR/set_auth_password.py" "$APP_DIR/set_auth_password.py"
+install -m 0755 "$BASE_DIR/set_auth_password.py" /usr/local/sbin/traffic-analyzer-set-password
 install -m 0644 "$BASE_DIR/VERSION" "$APP_DIR/VERSION"
 install -m 0644 "$BASE_DIR/README.md" "$APP_DIR/README.md"
 install -m 0644 "$BASE_DIR/CHANGELOG.md" "$APP_DIR/CHANGELOG.md"
 install -m 0755 "$BASE_DIR/update.sh" /usr/local/sbin/traffic-analyzer-update
 
-# Migracao/atualizacao para Traffic Analyzer v1.24.1.
+# Migração/atualização para Traffic Analyzer v1.27.0.
 if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -f "$LEGACY_ENV_FILE" ]]; then
     cp "$LEGACY_ENV_FILE" "$ENV_FILE"
@@ -99,7 +101,12 @@ sed -i 's#MAP_TITLE=Traffic Analyzer - MeshMonitor$#MAP_TITLE=Traffic Analyzer -
 sed -i 's#/var/lib/meshmonitor-route-discovery/topology.json#/var/lib/traffic-analyzer/topology.json#g' "$MAP_ENV_FILE"
 append_if_missing "$MAP_ENV_FILE" "MAP_TITLE" "Traffic Analyzer - MeshMonitor - por Alex, PT2VHF"
 append_if_missing "$MAP_ENV_FILE" "TOPOLOGY_FILE" "$STATE_DIR/topology.json"
-chmod 0644 "$MAP_ENV_FILE"
+append_if_missing "$MAP_ENV_FILE" "TA_AUTH_ENABLED" "true"
+append_if_missing "$MAP_ENV_FILE" "TA_AUTH_USER" "admin"
+append_if_missing "$MAP_ENV_FILE" "TA_AUTH_PASSWORD_HASH" ""
+append_if_missing "$MAP_ENV_FILE" "TA_AUTH_SESSION_HOURS" "12"
+append_if_missing "$MAP_ENV_FILE" "TA_AUTH_SECURE_COOKIE" "auto"
+chmod 0600 "$MAP_ENV_FILE"
 
 # Preserva estado/topologia ja coletados, se existirem.
 if [[ -d "$LEGACY_STATE_DIR" ]]; then
@@ -190,6 +197,15 @@ Aplicacao:
 
 Interface web:
   http://IP_DO_SERVIDOR:8788/
+
+Autenticação administrativa:
+  sudo traffic-analyzer-set-password
+
+Enquanto TA_AUTH_ENABLED=true e nenhuma senha estiver configurada,
+a interface permanece em modo somente leitura para operações de escrita.
+
+Para publicar na Internet, use HTTPS em um reverse proxy (Caddy, Nginx,
+Cloudflare Tunnel ou equivalente). O Traffic Analyzer não termina TLS.
 
 Atualização futura pelo GitHub:
   traffic-analyzer-update
