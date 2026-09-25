@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# O token fica apenas no processo servidor. Nao e enviado ao navegador.
+# Tokens e hash de autenticação ficam apenas no processo servidor. Não são enviados ao navegador.
 EnvironmentFile=/etc/traffic-analyzer.env
 EnvironmentFile=/etc/traffic-analyzer-map.env
 ExecStart=/usr/bin/python3 /opt/traffic-analyzer/traffic_analyzer_web.py
