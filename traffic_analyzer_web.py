@@ -782,14 +782,15 @@ let historyIndex = 0;
 let playbackRunning = false;
 let historyAnimationPaused = false;
 let animationGeneration = 0;
+let historyAnimationSeq = 0;
+let historySchedulerRaf = null;
+let historySchedulerState = null;
+const activeHistoryAnimations = new Map();
 let livePollTimer = null;
 let liveInitialized = false;
 let liveSeen = new Set();
 let liveQueue = [];
-let liveQueueDropped = 0;
-const LIVE_QUEUE_MAX = 5000;
 let pausedActivityQueue = [];
-const PAUSED_ACTIVITY_MAX = 5000;
 let liveProcessing = false;
 let liveAnimationSeq = 0;
 let liveAnimationPaused = false;
@@ -1343,38 +1344,49 @@ function updatePlaybackStatusIdle(){
   if(document.getElementById('playMode').value === 'live'){
     if(!liveInitialized) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · conectando…';
     else if(liveAnimationPaused){
-      const queued=liveQueue.length, activity=pausedActivityQueue.length;
-      const dropped=liveQueueDropped ? ` · ${liveQueueDropped} descartado(s) por limite` : '';
-      el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ANIMAÇÃO PAUSADA · ${queued} traceroute(s) represado(s) · ${activity} pulso(s) represado(s) · ${activeLiveAnimations.size} congelado(s)${dropped}`;
+      const queued=liveQueue.length,activity=pausedActivityQueue.length,active=activeLiveAnimations.size;
+      el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ANIMAÇÃO PAUSADA · ${active} pacote(s) congelado(s) · ${queued} traceroute(s) aguardando · ${activity} evento(s) aguardando`;
+    }else{
+      const active=activeLiveAnimations.size;
+      if(active>0) el.innerHTML=`<span class="liveBadge">AO VIVO</span> · ${active} pacote(s) em trânsito`;
+      else if(liveQueue.length) el.innerHTML=`<span class="liveBadge">AO VIVO</span> · ${liveQueue.length} pacote(s) aguardando animação`;
+      else el.innerHTML='<span class="liveBadge">AO VIVO</span>';
     }
-    else if(!liveQueue.length && activeLiveAnimations.size===0) el.innerHTML = '<span class="liveBadge">AO VIVO</span>';
-    else if(activeLiveAnimations.size>1) el.innerHTML = `<span class="liveBadge">AO VIVO</span> · ${activeLiveAnimations.size} traceroutes simultâneos`;
-    else if(activeLiveAnimations.size===1) el.innerHTML = '<span class="liveBadge">AO VIVO</span> · 1 traceroute em animação';
     return;
   }
-  const list = historyTraces();
+  const list=historyTraces(),active=activeHistoryAnimations.size,state=historySchedulerState;
   if(historyAnimationPaused){
-    if(historyIndex >= list.length) historyIndex = Math.max(0, list.length-1);
-    el.textContent = list.length ? `Histórico pausado · posição ${historyIndex+1}/${list.length}` : 'Histórico pausado.';
+    const waiting=state?Math.max(0,state.list.length-state.nextIndex):Math.max(0,list.length-historyIndex);
+    el.textContent=`Histórico pausado · ${active} pacote(s) congelado(s) · ${waiting} aguardando`;
     return;
   }
-  if(playbackRunning) return;
-  if(historyIndex >= list.length) historyIndex = Math.max(0, list.length-1);
-  el.textContent = list.length ? `Histórico: ${list.length} traceroutes animáveis · posição ${historyIndex+1}/${list.length}` : 'Histórico: nenhum traceroute completamente mapeável no filtro atual.';
+  if(playbackRunning){
+    const launched=state?state.nextIndex:historyIndex;
+    el.textContent=`Histórico · ${active} pacote(s) em trânsito · ${launched}/${state?.list.length||list.length} iniciados`;
+    return;
+  }
+  if(historyIndex>=list.length)historyIndex=Math.max(0,list.length-1);
+  el.textContent=list.length?`Histórico: ${list.length} traceroutes animáveis · posição ${historyIndex+1}/${list.length}`:'Histórico: nenhum traceroute completamente mapeável no filtro atual.';
 }
 function pathNames(path){ return (path || []).map(p => p.name || p.nodeId).join(' → '); }
 function setTraceStatus(trace, leg, idx, total){
-  const mode = document.getElementById('playMode').value === 'live' ? '<span class="liveBadge">AO VIVO</span>' : `Histórico ${idx+1}/${total}`;
-  const path = leg === 'return' ? trace.returnPath : trace.forwardPath;
-  document.getElementById('playStatus').innerHTML = `${mode} · ${dt(trace.timestampMs)} · ${leg === 'return' ? 'VOLTA' : 'IDA'} · ${esc(pathNames(path))}`;
+  const live=document.getElementById('playMode').value==='live';
+  const concurrent=live?activeLiveAnimations.size:activeHistoryAnimations.size;
+  if(concurrent>1){updatePlaybackStatusIdle();return;}
+  const mode=live?'<span class="liveBadge">AO VIVO</span>':`Histórico ${idx+1}/${total}`;
+  const path=leg==='return'?trace.returnPath:trace.forwardPath;
+  document.getElementById('playStatus').innerHTML=`${mode} · ${dt(trace.timestampMs)} · ${leg==='return'?'VOLTA':'IDA'} · ${esc(pathNames(path))}`;
 }
 function stopAnimation(){
-  playbackRunning = false;
-  historyAnimationPaused = false;
-  liveAnimationPaused = false;
+  playbackRunning=false;
+  historyAnimationPaused=false;
+  liveAnimationPaused=false;
   animationGeneration++;
+  if(historySchedulerRaf){cancelAnimationFrame(historySchedulerRaf);historySchedulerRaf=null;}
+  historySchedulerState=null;
+  activeHistoryAnimations.clear();
   activeLiveAnimations.clear();
-  liveProcessing = false;
+  liveProcessing=false;
   animationLayer.clearLayers();
   clearTraceHud();
   updatePlaybackStatusIdle();
@@ -1444,7 +1456,6 @@ function animatePath(points, color, isActive, isPaused=()=>false){
     const lengths=[]; let total=0;
     for(let i=0;i<screen.length-1;i++){ const d=screen[i].distanceTo(screen[i+1]); lengths.push(d); total+=d; }
     if(total < 1){ resolve(true); return; }
-    const speed = Math.max(20, Number(document.getElementById('animSpeed').value || 150));
     const routeGlow = L.polyline(latlngs,{color,weight:5,opacity:.38,dashArray:'8 7',interactive:false}).addTo(animationLayer);
     const pulse = L.circleMarker(latlngs[0],{radius:7,color:'#ffffff',weight:2,fillColor:color,fillOpacity:1,interactive:false}).addTo(animationLayer);
     const emitted = new Set();
@@ -1465,6 +1476,7 @@ function animatePath(points, color, isActive, isPaused=()=>false){
       if(!isActive()){ cleanup(); resolve(false); return; }
       const dt=Math.max(0,Math.min(250,now-lastFrame)); lastFrame=now;
       if(isPaused()){ requestAnimationFrame(frame); return; }
+      const speed=Math.max(20,Number(document.getElementById('animSpeed').value||150));
       travelled += (dt/1000)*speed;
       if(travelled >= total){
         pulse.setLatLng(latlngs[latlngs.length-1]);
@@ -1495,37 +1507,92 @@ async function animateTrace(trace, isActive, idx=0, total=1, hudKey=null, isPaus
   playMeshSound('complete',{category:'routing'});
   return true;
 }
-async function playHistoryLoop(){
-  stopLivePolling();
-  const list=historyTraces();
-  if(!list.length){ updatePlaybackStatusIdle(); return; }
-  historyAnimationPaused=false;
-  playbackRunning=true;
+function historySpeedMultiplier(){
+  const v=Number(document.getElementById('animSpeed').value||150);
+  if(v<=80)return .5;if(v>=500)return 4;if(v>=280)return 2;return 1;
+}
+function historyLaunchPlan(list){
+  const sorted=list.slice().sort((a,b)=>Number(a.timestampMs||0)-Number(b.timestampMs||0));
+  if(!sorted.length)return {list:[],offsets:[]};
+  const valid=sorted.map(t=>Number(t.timestampMs||0)).filter(Number.isFinite);
+  const first=valid.length?valid[0]:0,last=valid.length?valid[valid.length-1]:first,rawSpan=Math.max(0,last-first);
+  // Preserve real intervals for short captures. Long windows are proportionally
+  // compressed to 45 s so a 24 h/7 d history remains observable without serializing packets.
+  const scale=rawSpan>45000?45000/rawSpan:1;
+  const offsets=sorted.map((t,i)=>{
+    const ts=Number(t.timestampMs||0);
+    return Number.isFinite(ts)&&first?Math.max(0,(ts-first)*scale):i*120;
+  });
+  return {list:sorted,offsets};
+}
+function finishHistoryPlayback(generation){
+  if(generation!==animationGeneration)return;
+  if(historySchedulerRaf){cancelAnimationFrame(historySchedulerRaf);historySchedulerRaf=null;}
+  const count=historySchedulerState?.list?.length||historyTraces().length;
+  historySchedulerState=null;
+  playbackRunning=false;historyAnimationPaused=false;activeHistoryAnimations.clear();
   updatePlaybackControl();
-  if(historyIndex>=list.length) historyIndex=0;
+  historyIndex=0;
+  document.getElementById('playStatus').textContent=`Histórico concluído · ${count} traceroute(s) reproduzido(s)`;
+}
+function maybeFinishHistoryPlayback(generation){
+  const s=historySchedulerState;
+  if(!s||generation!==animationGeneration)return;
+  if(s.nextIndex>=s.list.length&&activeHistoryAnimations.size===0)finishHistoryPlayback(generation);
+}
+function runHistoryTrace(trace,index,total,generation){
+  const token=++historyAnimationSeq;
+  activeHistoryAnimations.set(token,{trace,index});
+  const autoKey=`history:${generation}:${token}`;
+  const zoomed=beginAutoZoom(autoKey,trace);
+  beginTraceHud(autoKey,trace);
+  const active=()=>playbackRunning&&generation===animationGeneration&&document.getElementById('playMode').value==='history'&&activeHistoryAnimations.has(token);
+  (async()=>{
+    try{await animateTrace(trace,active,index,total,autoKey,()=>historyAnimationPaused);}
+    finally{
+      endTraceHud(autoKey);if(zoomed)endAutoZoom(autoKey);
+      activeHistoryAnimations.delete(token);updatePlaybackStatusIdle();maybeFinishHistoryPlayback(generation);
+    }
+  })();
+}
+function playHistoryLoop(){
+  stopLivePolling();
+  const plan=historyLaunchPlan(historyTraces());
+  if(!plan.list.length){updatePlaybackStatusIdle();return;}
+  if(historySchedulerRaf){cancelAnimationFrame(historySchedulerRaf);historySchedulerRaf=null;}
+  activeHistoryAnimations.clear();
+  historyAnimationPaused=false;playbackRunning=true;historyIndex=0;
   const generation=++animationGeneration;
-  const active=()=>playbackRunning && generation===animationGeneration && document.getElementById('playMode').value==='history';
-  while(active() && historyIndex<list.length){
-    const trace=list[historyIndex];
-    const autoKey=`history:${generation}:${historyIndex}`;
-    const zoomed=beginAutoZoom(autoKey,trace);
-    beginTraceHud(autoKey,trace);
-    let ok=false;
-    try{ ok=await animateTrace(trace,active,historyIndex,list.length,autoKey,()=>historyAnimationPaused); }
-    finally{ endTraceHud(autoKey); if(zoomed) endAutoZoom(autoKey); }
-    if(!ok) break;
-    historyIndex++;
+  historySchedulerState={list:plan.list,offsets:plan.offsets,nextIndex:0,elapsed:0,lastFrame:performance.now(),generation};
+  updatePlaybackControl();
+  function frame(now){
+    const s=historySchedulerState;
+    if(!s||generation!==animationGeneration||!playbackRunning||document.getElementById('playMode').value!=='history'){historySchedulerRaf=null;return;}
+    const dt=Math.max(0,Math.min(1000,now-s.lastFrame));s.lastFrame=now;
+    if(!historyAnimationPaused){
+      s.elapsed+=dt*historySpeedMultiplier();
+      while(s.nextIndex<s.list.length&&s.offsets[s.nextIndex]<=s.elapsed){
+        const idx=s.nextIndex++,trace=s.list[idx];historyIndex=idx;
+        runHistoryTrace(trace,idx,s.list.length,generation);
+      }
+      maybeFinishHistoryPlayback(generation);
+      if(!historySchedulerState)return;
+    }
+    updatePlaybackStatusIdle();
+    historySchedulerRaf=requestAnimationFrame(frame);
   }
-  if(generation===animationGeneration){
-    playbackRunning=false;
-    historyAnimationPaused=false;
-    updatePlaybackControl();
-    if(historyIndex>=list.length){ historyIndex=0; document.getElementById('playStatus').textContent=`Histórico concluído · ${list.length} traceroutes reproduzidos`; }
-    else updatePlaybackStatusIdle();
+  // Always launch every trace whose offset is zero immediately, allowing true concurrency.
+  while(historySchedulerState.nextIndex<plan.list.length&&plan.offsets[historySchedulerState.nextIndex]<=0){
+    const idx=historySchedulerState.nextIndex++,trace=plan.list[idx];historyIndex=idx;
+    runHistoryTrace(trace,idx,plan.list.length,generation);
   }
+  historySchedulerRaf=requestAnimationFrame(frame);
+  updatePlaybackStatusIdle();
 }
 async function playHistoryOnce(index){
   stopLivePolling();
+  if(historySchedulerRaf){cancelAnimationFrame(historySchedulerRaf);historySchedulerRaf=null;}
+  historySchedulerState=null;activeHistoryAnimations.clear();animationLayer.clearLayers();clearTraceHud();
   const list=historyTraces();
   if(!list.length){ updatePlaybackStatusIdle(); return; }
   historyIndex=Math.max(0,Math.min(index,list.length-1));
@@ -1575,10 +1642,6 @@ async function pollLive(){
     if(liveSeen.size>12000) liveSeen=new Set([...liveSeen].slice(-6000));
     if(fresh.length){
       liveQueue.push(...fresh);
-      if(liveQueue.length>LIVE_QUEUE_MAX){
-        const excess=liveQueue.length-LIVE_QUEUE_MAX;
-        liveQueue.splice(0,excess); liveQueueDropped+=excess;
-      }
       processLiveQueue();
     }
   }catch(e){ document.getElementById('playStatus').innerHTML=`<span class="liveBadge">AO VIVO</span> · erro: ${esc(e)}`; }
@@ -1612,7 +1675,7 @@ function processLiveQueue(){
 }
 function startLivePolling(){
   if(livePollTimer) clearInterval(livePollTimer);
-  liveSeen=new Set(); liveQueue=[]; liveQueueDropped=0; pausedActivityQueue=[]; liveInitialized=false; liveProcessing=false; liveAnimationPaused=false;
+  liveSeen=new Set(); liveQueue=[]; pausedActivityQueue=[]; liveInitialized=false; liveProcessing=false; liveAnimationPaused=false;
   activeLiveAnimations.clear();
   playbackRunning=true;
   updatePlaybackControl();
@@ -1622,7 +1685,7 @@ function startLivePolling(){
 function stopLivePolling(){
   if(livePollTimer){ clearInterval(livePollTimer); livePollTimer=null; }
   activeLiveAnimations.clear();
-  liveQueue=[]; pausedActivityQueue=[]; liveQueueDropped=0;
+  liveQueue=[]; pausedActivityQueue=[];
   liveProcessing=false; liveAnimationPaused=false;
   for(const key of [...traceHudEntries.keys()]) if(String(key).startsWith('live:')) traceHudEntries.delete(key);
   renderTraceHud();
@@ -2155,7 +2218,6 @@ function animatePacketActivityNow(p,isNewJourney){
 function animatePacketActivity(p,isNewJourney){
   if(document.getElementById('playMode').value==='live' && liveAnimationPaused){
     pausedActivityQueue.push({p,isNewJourney});
-    if(pausedActivityQueue.length>PAUSED_ACTIVITY_MAX) pausedActivityQueue.splice(0,pausedActivityQueue.length-PAUSED_ACTIVITY_MAX);
     updatePlaybackStatusIdle();
     return;
   }
