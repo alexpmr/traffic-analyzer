@@ -774,6 +774,7 @@ function savePrefs(){
     mapType: document.getElementById('mapType').value,
     brightness: Number(document.getElementById('mapBrightness').value || 100),
     lineColor: document.getElementById('lineColor').value || '#ffff00',
+    lineWidth: Number(document.getElementById('lineWidth').value || 3),
     showShortNames: document.getElementById('showShortNames').checked,
     showLines: document.getElementById('showLines').checked,
     showNodes: document.getElementById('showNodes').checked,
@@ -789,6 +790,12 @@ function savePrefs(){
     autoZoomTraceroute: document.getElementById('autoZoomTraceroute').checked,
     nodeInfoFlowEnabled: document.getElementById('nodeInfoFlowEnabled').checked,
     messageFontSize: Number(document.getElementById('messageFontSize').value || 13),
+    messageFontFamily: document.getElementById('messageFontFamily').value || 'system',
+    messageBold: document.getElementById('messageBold').checked,
+    messageItalic: document.getElementById('messageItalic').checked,
+    messageUnderline: document.getElementById('messageUnderline').checked,
+    messageLineHeight: Number(document.getElementById('messageLineHeight').value || 1.35),
+    messageRowGap: Number(document.getElementById('messageRowGap').value || 4),
     uiTheme: document.getElementById('uiTheme').value || 'dark'
   };
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
@@ -880,13 +887,32 @@ function applyTheme(){
   const value=document.getElementById('uiTheme')?.value==='light'?'light':'dark';
   document.body.dataset.theme=value;
 }
-function applyMessageFontSize(){
-  const input=document.getElementById('messageFontSize');
-  const size=Math.max(10,Math.min(20,Number(input?.value||13)));
-  document.getElementById('viewMessages')?.style.setProperty('--message-font-size',`${size}px`);
-  const label=document.getElementById('messageFontSizeValue');
-  if(label) label.textContent=`${size} px`;
+const MESSAGE_FONT_STACKS={
+  system:'system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif',
+  arial:'Arial,Helvetica,sans-serif',
+  verdana:'Verdana,Geneva,sans-serif',
+  tahoma:'Tahoma,Verdana,sans-serif',
+  georgia:'Georgia,Times New Roman,serif',
+  mono:'ui-monospace,SFMono-Regular,Consolas,Liberation Mono,monospace'
+};
+function applyMessageAppearance(){
+  const view=document.getElementById('viewMessages');if(!view)return;
+  const size=Math.max(10,Math.min(20,Number(document.getElementById('messageFontSize')?.value||13)));
+  const familyKey=document.getElementById('messageFontFamily')?.value||'system';
+  const lineHeight=Math.max(1.10,Math.min(2.00,Number(document.getElementById('messageLineHeight')?.value||1.35)));
+  const rowGap=Math.max(1,Math.min(14,Number(document.getElementById('messageRowGap')?.value||4)));
+  view.style.setProperty('--message-font-size',`${size}px`);
+  view.style.setProperty('--message-font-family',MESSAGE_FONT_STACKS[familyKey]||MESSAGE_FONT_STACKS.system);
+  view.style.setProperty('--message-font-weight',document.getElementById('messageBold')?.checked?'700':'400');
+  view.style.setProperty('--message-font-style',document.getElementById('messageItalic')?.checked?'italic':'normal');
+  view.style.setProperty('--message-text-decoration',document.getElementById('messageUnderline')?.checked?'underline':'none');
+  view.style.setProperty('--message-line-height',String(lineHeight));
+  view.style.setProperty('--message-row-gap',`${rowGap}px`);
+  const sizeLabel=document.getElementById('messageFontSizeValue');if(sizeLabel)sizeLabel.textContent=`${size} px`;
+  const lhLabel=document.getElementById('messageLineHeightValue');if(lhLabel)lhLabel.textContent=lineHeight.toLocaleString(uiLocale(),{minimumFractionDigits:2,maximumFractionDigits:2});
+  const gapLabel=document.getElementById('messageRowGapValue');if(gapLabel)gapLabel.textContent=`${rowGap} px`;
 }
+function applyMessageFontSize(){applyMessageAppearance();}
 function initVisualPrefs(){
   const prefs = loadPrefs();
 
@@ -906,6 +932,7 @@ function initVisualPrefs(){
   if(baseMaps[prefs.mapType]) document.getElementById('mapType').value = prefs.mapType;
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
   if(/^#[0-9a-fA-F]{6}$/.test(prefs.lineColor || '')) document.getElementById('lineColor').value = prefs.lineColor;
+  if(Number.isFinite(Number(prefs.lineWidth))) document.getElementById('lineWidth').value = String(Math.max(1,Math.min(8,Number(prefs.lineWidth))));
   if(typeof prefs.showShortNames === 'boolean') document.getElementById('showShortNames').checked = prefs.showShortNames;
   document.getElementById('showLines').checked = (typeof prefs.showLines === 'boolean') ? prefs.showLines : true;
   document.getElementById('showNodes').checked = (typeof prefs.showNodes === 'boolean') ? prefs.showNodes : true;
@@ -921,9 +948,16 @@ function initVisualPrefs(){
   document.getElementById('autoZoomTraceroute').checked = (typeof prefs.autoZoomTraceroute === 'boolean') ? prefs.autoZoomTraceroute : false;
   document.getElementById('nodeInfoFlowEnabled').checked = (typeof prefs.nodeInfoFlowEnabled === 'boolean') ? prefs.nodeInfoFlowEnabled : true;
   if(Number.isFinite(Number(prefs.messageFontSize))) document.getElementById('messageFontSize').value = String(Math.max(10,Math.min(20,Number(prefs.messageFontSize))));
+  if(MESSAGE_FONT_STACKS[prefs.messageFontFamily]) document.getElementById('messageFontFamily').value=prefs.messageFontFamily;
+  document.getElementById('messageBold').checked=Boolean(prefs.messageBold);
+  document.getElementById('messageItalic').checked=Boolean(prefs.messageItalic);
+  document.getElementById('messageUnderline').checked=Boolean(prefs.messageUnderline);
+  if(Number.isFinite(Number(prefs.messageLineHeight))) document.getElementById('messageLineHeight').value=String(Math.max(1.10,Math.min(2.00,Number(prefs.messageLineHeight))));
+  if(Number.isFinite(Number(prefs.messageRowGap))) document.getElementById('messageRowGap').value=String(Math.max(1,Math.min(14,Number(prefs.messageRowGap))));
   document.getElementById('uiTheme').value = prefs.uiTheme === 'light' ? 'light' : 'dark';
   applyTheme();
-  applyMessageFontSize();
+  applyMessageAppearance();
+  document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;
   document.getElementById('soundVolumeValue').textContent = `${document.getElementById('soundVolume').value}%`;
   setBaseMap(document.getElementById('mapType').value);
   applyBrightness();
@@ -1026,7 +1060,8 @@ function render(){
 
     if(showLines){
       const lineColor = document.getElementById('lineColor').value || '#ffff00';
-      const line = L.polyline(e.geometry, {weight:3, opacity:.82, color:lineColor});
+      const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById('lineWidth').value||3)));
+      const line = L.polyline(e.geometry, {weight:lineWidth, opacity:.82, color:lineColor});
       line.bindPopup(
         `<b>${esc(e.aName)} ↔ ${esc(e.bName)}</b><br>`+
         `${esc(e.aId)} ↔ ${esc(e.bId)}<br>`+
@@ -2042,7 +2077,7 @@ function startTrafficPolling(){ if(trafficTimer)clearInterval(trafficTimer); tra
 function toggleTrafficPause(){ trafficPaused=!trafficPaused; document.getElementById('trafficPause').textContent=trafficPaused?'Retomar':'Pausar'; document.getElementById('trafficLive').textContent=trafficPaused?'● PAUSADO':'● AO VIVO'; if(!trafficPaused)pollTraffic(); }
 
 
-let healthLoadedAt=0, anomalyLoadedAt=0;
+let healthLoadedAt=0, anomalyLoadedAt=0, anomalyPayload=null;
 function fmtNum(v,dec=0){ const n=Number(v); return Number.isFinite(n)?n.toLocaleString(uiLocale(),{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—'; }
 function healthCard(value,label,sub=''){return `<div class="dashCard"><div class="value">${esc(value)}</div><div class="label">${esc(label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;}
 async function loadNetworkHealth(force=false){
@@ -2070,17 +2105,25 @@ async function loadNetworkHealth(force=false){
   }catch(e){cards.innerHTML=healthCard('Erro','Não foi possível calcular',String(e));}
 }
 function sevLabel(s){if(currentLang==='en')return s==='critical'?'Critical':s==='warning'?'Warning':s==='info'?'Informational':'OK';return s==='critical'?'Crítica':s==='warning'?'Atenção':s==='info'?'Informativa':'OK';}
+function renderAnomalies(){
+  if(!anomalyPayload)return;
+  const b=anomalyPayload;
+  const filter=document.getElementById('anomalySeverity')?.value||'all';
+  const rows=(b.data||[]).filter(a=>filter==='all'||String(a.severity)===filter);
+  document.getElementById('anomalyCards').innerHTML=[healthCard(b.summary.total,'Anomalias'),healthCard(b.summary.critical,'Críticas'),healthCard(b.summary.warning,'Atenção'),healthCard(b.summary.info,'Informativas')].join('');
+  document.getElementById('anomalyList').innerHTML=rows.map(a=>`<div class="anomalyRow"><div><span class="severity sev-${esc(a.severity)}">${esc(sevLabel(a.severity))}</span></div><div><div class="anomalyTitle">${esc(a.title)}</div><div class="anomalyEvidence">${esc(a.subject||'')}</div></div><div class="anomalyMsg">${esc(a.message)}${a.evidence?`<div class="anomalyEvidence">${esc(a.evidence)}</div>`:''}</div><div class="anomalyTime">${a.timestampMs?esc(humanAge(a.timestampMs)):'—'}</div></div>`).join('')||'<div class="emptyPanel"><span class="severity sev-ok">OK</span> Nenhuma anomalia foi detectada pelos critérios atuais.</div>';
+}
 async function loadAnomalies(force=false){
-  if(!force && Date.now()-anomalyLoadedAt<30000)return;
+  if(!force && Date.now()-anomalyLoadedAt<30000){renderAnomalies();return;}
   try{
-    const r=await fetch('/api/anomalies',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json(); anomalyLoadedAt=Date.now();
+    const r=await fetch('/api/anomalies',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json(); anomalyLoadedAt=Date.now(); anomalyPayload=b;
     document.getElementById('anomalyUpdated').textContent=`analisado ${new Date(b.generatedAtMs).toLocaleTimeString(uiLocale())}`;
-    document.getElementById('anomalyCards').innerHTML=[healthCard(b.summary.total,'Anomalias'),healthCard(b.summary.critical,'Críticas'),healthCard(b.summary.warning,'Atenção'),healthCard(b.summary.info,'Informativas')].join('');
-    document.getElementById('anomalyList').innerHTML=(b.data||[]).map(a=>`<div class="anomalyRow"><div><span class="severity sev-${esc(a.severity)}">${esc(sevLabel(a.severity))}</span></div><div><div class="anomalyTitle">${esc(a.title)}</div><div class="anomalyEvidence">${esc(a.subject||'')}</div></div><div class="anomalyMsg">${esc(a.message)}${a.evidence?`<div class="anomalyEvidence">${esc(a.evidence)}</div>`:''}</div><div class="anomalyTime">${a.timestampMs?esc(humanAge(a.timestampMs)):'—'}</div></div>`).join('')||'<div class="emptyPanel"><span class="severity sev-ok">OK</span> Nenhuma anomalia foi detectada pelos critérios atuais.</div>';
+    renderAnomalies();
   }catch(e){document.getElementById('anomalyList').innerHTML=`<div class="emptyPanel">Erro ao analisar: ${esc(e)}</div>`;}
 }
 document.getElementById('healthReload').addEventListener('click',()=>loadNetworkHealth(true));
 document.getElementById('anomalyReload').addEventListener('click',()=>loadAnomalies(true));
+document.getElementById('anomalySeverity').addEventListener('change',renderAnomalies);
 
 async function loadNodeTrafficActivity(){
   try{
@@ -2206,6 +2249,8 @@ for(const id of ['showLines','showNodes','showHeatmap']) document.getElementById
 document.getElementById('mapType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
 document.getElementById('mapBrightness').addEventListener('input', () => { applyBrightness(); savePrefs(); });
 document.getElementById('lineColor').addEventListener('input', () => { savePrefs(); render(); });
+document.getElementById('lineWidth').addEventListener('input',()=>{document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;savePrefs();render();});
+document.getElementById('lineStyleReset').addEventListener('click',()=>{document.getElementById('lineColor').value='#ffff00';document.getElementById('lineWidth').value='3';document.getElementById('lineWidthValue').textContent='3 px';savePrefs();render();});
 document.getElementById('animSpeed').addEventListener('change', savePrefs);
 document.getElementById('playMode').addEventListener('change', () => {
   stopAnimation(); stopLivePolling();
@@ -2357,7 +2402,13 @@ async function loadOlderPrimaryMessages(){
       : 'Nenhuma mensagem anterior adicional disponível.';
   }finally{btn.disabled=false;}
 }
-async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=input.value.trim();if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
+function stripMentionMarkers(text){
+  let out=String(text||'');
+  const names=[...new Set(mentionNodeList().flatMap(n=>[n.name,n.shortName,n.nodeId].filter(Boolean)))].sort((a,b)=>b.length-a.length);
+  for(const name of names) out=out.split('@'+name).join(name);
+  return out;
+}
+async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=stripMentionMarkers(input.value.trim());if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
 document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target))closeMentionSuggestions();});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
@@ -2379,7 +2430,11 @@ document.getElementById('soundTest').addEventListener('click',()=>playNotificati
 for(const id of ['activityAnimationEnabled','activityOriginEnabled','activityRelayEnabled','activityDuration']) document.getElementById(id).addEventListener('change',()=>{savePrefs(); if(!document.getElementById('activityAnimationEnabled').checked){activityLayer.clearLayers();activityMarkers.clear();}});
 document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore(false);});
 document.getElementById('nodeInfoFlowEnabled').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('nodeInfoFlowEnabled').checked){flowGeneration++;flowLayer.clearLayers();}});
-document.getElementById('messageFontSize').addEventListener('input',()=>{applyMessageFontSize();savePrefs();});
+document.getElementById('messageFontSize').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
+document.getElementById('messageFontFamily').addEventListener('change',()=>{applyMessageAppearance();savePrefs();});
+for(const id of ['messageBold','messageItalic','messageUnderline']) document.getElementById(id).addEventListener('change',()=>{applyMessageAppearance();savePrefs();});
+document.getElementById('messageLineHeight').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
+document.getElementById('messageRowGap').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
 document.getElementById('uiTheme').addEventListener('change',()=>{applyTheme();savePrefs();});
 document.getElementById('flowToast').addEventListener('click',()=>setView('map'));
 
