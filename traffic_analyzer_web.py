@@ -3467,6 +3467,135 @@ def _tracklog_query(hours: int = 24):
     return {"success":True,"hours":hours,"generatedAtMs":int(time.time()*1000),"trackCount":len(tracks),"pointCount":total_points,"tracks":tracks}
 
 
+def _read_json_file(path: Path, default):
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else dict(default)
+    except Exception:
+        return dict(default)
+
+
+def _write_json_file(path: Path, data: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + f".tmp.{os.getpid()}.{threading.get_ident()}")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _update_settings():
+    raw = _read_json_file(UPDATE_SETTINGS_FILE, {"enabled": False, "rollbackEnabled": True})
+    return {
+        "enabled": bool(raw.get("enabled", False)),
+        "rollbackEnabled": bool(raw.get("rollbackEnabled", True)),
+    }
+
+
+def _save_update_settings(payload: dict):
+    data = {
+        "enabled": bool(payload.get("enabled", False)),
+        "rollbackEnabled": bool(payload.get("rollbackEnabled", True)),
+        "updatedAtMs": int(time.time() * 1000),
+    }
+    _write_json_file(UPDATE_SETTINGS_FILE, data)
+    return data
+
+
+def _local_release_notes(version: str = APP_VERSION):
+    path = Path(__file__).with_name("CHANGELOG.md")
+    notes = []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        active = False
+        prefix = f"## {version}"
+        prefix_v = f"## v{version}"
+        for line in lines:
+            stripped = line.strip()
+            if not active and (stripped.startswith(prefix) or stripped.startswith(prefix_v)):
+                active = True
+                continue
+            if active and stripped.startswith("## "):
+                break
+            if active and stripped.startswith("- "):
+                notes.append(stripped[2:].strip())
+    except Exception:
+        pass
+    return notes
+
+
+def _current_release_info():
+    return {
+        "success": True,
+        "version": APP_VERSION,
+        "notes": _local_release_notes(APP_VERSION),
+        "releaseUrl": f"https://github.com/alexpmr/traffic-analyzer/releases/tag/v{APP_VERSION}",
+        "lastInstall": _read_json_file(LAST_INSTALL_FILE, {}),
+    }
+
+
+def _update_runtime_status():
+    settings = _update_settings()
+    status = _read_json_file(UPDATE_STATUS_FILE, {"state": "idle"})
+    status["settings"] = settings
+    status["localVersion"] = APP_VERSION
+    status["lastInstall"] = _read_json_file(LAST_INSTALL_FILE, {})
+    return status
+
+
+def _request_update(version_data=None, reason: str = "manual"):
+    data = version_data or _version_status(force=True)
+    if not data.get("success") or data.get("status") == "unavailable":
+        raise RuntimeError(data.get("message") or "Não foi possível consultar a Latest Release")
+    if not data.get("stable", True):
+        raise RuntimeError("A Latest Release consultada não é estável")
+    if not data.get("updateAvailable"):
+        return {"success": True, "requested": False, "message": "Nenhuma atualização disponível.", "status": _update_runtime_status()}
+    settings = _update_settings()
+    now_ms = int(time.time() * 1000)
+    request = {
+        "requestedAtMs": now_ms,
+        "requestedBy": reason,
+        "targetVersion": data.get("latestVersion"),
+        "rollbackEnabled": bool(settings.get("rollbackEnabled", True)),
+    }
+    _write_json_file(UPDATE_REQUEST_FILE, request)
+    _write_json_file(UPDATE_STATUS_FILE, {
+        "state": "pending",
+        "targetVersion": data.get("latestVersion"),
+        "previousVersion": APP_VERSION,
+        "requestedAtMs": now_ms,
+        "requestedBy": reason,
+        "message": "Solicitação de atualização enviada.",
+    })
+    return {"success": True, "requested": True, "message": "Solicitação de atualização enviada.", "targetVersion": data.get("latestVersion"), "status": _update_runtime_status()}
+
+
+def _maybe_request_auto_update(version_data: dict):
+    settings = _update_settings()
+    if not settings.get("enabled") or not version_data.get("updateAvailable") or not version_data.get("stable", True):
+        return
+    target = str(version_data.get("latestVersion") or "")
+    status = _read_json_file(UPDATE_STATUS_FILE, {})
+    state = str(status.get("state") or "")
+    if str(status.get("targetVersion") or "") == target:
+        if state in {"pending", "running"}:
+            return
+        if state in {"failed", "rolled_back"}:
+            completed = float(status.get("completedAtMs") or 0) / 1000.0
+            if completed and time.time() - completed < AUTO_UPDATE_RETRY_BACKOFF_SECONDS:
+                return
+    try:
+        _request_update(version_data=version_data, reason="automatic")
+    except Exception as exc:
+        _write_json_file(UPDATE_STATUS_FILE, {
+            "state": "failed",
+            "targetVersion": target,
+            "previousVersion": APP_VERSION,
+            "completedAtMs": int(time.time() * 1000),
+            "requestedBy": "automatic",
+            "message": str(exc),
+        })
+
+
 def _version_tuple(value: str):
     raw = str(value or "").strip().lower()
     if raw.startswith("v"):
@@ -3512,6 +3641,7 @@ def _version_status(force: bool = False):
                 "releaseUrl": release.get("html_url"),
                 "publishedAt": release.get("published_at"),
                 "notes": str(release.get("body") or "").strip(),
+                "stable": not bool(release.get("draft")) and not bool(release.get("prerelease")),
                 "checkedAtMs": int(now * 1000),
             }
             _version_status_cache["checked_at"] = now
@@ -3590,9 +3720,19 @@ class Handler(BaseHTTPRequestHandler):
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
                 force = (query.get("force") or ["0"])[0] in {"1", "true", "yes"}
                 body = _version_status(force=force)
+                _maybe_request_auto_update(body)
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "status": "unavailable", "localVersion": APP_VERSION, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/update/status":
+            try:
+                self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, **_update_runtime_status()}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/current-release-notes":
+            self._send(200, "application/json; charset=utf-8", json.dumps(_current_release_info(), ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/tracklog":
             try:
@@ -3744,6 +3884,30 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(504, "application/json; charset=utf-8", json.dumps({"success": False, "error": "refresh_timeout", "message": "A atualização excedeu 90 segundos."}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "error": "refresh_failed", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/update/settings":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 4096:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                settings = _save_update_settings(payload)
+                if settings.get("enabled"):
+                    _maybe_request_auto_update(_version_status(force=True))
+                self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, "settings": settings, "status": _update_runtime_status()}, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/update/trigger":
+            try:
+                body = _request_update(reason="manual")
+                self._send(202 if body.get("requested") else 200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/messages/send":
             try:
