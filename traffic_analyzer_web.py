@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.25.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.25.1 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.25.0"
+APP_VERSION = "1.25.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -4085,7 +4085,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.25.0"
+    server_version = "TrafficAnalyzer/1.25.1"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
