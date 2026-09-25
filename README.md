@@ -1,7 +1,21 @@
-# Traffic Analyzer v1.22.0
+# Traffic Analyzer v1.23.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.23.0
+
+- Seletor de idioma com **🇧🇷 Português** e **🇺🇸 English**.
+- O autocomplete por **@** continua disponível no compositor, mas o caractere **@ é removido antes da transmissão**; a malha recebe apenas o nome do nó.
+- Configurações de leitura do chat: família da fonte, tamanho, negrito, itálico, sublinhado, altura de linha e espaçamento entre mensagens. Tudo é apenas visual e não altera o texto Meshtastic.
+- Filtro de severidade em **Anomalias**: Todas, Críticas, Atenção e Informativas.
+- Mapa: controle da **espessura** das linhas, junto da cor, com **Restaurar padrão**.
+- **Auto-update opcional**: ao detectar uma nova Latest Release estável, a aplicação cria uma solicitação para um serviço systemd dedicado.
+- O updater valida que a Release é estável, baixa o ZIP oficial por HTTPS, confere o digest SHA-256 quando fornecido pelo GitHub, cria backup, instala, verifica `/health` e pode executar rollback.
+- Lock em `/run` impede duas atualizações simultâneas.
+- Novo status de atualização em Configurações e botão **Atualizar agora**.
+- Na primeira abertura após trocar de versão, aparece um popup **Traffic Analyzer atualizado** com as novidades; ele é mostrado uma única vez por versão.
+- [Baixar o manual PDF da v1.23.0](./Documentacao_Traffic_Analyzer_v1.23.0.pdf)
 
 ## Novidades da v1.22.0
 
