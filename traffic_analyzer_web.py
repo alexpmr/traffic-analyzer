@@ -318,7 +318,7 @@ HTML = r'''<!doctype html>
 </section>
 <section id="viewAnomalies" class="view">
   <div class="dashboardWrap">
-    <div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><label class="anomalyFilter">Severidade: <select id="anomalySeverity"><option value="all" selected>Todas</option><option value="critical">Críticas</option><option value="warning">Atenção</option><option value="info">Informativas</option></select></label><button id="anomalyReload">Reanalisar</button></div>
+    <div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><label class="anomalyFilter">Severidade: <select id="anomalySeverity"><option value="all" selected>Todas</option><option value="critical">Crítica</option><option value="warning">Atenção</option><option value="info">Informativa</option></select></label><button id="anomalyReload">Reanalisar</button></div>
     <div id="anomalyCards" class="dashGrid"><div class="dashCard"><div class="label">Analisando...</div></div></div>
     <div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div>
     <div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas: silêncio prolongado, degradação de SNR, mudança relevante na quantidade de hops e traceroute assimétrico. Elas servem para priorizar investigação e não constituem prova isolada de defeito, indisponibilidade ou causalidade.</div></div>
@@ -515,6 +515,7 @@ const I18N_PAIRS=[
   ['Rollback automático se a nova versão não ficar saudável','Automatic rollback if the new version does not become healthy'],['Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.','On failure, restores the application and systemd units saved before the update.'],['Atualizar agora','Update now'],['Instala somente a Latest Release estável publicada no repositório oficial.','Installs only the stable Latest Release published in the official repository.'],['Carregando status de atualização...','Loading update status...'],
   ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
+  ['Solicitação de atualização enviada.','Update request sent.'],['Nenhuma atualização disponível.','No update is available.'],
   ['Use @ para localizar um nó; o @ é removido antes da transmissão.','Use @ to find a node; @ is removed before transmission.'],
   ['Adiciona bandeiras do Brasil e dos Estados Unidos ao seletor de idioma.','Adds Brazil and United States flags to the language selector.'],
   ['Remove o caractere @ das menções antes de transmitir a mensagem, preservando apenas o nome do nó.','Removes the @ character from mentions before transmitting the message, preserving only the node name.'],
@@ -526,6 +527,7 @@ const I18N_PAIRS=[
   ['Adiciona status de atualização, botão Atualizar agora e persistência das preferências de auto-update no servidor.','Adds update status, an Update now button, and server-side persistence of auto-update preferences.'],
   ['Adiciona popup de novidades exibido uma única vez ao iniciar após uma atualização.','Adds a what\'s-new popup shown once when the application starts after an update.'],
   ['O atualizador manual traffic-analyzer-update passa a usar a mesma cadeia segura de Latest Release estável do auto-update.','The manual traffic-analyzer-update command now uses the same secure stable Latest Release chain as auto-update.'],
+  ['O atualizador manual `traffic-analyzer-update` passa a usar a mesma cadeia segura de Latest Release estável do auto-update.','The manual `traffic-analyzer-update` command now uses the same secure stable Latest Release chain as auto-update.'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
 const I18N_EN_PT=new Map(I18N_PAIRS.map(([pt,en])=>[en,pt]));
@@ -552,6 +554,8 @@ function translateDynamic(text,target){
     s=s.replace(/^Não foi possível enviar: (.+)$/,'Could not send: $1');
     s=s.replace(/^Erro: (.+)$/,'Error: $1').replace(/^erro: (.+)$/,'error: $1').replace(/^erro (.+)$/,'error $1');
     s=s.replace(/^Falha ao atualizar: (.+)$/,'Update failed: $1');
+    s=s.replace(/^Atualizando v([^ ]+) para v([^ ]+)\.$/,'Updating v$1 to v$2.');
+    s=s.replace(/^Atualização concluída: v([^ ]+) → v([^ ]+)\.$/,'Update complete: v$1 → v$2.');
     s=s.replace(/^Erro ao carregar topologia: (.+)$/,'Error loading topology: $1');
     s=s.replace(/^(\d+) nó\(s\) · (\d+) pontos · (.+) acumulados$/,'$1 node(s) · $2 points · $3 accumulated');
     s=s.replace(/^Instalada: v([^ ]+) · disponível: v([^ ]+) · publicada em (.+)\.$/,'Installed: v$1 · available: v$2 · published $3.');
@@ -585,6 +589,8 @@ function translateDynamic(text,target){
     s=s.replace(/^(\d+) messages · updated (.+)$/,'$1 mensagens · atualizado $2').replace(/^(\d+) messages · history expanded$/,'$1 mensagens · histórico ampliado').replace(/^(\d+) unread message\(s\)$/,'$1 mensagem(ns) não lida(s)');
     s=s.replace(/^Loading older history \(up to (\d+)\)\.\.\.$/,'Carregando histórico anterior (até $1)...').replace(/^Send failed: (.+)$/,'Falha no envio: $1').replace(/^Could not send: (.+)$/,'Não foi possível enviar: $1');
     s=s.replace(/^Error: (.+)$/,'Erro: $1').replace(/^error: (.+)$/,'erro: $1').replace(/^error (.+)$/,'erro $1').replace(/^Update failed: (.+)$/,'Falha ao atualizar: $1').replace(/^Error loading topology: (.+)$/,'Erro ao carregar topologia: $1');
+    s=s.replace(/^Updating v([^ ]+) to v([^ ]+)\.$/,'Atualizando v$1 para v$2.');
+    s=s.replace(/^Update complete: v([^ ]+) → v([^ ]+)\.$/,'Atualização concluída: v$1 → v$2.');
     s=s.replace(/^(\d+) node\(s\) · (\d+) points · (.+) accumulated$/,'$1 nó(s) · $2 pontos · $3 acumulados');
     s=s.replace(/^Installed: v([^ ]+) · available: v([^ ]+) · published (.+)\.$/,'Instalada: v$1 · disponível: v$2 · publicada em $3.').replace(/^Installed: v([^ ]+)\. This is the latest published version\.$/,'Instalada: v$1. Esta é a versão mais recente publicada.').replace(/^Installed: v([^ ]+)\. GitHub could not be checked right now\.$/,'Instalada: v$1. Não foi possível consultar o GitHub agora.');
     s=s.replace(/^v([^ ]+) → v([^ ]+) available$/,'v$1 → v$2 disponível').replace(/^v([^ ]+) · not checked$/,'v$1 · não verificado').replace(/^v([^ ]+) · UP TO DATE$/,'v$1 · ATUALIZADO');
@@ -2453,7 +2459,7 @@ function renderUpdateStatus(data){
   const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
   const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
   const completed=data?.completedAtMs?new Date(Number(data.completedAtMs)).toLocaleString(uiLocale()):tr('Nunca');
-  const msg=data?.message?`<br>${esc(data.message)}`:'';
+  const msg=data?.message?`<br>${esc(tr(data.message))}`:'';
   box.innerHTML=`<b>${tr('Versão atual:')}</b> v__APP_VERSION__<br><b>${tr('Status:')}</b> <span class="updateState-${esc(state)}">${esc(updateStateLabel(state))}</span> · <b>${tr('Destino')}</b> ${target}<br><b>${tr('Versão anterior:')}</b> ${previous} · <b>${tr('Última atualização:')}</b> ${esc(completed)}${msg}`;
 }
 async function loadUpdateStatus(){
@@ -2473,7 +2479,7 @@ async function saveUpdateSettings(){
 async function triggerUpdateNow(){
   const btn=document.getElementById('updateNow');btn.disabled=true;btn.textContent=tr('Atualizando...');
   try{
-    const r=await fetch('/api/update/trigger',{method:'POST'});const b=await r.json();
+    const r=await fetch('/api/update/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update'})});const b=await r.json();
     if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
     await loadUpdateStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
   }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
@@ -3972,8 +3978,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/update/trigger":
             try:
+                if "application/json" not in str(self.headers.get("Content-Type") or "").lower():
+                    raise ValueError("Content-Type application/json obrigatório")
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 1024:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict) or payload.get("action") != "update":
+                    raise ValueError("Ação de atualização inválida")
                 body = _request_update(reason="manual")
                 self._send(202 if body.get("requested") else 200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
