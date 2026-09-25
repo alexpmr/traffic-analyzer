@@ -49,9 +49,25 @@ jobs:
           ta._send_primary_message("resposta",reply_id=321)
           path,payload=calls.pop(0)
           assert path.endswith("/messages") and payload["replyId"]==321
-          ta._send_primary_message("👍",reply_id=321,emoji=True)
+          native=ta._send_primary_message("👍",reply_id=321,emoji=True)
           path,payload=calls.pop(0)
           assert path=="/api/messages/send" and payload["emoji"]==1 and payload["replyId"]==321
+          assert native["reactionMode"]=="tapback"
+
+          calls.clear()
+          def fake_403(path,payload):
+              calls.append((path,payload))
+              if path=="/api/messages/send":
+                  raise RuntimeError('MeshMonitor HTTP 403: {"error":"Insufficient permissions"}')
+              return {"success":True}
+          ta._mm_api_post=fake_403
+          compat=ta._send_primary_message("❤️",reply_id=654,emoji=True)
+          assert len(calls)==2,calls
+          assert calls[0][0]=="/api/messages/send"
+          assert calls[1][0].endswith("/messages")
+          assert calls[1][1]["replyId"]==654
+          assert "emoji" not in calls[1][1]
+          assert compat["reactionMode"]=="compat_reply"
           PY
 
       - name: Validar JavaScript embutido
@@ -132,6 +148,36 @@ jobs:
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"replyComposerClose"))
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"messageEmojiBtn"))
               assert "open" in d.find_element(By.ID,"emojiPicker").get_attribute("class")
+              emoji_px=float(d.execute_script("return parseFloat(getComputedStyle(document.querySelector('#emojiPicker button')).fontSize)"))
+              reaction_px=float(d.execute_script("return parseFloat(getComputedStyle(document.querySelector('.reactionChip')).fontSize)"))
+              assert emoji_px>=26,(emoji_px,reaction_px)
+              assert reaction_px>=18,(emoji_px,reaction_px)
+
+              # Rolagem: atualização da conversa não pode puxar o usuário ao final.
+              d.execute_script("""
+                const rows=[];
+                const base=Date.now()-120000;
+                for(let i=0;i<80;i++)rows.push({id:'scroll_2_'+(1000+i),fromNodeId:'!00000002',fromName:'NODE2',text:'Mensagem longa '+i+' '+('x'.repeat(120)),channel:0,createdAt:base+i*1000,mine:false});
+                primaryMessages=rows;messagesInitialized=true;messageAutoScroll=true;messagePendingBelow=0;
+                renderMessages({forceBottom:true});
+                const el=document.getElementById('messageList');
+                el.style.scrollBehavior='auto';el.scrollTop=Math.max(0,el.scrollHeight-el.clientHeight-700);
+                messageAutoScroll=false;
+              """)
+              time.sleep(.15)
+              old_top=d.execute_script("return document.getElementById('messageList').scrollTop")
+              d.execute_script("""
+                primaryMessages=[...primaryMessages,{id:'scroll_2_2000',fromNodeId:'!00000002',fromName:'NODE2',text:'NOVA NO FIM '+('y'.repeat(120)),channel:0,createdAt:Date.now(),mine:false}];
+                messagePendingBelow=1;renderMessages({forceBottom:false});
+              """)
+              time.sleep(.15)
+              new_top=d.execute_script("return document.getElementById('messageList').scrollTop")
+              assert abs(new_top-old_top)<8,(old_top,new_top)
+              assert "open" in d.find_element(By.ID,"messageNewBelow").get_attribute("class")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"messageNewBelow"))
+              time.sleep(.3)
+              assert d.execute_script("return messageAutoScroll===true && messagePendingBelow===0")
+              assert "open" not in d.find_element(By.ID,"messageNewBelow").get_attribute("class")
 
               d.execute_script("""
                 const now=Date.now();
