@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.23.0 - 2026-09-25
+
+- Adiciona bandeiras do Brasil e dos Estados Unidos ao seletor de idioma.
+- Remove o caractere @ das menções antes de transmitir a mensagem, preservando apenas o nome do nó.
+- Adiciona controles visuais de fonte, negrito, itálico, sublinhado, altura de linha e espaçamento entre mensagens.
+- Adiciona filtro de severidade na aba Anomalias: Todas, Críticas, Atenção e Informativas.
+- Adiciona ajuste de espessura das linhas do mapa e restauração de cor/espessura ao padrão.
+- Adiciona auto-update opcional por Latest Release estável, executado por serviço systemd dedicado.
+- Adiciona verificação de saúde, lock contra atualizações simultâneas e rollback automático em caso de falha.
+- Adiciona status de atualização, botão Atualizar agora e persistência das preferências de auto-update no servidor.
+- Adiciona popup de novidades exibido uma única vez ao iniciar após uma atualização.
+- O atualizador manual `traffic-analyzer-update` passa a usar a mesma cadeia segura de Latest Release estável do auto-update.
+
 ## 1.22.0 - 2026-09-24
 
 - Adiciona internacionalização completa da interface em Português (PT-BR) e English (EN), mantendo PT-BR como padrão.
