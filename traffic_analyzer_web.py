@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.24.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.24.1 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.24.0"
+APP_VERSION = "1.24.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -2029,7 +2029,7 @@ function canPlayMeshSound(event,category,force=false){
 function playMeshSound(event,{category='routing',point=null,force=false}={}){
   if(!canPlayMeshSound(event,category,force))return;
   const ctx=ensureAudio();if(!ctx)return;
-  const theme=document.getElementById('soundTheme')?.value||'formal';if(theme==='silent'&&!force)return;
+  const theme=document.getElementById('soundTheme')?.value||'formal';if(theme==='silent')return;
   const vol=Math.max(0,Math.min(1,Number(document.getElementById('soundVolume')?.value||35)/100));
   const out=soundOutput(ctx,soundPanForPoint(point)),t=ctx.currentTime+.01,a=Math.max(.001,vol*.16);
   activeSoundVoices++;
@@ -2125,8 +2125,15 @@ function animatePacketActivityNow(p,isNewJourney){
   const port=String(p.portnum_name||p.portnum||'').toUpperCase();
   const isTraceroute=port.includes('TRACEROUTE');
   if(!isTraceroute){
-    if(isNewJourney && from!==null) playMeshSound('origin',{category:'routing',point:nodePointForActivity(from,p)});
-    else if(relay!==null && relay!==from) playMeshSound('relay',{category:'routing',point:nodePointForActivity(relay,p)});
+    if(isNewJourney && from!==null){
+      playMeshSound('origin',{category:'routing',point:nodePointForActivity(from,p)});
+      if(relay!==null && relay!==from){
+        const delay=Math.max(90,Number(document.getElementById('soundMinInterval')?.value||120)+20);
+        setTimeout(()=>playMeshSound('relay',{category:'routing',point:nodePointForActivity(relay,p)}),delay);
+      }
+    }else if(relay!==null && relay!==from){
+      playMeshSound('relay',{category:'routing',point:nodePointForActivity(relay,p)});
+    }
   }
   if(!document.getElementById('activityAnimationEnabled').checked) return;
   if(from!==null) activityPulse(from,dir==='rx'?'response':'origin',p);
@@ -3877,7 +3884,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.24.0"
+    server_version = "TrafficAnalyzer/1.24.1"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
