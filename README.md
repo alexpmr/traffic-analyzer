@@ -1,7 +1,21 @@
-# Traffic Analyzer v1.23.1
+# Traffic Analyzer v1.24.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.24.0
+
+- Novo sistema de **temas sonoros**: **Fliperama anos 70**, **Formal**, **Rádio / Telecom** e **Silencioso**.
+- No tema Fliperama anos 70, o início de uma viagem usa efeito de lançador mecânico; relays observados usam ricochete metálico; chegada/ACK usa alvo/pontuação; falhas usam efeito grave de bola perdida.
+- Traceroutes sonorizam apenas os nós e hops realmente observados na animação, sem inventar retransmissões.
+- Novos controles de **densidade sonora**, intervalo mínimo, máximo de sons simultâneos, sons de roteamento, mensagens, alertas e estéreo espacial opcional.
+- O botão **Testar tema** executa uma pequena sequência de lançamento, ricochetes, chegada e pontuação.
+- Mensagens novas podem usar o tema de som escolhido; falhas de envio usam o perfil de alerta.
+- No popup de versão, remove o comando de atualização em linha e troca **Verificar agora** por **Continuar**, que apenas fecha a janela.
+- O popup de novidades mantém **Ver Release no GitHub** e **Fechar**, sem botão de atualização.
+- As notas de Release mostradas no popup deixam de exibir o Markdown bruto da seção de screenshots.
+- O seletor da página principal mostra **🇧🇷 Português** e **🇺🇸 English**, sem abreviações BR/US/ENG.
+- Mantém os recursos anteriores de filtros de anomalias, aparência do chat, espessura das linhas e auto-update seguro.
 
 ## Correção crítica da v1.23.1
 
