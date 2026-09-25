@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.25.1 - 2026-09-25
+
+- Mantém os recursos de replies, emojis, reações e animações simultâneas da v1.25.0.
+- Corrige o manual PDF para evitar glifos quebrados em emojis não suportados pela fonte.
+- Atualiza a seção de instalação do manual para usar Configurações > Atualizações em vez de exibir o comando do atualizador.
+
 ## 1.25.0 - 2026-09-25
 
 - Adiciona reply estruturado de mensagens pelo `replyId` nativo do Meshtastic/MeshMonitor.
