@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.26.0 - 2026-09-25
+
+- Corrige o auto-scroll da aba Mensagens para preservar a posição quando o usuário está lendo mensagens antigas.
+- Adiciona botão ↓ Novas mensagens quando chegam mensagens abaixo da posição atual.
+- Preserva o ponto de leitura ao usar Carregar anteriores.
+- Aumenta o tamanho dos emojis no seletor, no botão do compositor, no menu de reação e nos chips de reação.
+- Corrige reação com HTTP 403 adicionando fallback automático: tenta tapback Meshtastic nativo e, quando somente o endpoint legado é recusado por permissão, envia resposta emoji compatível pela API v1 com replyId.
+- Exibe no status quando a reação foi enviada em modo compatível.
+- Separa a notificação sonora de mensagens do limitador dos sons de roteamento para torná-la audível mesmo com tráfego intenso.
+- Torna a assinatura sonora de nova mensagem mais distinta nos temas Fliperama anos 70, Formal e Rádio / Telecom.
+- Reações/tapbacks recebidos não geram notificação sonora de nova mensagem.
+
 ## 1.25.1 - 2026-09-25
 
 - Mantém os recursos de replies, emojis, reações e animações simultâneas da v1.25.0.
