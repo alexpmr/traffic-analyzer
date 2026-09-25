@@ -4300,7 +4300,8 @@ class Handler(BaseHTTPRequestHandler):
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
                 force = (query.get("force") or ["0"])[0] in {"1", "true", "yes"}
                 body = _version_status(force=force)
-                _maybe_request_auto_update(body)
+                if not AUTH_ENABLED or _auth_session(self):
+                    _maybe_request_auto_update(body)
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "status": "unavailable", "localVersion": APP_VERSION, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
