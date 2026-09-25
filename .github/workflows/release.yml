@@ -35,6 +35,25 @@ jobs:
         shell: bash
         run: bash -n install.sh update.sh
 
+      - name: Validar replies e reações no backend
+        shell: bash
+        run: |
+          python - <<'PY'
+          import traffic_analyzer_web as ta
+          calls=[]
+          ta.MM_API_TOKEN="test-token"
+          def fake(path,payload):
+              calls.append((path,payload))
+              return {"success":True}
+          ta._mm_api_post=fake
+          ta._send_primary_message("resposta",reply_id=321)
+          path,payload=calls.pop(0)
+          assert path.endswith("/messages") and payload["replyId"]==321
+          ta._send_primary_message("👍",reply_id=321,emoji=True)
+          path,payload=calls.pop(0)
+          assert path=="/api/messages/send" and payload["emoji"]==1 and payload["replyId"]==321
+          PY
+
       - name: Validar JavaScript embutido
         shell: bash
         run: |
@@ -98,6 +117,38 @@ jobs:
               d.execute_script("arguments[0].value='pinball70';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",sound)
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"soundTest"))
               time.sleep(1.2)
+
+              d.execute_script("""
+                primaryMessages=[
+                  {id:'default_2_101',fromNodeId:'!00000002',fromName:'NODE2',text:'Original',channel:0,createdAt:Date.now()-3000,mine:false},
+                  {id:'default_1_102',fromNodeId:'!00000001',fromName:'TESTE',text:'Resposta',channel:0,createdAt:Date.now()-2000,mine:true,replyId:101},
+                  {id:'default_3_103',fromNodeId:'!00000003',fromName:'NODE3',text:'❤️',channel:0,createdAt:Date.now()-1000,mine:false,replyId:101,emoji:1}
+                ];messagesInitialized=true;renderMessages(false);
+              """)
+              assert len(d.find_elements(By.CSS_SELECTOR,".msgRow"))==2
+              assert d.find_elements(By.CSS_SELECTOR,".reactionChip")
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'[data-replymsg="default_2_101"]'))
+              assert "open" in d.find_element(By.ID,"replyComposerBar").get_attribute("class")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"replyComposerClose"))
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"messageEmojiBtn"))
+              assert "open" in d.find_element(By.ID,"emojiPicker").get_attribute("class")
+
+              d.execute_script("""
+                const now=Date.now();
+                const p1={nodeNum:1,nodeId:'!00000001',name:'A',lat:-15.80,lon:-47.90};
+                const p2={nodeNum:2,nodeId:'!00000002',name:'B',lat:-15.70,lon:-47.80};
+                const p3={nodeNum:3,nodeId:'!00000003',name:'C',lat:-15.60,lon:-47.70};
+                topology.traces=[
+                  {id:'h1',timestampMs:now,fromName:'A',toName:'C',animatable:true,forwardPath:[p1,p2,p3],returnPath:null},
+                  {id:'h2',timestampMs:now+20,fromName:'C',toName:'A',animatable:true,forwardPath:[p3,p2,p1],returnPath:null},
+                  {id:'h3',timestampMs:now+40,fromName:'A',toName:'B',animatable:true,forwardPath:[p1,p3,p2],returnPath:null}
+                ];
+                document.getElementById('playMode').value='history';stopAnimation();playHistoryLoop();
+              """)
+              time.sleep(.35)
+              assert d.execute_script("return activeHistoryAnimations.size")>=2
+              d.execute_script("stopAnimation();")
+
               logs=d.get_log("browser")
               severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
               assert not severe,severe
