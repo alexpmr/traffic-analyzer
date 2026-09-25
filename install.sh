@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.24.0"
+VERSION="1.24.1"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -57,7 +57,7 @@ install -m 0644 "$BASE_DIR/README.md" "$APP_DIR/README.md"
 install -m 0644 "$BASE_DIR/CHANGELOG.md" "$APP_DIR/CHANGELOG.md"
 install -m 0755 "$BASE_DIR/update.sh" /usr/local/sbin/traffic-analyzer-update
 
-# Migracao/atualizacao para Traffic Analyzer v1.24.0.
+# Migracao/atualizacao para Traffic Analyzer v1.24.1.
 if [[ ! -f "$ENV_FILE" ]]; then
   if [[ -f "$LEGACY_ENV_FILE" ]]; then
     cp "$LEGACY_ENV_FILE" "$ENV_FILE"
