@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.25.0 - 2026-09-25
+
+- Adiciona reply estruturado de mensagens pelo `replyId` nativo do Meshtastic/MeshMonitor.
+- Adiciona referência visual à mensagem original e opção para cancelar a resposta antes do envio.
+- Adiciona seletor de emojis no compositor.
+- Adiciona reações/tapbacks Meshtastic com `emoji=1` e `replyId`, incluindo 👍 👎 ❤️ 😂 😮 😢.
+- Agrupa reações sob a mensagem original e oculta os pacotes de reação como linhas independentes.
+- Ajusta a seleção de menção para usar `@` somente como gatilho de busca; o texto final contém apenas o nome do nó.
+- Adiciona reprodução histórica concorrente, permitindo vários traceroutes em trânsito ao mesmo tempo.
+- Mantém animações ao vivo concorrentes e remove limites artificiais das filas de traceroutes e de eventos pausados.
+- Torna a velocidade dinâmica para animações já em execução.
+- Adiciona contador de pacotes em trânsito/congelados no status do mapa.
+- Preserva intervalos históricos curtos e comprime proporcionalmente janelas extensas para uma reprodução prática.
+- Mantém a exigência de caminhos observados: nenhum hop intermediário é fabricado para animação.
+
 ## 1.24.1 - 2026-09-25
 
 - Mantém todos os recursos funcionais da v1.24.0.
