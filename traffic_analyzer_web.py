@@ -382,7 +382,7 @@ HTML = r'''<!doctype html>
 
   /* v1.21 - menções */
   #messageComposer{position:relative}.mentionSuggestions{position:absolute;left:12px;bottom:58px;width:min(560px,calc(100% - 88px));max-height:260px;overflow:auto;background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);z-index:1500;display:none}.mentionSuggestions.open{display:block}.mentionItem{display:grid;grid-template-columns:minmax(70px,100px) minmax(0,1fr);gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #293744}.mentionItem:last-child{border-bottom:0}.mentionItem:hover,.mentionItem.active{background:#263b4d}.mentionShort{font-weight:900;color:#e9d46d}.mentionLong{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mentionId{font-size:10px;color:#8194a5}.chatMention{color:#70cfff;font-weight:800}.mentionHelp{font-size:10px;color:#91a4b3;margin-left:6px}
-  body[data-theme="light"] .tracklogToolbar{background:#f5f7f9;border-color:#cbd5dd}body[data-theme="light"] .tracklogSummary{color:#627582}body[data-theme="light"] .tracklogLegend{background:rgba(255,255,255,.96);color:#17212b;border-color:#aebbc5}body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
+body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
 
   /* v1.22 - internacionalização e ajuda */
   .languageControl{display:flex;align-items:center;gap:5px;font-size:11px;color:#cbd6df;white-space:nowrap}.languageControl select{font-size:11px;padding:4px 6px}.languageControl span{font-weight:700}
@@ -721,7 +721,6 @@ const I18N_PAIRS=[
   ['Tráfego ao vivo','Live traffic'],['Direção:','Direction:'],['Todos','All'],['Tipo:','Type:'],['Mensagem','Message'],['Buscar:','Search:'],['Pausar','Pause'],['Retomar','Resume'],['Baixar dump JSON (.zip)','Download JSON dump (.zip)'],
   ['Baixa todo o histórico persistente em traffic.json dentro de um ZIP','Downloads the entire persistent history as traffic.json inside a ZIP'],['Hora','Time'],['DIR','DIR'],['Origem','Source'],['Destino','Destination'],['Tipo','Type'],['Hops','Hops'],
   ['Clique em um pacote para ver os detalhes.','Click a packet to view details.'],['Clique para ver o payload formatado','Click to view the formatted payload'],['Nenhum pacote corresponde ao filtro.','No packet matches the filter.'],
-  ['Tracklog de estações móveis','Mobile station tracklog'],['Período:','Period:'],['Nó:','Node:'],['Todos com mobilidade observada','All with observed mobility'],['Aguardando dados…','Waiting for data…'],['Sem trajetos carregados','No tracks loaded'],['posição mais recente do período','latest position in the period'],
   ['Canal primário','Primary channel'],['Canal 0 - mensagens de broadcast','Channel 0 - broadcast messages'],['Carregando...','Loading...'],['Carregar anteriores','Load older'],['Carregar mais mensagens antigas','Load older messages'],['Consultar novas mensagens agora','Check for new messages now'],['Digite uma mensagem','Type a message'],['Digite @ para mencionar um nó','Type @ to mention a node'],['Enviar','Send'],['nova','new'],['Sem mensagens não lidas','No unread messages'],['Nenhuma mensagem encontrada no canal primário.','No messages found on the primary channel.'],
   ['Saúde da Rede','Network Health'],['Atividade dos últimos 7 dias','Activity over the last 7 days'],['Traceroutes e roteamento','Traceroutes and routing'],['Interações por chat no canal primário','Chat interactions on the primary channel'],['Nós que merecem atenção','Nodes that need attention'],['Último tráfego','Last traffic'],['Tempo sem ouvir','Time since heard'],['Pacotes 7d','Packets 7d'],['SNR médio 7d','Average SNR 7d'],['Reanalisar','Reanalyze'],
   ['Os indicadores usam o histórico persistente do Traffic Analyzer e a topologia observada pelo MeshMonitor. O ranking de chat conta interações acumuladas registradas no canal primário. Ausência de tráfego não prova falha física; pode representar um nó silencioso, desligado ou fora do alcance da fonte.','Indicators use the Traffic Analyzer persistent history and the topology observed by MeshMonitor. The chat ranking counts accumulated interactions recorded on the primary channel. Lack of traffic does not prove a physical failure; it may represent a silent node, a powered-off node, or a node outside the source range.'],
@@ -930,7 +929,7 @@ function renderHelp(){
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
-      <h3>10. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho; a distância do Tracklog depende das posições que efetivamente foram recebidas.</div>`;
+      <h3>10. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho.</div>`;
   }
 }
 function applyLanguage(lang,persist=true){
@@ -941,7 +940,6 @@ function applyLanguage(lang,persist=true){
   renderHelp();
   i18nBusy=true;try{translateUiTree(document.body);document.title=translateUiString(document.title,currentLang);}finally{i18nBusy=false;}
   if(typeof updatePlaybackStatusIdle==='function')updatePlaybackStatusIdle();
-  if(typeof tracklogLoaded!=='undefined'&&tracklogLoaded&&typeof renderTracklog==='function')renderTracklog();
 }
 
 document.getElementById('uiLanguage').addEventListener('change',e=>applyLanguage(e.target.value,true));
