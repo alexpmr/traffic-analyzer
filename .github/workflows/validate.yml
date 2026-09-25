@@ -93,7 +93,15 @@ jobs:
       - name: Validar geração do manual
         run: |
           python -m pip install --disable-pip-version-check --quiet reportlab pymupdf
-          VERSION="$(cat VERSION | tr -d '[:space:]')"
+          VERSION="$(python - <<'PY'
+          import re
+          from pathlib import Path
+          src=Path("traffic_analyzer_web.py").read_text(encoding="utf-8")
+          m=re.search(r'^APP_VERSION = "([^"]+)"',src,re.M)
+          if not m: raise SystemExit("APP_VERSION não encontrado")
+          print(m.group(1))
+          PY
+          )"
           python docs/build_manual_pdf.py --version "$VERSION" --output /tmp/manual.pdf
           test -s /tmp/manual.pdf
           python - <<'PY'
