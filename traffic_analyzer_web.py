@@ -143,7 +143,14 @@ HTML = r'''<!doctype html>
   #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:8px 12px;background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font-family:inherit;font-size:var(--message-font-size,13px);line-height:1.25;background:#2a3942;color:#fff;caret-color:#fff}#messageInput::placeholder{color:#9fb0bf;opacity:1}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;color:#fff;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
   #messagesNav.unread{animation:messagesUnread 1.15s ease-in-out infinite;border-color:#53bdeb;box-shadow:0 0 0 1px rgba(83,189,235,.25)}@keyframes messagesUnread{0%,100%{background:#233443;color:#edf3f8}50%{background:#0b6f81;color:#fff}}
   .unreadCount{display:none;background:#25d366;color:#07140c;border-radius:10px;min-width:18px;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:900}.unread .unreadCount{display:inline-block}
-  @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter{display:none}}
+  .msgActions{display:flex;gap:4px;justify-content:flex-end;margin-top:3px;opacity:.72}.msgActions button{padding:1px 6px;min-height:22px;border-radius:10px;font-size:11px;background:#26343d;border-color:#42515a;color:#d7e2e8}.msgRow:hover .msgActions{opacity:1}
+  .msgReplyQuote{border-left:3px solid #53bdeb;background:rgba(0,0,0,.16);border-radius:5px;padding:5px 7px;margin:0 0 5px;font-size:11px;line-height:1.3}.msgReplyQuote b{display:block;color:#70cfff}.msgReplyQuote span{display:block;color:#c0ccd2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:680px}
+  .msgReactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.reactionChip{display:inline-flex;gap:3px;align-items:center;background:#182229;border:1px solid #40505a;border-radius:12px;padding:2px 7px;font-size:12px}.reactionChip.mine{border-color:#53bdeb}
+  .reactionPickerInline{display:none;gap:3px;flex-wrap:wrap;justify-content:flex-end;margin-top:4px}.reactionPickerInline.open{display:flex}.reactionPickerInline button{font-size:17px;line-height:1;padding:4px 6px;border-radius:9px;background:#26343d;border-color:#465762}
+  #messageComposer{flex-wrap:wrap}.replyComposerBar{display:none;flex:0 0 100%;align-items:center;gap:8px;background:#182229;border-left:3px solid #53bdeb;border-radius:6px;padding:6px 8px;box-sizing:border-box}.replyComposerBar.open{display:flex}.replyComposerText{min-width:0;flex:1;font-size:11px;color:#c0ccd2}.replyComposerText b{display:block;color:#70cfff}.replyComposerText span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.replyComposerClose{padding:2px 7px;border-radius:50%;font-size:14px}
+  .emojiToolBtn{width:38px;height:38px;border-radius:50%;font-size:20px;padding:0}.emojiPicker{display:none;position:absolute;left:12px;bottom:58px;width:min(360px,calc(100% - 80px));background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);padding:8px;z-index:1600;grid-template-columns:repeat(7,1fr);gap:4px}.emojiPicker.open{display:grid}.emojiPicker button{font-size:20px;padding:5px 2px;background:#202c33;border-color:#40505a;border-radius:8px}
+  body[data-theme="light"] .msgReplyQuote,body[data-theme="light"] .replyComposerBar,body[data-theme="light"] .reactionChip{background:#f4f7f9;border-color:#cbd5dd}body[data-theme="light"] .emojiPicker{background:#fff;border-color:#b9c6cf}body[data-theme="light"] .emojiPicker button,body[data-theme="light"] .reactionPickerInline button,body[data-theme="light"] .msgActions button{background:#f4f7f9;color:#18232d;border-color:#c2ced6}
+  @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter,.mentionHelp{display:none}.emojiPicker{left:8px;width:calc(100% - 70px)}}
 
   /* v1.20 - versão disponível e tema claro */
   .versionBadge{font-size:11px;font-weight:800;padding:5px 8px;border-radius:999px;white-space:nowrap;cursor:pointer}
@@ -301,7 +308,10 @@ HTML = r'''<!doctype html>
   </div>
   <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
   <div id="messageComposer">
+    <div id="replyComposerBar" class="replyComposerBar"><div id="replyComposerText" class="replyComposerText"></div><button id="replyComposerClose" class="replyComposerClose" type="button" title="Cancelar resposta">×</button></div>
     <div id="mentionSuggestions" class="mentionSuggestions"></div>
+    <div id="emojiPicker" class="emojiPicker"></div>
+    <button id="messageEmojiBtn" class="emojiToolBtn" type="button" title="Inserir emoji">☺</button>
     <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><span class="mentionHelp">Use @ para localizar um nó; o @ é removido antes da transmissão.</span><button id="messageSend" title="Enviar">➤</button>
   </div>
 </section>
@@ -535,6 +545,9 @@ const I18N_PAIRS=[
   ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
   ['Solicitação de atualização enviada.','Update request sent.'],['Nenhuma atualização disponível.','No update is available.'],
+  ['Responder','Reply'],['Reagir','React'],['Resposta','Reply'],['Respondendo a','Replying to'],['Mensagem original não carregada','Original message not loaded'],['Cancelar resposta','Cancel reply'],['Inserir emoji','Insert emoji'],
+  ['Não foi possível identificar o pacote original para responder.','Could not identify the original packet to reply to.'],['Não foi possível identificar o pacote original para reagir.','Could not identify the original packet to react to.'],
+  ['Reação enviada ao MeshMonitor','Reaction sent to MeshMonitor'],['Falha no envio','Send failed'],
   ['Temas sonoros','Sound themes'],['Ativar sonificação da malha','Enable mesh sonification'],['Os sons acompanham eventos realmente observados. O Traffic Analyzer não inventa retransmissões para produzir efeitos.','Sounds follow events that were actually observed. Traffic Analyzer does not invent relays to produce effects.'],
   ['Tema:','Theme:'],['Fliperama anos 70','1970s Pinball'],['Formal','Formal'],['Rádio / Telecom','Radio / Telecom'],['Silencioso','Silent'],['Testar tema','Test theme'],
   ['Os efeitos são sintetizados localmente pelo navegador; nenhum arquivo de áudio é baixado.','Effects are synthesized locally by the browser; no audio file is downloaded.'],['Densidade sonora:','Sound density:'],['Baixa','Low'],['Normal','Normal'],['Alta','High'],
@@ -2410,14 +2423,25 @@ let messagesInitialized=false;
 let messageFetchLimit=250;
 let messageNewestSeen=0;
 let messageSeenIds=new Set();
+let replyingTo=null;
 const MESSAGE_READ_KEY='trafficAnalyzerPrimaryLastReadV117';
+const MESSAGE_EMOJIS=['😀','😄','😉','👍','👎','❤️','😂','😮','😢','🙏','🔥','🎉','✅','❌','📡','📍','⚡','🚙','🛰️','📻','🔧'];
+const QUICK_REACTIONS=['👍','👎','❤️','😂','😮','😢'];
 function msgTimeMs(m){return Number(m.receivedAt||m.createdAt||m.timestamp||0)||0;}
 function messageKey(m){return String(m.id||`${m.fromNodeId||''}|${m.requestId||''}|${msgTimeMs(m)}|${m.text||''}`);}
+function messagePacketId(m){
+  const parts=String(m?.id||'').split('_'),last=parts[parts.length-1],n=Number(last);
+  if(Number.isInteger(n)&&n>0)return n;
+  const req=Number(m?.requestId);return Number.isInteger(req)&&req>0?req:null;
+}
+function looksLikeEmojiOnly(text){const s=String(text||'').trim();return !!s&&s.length<=12&&!/[A-Za-z0-9]/.test(s);}
+function isReactionMessage(m){return Number(m?.emoji)===1 || (Number(m?.replyId)>0&&looksLikeEmojiOnly(m?.text));}
+function messageByPacketId(id){const n=Number(id);return primaryMessages.find(m=>!isReactionMessage(m)&&messagePacketId(m)===n)||null;}
 function dateKey(ms){const d=new Date(ms);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function dayLabel(ms){const d=new Date(ms),now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const that=new Date(d.getFullYear(),d.getMonth(),d.getDate());const delta=Math.round((today-that)/86400000);if(delta===0)return 'Hoje';if(delta===1)return 'Ontem';return d.toLocaleDateString(uiLocale(),{day:'2-digit',month:'long',year:'numeric'});}
 function lastReadMs(){return Number(localStorage.getItem(MESSAGE_READ_KEY)||0)||0;}
-function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();renderMessages();}
-function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
+function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine&&!isReactionMessage(m)).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();renderMessages();}
+function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&!isReactionMessage(m)&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
 let mentionMatches=[];
 let mentionActiveIndex=0;
 let mentionStart=-1;
@@ -2450,8 +2474,8 @@ function selectMention(index){
   const n=mentionMatches[index]; if(!n)return;
   const input=document.getElementById('messageInput'),pos=input.selectionStart??input.value.length,start=mentionStart>=0?mentionStart:pos;
   const full=n.name||n.shortName||n.nodeId;
-  input.value=input.value.slice(0,start)+'@'+full+' '+input.value.slice(pos);
-  const next=start+full.length+2; input.setSelectionRange(next,next);closeMentionSuggestions();updateMessageCounter();input.focus();
+  input.value=input.value.slice(0,start)+full+' '+input.value.slice(pos);
+  const next=start+full.length+1; input.setSelectionRange(next,next);closeMentionSuggestions();updateMessageCounter();input.focus();
 }
 function renderChatText(text){
   let html=esc(text||'');
@@ -2463,7 +2487,64 @@ function renderChatText(text){
   return html;
 }
 function deliveryVisual(m){const st=String(m.deliveryState||'').toLowerCase();if(m.ackFailed||m.routingErrorReceived||st==='failed')return {icon:'!',cls:'failed',tip:'Falha de entrega/roteamento reportada pelo MeshMonitor'};if(st==='confirmed'||m.ackFromNode)return {icon:'✓✓',cls:'confirmed',tip:'ACK confirmado pelo protocolo; não significa leitura humana'};if(st==='delivered')return {icon:'✓',cls:'',tip:'Transmitida para a malha pelo rádio local'};if(st==='queued'||st==='pending'||!st)return {icon:'◷',cls:'',tip:'Aguardando confirmação de transmissão'};return {icon:'✓',cls:'',tip:`Estado: ${st}`};}
-function renderMessages(keepBottom=false){const el=document.getElementById('messageList');if(!primaryMessages.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}const lr=lastReadMs();let html='',lastDay='';for(const m of primaryMessages){const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}const dv=deliveryVisual(m);const transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF');const unread=!m.mine&&ms>lr;html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(m.id||'')}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div></div></div>`;}el.innerHTML=html;if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;}
+function reactionGroups(){
+  const groups=new Map();
+  for(const r of primaryMessages){
+    if(!isReactionMessage(r)||!Number(r.replyId))continue;
+    const key=Number(r.replyId);
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(r);
+  }
+  return groups;
+}
+function reactionHtml(packetId,groups){
+  const rows=groups.get(Number(packetId))||[];
+  if(!rows.length)return '';
+  const byEmoji=new Map();
+  for(const r of rows){
+    const e=String(r.text||'').trim();if(!e)continue;
+    if(!byEmoji.has(e))byEmoji.set(e,[]);
+    byEmoji.get(e).push(r);
+  }
+  return '<div class="msgReactions">'+[...byEmoji.entries()].map(([emoji,list])=>{
+    const names=list.map(x=>x.fromName||x.fromNodeId||'Nó').filter(Boolean);
+    const mine=list.some(x=>x.mine);
+    return `<span class="reactionChip ${mine?'mine':''}" title="${esc(names.join(', '))}">${esc(emoji)}${list.length>1?` <b>${list.length}</b>`:''}</span>`;
+  }).join('')+'</div>';
+}
+function replyQuoteHtml(m){
+  const rid=Number(m?.replyId||0);if(!rid||isReactionMessage(m))return '';
+  const original=messageByPacketId(rid);
+  if(!original)return `<div class="msgReplyQuote"><b>${tr('Resposta')}</b><span>${tr('Mensagem original não carregada')} #${rid}</span></div>`;
+  const who=original.fromName||original.fromNodeId||'Nó';
+  const excerpt=String(original.text||'').replace(/\s+/g,' ').slice(0,120);
+  return `<div class="msgReplyQuote"><b>${esc(who)}</b><span>${renderChatText(excerpt)}</span></div>`;
+}
+function bindMessageActions(){
+  document.querySelectorAll('[data-replymsg]').forEach(btn=>btn.addEventListener('click',()=>beginReply(btn.dataset.replymsg)));
+  document.querySelectorAll('[data-reacttoggle]').forEach(btn=>btn.addEventListener('click',()=>{
+    const picker=document.querySelector(`[data-reactpicker="${CSS.escape(btn.dataset.reacttoggle)}"]`);
+    document.querySelectorAll('.reactionPickerInline.open').forEach(x=>{if(x!==picker)x.classList.remove('open');});
+    picker?.classList.toggle('open');
+  }));
+  document.querySelectorAll('[data-reaction-msg]').forEach(btn=>btn.addEventListener('click',()=>sendReaction(btn.dataset.reactionMsg,btn.dataset.emoji)));
+  document.querySelectorAll('.msgRow[data-mid]').forEach(row=>row.addEventListener('dblclick',()=>beginReply(row.dataset.mid)));
+}
+function renderMessages(keepBottom=false){
+  const el=document.getElementById('messageList'),visible=primaryMessages.filter(m=>!isReactionMessage(m));
+  if(!visible.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}
+  const groups=reactionGroups(),lr=lastReadMs();let html='',lastDay='';
+  for(const m of visible){
+    const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}
+    const dv=deliveryVisual(m),transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF'),unread=!m.mine&&ms>lr;
+    const mid=String(m.id||messageKey(m)),pid=messagePacketId(m);
+    const actions=`<div class="msgActions"><button type="button" data-replymsg="${esc(mid)}" title="${tr('Responder')}">↩ ${tr('Responder')}</button>${!m.mine&&pid?`<button type="button" data-reacttoggle="${esc(mid)}" title="${tr('Reagir')}">☺ ${tr('Reagir')}</button>`:''}</div>`;
+    const picker=!m.mine&&pid?`<div class="reactionPickerInline" data-reactpicker="${esc(mid)}">${QUICK_REACTIONS.map(e=>`<button type="button" data-reaction-msg="${esc(mid)}" data-emoji="${esc(e)}">${esc(e)}</button>`).join('')}</div>`:'';
+    html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(mid)}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}${replyQuoteHtml(m)}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div>${reactionHtml(pid,groups)}${actions}${picker}</div></div>`;
+  }
+  el.innerHTML=html;bindMessageActions();
+  if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;
+}
 async function loadPrimaryMessages(force=false,preserveScroll=false){
   const list=document.getElementById('messageList');
   const oldHeight=list.scrollHeight,oldTop=list.scrollTop;
@@ -2525,15 +2606,46 @@ async function loadOlderPrimaryMessages(){
       : 'Nenhuma mensagem anterior adicional disponível.';
   }finally{btn.disabled=false;}
 }
+function renderReplyComposer(){
+  const bar=document.getElementById('replyComposerBar'),box=document.getElementById('replyComposerText');
+  if(!replyingTo){bar.classList.remove('open');box.innerHTML='';return;}
+  const who=replyingTo.fromName||replyingTo.fromNodeId||'Nó',excerpt=String(replyingTo.text||'').replace(/\s+/g,' ').slice(0,150);
+  box.innerHTML=`<b>${tr('Respondendo a')} ${esc(who)}</b><span>${esc(excerpt)}</span>`;bar.classList.add('open');
+}
+function beginReply(mid){
+  const m=primaryMessages.find(x=>String(x.id||messageKey(x))===String(mid)&&!isReactionMessage(x));if(!m)return;
+  const pid=messagePacketId(m);if(!pid){alert(tr('Não foi possível identificar o pacote original para responder.'));return;}
+  replyingTo=m;renderReplyComposer();document.getElementById('messageInput').focus();
+}
+function clearReply(){replyingTo=null;renderReplyComposer();}
+function buildEmojiPicker(){
+  const p=document.getElementById('emojiPicker');p.innerHTML=MESSAGE_EMOJIS.map(e=>`<button type="button" data-compose-emoji="${esc(e)}">${esc(e)}</button>`).join('');
+  p.querySelectorAll('[data-compose-emoji]').forEach(b=>b.addEventListener('click',()=>{insertComposerEmoji(b.dataset.composeEmoji);p.classList.remove('open');}));
+}
+function insertComposerEmoji(emoji){
+  const input=document.getElementById('messageInput'),start=input.selectionStart??input.value.length,end=input.selectionEnd??start;
+  input.value=input.value.slice(0,start)+emoji+input.value.slice(end);
+  const next=start+emoji.length;input.setSelectionRange(next,next);updateMessageCounter();input.focus();
+}
+function toggleComposerEmojiPicker(){document.getElementById('emojiPicker').classList.toggle('open');closeMentionSuggestions();}
+async function sendReaction(mid,emoji){
+  const m=primaryMessages.find(x=>String(x.id||messageKey(x))===String(mid)&&!isReactionMessage(x));if(!m)return;
+  const replyId=messagePacketId(m);if(!replyId){alert(tr('Não foi possível identificar o pacote original para reagir.'));return;}
+  try{
+    const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:emoji,replyId,emoji:1})});
+    const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);
+    document.getElementById('messageStatus').textContent=tr('Reação enviada ao MeshMonitor');setTimeout(()=>loadPrimaryMessages(true),450);
+  }catch(e){document.getElementById('messageStatus').textContent=`${tr('Falha no envio')}: ${e}`;alert(tr(`Não foi possível reagir: ${e}`));}
+}
 function stripMentionMarkers(text){
   let out=String(text||'');
   const names=[...new Set(mentionNodeList().flatMap(n=>[n.name,n.shortName,n.nodeId].filter(Boolean)))].sort((a,b)=>b.length-a.length);
   for(const name of names) out=out.split('@'+name).join(name);
   return out;
 }
-async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=stripMentionMarkers(input.value.trim());if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
+async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=stripMentionMarkers(input.value.trim());if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const body={text};const replyId=replyingTo?messagePacketId(replyingTo):null;if(replyId)body.replyId=replyId;const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';clearReply();updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
-document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target))closeMentionSuggestions();});updateMessageCounter();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
+document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('replyComposerClose').addEventListener('click',clearReply);document.getElementById('messageEmojiBtn').addEventListener('click',toggleComposerEmojiPicker);buildEmojiPicker();document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target)){closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}});updateMessageCounter();renderReplyComposer();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
@@ -2610,7 +2722,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV124';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV125';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
