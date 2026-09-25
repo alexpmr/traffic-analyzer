@@ -1,0 +1,10 @@
+[Unit]
+Description=Traffic Analyzer - observa solicitações de atualização
+After=network-online.target
+
+[Path]
+PathExists=/var/lib/traffic-analyzer/update-request.json
+Unit=traffic-analyzer-auto-update.service
+
+[Install]
+WantedBy=multi-user.target
