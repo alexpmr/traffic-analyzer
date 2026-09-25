@@ -36,7 +36,8 @@ jobs:
       - name: Validar geração do manual
         run: |
           python -m pip install --disable-pip-version-check --quiet reportlab pymupdf
-          python docs/build_manual_pdf.py --version 1.23.0 --output /tmp/manual.pdf
+          VERSION="$(cat VERSION | tr -d '[:space:]')"
+          python docs/build_manual_pdf.py --version "$VERSION" --output /tmp/manual.pdf
           test -s /tmp/manual.pdf
           python - <<'PY'
           import fitz
@@ -50,7 +51,7 @@ jobs:
       - name: Publicar prévia do manual
         uses: actions/upload-artifact@v4
         with:
-          name: manual-v1.23.0-preview
+          name: manual-preview
           path: |
             /tmp/manual.pdf
             /tmp/manual-preview.png
