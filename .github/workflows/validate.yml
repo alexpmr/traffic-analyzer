@@ -163,7 +163,8 @@ jobs:
                 messagesInitialized=true;renderMessages(false);
               """)
               assert len(d.find_elements(By.CSS_SELECTOR,".msgRow"))==2
-              assert "❤️" in d.find_element(By.CSS_SELECTOR,".reactionChip").text
+              reaction_text=d.find_element(By.CSS_SELECTOR,".reactionChip").text
+              assert "❤" in reaction_text,reaction_text
               assert "Mensagem original" in d.find_element(By.CSS_SELECTOR,".msgReplyQuote").text
               d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'[data-replymsg="default_2_101"]'))
               assert "open" in d.find_element(By.ID,"replyComposerBar").get_attribute("class")
