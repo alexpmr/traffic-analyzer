@@ -109,13 +109,13 @@ def main() -> None:
         "<b>Mensagens:</b> canal primário, envio e menções de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
         "<b>Anomalias:</b> heurísticas para silêncio, SNR, hops e assimetria de rotas.",
-        "<b>Configurações:</b> aparência, mapa, som, atividade, privacidade e demais preferências.",
+        "<b>Configurações:</b> aparência, mapa, espessura/cor dos enlaces, som, leitura do chat, atualizações, atividade e privacidade.",
         "<b>Ajuda/Help:</b> instruções incorporadas à própria interface.",
     ]:
         story.append(bullet(item))
 
     story += [P("Idioma", "TA_H2"),
-              P("Português (PT-BR) é o padrão. Quando a versão oferecer English (EN), o seletor no topo altera a interface sem modificar nomes de nós, mensagens dos usuários ou valores brutos do protocolo."),
+              P("Português (PT-BR) é o padrão. O seletor mostra as bandeiras do Brasil e dos Estados Unidos antes de Português e English. A troca altera a interface sem modificar nomes de nós, mensagens dos usuários ou valores brutos do protocolo."),
               PageBreak(), P("3. Uso e interpretação", "TA_H1"),
               P("As linhas e traceroutes representam observações feitas pela fonte configurada. Ausência de tráfego ou de rota não é prova isolada de indisponibilidade."),
               P("Pausa e Ao vivo", "TA_H2"),
@@ -123,7 +123,7 @@ def main() -> None:
               P("Tracklog", "TA_H2"),
               P("O Tracklog utiliza posições realmente recebidas. Distância e percurso dependem da frequência dos POSITION_APP observados e não substituem um odômetro/GPS dedicado."),
               P("Mensagens e ACK", "TA_H2"),
-              P("Estados de ACK indicam confirmação de protocolo/roteamento quando disponível. Eles não significam que uma pessoa leu a mensagem."),
+              P("Estados de ACK indicam confirmação de protocolo/roteamento quando disponível. Eles não significam que uma pessoa leu a mensagem. O @ é usado apenas para localizar um nó no autocomplete e é removido antes da transmissão."),
               P("Privacidade", "TA_H2"),
               P("O token do MeshMonitor permanece no processo servidor. Conteúdo de mensagens diretas é redigido no histórico conforme a política da aplicação."),
               PageBreak(), P("4. Atualização e diagnóstico", "TA_H1"),
@@ -135,6 +135,10 @@ def main() -> None:
               P("systemctl status traffic-analyzer.timer --no-pager\nsystemctl status traffic-analyzer-map.service --no-pager", "TA_Code"),
               P("Logs:", "TA_H2"),
               P("journalctl -u traffic-analyzer.service -n 50 --no-pager\njournalctl -u traffic-analyzer-map.service -n 50 --no-pager", "TA_Code"),
+              P("Auto-update", "TA_H2"),
+              P("Em Configurações, o auto-update pode ser ativado. O processo web apenas grava uma solicitação em /var/lib/traffic-analyzer. O unit traffic-analyzer-auto-update.path dispara um serviço root dedicado, que baixa somente a Latest Release estável, valida o ZIP/digest, cria backup, instala, verifica /health e faz rollback se a verificação falhar."),
+              P("Status do auto-update:", "TA_Body"),
+              P("systemctl status traffic-analyzer-auto-update.path --no-pager\njournalctl -u traffic-analyzer-auto-update.service -n 80 --no-pager", "TA_Code"),
               P("Após atualizações de JavaScript/CSS, use Ctrl+F5 se o navegador ainda estiver mostrando conteúdo em cache."),
               P("Distribuição", "TA_H2"),
               P("A Release formal inclui ZIP versionado, traffic-analyzer-latest.zip, manual PDF e screenshots públicos anonimizados nas notas da Release.")]
