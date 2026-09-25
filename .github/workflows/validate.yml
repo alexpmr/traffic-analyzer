@@ -100,6 +100,11 @@ jobs:
               d.get("http://127.0.0.1:8788/")
               WebDriverWait(d,20).until(EC.presence_of_element_located((By.ID,"nav")))
               time.sleep(2)
+              logs=d.get_log("browser")
+              print("BROWSER LOGS AFTER LOAD")
+              print(json.dumps(logs,ensure_ascii=False,indent=2))
+              severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
+              assert not severe,severe
               for view in ["traffic","messages","health","anomalies","settings","help","map"]:
                   b=d.find_element(By.CSS_SELECTOR, f'.navbtn[data-view="{view}"]')
                   d.execute_script("arguments[0].click()", b)
@@ -108,6 +113,7 @@ jobs:
                   expected={"traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
                   assert active==expected,(view,active,expected)
               logs=d.get_log("browser")
+              print("BROWSER LOGS AFTER NAVIGATION")
               print(json.dumps(logs,ensure_ascii=False,indent=2))
               severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
               assert not severe,severe
