@@ -1,7 +1,37 @@
-# Traffic Analyzer v1.26.0
+# Traffic Analyzer v1.27.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Novidades da v1.27.0
+
+- Remove a aba **Tracklog** da interface, seus controles, mapa e JavaScript específico. O histórico de posições continua preservado em `traffic.db` para relatórios e análises futuras, mas não é mais exposto por uma aba ou endpoint público.
+- Adiciona **autenticação administrativa** para permitir exposição controlada da interface na internet.
+- Sem login, a aplicação opera em **modo somente leitura**: Mapa, Tráfego, Mensagens, Saúde da Rede, Anomalias e Ajuda continuam disponíveis.
+- Sem login, a aba **Configurações** permanece visível, porém seus campos e botões ficam bloqueados.
+- Sem login, **Mensagens** permanece para leitura, mas envio, respostas, reações e compositor ficam bloqueados.
+- Todas as APIs de escrita também são protegidas no servidor; não é apenas um bloqueio visual.
+- Sessões administrativas usam cookie **HttpOnly + SameSite=Strict**, expiração configurável e proteção **CSRF**.
+- Adiciona limitação contra tentativas repetidas de login.
+- A senha não é armazenada em texto puro: é mantida como hash **PBKDF2-SHA256** com salt e 600.000 iterações.
+- Adiciona o comando `sudo traffic-analyzer-set-password` para definir ou trocar usuário/senha e reiniciar a interface.
+- Em atualização de instalações existentes, a autenticação é ativada em modo seguro; enquanto nenhuma senha tiver sido definida, operações de escrita permanecem bloqueadas.
+- Para publicação na internet, use HTTPS em um **reverse proxy** como Caddy, Nginx ou Cloudflare Tunnel. O Traffic Analyzer não implementa TLS diretamente.
+- Quando `TA_AUTH_SECURE_COOKIE=auto`, o cookie recebe a flag Secure quando o proxy informa `X-Forwarded-Proto=https`.
+- O acesso público não autenticado não pode disparar atualização de topologia, alterar auto-update nem provocar uma atualização automática.
+- Mantém as correções de Mensagens da v1.26.0, incluindo rolagem preservada, emojis maiores, fallback de reação e som diferenciado.
+
+### Ativar o login administrativo
+
+Após instalar/atualizar para a v1.27.0, execute no servidor:
+
+```bash
+sudo traffic-analyzer-set-password
+```
+
+Informe o usuário administrador e a senha duas vezes. O utilitário grava somente o hash em `/etc/traffic-analyzer-map.env`, aplica permissão `0600` ao arquivo e reinicia `traffic-analyzer-map.service`.
+
+Até esse passo ser concluído, com `TA_AUTH_ENABLED=true`, a aplicação continua acessível para consulta, porém em modo somente leitura.
 
 ## Novidades da v1.26.0
 
