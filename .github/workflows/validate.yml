@@ -38,6 +38,17 @@ jobs:
           python -m pip install --disable-pip-version-check --quiet reportlab
           python docs/build_manual_pdf.py --version 1.23.0 --output /tmp/manual.pdf
           test -s /tmp/manual.pdf
+          pdfinfo /tmp/manual.pdf | grep -q '^Pages:'
+          pdftoppm -png -f 1 -singlefile -r 120 /tmp/manual.pdf /tmp/manual-preview
+          test -s /tmp/manual-preview.png
+
+      - name: Publicar prévia do manual
+        uses: actions/upload-artifact@v4
+        with:
+          name: manual-v1.23.0-preview
+          path: |
+            /tmp/manual.pdf
+            /tmp/manual-preview.png
 
       - name: Validar arquivos da infraestrutura de update
         run: |
