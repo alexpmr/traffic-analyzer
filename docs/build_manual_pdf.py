@@ -61,7 +61,14 @@ def main() -> None:
                               spaceBefore=4, spaceAfter=7))
 
     def P(text: str, style: str = "TA_Body") -> Paragraph:
-        text = text.replace("🇧🇷", "Brasil -").replace("🇺🇸", "Estados Unidos -")
+        replacements = {
+            "🇧🇷": "Brasil -", "🇺🇸": "Estados Unidos -",
+            "👍": "like", "👎": "dislike", "❤️": "coração",
+            "❤": "coração", "😂": "risada", "😮": "surpresa", "😢": "tristeza",
+        }
+        for source, target in replacements.items():
+            text = text.replace(source, target)
+        text = text.replace("`", "")
         return Paragraph(text, styles[style])
 
     def bullet(text: str) -> Paragraph:
@@ -133,7 +140,7 @@ def main() -> None:
               P("O token do MeshMonitor permanece no processo servidor. Conteúdo de mensagens diretas é redigido no histórico conforme a política da aplicação."),
               PageBreak(), P("4. Atualização e diagnóstico", "TA_H1"),
               P("Atualizar a instalação:", "TA_Body"),
-              P("sudo traffic-analyzer-update", "TA_Code"),
+              P("Use Configurações > Atualizações > Atualizar agora. O processo usa a Latest Release estável e mantém as proteções de backup, health-check e rollback."),
               P("Verificar a versão:", "TA_Body"),
               P("cat /opt/traffic-analyzer/VERSION", "TA_Code"),
               P("Serviços:", "TA_H2"),
