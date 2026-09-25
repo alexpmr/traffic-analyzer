@@ -380,8 +380,7 @@ HTML = r'''<!doctype html>
   body[data-theme="light"] .leaflet-popup-content-wrapper,body[data-theme="light"] .leaflet-popup-tip{background:#ffffff;color:#17212b}
   body[data-theme="light"] .versionModal{background:#ffffff;color:#17212b;border-color:#aebbc5}body[data-theme="light"] .versionNotes,body[data-theme="light"] .updateCmd{background:#f5f7f9;color:#17212b;border-color:#cbd5dd}
 
-  /* v1.21 - tracklog e menções */
-  #viewTracklog{min-height:0}.tracklogToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#111c27;border-bottom:1px solid #293744}.tracklogSummary{font-size:11px;color:#9fb0bf;margin-left:auto}.tracklogMap{flex:1;min-height:260px}.tracklogLegend{background:rgba(23,33,43,.95);border:1px solid #405668;border-radius:7px;padding:7px 9px;color:#edf3f8;font-size:11px;max-width:280px}.tracklogLegend .trackNode{display:flex;align-items:center;gap:6px;margin:3px 0}.trackSwatch{width:20px;height:4px;border-radius:3px;display:inline-block}.trackPointPopup{font-size:12px;line-height:1.45}.trackCurrent{font-weight:800}
+  /* v1.21 - menções */
   #messageComposer{position:relative}.mentionSuggestions{position:absolute;left:12px;bottom:58px;width:min(560px,calc(100% - 88px));max-height:260px;overflow:auto;background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);z-index:1500;display:none}.mentionSuggestions.open{display:block}.mentionItem{display:grid;grid-template-columns:minmax(70px,100px) minmax(0,1fr);gap:8px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #293744}.mentionItem:last-child{border-bottom:0}.mentionItem:hover,.mentionItem.active{background:#263b4d}.mentionShort{font-weight:900;color:#e9d46d}.mentionLong{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mentionId{font-size:10px;color:#8194a5}.chatMention{color:#70cfff;font-weight:800}.mentionHelp{font-size:10px;color:#91a4b3;margin-left:6px}
   body[data-theme="light"] .tracklogToolbar{background:#f5f7f9;border-color:#cbd5dd}body[data-theme="light"] .tracklogSummary{color:#627582}body[data-theme="light"] .tracklogLegend{background:rgba(255,255,255,.96);color:#17212b;border-color:#aebbc5}body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
 
@@ -430,7 +429,6 @@ HTML = r'''<!doctype html>
   <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
-    <button class="navbtn" data-view="tracklog">Tracklog</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
     <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
     <button class="navbtn" data-view="health">Saúde da Rede</button>
@@ -463,17 +461,6 @@ HTML = r'''<!doctype html>
   <div class="mapActions"><button id="fit">Enquadrar</button><button id="reload">Atualizar</button></div>
 </div>
 <div id="map"></div>
-</section>
-<section id="viewTracklog" class="view">
-  <div class="tracklogToolbar">
-    <b>Tracklog de estações móveis</b>
-    <label>Período: <select id="tracklogHours"><option value="1">1 h</option><option value="6">6 h</option><option value="24" selected>24 h</option><option value="168">7 dias</option><option value="720">30 dias</option></select></label>
-    <label>Nó: <select id="tracklogNode"><option value="all">Todos com mobilidade observada</option></select></label>
-    <button id="tracklogReload">Atualizar</button>
-    <button id="tracklogFit">Enquadrar</button>
-    <span id="tracklogSummary" class="tracklogSummary">Aguardando dados…</span>
-  </div>
-  <div id="tracklogMap" class="tracklogMap"></div>
 </section>
 <section id="viewTraffic" class="view">
   <div id="trafficToolbar">
@@ -882,47 +869,43 @@ function renderHelp(){
   const el=document.getElementById('helpContent');if(!el)return;
   if(currentLang==='en'){
     el.innerHTML=`<h2>Traffic Analyzer Help</h2>
-      <p>Traffic Analyzer is a companion web application for MeshMonitor. It analyzes Meshtastic traffic, observed RF topology, traceroutes, messages, node activity, historical positions, network health, and anomalies without taking over the radio connection used by MeshMonitor.</p>
+      <p>Traffic Analyzer is a companion web application for MeshMonitor. It analyzes Meshtastic traffic, observed RF topology, traceroutes, messages, node activity, network health, and anomalies without taking over the radio connection used by MeshMonitor.</p>
       <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
       <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node color indicates the age of the last observed traffic. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
       <ul><li><b>History:</b> replays traceroutes on their observed timeline and allows several packets to move simultaneously. Long windows are proportionally time-compressed.</li><li><b>Live:</b> each new complete traceroute starts independently without waiting for earlier animations to finish.</li><li><b>No artificial limit:</b> there is no functional cap on packets in transit; all observed events are kept.</li><li><b>Pause:</b> freezes every visual animation. Collection and processing continue, and waiting events are released on resume.</li><li><b>Speed:</b> also affects packets already moving and the History timeline.</li><li><b>Auto Zoom:</b> can follow all nodes involved in simultaneous traceroute animations.</li></ul>
-      <h3>2. Tracklog</h3><p>Tracklog uses real decoded POSITION_APP packets stored in <code>traffic.db</code>. Nodes appear when actual movement is observed; the Meshtastic role alone does not classify a node as mobile.</p>
-      <ul><li>Choose 1 h, 6 h, 24 h, 7 days, or 30 days.</li><li>Select all moving nodes or one specific node.</li><li>Click a point to inspect timestamp, coordinates, altitude, SNR, and RSSI when available.</li><li>Very small GPS jitter and clearly impossible terrestrial jumps are filtered.</li></ul>
-      <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
-      <h3>4. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
+      <h3>2. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
+      <h3>3. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
       <h4>Reply</h4><p>Use <b>Reply</b> or double-click a message. Traffic Analyzer uses the native Meshtastic/MeshMonitor <code>replyId</code> and shows a reference to the original message in the reply bubble.</p>
       <h4>Emoji and reactions</h4><p>The emoji button inserts emoji into normal message text. On received messages, <b>React</b> offers larger 👍 👎 ❤️ 😂 😮 😢 controls. Traffic Analyzer first attempts the native Meshtastic tapback (<code>emoji=1</code> + <code>replyId</code>). If MeshMonitor denies only that endpoint with HTTP 403, it automatically sends an emoji reply with <code>replyId</code> as a compatibility fallback.</p><h4>Scrolling</h4><p>When you scroll up to read older messages, automatic refresh preserves your position. New messages do not pull the view to the bottom; a <b>↓ New messages</b> button appears. Clicking it - or manually returning to the bottom - restores auto-scroll. <b>Load older</b> also preserves the reading position.</p>
       <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The <code>@</code> character is only the autocomplete trigger; selecting a result inserts the full node name without <code>@</code>.</p>
-      <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
-      <h3>6. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
-      <h3>7. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
-      <h3>8. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
-      <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
+      <h3>4. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
+      <h3>5. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
+      <h3>6. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
+      <h3>7. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
+      <h3>8. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
       <div class="helpCode i18nNoTranslate">cat /opt/traffic-analyzer/VERSION</div>
       <p>After an update that changes JavaScript or CSS, use <b>Ctrl+F5</b> if the browser is still showing cached interface files.</p>
-      <h3>10. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path; tracklog distance depends on the positions actually received.</div>`;
+      <h3>9. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path.</div>`;
   }else{
     el.innerHTML=`<h2>Ajuda do Traffic Analyzer</h2>
-      <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, posições históricas, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
+      <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
       <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
       <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A cor do nó indica a idade do último tráfego observado. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
       <ul><li><b>Histórico:</b> reproduz traceroutes em ordem temporal e permite vários pacotes simultaneamente. Janelas longas têm a escala de tempo comprimida proporcionalmente.</li><li><b>Ao vivo:</b> novos traceroutes completos iniciam sua própria animação sem esperar os anteriores terminarem.</li><li><b>Sem limite artificial:</b> não há teto funcional de pacotes em trânsito; a interface acompanha todos os eventos observados.</li><li><b>Pausa:</b> congela todas as animações visuais. Coleta e processamento continuam, e o que ficou aguardando é liberado ao retomar.</li><li><b>Velocidade:</b> afeta também os pacotes que já estão se movendo e a linha do tempo do Histórico.</li><li><b>Auto Zoom:</b> opcionalmente acompanha em conjunto os nós envolvidos nas animações simultâneas.</li></ul>
-      <h3>2. Tracklog</h3><p>O Tracklog usa pacotes POSITION_APP realmente decodificados e armazenados em <code>traffic.db</code>. Um nó aparece quando existe deslocamento real observado; a role do Meshtastic, isoladamente, não classifica o nó como móvel.</p>
-      <ul><li>Escolha 1 h, 6 h, 24 h, 7 dias ou 30 dias.</li><li>Mostre todos os nós móveis ou apenas um nó.</li><li>Clique em um ponto para ver data/hora, coordenadas, altitude, SNR e RSSI quando disponíveis.</li><li>Pequeno jitter de GPS e saltos terrestres claramente impossíveis são filtrados.</li></ul>
-      <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
-      <h3>4. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
+      <h3>2. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
+      <h3>3. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
       <h4>Responder</h4><p>Use <b>Responder</b> ou dê duplo clique em uma mensagem. O Traffic Analyzer usa o <code>replyId</code> nativo do Meshtastic/MeshMonitor e mostra no novo balão uma referência à mensagem original.</p>
       <h4>Emojis e reações</h4><p>O botão de emoji insere emojis normalmente no texto. Em mensagens recebidas, <b>Reagir</b> oferece 👍 👎 ❤️ 😂 😮 😢 em tamanho ampliado. O Traffic Analyzer tenta primeiro o tapback Meshtastic nativo (<code>emoji=1</code> + <code>replyId</code>). Se o MeshMonitor negar somente esse endpoint com HTTP 403, usa automaticamente uma resposta emoji compatível com <code>replyId</code>, sem perder a ação.</p><h4>Rolagem</h4><p>Ao subir para ler mensagens antigas, as consultas automáticas preservam a posição. Mensagens novas não puxam a tela para o fim; aparece o botão <b>↓ Novas mensagens</b>. Ao clicar nele - ou ao rolar manualmente até o final - o auto-scroll é reativado. <b>Carregar anteriores</b> também preserva o ponto de leitura.</p>
       <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O <code>@</code> funciona somente como gatilho da busca; ao selecionar, o campo recebe o nome completo do nó sem o caractere <code>@</code>.</p>
-      <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
-      <h3>6. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
-      <h3>7. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
-      <h3>8. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
-      <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
+      <h3>4. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
+      <h3>5. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
+      <h3>6. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
+      <h3>7. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
+      <h3>8. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
-      <h3>10. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho; a distância do Tracklog depende das posições que efetivamente foram recebidas.</div>`;
+      <h3>9. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho; a distância do Tracklog depende das posições que efetivamente foram recebidas.</div>`;
   }
 }
 function applyLanguage(lang,persist=true){
@@ -964,12 +947,6 @@ const baseMaps = {
 };
 
 let baseLayer = null;
-let trackMap = null;
-let trackBaseLayer = null;
-let trackLayer = null;
-let trackLegend = null;
-let tracklogLoaded = false;
-let tracklogData = null;
 const lineLayer = L.layerGroup().addTo(map);
 const nodeLayer = L.layerGroup().addTo(map);
 const animationLayer = L.layerGroup().addTo(map);
@@ -1062,82 +1039,12 @@ function setBaseMap(type){
   baseLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
   baseLayer.bringToBack();
   applyBrightness();
-  setTrackBaseMap();
 }
 function applyBrightness(){
   const value = Math.max(30, Math.min(150, Number(document.getElementById('mapBrightness').value || 100)));
   document.getElementById('mapBrightnessValue').textContent = `${value}%`;
   const pane = map.getPane('tilePane');
   if(pane) pane.style.filter = `brightness(${value}%)`;
-  if(trackMap){const tp=trackMap.getPane('tilePane');if(tp)tp.style.filter=`brightness(${value}%)`;}
-}
-function setTrackBaseMap(){
-  if(!trackMap) return;
-  const type=document.getElementById('mapType')?.value||'osm';
-  const cfg=baseMaps[type]||baseMaps.osm;
-  if(trackBaseLayer) trackMap.removeLayer(trackBaseLayer);
-  trackBaseLayer=L.tileLayer(cfg.url,cfg.options).addTo(trackMap);
-  trackBaseLayer.bringToBack();
-  const pane=trackMap.getPane('tilePane');
-  if(pane) pane.style.filter=`brightness(${Math.max(30,Math.min(150,Number(document.getElementById('mapBrightness')?.value||100)))}%)`;
-}
-function initTrackMap(){
-  if(trackMap) return;
-  trackMap=L.map('tracklogMap',{preferCanvas:true,zoomSnap:0.1,zoomDelta:0.5}).setView([-15.8,-47.9],9);
-  trackLayer=L.layerGroup().addTo(trackMap);
-  setTrackBaseMap();
-  const ctrl=L.control({position:'bottomright'});
-  ctrl.onAdd=()=>{trackLegend=L.DomUtil.create('div','tracklogLegend');trackLegend.innerHTML='<b>Tracklog</b><br>Sem trajetos carregados';return trackLegend;};
-  ctrl.addTo(trackMap);
-}
-function trackColor(nodeNum){
-  let x=(Number(nodeNum)>>>0)||1; x=((x*2654435761)>>>0)%360;
-  return `hsl(${x} 78% 55%)`;
-}
-function fmtTrackDistance(m){const n=Number(m||0);return n>=1000?`${(n/1000).toLocaleString(uiLocale(),{maximumFractionDigits:1})} km`:`${Math.round(n)} m`;}
-function renderTracklog(){
-  initTrackMap();
-  trackLayer.clearLayers();
-  const tracks=tracklogData?.tracks||[];
-  const selected=document.getElementById('tracklogNode').value;
-  const visible=tracks.filter(t=>selected==='all'||String(t.nodeNum)===selected);
-  const bounds=[];
-  for(const t of visible){
-    const color=trackColor(t.nodeNum);
-    const pts=(t.points||[]).map(p=>[Number(p.lat),Number(p.lon)]).filter(x=>Number.isFinite(x[0])&&Number.isFinite(x[1]));
-    if(!pts.length) continue;
-    pts.forEach(x=>bounds.push(x));
-    if(pts.length>1){
-      const line=L.polyline(pts,{color,weight:4,opacity:.82}).addTo(trackLayer);
-      line.bindTooltip(`${esc(t.name||t.nodeId)} · ${fmtTrackDistance(t.distanceMeters)} · ${t.pointCount} pontos`);
-    }
-    (t.points||[]).forEach((p,i)=>{
-      const current=i===(t.points.length-1);
-      const m=L.circleMarker([p.lat,p.lon],{radius:current?6:3,color,fillColor:color,fillOpacity:current?1:.55,weight:current?2:1}).addTo(trackLayer);
-      m.bindPopup(`<div class="trackPointPopup"><b>${esc(t.name||t.nodeId)}</b><br>${new Date(Number(p.timestampMs)).toLocaleString(uiLocale())}<br>Posição: ${Number(p.lat).toFixed(5)}, ${Number(p.lon).toFixed(5)}${p.altitude!=null?`<br>Altitude: ${esc(p.altitude)} m`:''}${p.snr!=null?`<br>SNR: ${esc(p.snr)} dB`:''}${p.rssi!=null?`<br>RSSI: ${esc(p.rssi)} dBm`:''}${current?'<br><span class="trackCurrent">posição mais recente do período</span>':''}</div>`);
-    });
-  }
-  if(trackLegend){
-    trackLegend.innerHTML='<b>Tracklog</b>'+visible.map(t=>`<div class="trackNode"><span class="trackSwatch" style="background:${trackColor(t.nodeNum)}"></span><span>${esc(t.shortName||t.name||t.nodeId)} · ${fmtTrackDistance(t.distanceMeters)}</span></div>`).join('');
-  }
-  document.getElementById('tracklogSummary').textContent=visible.length?`${visible.length} nó(s) · ${visible.reduce((a,t)=>a+Number(t.pointCount||0),0)} pontos · ${fmtTrackDistance(visible.reduce((a,t)=>a+Number(t.distanceMeters||0),0))} acumulados`:'Nenhuma mobilidade observada neste período.';
-  if(bounds.length) trackMap.fitBounds(L.latLngBounds(bounds),{padding:[18,18],maxZoom:16});
-  setTimeout(()=>trackMap.invalidateSize(),30);
-}
-async function loadTracklog(force=false){
-  initTrackMap();
-  const hours=document.getElementById('tracklogHours').value;
-  const btn=document.getElementById('tracklogReload'); if(btn) btn.disabled=true;
-  try{
-    const r=await fetch(`/api/tracklog?hours=${encodeURIComponent(hours)}&_=${Date.now()}`,{cache:'no-store'});
-    const b=await r.json(); if(!r.ok||!b.success) throw new Error(b.message||`HTTP ${r.status}`);
-    tracklogData=b; tracklogLoaded=true;
-    const sel=document.getElementById('tracklogNode'),old=sel.value;
-    sel.innerHTML='<option value="all">Todos com mobilidade observada</option>'+(b.tracks||[]).map(t=>`<option value="${esc(t.nodeNum)}">${esc(t.shortName||t.name||t.nodeId)} — ${esc(t.name||t.nodeId)} (${t.pointCount})</option>`).join('');
-    if([...sel.options].some(o=>o.value===old)) sel.value=old;
-    renderTracklog();
-  }catch(e){document.getElementById('tracklogSummary').textContent=`Erro: ${String(e.message||e)}`;}
-  finally{if(btn)btn.disabled=false;}
 }
 function applyTheme(){
   const value=document.getElementById('uiTheme')?.value==='light'?'light':'dark';
@@ -1917,11 +1824,10 @@ const NODEINFO_ROUTE_WAIT_MS=30000;
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',tracklog:'viewTracklog',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings',help:'viewHelp'};
+  const ids={map:'viewMap',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
-  if(name==='tracklog'){initTrackMap();setTimeout(()=>trackMap.invalidateSize(),40);if(!tracklogLoaded)loadTracklog();}
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
   if(name==='health') loadNetworkHealth();
@@ -2959,10 +2865,6 @@ document.getElementById('messageReload').addEventListener('click',reloadPrimaryM
 
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
-document.getElementById('tracklogHours').addEventListener('change',()=>loadTracklog(true));
-document.getElementById('tracklogNode').addEventListener('change',renderTracklog);
-document.getElementById('tracklogReload').addEventListener('click',()=>loadTracklog(true));
-document.getElementById('tracklogFit').addEventListener('click',()=>{if(!trackMap||!tracklogData)return;const selected=document.getElementById('tracklogNode').value;const pts=(tracklogData.tracks||[]).filter(t=>selected==='all'||String(t.nodeNum)===selected).flatMap(t=>(t.points||[]).map(p=>[p.lat,p.lon]));if(pts.length)trackMap.fitBounds(L.latLngBounds(pts),{padding:[18,18],maxZoom:16});});
 for(const id of ['trafficDirection','trafficType']) document.getElementById(id).addEventListener('change',renderTraffic);
 document.getElementById('trafficSearch').addEventListener('input',renderTraffic);
 document.getElementById('trafficPause').addEventListener('click',toggleTrafficPause);
