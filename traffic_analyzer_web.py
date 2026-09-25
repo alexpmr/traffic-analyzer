@@ -401,6 +401,13 @@ HTML = r'''<!doctype html>
   .updateState-running,.updateState-pending{color:#ffd166;font-weight:800}.updateState-success,.updateState-no_change{color:#7af0ad;font-weight:800}.updateState-failed,.updateState-rolled_back{color:#ff9c9c;font-weight:800}
   body[data-theme="light"] .updateStatusBox{background:#f5f7f9;border-color:#dce3e8;color:#263746}body[data-theme="light"] .updateStatusBox b{color:#18232d}
   .whatsNewList{white-space:pre-wrap;line-height:1.55}.whatsNewList .wnItem{margin:0 0 7px}
+  .authControls{display:flex;align-items:center;gap:6px;margin-left:auto}.authBadge{font-size:11px;font-weight:800;padding:5px 8px;border-radius:12px;background:#5a4213;color:#ffe49a;border:1px solid #7d6222}.authBadge.admin{background:#174f37;color:#9df0bd;border-color:#2a7553}.authBadge.disabled{background:#344555;color:#c9d5de;border-color:#526779}.authAction{font-weight:800;padding:5px 9px}
+  .authModalForm{display:grid;gap:10px;margin-top:12px}.authModalForm label{display:grid;gap:5px;font-size:12px}.authModalForm input{font-size:14px;padding:9px}.authError{min-height:18px;color:#ff9c9c;font-size:12px}.authHint{background:#111a24;border:1px solid #304353;border-radius:7px;padding:9px;font-size:12px;color:#aebbc7;line-height:1.45}
+  .readOnlyBanner{display:none;margin:8px 0 14px;padding:9px 11px;border-radius:7px;background:#5a4213;border:1px solid #7d6222;color:#ffe49a;font-size:12px;font-weight:700}.readOnlyBanner.open{display:block}
+  .messageReadOnly{display:none;padding:4px 8px;border-radius:10px;background:#5a4213;color:#ffe49a;border:1px solid #7d6222;font-size:10px;font-weight:800}.messageReadOnly.open{display:inline-block}
+  #viewSettings.authLocked .settingsCard input:disabled,#viewSettings.authLocked .settingsCard select:disabled,#viewSettings.authLocked .settingsCard button:disabled{opacity:.58;cursor:not-allowed}
+  #messageComposer.readOnly{opacity:.68}.authLockIcon{font-weight:900;margin-right:4px}
+  body[data-theme="light"] .authHint{background:#f5f7f9;border-color:#cbd5dd;color:#425566}body[data-theme="light"] .readOnlyBanner,body[data-theme="light"] .messageReadOnly{background:#fff5d2;color:#6f5310;border-color:#d9bb56}
 
 </style>
 </head>
@@ -422,11 +429,24 @@ HTML = r'''<!doctype html>
     <div class="versionActions"><a id="whatsNewReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="whatsNewOk" type="button">Fechar</button></div>
   </div>
 </div>
+<div id="authModalBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+  <div class="versionModal authModal">
+    <div class="versionModalHead"><h2 id="authModalTitle">Entrar como administrador</h2><button id="authModalClose" class="versionClose" type="button" title="Fechar">×</button></div>
+    <div id="authModalHint" class="authHint">O acesso sem login permanece em modo somente leitura.</div>
+    <div class="authModalForm">
+      <label>Usuário <input id="authUsername" type="text" autocomplete="username" maxlength="64" value="admin"></label>
+      <label>Senha <input id="authPassword" type="password" autocomplete="current-password"></label>
+      <div id="authError" class="authError"></div>
+      <button id="authLoginSubmit" type="button">Entrar</button>
+    </div>
+  </div>
+</div>
 <div id="app">
 <header>
   <h1>__DISPLAY_TITLE__</h1>
   <label class="languageControl"><span>Idioma:</span><select id="uiLanguage" aria-label="Idioma da interface"><option value="pt-BR" selected>🇧🇷 Português</option><option value="en">🇺🇸 English</option></select></label>
   <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
+  <div class="authControls"><span id="authStateBadge" class="authBadge">Verificando acesso…</span><button id="authAction" class="authAction" type="button">Entrar</button></div>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
@@ -488,7 +508,7 @@ HTML = r'''<!doctype html>
 
 <section id="viewMessages" class="view">
   <div id="messageHeader">
-    <span class="msgTitle">Canal primário</span><span class="msgHint">Canal 0 - mensagens de broadcast</span>
+    <span class="msgTitle">Canal primário</span><span class="msgHint">Canal 0 - mensagens de broadcast</span><span id="messageReadOnly" class="messageReadOnly">🔒 Somente leitura — faça login para enviar ou reagir</span>
     <span class="msgSpacer"></span><span id="messageStatus" class="msgHint">Carregando...</span><button id="messageLoadOlder" title="Carregar mais mensagens antigas">Carregar anteriores</button><button id="messageReload" title="Consultar novas mensagens agora">Atualizar</button>
   </div>
   <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
@@ -524,6 +544,7 @@ HTML = r'''<!doctype html>
 <section id="viewSettings" class="view">
   <div class="settingsCard">
     <h2>Configurações do Traffic Analyzer</h2>
+    <div id="settingsReadOnly" class="readOnlyBanner">🔒 Modo somente leitura — faça login para alterar estas configurações.</div>
 
     <h3>Aparência</h3>
     <div class="settingsGrid">
@@ -732,6 +753,8 @@ const I18N_PAIRS=[
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
   ['Solicitação de atualização enviada.','Update request sent.'],['Nenhuma atualização disponível.','No update is available.'],
   ['Responder','Reply'],['Reagir','React'],['Resposta','Reply'],['Respondendo a','Replying to'],['Mensagem original não carregada','Original message not loaded'],['Cancelar resposta','Cancel reply'],['Inserir emoji','Insert emoji'],['Novas mensagens','New messages'],
+  ['Entrar','Sign in'],['Sair','Sign out'],['Entrar como administrador','Administrator sign in'],['Usuário','Username'],['Senha','Password'],['Verificando acesso…','Checking access…'],['Somente leitura','Read only'],['Administrador','Administrator'],['Autenticação desativada','Authentication disabled'],['Senha administrativa não configurada','Administrator password not configured'],
+  ['O acesso sem login permanece em modo somente leitura.','Access without sign-in remains read only.'],['Modo somente leitura — faça login para alterar estas configurações.','Read-only mode — sign in to change these settings.'],['Somente leitura — faça login para enviar ou reagir','Read only — sign in to send or react'],['Usuário ou senha inválidos.','Invalid username or password.'],['Sessão expirada. Faça login novamente.','Session expired. Sign in again.'],
   ['Não foi possível identificar o pacote original para responder.','Could not identify the original packet to reply to.'],['Não foi possível identificar o pacote original para reagir.','Could not identify the original packet to react to.'],
   ['Reação enviada ao MeshMonitor','Reaction sent to MeshMonitor'],['Reação enviada em modo compatível','Reaction sent in compatibility mode'],['Falha no envio','Send failed'],
   ['Temas sonoros','Sound themes'],['Ativar sonificação da malha','Enable mesh sonification'],['Os sons acompanham eventos realmente observados. O Traffic Analyzer não inventa retransmissões para produzir efeitos.','Sounds follow events that were actually observed. Traffic Analyzer does not invent relays to produce effects.'],
@@ -881,11 +904,12 @@ function renderHelp(){
       <h3>4. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
       <h3>5. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
       <h3>6. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
-      <h3>7. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
-      <h3>8. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
+      <h3>7. Authentication and Internet exposure</h3><p>When authentication is enabled, access without sign-in is read only. Settings remain visible but cannot be changed; Messages can be read but sending, replies and reactions are disabled. Every write API is also protected on the server with an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
+      <h3>8. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
+      <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
       <div class="helpCode i18nNoTranslate">cat /opt/traffic-analyzer/VERSION</div>
       <p>After an update that changes JavaScript or CSS, use <b>Ctrl+F5</b> if the browser is still showing cached interface files.</p>
-      <h3>9. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path.</div>`;
+      <h3>10. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path.</div>`;
   }else{
     el.innerHTML=`<h2>Ajuda do Traffic Analyzer</h2>
       <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
@@ -900,12 +924,13 @@ function renderHelp(){
       <h3>4. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
       <h3>5. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
       <h3>6. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
-      <h3>7. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
-      <h3>8. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
+      <h3>7. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, o acesso sem login funciona em modo somente leitura. Configurações continuam visíveis, mas não podem ser alteradas; Mensagens podem ser lidas, porém envio, respostas e reações ficam bloqueados. Todas as APIs de escrita também são protegidas no servidor por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
+      <h3>8. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
+      <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
-      <h3>9. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho; a distância do Tracklog depende das posições que efetivamente foram recebidas.</div>`;
+      <h3>10. Limites de interpretação</h3><div class="helpCallout helpWarn">O Traffic Analyzer descreve dados observados. Malhas RF são dinâmicas: ausência de tráfego não prova, isoladamente, indisponibilidade; um traceroute é evidência de uma rota observada naquele momento; o byte de relay não identifica necessariamente todo o caminho; a distância do Tracklog depende das posições que efetivamente foram recebidas.</div>`;
   }
 }
 function applyLanguage(lang,persist=true){
@@ -1821,6 +1846,97 @@ const NODEINFO_PAIR_WINDOW_MS=45000;
 const NODEINFO_TRACE_WINDOW_MS=180000;
 const NODEINFO_ROUTE_WAIT_MS=30000;
 
+let authState={enabled:false,configured:false,authenticated:true,user:null,csrfToken:'',expiresAtMs:null};
+
+function authCanWrite(){return !authState.enabled||!!authState.authenticated;}
+
+function authWriteHeaders(headers={}){
+  const out={...headers};
+  if(authState.enabled&&authState.authenticated&&authState.csrfToken)out['X-CSRF-Token']=authState.csrfToken;
+  return out;
+}
+
+async function authFetch(url,options={}){
+  const opts={...options,headers:authWriteHeaders(options.headers||{})};
+  const r=await fetch(url,opts);
+  if((r.status===401||r.status===403)&&authState.enabled){
+    setTimeout(()=>loadAuthStatus(false),0);
+  }
+  return r;
+}
+
+function openAuthModal(){
+  if(!authState.enabled||!authState.configured)return;
+  document.getElementById('authError').textContent='';
+  document.getElementById('authUsername').value=authState.user||'admin';
+  document.getElementById('authPassword').value='';
+  document.getElementById('authModalBackdrop').classList.add('open');
+  setTimeout(()=>document.getElementById('authUsername').focus(),30);
+}
+function closeAuthModal(){document.getElementById('authModalBackdrop').classList.remove('open');}
+
+function applyAuthState(){
+  const locked=authState.enabled&&!authState.authenticated;
+  const badge=document.getElementById('authStateBadge'),action=document.getElementById('authAction');
+  badge.className='authBadge';
+  if(!authState.enabled){
+    badge.classList.add('disabled');badge.textContent=tr('Autenticação desativada');action.style.display='none';
+  }else if(authState.authenticated){
+    badge.classList.add('admin');badge.textContent=`${tr('Administrador')} · ${authState.user||'admin'}`;action.style.display='';action.disabled=false;action.textContent=tr('Sair');
+  }else if(!authState.configured){
+    badge.textContent=tr('Senha administrativa não configurada');action.style.display='';action.disabled=true;action.textContent=tr('Entrar');
+  }else{
+    badge.textContent=tr('Somente leitura');action.style.display='';action.disabled=false;action.textContent=tr('Entrar');
+  }
+  const settings=document.getElementById('viewSettings');
+  settings.classList.toggle('authLocked',locked);
+  document.getElementById('settingsReadOnly').classList.toggle('open',locked);
+  settings.querySelectorAll('input,select,textarea,button').forEach(el=>{el.disabled=locked;});
+  document.getElementById('messageReadOnly').classList.toggle('open',locked);
+  const composer=document.getElementById('messageComposer');composer.classList.toggle('readOnly',locked);
+  for(const id of ['messageInput','messageSend','messageEmojiBtn','replyComposerClose']){
+    const el=document.getElementById(id);if(el)el.disabled=locked;
+  }
+  const refresh=document.getElementById('reload');if(refresh)refresh.disabled=locked;
+  if(locked){clearReply();closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}
+  if(messagesInitialized)renderMessages({forceBottom:false});
+}
+
+async function loadAuthStatus(showError=false){
+  try{
+    const r=await fetch('/api/auth/status',{cache:'no-store'});
+    const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+    authState={...authState,...b};
+    applyAuthState();
+    return b;
+  }catch(e){
+    if(showError)alert(`${tr('Erro')}: ${e}`);
+    return null;
+  }
+}
+
+async function submitAuthLogin(){
+  const btn=document.getElementById('authLoginSubmit'),error=document.getElementById('authError');
+  btn.disabled=true;error.textContent='';
+  try{
+    const username=document.getElementById('authUsername').value.trim(),password=document.getElementById('authPassword').value;
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+    const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+    authState={...authState,enabled:true,configured:true,authenticated:true,user:b.user,csrfToken:b.csrfToken||'',expiresAtMs:b.expiresAtMs||null};
+    closeAuthModal();applyAuthState();
+  }catch(e){error.textContent=String(e.message||e);}
+  finally{btn.disabled=false;}
+}
+
+async function authLogout(){
+  try{
+    const r=await authFetch('/api/auth/logout',{method:'POST'});
+    const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+  }catch{}
+  authState={...authState,authenticated:false,user:null,csrfToken:'',expiresAtMs:null};
+  applyAuthState();
+}
+
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
@@ -1830,6 +1946,7 @@ function setView(name){
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
+  if(name==='settings'||name==='messages')applyAuthState();
   if(name==='health') loadNetworkHealth();
   if(name==='anomalies') loadAnomalies();
 }
@@ -2468,10 +2585,11 @@ async function load(fit=false){
 }
 
 async function refreshTopologyNow(){
+  if(!authCanWrite()){openAuthModal();return;}
   const btn=document.getElementById('reload'); if(btn.disabled) return;
   btn.disabled=true; btn.textContent='Atualizando...';
   try{
-    const r=await fetch('/api/topology/refresh',{method:'POST',cache:'no-store'});
+    const r=await authFetch('/api/topology/refresh',{method:'POST',cache:'no-store'});
     const b=await r.json();
     if(!r.ok||!b.success) throw new Error(b.message||`HTTP ${r.status}`);
     await load(false);
@@ -2745,8 +2863,8 @@ function renderMessages(options={}){
     const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}
     const dv=deliveryVisual(m),transport=m.viaMqtt?'MQTT':(m.viaStoreForward?'Store&Forward':'RF'),unread=!m.mine&&ms>lr;
     const mid=String(m.id||messageKey(m)),pid=messagePacketId(m);
-    const actions=`<div class="msgActions"><button type="button" data-replymsg="${esc(mid)}" title="${tr('Responder')}">↩ ${tr('Responder')}</button>${!m.mine&&pid?`<button type="button" data-reacttoggle="${esc(mid)}" title="${tr('Reagir')}">☺ ${tr('Reagir')}</button>`:''}</div>`;
-    const picker=!m.mine&&pid?`<div class="reactionPickerInline" data-reactpicker="${esc(mid)}">${QUICK_REACTIONS.map(e=>`<button type="button" data-reaction-msg="${esc(mid)}" data-emoji="${esc(e)}">${esc(e)}</button>`).join('')}</div>`:'';
+    const actions=authCanWrite()?`<div class="msgActions"><button type="button" data-replymsg="${esc(mid)}" title="${tr('Responder')}">↩ ${tr('Responder')}</button>${!m.mine&&pid?`<button type="button" data-reacttoggle="${esc(mid)}" title="${tr('Reagir')}">☺ ${tr('Reagir')}</button>`:''}</div>`:'';
+    const picker=authCanWrite()&&!m.mine&&pid?`<div class="reactionPickerInline" data-reactpicker="${esc(mid)}">${QUICK_REACTIONS.map(e=>`<button type="button" data-reaction-msg="${esc(mid)}" data-emoji="${esc(e)}">${esc(e)}</button>`).join('')}</div>`:'';
     html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(mid)}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}${replyQuoteHtml(m)}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div>${reactionHtml(pid,groups)}${actions}${picker}</div></div>`;
   }
   el.innerHTML=html;bindMessageActions();
@@ -2827,6 +2945,7 @@ function renderReplyComposer(){
   box.innerHTML=`<b>${tr('Respondendo a')} ${esc(who)}</b><span>${esc(excerpt)}</span>`;bar.classList.add('open');
 }
 function beginReply(mid){
+  if(!authCanWrite()){openAuthModal();return;}
   const m=primaryMessages.find(x=>String(x.id||messageKey(x))===String(mid)&&!isReactionMessage(x));if(!m)return;
   const pid=messagePacketId(m);if(!pid){alert(tr('Não foi possível identificar o pacote original para responder.'));return;}
   replyingTo=m;renderReplyComposer();document.getElementById('messageInput').focus();
@@ -2843,10 +2962,11 @@ function insertComposerEmoji(emoji){
 }
 function toggleComposerEmojiPicker(){document.getElementById('emojiPicker').classList.toggle('open');closeMentionSuggestions();}
 async function sendReaction(mid,emoji){
+  if(!authCanWrite()){openAuthModal();return;}
   const m=primaryMessages.find(x=>String(x.id||messageKey(x))===String(mid)&&!isReactionMessage(x));if(!m)return;
   const replyId=messagePacketId(m);if(!replyId){alert(tr('Não foi possível identificar o pacote original para reagir.'));return;}
   try{
-    const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:emoji,replyId,emoji:1})});
+    const r=await authFetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:emoji,replyId,emoji:1})});
     const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);
     const compat=b.reactionMode==='compat_reply';
     document.getElementById('messageStatus').textContent=compat?tr('Reação enviada em modo compatível'):tr('Reação enviada ao MeshMonitor');
@@ -2859,8 +2979,14 @@ function stripMentionMarkers(text){
   for(const name of names) out=out.split('@'+name).join(name);
   return out;
 }
-async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=stripMentionMarkers(input.value.trim());if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const body={text};const replyId=replyingTo?messagePacketId(replyingTo):null;if(replyId)body.replyId=replyId;const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';clearReply();updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
+async function sendPrimaryMessage(){if(!authCanWrite()){openAuthModal();return;}const input=document.getElementById('messageInput');const text=stripMentionMarkers(input.value.trim());if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const body={text};const replyId=replyingTo?messagePacketId(replyingTo):null;if(replyId)body.replyId=replyId;const r=await authFetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';clearReply();updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
+document.getElementById('authAction').addEventListener('click',()=>{if(authState.authenticated)authLogout();else openAuthModal();});
+document.getElementById('authModalClose').addEventListener('click',closeAuthModal);
+document.getElementById('authModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAuthModal();});
+document.getElementById('authLoginSubmit').addEventListener('click',submitAuthLogin);
+document.getElementById('authPassword').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submitAuthLogin();}});
+document.getElementById('authUsername').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('authPassword').focus();}});
 document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageNewBelow').addEventListener('click',()=>scrollMessagesToBottom(true));document.getElementById('messageList').addEventListener('scroll',()=>{if(messageScrollRestoring)return;const near=messageIsNearBottom();if(near){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();}else{messageAutoScroll=false;updateMessageNewBelowButton();}},{passive:true});document.getElementById('replyComposerClose').addEventListener('click',clearReply);document.getElementById('messageEmojiBtn').addEventListener('click',toggleComposerEmojiPicker);buildEmojiPicker();document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target)){closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}});updateMessageCounter();renderReplyComposer();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
 
@@ -2917,14 +3043,16 @@ async function loadUpdateStatus(){
   }
 }
 async function saveUpdateSettings(){
+  if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
   const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked};
-  const r=await fetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const r=await authFetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
 }
 async function triggerUpdateNow(){
+  if(!authCanWrite()){openAuthModal();return;}
   const btn=document.getElementById('updateNow');btn.disabled=true;btn.textContent=tr('Atualizando...');
   try{
-    const r=await fetch('/api/update/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update'})});const b=await r.json();
+    const r=await authFetch('/api/update/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update'})});const b=await r.json();
     if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
     await loadUpdateStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
   }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
@@ -2934,7 +3062,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV126';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV127';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -3006,7 +3134,7 @@ document.getElementById('versionBadge').addEventListener('click',openVersionModa
 document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
 document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
 document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();closeAuthModal();}});
 
 const legend = L.control({position:'bottomright'});
 legend.onAdd = () => {
@@ -3019,10 +3147,12 @@ legend.addTo(map);
 initVisualPrefs();
 applyLanguage(currentLang,false);
 initI18nObserver();
+loadAuthStatus(false);
 checkVersionStatus(false);
 loadUpdateStatus();
 showWhatsNewIfNeeded();
 setInterval(()=>checkVersionStatus(false),30*60*1000);
+setInterval(()=>loadAuthStatus(false),60*1000);
 setInterval(()=>loadUpdateStatus(),15000);
 load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
 loadTrafficInitial();
