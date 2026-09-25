@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.24.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.25.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.24.1"
+APP_VERSION = "1.25.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -2761,7 +2761,7 @@ def _primary_messages(limit: int = 250):
     by_num, by_id = _message_name_index()
     keep = {
         "id", "fromNodeNum", "toNodeNum", "fromNodeId", "toNodeId", "text", "channel",
-        "requestId", "timestamp", "createdAt", "hopStart", "hopLimit", "relayNode",
+        "requestId", "replyId", "emoji", "timestamp", "createdAt", "hopStart", "hopLimit", "relayNode",
         "viaMqtt", "viaStoreForward", "xeddsaSigned", "rxSnr", "rxRssi", "ackFailed",
         "routingErrorReceived", "deliveryState", "wantAck", "ackFromNode", "routingErrorCode",
         "sourcePath", "spoofSuspected"
@@ -2783,14 +2783,38 @@ def _primary_messages(limit: int = 250):
     return {"success": True, "count": len(out), "data": out}
 
 
-def _send_primary_message(text: str):
+def _send_primary_message(text: str, reply_id=None, emoji: bool = False):
     clean = str(text or "").strip()
     if not clean:
         raise ValueError("Mensagem vazia")
     if len(clean.encode("utf-8")) > 800:
         raise ValueError("Mensagem excede o limite de segurança do Traffic Analyzer")
+    reply = None
+    if reply_id not in (None, ""):
+        try:
+            reply = int(reply_id)
+        except (TypeError, ValueError):
+            raise ValueError("replyId inválido")
+        if reply <= 0:
+            raise ValueError("replyId inválido")
     source = urllib.parse.quote(MM_SOURCE, safe="")
-    return _mm_api_post(f"/api/v1/sources/{source}/messages", {"text": clean, "channel": 0})
+    if emoji:
+        if reply is None:
+            raise ValueError("Reação exige replyId")
+        # MeshMonitor expõe o emoji flag no endpoint legado /api/messages/send.
+        # Bearer tokens continuam aceitos nesse endpoint; sourceId mantém o envio
+        # vinculado à mesma fonte usada pelo restante da integração.
+        return _mm_api_post("/api/messages/send", {
+            "text": clean,
+            "channel": 0,
+            "replyId": reply,
+            "emoji": 1,
+            "sourceId": MM_SOURCE,
+        })
+    payload = {"text": clean, "channel": 0}
+    if reply is not None:
+        payload["replyId"] = reply
+    return _mm_api_post(f"/api/v1/sources/{source}/messages", payload)
 
 
 def _live_traceroutes(limit: int):
@@ -3884,7 +3908,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.24.1"
+    server_version = "TrafficAnalyzer/1.25.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
@@ -4126,7 +4150,13 @@ class Handler(BaseHTTPRequestHandler):
                 if length <= 0 or length > 8192:
                     raise ValueError("Corpo da requisição inválido")
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
-                body = _send_primary_message(payload.get("text") if isinstance(payload, dict) else "")
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                body = _send_primary_message(
+                    payload.get("text"),
+                    reply_id=payload.get("replyId"),
+                    emoji=bool(payload.get("emoji")),
+                )
                 status = 201 if body.get("success") else 502
                 self._send(status, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except ValueError as e:
