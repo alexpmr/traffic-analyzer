@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.24.1 - 2026-09-25
+
+- Mantém todos os recursos funcionais da v1.24.0.
+- Corrige o tema Silencioso para permanecer realmente sem áudio inclusive no teste.
+- Permite sonorizar um relay observado logo após o lançamento quando a primeira observação da viagem já traz esse relay.
+- Corrige o manual PDF para evitar glifos quadrados de bandeiras em fontes sem suporte a emoji.
+
 ## 1.24.0 - 2026-09-25
 
 - Adiciona temas sonoros Fliperama anos 70, Formal, Rádio / Telecom e Silencioso.
