@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.22.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.23.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.22.0"
+APP_VERSION = "1.23.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -59,6 +59,11 @@ _version_status_lock = threading.Lock()
 _version_status_cache = {"checked_at": 0.0, "data": None}
 VERSION_CHECK_TTL_SECONDS = 900
 GITHUB_RELEASES_LATEST_URL = "https://api.github.com/repos/alexpmr/traffic-analyzer/releases/latest"
+UPDATE_SETTINGS_FILE = Path(os.getenv("UPDATE_SETTINGS_FILE", "/var/lib/traffic-analyzer/update-settings.json"))
+UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-analyzer/update-request.json"))
+UPDATE_STATUS_FILE = Path(os.getenv("UPDATE_STATUS_FILE", "/var/lib/traffic-analyzer/update-status.json"))
+LAST_INSTALL_FILE = Path(os.getenv("LAST_INSTALL_FILE", "/var/lib/traffic-analyzer/last-install.json"))
+AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
 
 HTML = r'''<!doctype html>
 <html lang="pt-BR">
@@ -181,6 +186,18 @@ HTML = r'''<!doctype html>
   body[data-theme="light"] .languageControl{color:#344654}body[data-theme="light"] .helpCard{background:#fff;border-color:#cbd5dd;color:#18232d}body[data-theme="light"] .helpCard h3{color:#7a6500}body[data-theme="light"] .helpCard h4{color:#245f7c}body[data-theme="light"] .helpMini{background:#f5f7f9;border-color:#dce3e8}body[data-theme="light"] .helpCode,body[data-theme="light"] .helpCard code{background:#f5f7f9;border-color:#cbd5dd;color:#17212b}body[data-theme="light"] .helpCallout{background:#e8f3f8}body[data-theme="light"] .helpWarn{background:#fff6d9}
   @media(max-width:780px){.helpGrid{grid-template-columns:1fr}.helpCard{width:calc(100% - 20px);margin:10px auto;padding:15px}}
 
+  /* v1.23 - conforto visual, filtros e atualização automática */
+  #viewMessages{--message-font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;--message-font-weight:400;--message-font-style:normal;--message-text-decoration:none;--message-line-height:1.35;--message-row-gap:4px}
+  .msgRow{margin-top:var(--message-row-gap,4px)!important;margin-bottom:var(--message-row-gap,4px)!important}
+  .msgText{font-family:var(--message-font-family)!important;font-weight:var(--message-font-weight)!important;font-style:var(--message-font-style)!important;text-decoration:var(--message-text-decoration)!important;line-height:var(--message-line-height)!important}
+  #messageInput{font-family:var(--message-font-family)!important;font-weight:var(--message-font-weight)!important;font-style:var(--message-font-style)!important;text-decoration:var(--message-text-decoration)!important;line-height:var(--message-line-height)!important}
+  .styleChecks{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:7px}.styleChecks label{font-size:12px}
+  .anomalyFilter{display:flex;gap:5px;align-items:center}
+  .updateStatusBox{background:#111a24;border:1px solid #293744;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5;min-height:48px}.updateStatusBox b{color:#dbe6ee}
+  .updateState-running,.updateState-pending{color:#ffd166;font-weight:800}.updateState-success,.updateState-no_change{color:#7af0ad;font-weight:800}.updateState-failed,.updateState-rolled_back{color:#ff9c9c;font-weight:800}
+  body[data-theme="light"] .updateStatusBox{background:#f5f7f9;border-color:#dce3e8;color:#263746}body[data-theme="light"] .updateStatusBox b{color:#18232d}
+  .whatsNewList{white-space:pre-wrap;line-height:1.55}.whatsNewList .wnItem{margin:0 0 7px}
+
 </style>
 </head>
 <body>
@@ -193,10 +210,18 @@ HTML = r'''<!doctype html>
     <div class="versionActions"><span class="updateCmd">sudo traffic-analyzer-update</span><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionCheckNow" type="button">Verificar agora</button></div>
   </div>
 </div>
+<div id="whatsNewBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
+  <div class="versionModal">
+    <div class="versionModalHead"><h2 id="whatsNewTitle">Traffic Analyzer atualizado</h2><button id="whatsNewClose" class="versionClose" type="button" title="Fechar">×</button></div>
+    <p id="whatsNewSummary" class="settingDesc"></p>
+    <div id="whatsNewNotes" class="versionNotes whatsNewList"></div>
+    <div class="versionActions"><a id="whatsNewReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="whatsNewOk" type="button">Fechar</button></div>
+  </div>
+</div>
 <div id="app">
 <header>
   <h1>__DISPLAY_TITLE__</h1>
-  <label class="languageControl"><span>Idioma:</span><select id="uiLanguage" aria-label="Idioma da interface"><option value="pt-BR" selected>Português</option><option value="en">English</option></select></label>
+  <label class="languageControl"><span>Idioma:</span><select id="uiLanguage" aria-label="Idioma da interface"><option value="pt-BR" selected>🇧🇷 Português</option><option value="en">🇺🇸 English</option></select></label>
   <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
@@ -277,7 +302,7 @@ HTML = r'''<!doctype html>
   <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
   <div id="messageComposer">
     <div id="mentionSuggestions" class="mentionSuggestions"></div>
-    <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><span class="mentionHelp">Digite @ para mencionar um nó</span><button id="messageSend" title="Enviar">➤</button>
+    <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><span class="mentionHelp">Use @ para localizar um nó; o @ é removido antes da transmissão.</span><button id="messageSend" title="Enviar">➤</button>
   </div>
 </section>
 <section id="viewHealth" class="view">
@@ -293,7 +318,7 @@ HTML = r'''<!doctype html>
 </section>
 <section id="viewAnomalies" class="view">
   <div class="dashboardWrap">
-    <div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><button id="anomalyReload">Reanalisar</button></div>
+    <div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><label class="anomalyFilter">Severidade: <select id="anomalySeverity"><option value="all" selected>Todas</option><option value="critical">Críticas</option><option value="warning">Atenção</option><option value="info">Informativas</option></select></label><button id="anomalyReload">Reanalisar</button></div>
     <div id="anomalyCards" class="dashGrid"><div class="dashCard"><div class="label">Analisando...</div></div></div>
     <div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div>
     <div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas: silêncio prolongado, degradação de SNR, mudança relevante na quantidade de hops e traceroute assimétrico. Elas servem para priorizar investigação e não constituem prova isolada de defeito, indisponibilidade ou causalidade.</div></div>
@@ -330,6 +355,11 @@ HTML = r'''<!doctype html>
       </div>
       <div class="settingRow">
         <label>Cor das linhas: <input id="lineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label>
+      </div>
+      <div class="settingRow">
+        <label>Espessura das linhas: <input id="lineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="lineWidthValue">3 px</span></label>
+        <div class="settingDesc">Ajusta apenas a visualização dos enlaces; não altera a topologia nem os cálculos.</div>
+        <button id="lineStyleReset" type="button" style="margin-top:7px">Restaurar padrão</button>
       </div>
       <div class="settingRow">
         <label><input id="showLines" type="checkbox" checked> Mostrar linhas</label><br>
@@ -387,8 +417,36 @@ HTML = r'''<!doctype html>
         <div class="settingDesc">Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.</div>
       </div>
       <div class="settingRow">
+        <label>Fonte: <select id="messageFontFamily"><option value="system" selected>Sistema</option><option value="arial">Arial / Helvetica</option><option value="verdana">Verdana</option><option value="tahoma">Tahoma</option><option value="georgia">Georgia</option><option value="mono">Monoespaçada</option></select></label>
+        <div class="styleChecks"><label><input id="messageBold" type="checkbox"> <b>Negrito</b></label><label><input id="messageItalic" type="checkbox"> <i>Itálico</i></label><label><input id="messageUnderline" type="checkbox"> <u>Sublinhado</u></label></div>
+        <div class="settingDesc">Formatação somente visual. Nenhum marcador de estilo é enviado pela malha.</div>
+      </div>
+      <div class="settingRow">
+        <label>Altura da linha: <input id="messageLineHeight" type="range" min="1.10" max="2.00" step="0.05" value="1.35" style="width:150px;vertical-align:middle"> <span id="messageLineHeightValue">1,35</span></label><br>
+        <label>Espaço entre mensagens: <input id="messageRowGap" type="range" min="1" max="14" step="1" value="4" style="width:150px;vertical-align:middle"> <span id="messageRowGapValue">4 px</span></label>
+      </div>
+      <div class="settingRow">
         <b>Uso da tela</b>
         <div class="settingDesc">A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.</div>
+      </div>
+    </div>
+
+    <h3>Atualizações</h3>
+    <div class="settingsGrid">
+      <div class="settingRow">
+        <label><input id="autoUpdateEnabled" type="checkbox"> Atualizar automaticamente ao detectar nova versão estável</label>
+        <div class="settingDesc">A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.</div>
+      </div>
+      <div class="settingRow">
+        <label><input id="rollbackEnabled" type="checkbox" checked> Rollback automático se a nova versão não ficar saudável</label>
+        <div class="settingDesc">Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.</div>
+      </div>
+      <div class="settingRow">
+        <button id="updateNow" type="button">Atualizar agora</button>
+        <div class="settingDesc">Instala somente a Latest Release estável publicada no repositório oficial.</div>
+      </div>
+      <div class="settingRow">
+        <div id="updateStatusBox" class="updateStatusBox">Carregando status de atualização...</div>
       </div>
     </div>
 
@@ -450,6 +508,24 @@ const I18N_PAIRS=[
   ['Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.','Message too long. Reduce the text to approximately 600 bytes or less.'],['Enviando...','Sending...'],['Mensagem enviada ao MeshMonitor','Message sent to MeshMonitor'],['Limite de 1.500 mensagens já carregado.','The 1,500-message limit is already loaded.'],['Nenhuma mensagem anterior adicional disponível.','No additional older messages are available.'],['Nó desconhecido','Unknown node'],['pedido provável','probable request'],
   ['Linha lógica exibida; procurando um traceroute próximo no tempo para não inventar hops.','Logical line displayed; looking for a nearby traceroute in time so no hops are invented.'],['Sem coordenadas suficientes para desenhar o fluxo no mapa.','Not enough coordinates to draw the flow on the map.'],['O pacote comum não carrega a cadeia completa de relays. A linha tracejada é apenas origem/destino; nenhum hop foi inventado.','A regular packet does not carry the complete relay chain. The dashed line is only source/destination; no hop was invented.'],['caminho intermediário ainda não observado','intermediate path not observed yet'],
   ['Nenhuma mobilidade observada neste período.','No mobility observed in this period.'],['Hoje','Today'],['Ontem','Yesterday'],['há poucos segundos','a few seconds ago'],['[conteúdo oculto]','[content hidden]']
+  ['Severidade:','Severity:'],['Todas','All'],['Sistema','System'],['Monoespaçada','Monospace'],['Fonte:','Font:'],['Negrito','Bold'],['Itálico','Italic'],['Sublinhado','Underline'],
+  ['Altura da linha:','Line height:'],['Espaço entre mensagens:','Space between messages:'],['Formatação somente visual. Nenhum marcador de estilo é enviado pela malha.','Visual formatting only. No style marker is transmitted over the mesh.'],
+  ['Espessura das linhas:','Line thickness:'],['Ajusta apenas a visualização dos enlaces; não altera a topologia nem os cálculos.','Only changes link rendering; it does not change topology or calculations.'],['Restaurar padrão','Restore default'],
+  ['Atualizações','Updates'],['Atualizar automaticamente ao detectar nova versão estável','Automatically update when a new stable version is detected'],['A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.','The application only creates a request. A dedicated systemd service performs the update as root without granting generic privileges to the web process.'],
+  ['Rollback automático se a nova versão não ficar saudável','Automatic rollback if the new version does not become healthy'],['Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.','On failure, restores the application and systemd units saved before the update.'],['Atualizar agora','Update now'],['Instala somente a Latest Release estável publicada no repositório oficial.','Installs only the stable Latest Release published in the official repository.'],['Carregando status de atualização...','Loading update status...'],
+  ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
+  ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
+  ['Use @ para localizar um nó; o @ é removido antes da transmissão.','Use @ to find a node; @ is removed before transmission.'],
+  ['Adiciona bandeiras do Brasil e dos Estados Unidos ao seletor de idioma.','Adds Brazil and United States flags to the language selector.'],
+  ['Remove o caractere @ das menções antes de transmitir a mensagem, preservando apenas o nome do nó.','Removes the @ character from mentions before transmitting the message, preserving only the node name.'],
+  ['Adiciona controles visuais de fonte, negrito, itálico, sublinhado, altura de linha e espaçamento entre mensagens.','Adds visual controls for font, bold, italic, underline, line height, and message spacing.'],
+  ['Adiciona filtro de severidade na aba Anomalias: Todas, Críticas, Atenção e Informativas.','Adds a severity filter to the Anomalies tab: All, Critical, Warning, and Informational.'],
+  ['Adiciona ajuste de espessura das linhas do mapa e restauração de cor/espessura ao padrão.','Adds map line thickness control and reset of color/thickness to defaults.'],
+  ['Adiciona auto-update opcional por Latest Release estável, executado por serviço systemd dedicado.','Adds optional auto-update from the stable Latest Release, executed by a dedicated systemd service.'],
+  ['Adiciona verificação de saúde, lock contra atualizações simultâneas e rollback automático em caso de falha.','Adds health verification, a lock against concurrent updates, and automatic rollback on failure.'],
+  ['Adiciona status de atualização, botão Atualizar agora e persistência das preferências de auto-update no servidor.','Adds update status, an Update now button, and server-side persistence of auto-update preferences.'],
+  ['Adiciona popup de novidades exibido uma única vez ao iniciar após uma atualização.','Adds a what\'s-new popup shown once when the application starts after an update.'],
+  ['O atualizador manual traffic-analyzer-update passa a usar a mesma cadeia segura de Latest Release estável do auto-update.','The manual traffic-analyzer-update command now uses the same secure stable Latest Release chain as auto-update.'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
 const I18N_EN_PT=new Map(I18N_PAIRS.map(([pt,en])=>[en,pt]));
@@ -572,9 +648,9 @@ function renderHelp(){
       <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The selected shortcut is replaced by the node's full name before transmission. Mentions are plain Meshtastic text, so other clients remain compatible.</p>
       <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
       <h3>6. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
-      <h3>7. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Enable and tune notifications for a new packet journey.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust the chat font size.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
+      <h3>7. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Enable and tune notifications for a new packet journey.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
       <h3>8. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
-      <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Click it to view release information.</p>
+      <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>After an update that changes JavaScript or CSS, use <b>Ctrl+F5</b> if the browser is still showing cached interface files.</p>
@@ -592,9 +668,9 @@ cat /opt/traffic-analyzer/VERSION</div>
       <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O atalho selecionado é substituído pelo nome completo do nó antes do envio. A menção continua sendo texto Meshtastic normal, preservando compatibilidade com outros clientes.</p>
       <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
       <h3>6. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
-      <h3>7. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Ative e ajuste notificações para uma nova viagem de pacote.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste o tamanho da fonte do chat.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
+      <h3>7. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Ative e ajuste notificações para uma nova viagem de pacote.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
       <h3>8. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
-      <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Clique nele para abrir as informações da Release.</p>
+      <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
@@ -3422,7 +3498,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.22.0"
+    server_version = "TrafficAnalyzer/1.23.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
