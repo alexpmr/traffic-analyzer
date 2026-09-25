@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.26.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.27.0 para MeshMonitor."""
 
+import base64
 import csv
+import hashlib
+import hmac
 import io
 import json
 import os
+import secrets
 import sqlite3
 import statistics
 import subprocess
@@ -17,10 +21,11 @@ from datetime import datetime
 import urllib.error
 import urllib.parse
 import urllib.request
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.26.0"
+APP_VERSION = "1.27.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -64,6 +69,198 @@ UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-an
 UPDATE_STATUS_FILE = Path(os.getenv("UPDATE_STATUS_FILE", "/var/lib/traffic-analyzer/update-status.json"))
 LAST_INSTALL_FILE = Path(os.getenv("LAST_INSTALL_FILE", "/var/lib/traffic-analyzer/last-install.json"))
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
+
+AUTH_ENABLED = str(os.getenv("TA_AUTH_ENABLED", "false")).strip().lower() in {"1", "true", "yes", "on"}
+AUTH_USER = str(os.getenv("TA_AUTH_USER", "admin")).strip() or "admin"
+AUTH_PASSWORD_HASH = str(os.getenv("TA_AUTH_PASSWORD_HASH", "")).strip()
+AUTH_SESSION_HOURS = max(1, min(168, int(os.getenv("TA_AUTH_SESSION_HOURS", "12") or 12)))
+AUTH_SESSION_SECONDS = AUTH_SESSION_HOURS * 3600
+AUTH_SECURE_COOKIE = str(os.getenv("TA_AUTH_SECURE_COOKIE", "auto")).strip().lower()
+AUTH_COOKIE_NAME = "ta_session"
+_auth_sessions = {}
+_auth_sessions_lock = threading.Lock()
+_auth_login_attempts = {}
+_auth_login_lock = threading.Lock()
+AUTH_LOGIN_WINDOW_SECONDS = 600
+AUTH_LOGIN_MAX_FAILURES = 5
+AUTH_LOGIN_BLOCK_SECONDS = 300
+
+
+def _auth_b64decode(value: str) -> bytes:
+    raw = str(value or "").strip()
+    raw += "=" * ((4 - len(raw) % 4) % 4)
+    return base64.urlsafe_b64decode(raw.encode("ascii"))
+
+
+def _auth_verify_password(password: str) -> bool:
+    try:
+        scheme, iterations_raw, salt_raw, digest_raw = AUTH_PASSWORD_HASH.split("$", 3)
+        if scheme != "pbkdf2_sha256":
+            return False
+        iterations = int(iterations_raw)
+        if iterations < 100_000 or iterations > 5_000_000:
+            return False
+        salt = _auth_b64decode(salt_raw)
+        expected = _auth_b64decode(digest_raw)
+        actual = hashlib.pbkdf2_hmac("sha256", str(password or "").encode("utf-8"), salt, iterations)
+        return hmac.compare_digest(actual, expected)
+    except Exception:
+        return False
+
+
+def _auth_client_ip(handler) -> str:
+    try:
+        return str(handler.client_address[0])
+    except Exception:
+        return "unknown"
+
+
+def _auth_login_remaining(ip: str) -> int:
+    now = time.time()
+    with _auth_login_lock:
+        state = _auth_login_attempts.get(ip)
+        if not state:
+            return 0
+        blocked_until = float(state.get("blocked_until") or 0)
+        if blocked_until > now:
+            return max(1, int(blocked_until - now))
+        failures = [float(v) for v in state.get("failures", []) if now - float(v) < AUTH_LOGIN_WINDOW_SECONDS]
+        if failures:
+            state["failures"] = failures
+            state["blocked_until"] = 0
+        else:
+            _auth_login_attempts.pop(ip, None)
+        return 0
+
+
+def _auth_register_failure(ip: str):
+    now = time.time()
+    with _auth_login_lock:
+        state = _auth_login_attempts.setdefault(ip, {"failures": [], "blocked_until": 0})
+        failures = [float(v) for v in state.get("failures", []) if now - float(v) < AUTH_LOGIN_WINDOW_SECONDS]
+        failures.append(now)
+        state["failures"] = failures
+        if len(failures) >= AUTH_LOGIN_MAX_FAILURES:
+            state["blocked_until"] = now + AUTH_LOGIN_BLOCK_SECONDS
+
+
+def _auth_clear_failures(ip: str):
+    with _auth_login_lock:
+        _auth_login_attempts.pop(ip, None)
+
+
+def _auth_cookie_value(handler) -> str:
+    raw = str(handler.headers.get("Cookie") or "")
+    if not raw:
+        return ""
+    try:
+        cookie = SimpleCookie()
+        cookie.load(raw)
+        item = cookie.get(AUTH_COOKIE_NAME)
+        return str(item.value if item else "")
+    except Exception:
+        return ""
+
+
+def _auth_session(handler):
+    if not AUTH_ENABLED:
+        return {"user": AUTH_USER, "csrf": "", "expires": time.time() + AUTH_SESSION_SECONDS, "auth_disabled": True}
+    sid = _auth_cookie_value(handler)
+    if not sid:
+        return None
+    now = time.time()
+    with _auth_sessions_lock:
+        session = _auth_sessions.get(sid)
+        if not session:
+            return None
+        if float(session.get("expires") or 0) <= now:
+            _auth_sessions.pop(sid, None)
+            return None
+        return dict(session)
+
+
+def _auth_cookie_secure(handler) -> bool:
+    if AUTH_SECURE_COOKIE in {"1", "true", "yes", "on"}:
+        return True
+    if AUTH_SECURE_COOKIE in {"0", "false", "no", "off"}:
+        return False
+    proto = str(handler.headers.get("X-Forwarded-Proto") or "").split(",", 1)[0].strip().lower()
+    return proto == "https"
+
+
+def _auth_set_cookie_header(handler, sid: str, max_age: int) -> str:
+    parts = [
+        f"{AUTH_COOKIE_NAME}={sid}",
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Strict",
+        f"Max-Age={max(0, int(max_age))}",
+    ]
+    if _auth_cookie_secure(handler):
+        parts.append("Secure")
+    return "; ".join(parts)
+
+
+def _auth_new_session():
+    sid = secrets.token_urlsafe(36)
+    csrf = secrets.token_urlsafe(28)
+    expires = time.time() + AUTH_SESSION_SECONDS
+    with _auth_sessions_lock:
+        _auth_sessions[sid] = {"user": AUTH_USER, "csrf": csrf, "expires": expires}
+        if len(_auth_sessions) > 512:
+            now = time.time()
+            for key, value in list(_auth_sessions.items()):
+                if float(value.get("expires") or 0) <= now:
+                    _auth_sessions.pop(key, None)
+    return sid, csrf, expires
+
+
+def _auth_drop_session(handler):
+    sid = _auth_cookie_value(handler)
+    if sid:
+        with _auth_sessions_lock:
+            _auth_sessions.pop(sid, None)
+
+
+def _auth_status(handler) -> dict:
+    session = _auth_session(handler)
+    authenticated = bool(session)
+    return {
+        "success": True,
+        "enabled": AUTH_ENABLED,
+        "configured": bool(AUTH_PASSWORD_HASH),
+        "authenticated": authenticated,
+        "user": session.get("user") if session else None,
+        "csrfToken": session.get("csrf") if session and AUTH_ENABLED else "",
+        "expiresAtMs": int(float(session.get("expires") or 0) * 1000) if session and AUTH_ENABLED else None,
+        "sessionHours": AUTH_SESSION_HOURS,
+    }
+
+
+def _auth_require_write(handler) -> bool:
+    if not AUTH_ENABLED:
+        return True
+    session = _auth_session(handler)
+    if not session:
+        body = json.dumps({
+            "success": False,
+            "error": "authentication_required",
+            "message": "Faça login como administrador para executar esta ação.",
+        }, ensure_ascii=False).encode("utf-8")
+        handler._send(401, "application/json; charset=utf-8", body)
+        return False
+    supplied = str(handler.headers.get("X-CSRF-Token") or "")
+    expected = str(session.get("csrf") or "")
+    if not supplied or not hmac.compare_digest(supplied, expected):
+        body = json.dumps({
+            "success": False,
+            "error": "csrf_failed",
+            "message": "Sessão inválida ou proteção CSRF ausente. Faça login novamente.",
+        }, ensure_ascii=False).encode("utf-8")
+        handler._send(403, "application/json; charset=utf-8", body)
+        return False
+    return True
+
 
 HTML = r'''<!doctype html>
 <html lang="pt-BR">
@@ -4156,14 +4353,19 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.26.0"
+    server_version = "TrafficAnalyzer/1.27.0"
 
-    def _send(self, status, content_type, body: bytes):
+    def _send(self, status, content_type, body: bytes, extra_headers=None):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
+        for key, value in (extra_headers or {}).items():
+            self.send_header(str(key), str(value))
         self.end_headers()
         self.wfile.write(body)
 
@@ -4188,6 +4390,9 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             self._send(200, "text/html; charset=utf-8", HTML.encode("utf-8"))
             return
+        if path == "/api/auth/status":
+            self._send(200, "application/json; charset=utf-8", json.dumps(_auth_status(self), ensure_ascii=False).encode("utf-8"))
+            return
         if path == "/api/version-status":
             try:
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
@@ -4206,15 +4411,6 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/current-release-notes":
             self._send(200, "application/json; charset=utf-8", json.dumps(_current_release_info(), ensure_ascii=False).encode("utf-8"))
-            return
-        if path == "/api/tracklog":
-            try:
-                query=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
-                hours=int((query.get("hours") or ["24"])[0])
-                body=_tracklog_query(hours)
-                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
-            except Exception as e:
-                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"error":"tracklog_error","message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
         if path in ("/api/topology", "/topology.json"):
             try:
@@ -4349,6 +4545,56 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/auth/login":
+            try:
+                if not AUTH_ENABLED:
+                    self._send(409, "application/json; charset=utf-8", json.dumps({"success": False, "error": "auth_disabled", "message": "A autenticação está desativada nesta instalação."}, ensure_ascii=False).encode("utf-8"))
+                    return
+                if not AUTH_PASSWORD_HASH:
+                    self._send(503, "application/json; charset=utf-8", json.dumps({"success": False, "error": "auth_not_configured", "message": "A autenticação está ativada, mas ainda não há senha administrativa configurada."}, ensure_ascii=False).encode("utf-8"))
+                    return
+                ip = _auth_client_ip(self)
+                remaining = _auth_login_remaining(ip)
+                if remaining:
+                    self._send(429, "application/json; charset=utf-8", json.dumps({"success": False, "error": "login_rate_limited", "message": f"Muitas tentativas de login. Aguarde {remaining} segundos."}, ensure_ascii=False).encode("utf-8"))
+                    return
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 4096:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                username = str(payload.get("username") or "").strip()
+                password = str(payload.get("password") or "")
+                user_ok = hmac.compare_digest(username.encode("utf-8"), AUTH_USER.encode("utf-8"))
+                password_ok = _auth_verify_password(password)
+                if not (user_ok and password_ok):
+                    _auth_register_failure(ip)
+                    time.sleep(0.18)
+                    self._send(401, "application/json; charset=utf-8", json.dumps({"success": False, "error": "invalid_credentials", "message": "Usuário ou senha inválidos."}, ensure_ascii=False).encode("utf-8"))
+                    return
+                _auth_clear_failures(ip)
+                sid, csrf, expires = _auth_new_session()
+                body = {"success": True, "authenticated": True, "user": AUTH_USER, "csrfToken": csrf, "expiresAtMs": int(expires * 1000)}
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"), {"Set-Cookie": _auth_set_cookie_header(self, sid, AUTH_SESSION_SECONDS)})
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/auth/logout":
+            session = _auth_session(self)
+            if AUTH_ENABLED and session:
+                supplied = str(self.headers.get("X-CSRF-Token") or "")
+                expected = str(session.get("csrf") or "")
+                if not supplied or not hmac.compare_digest(supplied, expected):
+                    self._send(403, "application/json; charset=utf-8", json.dumps({"success": False, "error": "csrf_failed", "message": "Proteção CSRF inválida."}, ensure_ascii=False).encode("utf-8"))
+                    return
+            _auth_drop_session(self)
+            self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, "authenticated": False}, ensure_ascii=False).encode("utf-8"), {"Set-Cookie": _auth_set_cookie_header(self, "", 0)})
+            return
+        if not _auth_require_write(self):
+            return
         if path == "/api/topology/refresh":
             try:
                 body = _refresh_topology_now()
