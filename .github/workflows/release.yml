@@ -29,7 +29,11 @@ jobs:
 
       - name: Validar Python
         shell: bash
-        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py auto_update.py
+
+      - name: Validar scripts shell
+        shell: bash
+        run: bash -n install.sh update.sh
 
       - name: Validar JavaScript embutido
         shell: bash
@@ -66,6 +70,7 @@ jobs:
             traffic_analyzer_web.py \
             install.sh \
             update.sh \
+            auto_update.py \
             VERSION \
             README.md \
             CHANGELOG.md \
@@ -73,6 +78,8 @@ jobs:
             traffic-analyzer-map.env.example \
             traffic-analyzer.service \
             traffic-analyzer-map.service \
+            traffic-analyzer-auto-update.service \
+            traffic-analyzer-auto-update.path \
             traffic-analyzer.timer; do
             cp "$f" /tmp/traffic-analyzer/
           done
