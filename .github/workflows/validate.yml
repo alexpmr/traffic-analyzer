@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validar Python
-        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py auto_update.py docs/build_manual_pdf.py
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
 
       - name: Validar shell
         run: bash -n install.sh update.sh
@@ -62,6 +62,20 @@ jobs:
           assert calls[1][1]["replyId"]==456
           assert "emoji" not in calls[1][1]
           assert compat["reactionMode"]=="compat_reply"
+          PY
+
+      - name: Validar autenticação administrativa
+        run: |
+          python - <<'PY'
+          import set_auth_password as sap
+          import traffic_analyzer_web as ta
+
+          ta.AUTH_ENABLED=True
+          ta.AUTH_USER="admin"
+          ta.AUTH_PASSWORD_HASH=sap.password_hash("SenhaTeste123!")
+          assert ta._auth_verify_password("SenhaTeste123!")
+          assert not ta._auth_verify_password("senha-errada")
+          assert ta.AUTH_PASSWORD_HASH.startswith("pbkdf2_sha256$")
           PY
 
       - name: Validar JavaScript embutido
@@ -112,7 +126,12 @@ jobs:
           cat >/tmp/topology.json <<'JSON'
           {"generatedAtMs":0,"summary":{"nodesInApi":1,"traceroutesRead":0,"traceroutesInWindow":0,"routeParticipants":0,"identified":1,"stub":0,"routeOnly":0,"mappableNodes":1,"observedEdges":0,"mappableEdges":0},"nodes":[{"nodeNum":1,"nodeId":"!00000001","name":"TESTE","shortName":"TST","latitude":-15.8,"longitude":-47.9,"state":"identified"}],"edges":[],"traces":[]}
           JSON
-          MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
+          AUTH_HASH="$(python - <<'PY'
+          import set_auth_password as sap
+          print(sap.password_hash("SenhaTeste123!"))
+          PY
+          )"
+          TA_AUTH_ENABLED=true TA_AUTH_USER=admin TA_AUTH_PASSWORD_HASH="$AUTH_HASH" TA_AUTH_SESSION_HOURS=12 MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
           echo $! >/tmp/ta-web.pid
           python - <<'PY'
           import time, urllib.request
@@ -153,6 +172,36 @@ jobs:
               lang=d.find_element(By.ID,"uiLanguage")
               labels=[o.text for o in lang.find_elements(By.TAG_NAME,"option")]
               assert labels==["🇧🇷 Português","🇺🇸 English"],labels
+              assert not d.find_elements(By.CSS_SELECTOR,'.navbtn[data-view="tracklog"]')
+              assert not d.find_elements(By.ID,"viewTracklog")
+
+              # Sem login: escrita bloqueada no servidor e interface em somente leitura.
+              time.sleep(.3)
+              assert d.execute_script("return authState.enabled===true && authState.authenticated===false")
+              assert d.find_element(By.ID,"messageInput").get_attribute("disabled") is not None
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="settings"]'))
+              time.sleep(.1)
+              assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is not None
+              unauth_status=d.execute_async_script("""
+                const done=arguments[0];
+                fetch('/api/topology/refresh',{method:'POST'}).then(r=>done(r.status)).catch(()=>done(0));
+              """)
+              assert unauth_status==401,unauth_status
+
+              # Login administrativo libera Configurações e escrita de Mensagens.
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"authAction"))
+              d.find_element(By.ID,"authUsername").clear()
+              d.find_element(By.ID,"authUsername").send_keys("admin")
+              d.find_element(By.ID,"authPassword").send_keys("SenhaTeste123!")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"authLoginSubmit"))
+              for _ in range(30):
+                  if d.execute_script("return authState.authenticated===true"): break
+                  time.sleep(.1)
+              assert d.execute_script("return authState.authenticated===true")
+              assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="messages"]'))
+              time.sleep(.1)
+              assert d.find_element(By.ID,"messageInput").get_attribute("disabled") is None
 
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionBadge"))
               time.sleep(.2)
