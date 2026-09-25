@@ -1,0 +1,47 @@
+name: Validar Traffic Analyzer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validar Python
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py auto_update.py docs/build_manual_pdf.py
+
+      - name: Validar shell
+        run: bash -n install.sh update.sh
+
+      - name: Validar JavaScript embutido
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src = Path("traffic_analyzer_web.py").read_text(encoding="utf-8")
+          marker = "<script>\n"
+          start = src.index(marker) + len(marker)
+          end = src.index("</script>\n</body>", start)
+          Path("/tmp/traffic-analyzer.js").write_text(src[start:end], encoding="utf-8")
+          PY
+          node --check /tmp/traffic-analyzer.js
+
+      - name: Validar geração do manual
+        run: |
+          python -m pip install --disable-pip-version-check --quiet reportlab
+          python docs/build_manual_pdf.py --version 1.23.0 --output /tmp/manual.pdf
+          test -s /tmp/manual.pdf
+
+      - name: Validar arquivos da infraestrutura de update
+        run: |
+          test -s traffic-analyzer-auto-update.service
+          test -s traffic-analyzer-auto-update.path
+          grep -q 'PathExists=/var/lib/traffic-analyzer/update-request.json' traffic-analyzer-auto-update.path
+          grep -q 'ExecStart=/usr/bin/python3 /opt/traffic-analyzer/auto_update.py' traffic-analyzer-auto-update.service
