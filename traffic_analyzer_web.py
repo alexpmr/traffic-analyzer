@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.23.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.24.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.23.1"
+APP_VERSION = "1.24.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -207,7 +207,7 @@ HTML = r'''<!doctype html>
     <div class="versionModalHead"><h2 id="versionModalTitle">Versão do Traffic Analyzer</h2><button id="versionModalClose" class="versionClose" type="button" title="Fechar">×</button></div>
     <p id="versionModalSummary" class="settingDesc">Consultando a versão publicada…</p>
     <div id="versionNotes" class="versionNotes">Sem informações carregadas.</div>
-    <div class="versionActions"><span class="updateCmd">sudo traffic-analyzer-update</span><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionCheckNow" type="button">Verificar agora</button></div>
+    <div class="versionActions"><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionContinue" type="button">Continuar</button></div>
   </div>
 </div>
 <div id="whatsNewBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
@@ -376,20 +376,39 @@ HTML = r'''<!doctype html>
       </div>
     </div>
 
-    <h3>Notificações sonoras</h3>
+    <h3>Temas sonoros</h3>
     <div class="settingsGrid">
       <div class="settingRow">
-        <label><input id="soundEnabled" type="checkbox"> Som no início de uma nova viagem de pacote</label>
-        <div class="settingDesc">O som toca uma única vez quando uma nova viagem de pacote é observada. Cópias/retransmissões do mesmo packet_id não geram novos sons.</div>
+        <label><input id="soundEnabled" type="checkbox"> Ativar sonificação da malha</label>
+        <div class="settingDesc">Os sons acompanham eventos realmente observados. O Traffic Analyzer não inventa retransmissões para produzir efeitos.</div>
       </div>
       <div class="settingRow">
-        <label>Som: <select id="soundTone"><option value="plim">Plim</option><option value="chime">Campainha</option><option value="click">Click</option><option value="double">Duplo</option><option value="soft">Suave</option></select></label>
-        <button id="soundTest" class="soundTest">Testar som</button>
-        <div class="settingDesc">Todos os sons são sintetizados localmente; nenhum arquivo de áudio é baixado.</div>
+        <label>Tema: <select id="soundTheme"><option value="pinball70">Fliperama anos 70</option><option value="formal" selected>Formal</option><option value="radio">Rádio / Telecom</option><option value="silent">Silencioso</option></select></label>
+        <button id="soundTest" class="soundTest" type="button">Testar tema</button>
+        <div class="settingDesc">Os efeitos são sintetizados localmente pelo navegador; nenhum arquivo de áudio é baixado.</div>
       </div>
       <div class="settingRow">
-        <label>Volume: <input id="soundVolume" type="range" min="0" max="100" step="5" value="35" style="width:180px;vertical-align:middle"> <span id="soundVolumeValue">35%</span></label>
-        <div class="settingDesc">A preferência fica salva neste navegador. O primeiro clique libera o Web Audio quando exigido pelo navegador.</div>
+        <label>Volume: <input id="soundVolume" type="range" min="0" max="100" step="5" value="35" style="width:180px;vertical-align:middle"> <span id="soundVolumeValue">35%</span></label><br>
+        <label>Densidade sonora: <select id="soundDensity"><option value="low">Baixa</option><option value="normal" selected>Normal</option><option value="high">Alta</option></select></label>
+        <div class="settingDesc">Em densidade baixa, parte dos ricochetes é suprimida em malhas muito movimentadas. Normal e Alta preservam mais eventos observados.</div>
+      </div>
+      <div class="settingRow">
+        <label>Intervalo mínimo: <input id="soundMinInterval" type="range" min="40" max="800" step="20" value="120" style="width:150px;vertical-align:middle"> <span id="soundMinIntervalValue">120 ms</span></label><br>
+        <label>Máximo simultâneo: <input id="soundMaxVoices" type="number" min="1" max="8" step="1" value="3" style="width:60px"> sons</label>
+        <div class="settingDesc">Limita sobreposição e evita uma sequência de efeitos excessivamente densa.</div>
+      </div>
+      <div class="settingRow">
+        <label><input id="soundRoutingEnabled" type="checkbox" checked> Sons de roteamento e traceroute</label><br>
+        <label><input id="soundMessagesEnabled" type="checkbox" checked> Sons de mensagens</label><br>
+        <label><input id="soundAlertsEnabled" type="checkbox" checked> Sons de alertas e falhas</label>
+      </div>
+      <div class="settingRow">
+        <label><input id="soundStereoEnabled" type="checkbox"> Estéreo espacial</label>
+        <div class="settingDesc">Quando ativado, eventos visíveis no mapa recebem leve deslocamento esquerda/direita conforme a posição. Desligado por padrão.</div>
+      </div>
+      <div class="settingRow">
+        <b>Fliperama anos 70</b>
+        <div class="settingDesc">Origem do pacote: lançador mecânico. Retransmissor observado: ricochete metálico. Destino/ACK: alvo e pontuação. Falha: efeito de bola perdida.</div>
       </div>
     </div>
 
@@ -496,7 +515,7 @@ const I18N_PAIRS=[
   ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
   ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
   ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
-  ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Verificar agora','Check now'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
+  ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
   ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['círculos visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
   ['Observações:','Observations:'],['Ida:','Outbound:'],['Volta:','Return:'],['SNR médio:','Average SNR:'],['Faixa SNR:','SNR range:'],['Última observação:','Last observation:'],['canal:','channel:'],['Estado:','State:'],['Posição:','Position:'],['Último tráfego:','Last traffic:'],['Situação:','Status:'],['Public key:','Public key:'],['Short name:','Short name:'],['sim','yes'],['não','no'],
@@ -516,6 +535,14 @@ const I18N_PAIRS=[
   ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
   ['Solicitação de atualização enviada.','Update request sent.'],['Nenhuma atualização disponível.','No update is available.'],
+  ['Temas sonoros','Sound themes'],['Ativar sonificação da malha','Enable mesh sonification'],['Os sons acompanham eventos realmente observados. O Traffic Analyzer não inventa retransmissões para produzir efeitos.','Sounds follow events that were actually observed. Traffic Analyzer does not invent relays to produce effects.'],
+  ['Tema:','Theme:'],['Fliperama anos 70','1970s Pinball'],['Formal','Formal'],['Rádio / Telecom','Radio / Telecom'],['Silencioso','Silent'],['Testar tema','Test theme'],
+  ['Os efeitos são sintetizados localmente pelo navegador; nenhum arquivo de áudio é baixado.','Effects are synthesized locally by the browser; no audio file is downloaded.'],['Densidade sonora:','Sound density:'],['Baixa','Low'],['Normal','Normal'],['Alta','High'],
+  ['Em densidade baixa, parte dos ricochetes é suprimida em malhas muito movimentadas. Normal e Alta preservam mais eventos observados.','At low density, some ricochets are suppressed on very busy meshes. Normal and High preserve more observed events.'],
+  ['Intervalo mínimo:','Minimum interval:'],['Máximo simultâneo:','Maximum simultaneous:'],['sons','sounds'],['Limita sobreposição e evita uma sequência de efeitos excessivamente densa.','Limits overlap and prevents an excessively dense sequence of effects.'],
+  ['Sons de roteamento e traceroute','Routing and traceroute sounds'],['Sons de mensagens','Message sounds'],['Sons de alertas e falhas','Alert and failure sounds'],['Estéreo espacial','Spatial stereo'],
+  ['Quando ativado, eventos visíveis no mapa recebem leve deslocamento esquerda/direita conforme a posição. Desligado por padrão.','When enabled, visible map events receive slight left/right panning based on position. Off by default.'],
+  ['Origem do pacote: lançador mecânico. Retransmissor observado: ricochete metálico. Destino/ACK: alvo e pontuação. Falha: efeito de bola perdida.','Packet source: mechanical plunger. Observed relay: metallic ricochet. Destination/ACK: target and scoring. Failure: lost-ball effect.'],
   ['Use @ para localizar um nó; o @ é removido antes da transmissão.','Use @ to find a node; @ is removed before transmission.'],
   ['Adiciona bandeiras do Brasil e dos Estados Unidos ao seletor de idioma.','Adds Brazil and United States flags to the language selector.'],
   ['Remove o caractere @ das menções antes de transmitir a mensagem, preservando apenas o nome do nó.','Removes the @ character from mentions before transmitting the message, preserving only the node name.'],
@@ -788,7 +815,14 @@ function savePrefs(){
     animSpeed: Number(document.getElementById('animSpeed').value || 150),
     soundEnabled: document.getElementById('soundEnabled').checked,
     soundVolume: Number(document.getElementById('soundVolume').value || 35),
-    soundTone: document.getElementById('soundTone').value || 'plim',
+    soundTheme: document.getElementById('soundTheme').value || 'formal',
+    soundDensity: document.getElementById('soundDensity').value || 'normal',
+    soundMinInterval: Number(document.getElementById('soundMinInterval').value || 120),
+    soundMaxVoices: Number(document.getElementById('soundMaxVoices').value || 3),
+    soundRoutingEnabled: document.getElementById('soundRoutingEnabled').checked,
+    soundMessagesEnabled: document.getElementById('soundMessagesEnabled').checked,
+    soundAlertsEnabled: document.getElementById('soundAlertsEnabled').checked,
+    soundStereoEnabled: document.getElementById('soundStereoEnabled').checked,
     activityAnimationEnabled: document.getElementById('activityAnimationEnabled').checked,
     activityOriginEnabled: document.getElementById('activityOriginEnabled').checked,
     activityRelayEnabled: document.getElementById('activityRelayEnabled').checked,
@@ -946,7 +980,15 @@ function initVisualPrefs(){
   if([80,150,280,500].includes(Number(prefs.animSpeed))) document.getElementById('animSpeed').value = String(prefs.animSpeed);
   document.getElementById('soundEnabled').checked = Boolean(prefs.soundEnabled);
   if(Number.isFinite(Number(prefs.soundVolume))) document.getElementById('soundVolume').value = String(Math.max(0,Math.min(100,Number(prefs.soundVolume))));
-  if(['plim','chime','click','double','soft'].includes(prefs.soundTone)) document.getElementById('soundTone').value = prefs.soundTone;
+  if(['pinball70','formal','radio','silent'].includes(prefs.soundTheme)) document.getElementById('soundTheme').value=prefs.soundTheme;
+  else if(prefs.soundTone) document.getElementById('soundTheme').value='formal';
+  if(['low','normal','high'].includes(prefs.soundDensity)) document.getElementById('soundDensity').value=prefs.soundDensity;
+  if(Number.isFinite(Number(prefs.soundMinInterval))) document.getElementById('soundMinInterval').value=String(Math.max(40,Math.min(800,Number(prefs.soundMinInterval))));
+  if(Number.isFinite(Number(prefs.soundMaxVoices))) document.getElementById('soundMaxVoices').value=String(Math.max(1,Math.min(8,Number(prefs.soundMaxVoices))));
+  document.getElementById('soundRoutingEnabled').checked=(typeof prefs.soundRoutingEnabled==='boolean')?prefs.soundRoutingEnabled:true;
+  document.getElementById('soundMessagesEnabled').checked=(typeof prefs.soundMessagesEnabled==='boolean')?prefs.soundMessagesEnabled:true;
+  document.getElementById('soundAlertsEnabled').checked=(typeof prefs.soundAlertsEnabled==='boolean')?prefs.soundAlertsEnabled:true;
+  document.getElementById('soundStereoEnabled').checked=Boolean(prefs.soundStereoEnabled);
   document.getElementById('activityAnimationEnabled').checked = (typeof prefs.activityAnimationEnabled === 'boolean') ? prefs.activityAnimationEnabled : true;
   document.getElementById('activityOriginEnabled').checked = (typeof prefs.activityOriginEnabled === 'boolean') ? prefs.activityOriginEnabled : true;
   document.getElementById('activityRelayEnabled').checked = (typeof prefs.activityRelayEnabled === 'boolean') ? prefs.activityRelayEnabled : true;
@@ -965,6 +1007,7 @@ function initVisualPrefs(){
   applyMessageAppearance();
   document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;
   document.getElementById('soundVolumeValue').textContent = `${document.getElementById('soundVolume').value}%`;
+  document.getElementById('soundMinIntervalValue').textContent = `${document.getElementById('soundMinInterval').value} ms`;
   setBaseMap(document.getElementById('mapType').value);
   applyBrightness();
 }
@@ -1399,6 +1442,7 @@ function animatePath(points, color, isActive, isPaused=()=>false){
       if(!Number.isFinite(n) || INVALID_NODES.has(n>>>0)) return;
       const kind = idx===0 ? 'origin' : (idx===points.length-1 ? 'response' : 'relay');
       activityPulseAtPoint(points[idx],n>>>0,kind);
+      playMeshSound(idx===0?'origin':(idx===points.length-1?'destination':'relay'),{category:'routing',point:points[idx]});
     };
     emitNode(0);
     let travelled=0;
@@ -1435,6 +1479,7 @@ async function animateTrace(trace, isActive, idx=0, total=1, hudKey=null, isPaus
     setTraceStatus(trace,'return',idx,total);
     if(!await animatePath(trace.returnPath,'#ff4fd8',isActive,isPaused)) return false;
   }
+  playMeshSound('complete',{category:'routing'});
   return true;
 }
 async function playHistoryLoop(){
@@ -1943,21 +1988,78 @@ function selectPacket(key){
   renderTraffic();
 }
 function ensureAudio(){ if(!audioCtx){ const C=window.AudioContext||window.webkitAudioContext; if(C) audioCtx=new C(); } if(audioCtx?.state==='suspended') audioCtx.resume(); return audioCtx; }
-function toneOsc(ctx,type,f0,f1,start,duration,amp){
+function toneOsc(ctx,type,f0,f1,start,duration,amp,output=ctx.destination){
   const osc=ctx.createOscillator(),gain=ctx.createGain(); osc.type=type; osc.frequency.setValueAtTime(f0,start); if(f1&&f1!==f0) osc.frequency.exponentialRampToValueAtTime(f1,start+duration*.65);
   gain.gain.setValueAtTime(0.0001,start); gain.gain.exponentialRampToValueAtTime(Math.max(0.001,amp),start+0.01); gain.gain.exponentialRampToValueAtTime(0.0001,start+duration);
-  osc.connect(gain);gain.connect(ctx.destination);osc.start(start);osc.stop(start+duration+.02);
+  osc.connect(gain);gain.connect(output);osc.start(start);osc.stop(start+duration+.02);
 }
-function playNotification(force=false){
-  if(!force && !document.getElementById('soundEnabled').checked)return;
-  const now=performance.now(); if(!force && now-lastSoundAt<350)return; lastSoundAt=now;
-  const ctx=ensureAudio();if(!ctx)return; const vol=Math.max(0,Math.min(1,Number(document.getElementById('soundVolume').value||35)/100)); const t=ctx.currentTime+.01;
-  const tone=document.getElementById('soundTone').value||'plim'; const a=Math.max(.001,vol*.16);
-  if(tone==='chime'){toneOsc(ctx,'sine',659,659,t,.28,a*.75);toneOsc(ctx,'sine',988,988,t+.07,.32,a*.55);toneOsc(ctx,'sine',1319,1319,t+.14,.36,a*.35);}
-  else if(tone==='click'){toneOsc(ctx,'square',1500,900,t,.055,a*.35);}
-  else if(tone==='double'){toneOsc(ctx,'sine',880,1180,t,.12,a*.85);toneOsc(ctx,'sine',1047,1397,t+.15,.14,a*.75);}
-  else if(tone==='soft'){toneOsc(ctx,'sine',523,784,t,.24,a*.55);}
-  else {toneOsc(ctx,'sine',880,1320,t,.17,a);}
+let activeSoundVoices=0;
+let relaySoundCounter=0;
+function soundOutput(ctx,pan=0){
+  if(!document.getElementById('soundStereoEnabled')?.checked || !ctx.createStereoPanner) return ctx.destination;
+  const p=ctx.createStereoPanner();p.pan.value=Math.max(-0.8,Math.min(0.8,Number(pan)||0));p.connect(ctx.destination);return p;
+}
+function soundPanForPoint(pt){
+  if(!pt || !document.getElementById('soundStereoEnabled')?.checked || !map) return 0;
+  try{const b=map.getBounds(),center=map.getCenter(),span=Math.max(.01,b.getEast()-b.getWest());return Math.max(-.8,Math.min(.8,(Number(pt.lon)-center.lng)/(span*.5)));}catch{return 0;}
+}
+function noiseBurst(ctx,start,duration,amp,output,highpass=700){
+  const frames=Math.max(1,Math.floor(ctx.sampleRate*duration)),buffer=ctx.createBuffer(1,frames,ctx.sampleRate),data=buffer.getChannelData(0);
+  for(let i=0;i<frames;i++)data[i]=(Math.random()*2-1)*(1-i/frames);
+  const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();filter.type='highpass';filter.frequency.value=highpass;
+  gain.gain.setValueAtTime(Math.max(.0001,amp),start);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
+  src.buffer=buffer;src.connect(filter);filter.connect(gain);gain.connect(output);src.start(start);src.stop(start+duration+.02);
+}
+function canPlayMeshSound(event,category,force=false){
+  if(!force){
+    if(!document.getElementById('soundEnabled')?.checked)return false;
+    if(document.getElementById('soundTheme')?.value==='silent')return false;
+    if(category==='routing'&&!document.getElementById('soundRoutingEnabled')?.checked)return false;
+    if(category==='messages'&&!document.getElementById('soundMessagesEnabled')?.checked)return false;
+    if(category==='alerts'&&!document.getElementById('soundAlertsEnabled')?.checked)return false;
+    const density=document.getElementById('soundDensity')?.value||'normal';
+    if(event==='relay'&&density==='low'&&(++relaySoundCounter%3)!==0)return false;
+    const minBase=Math.max(40,Number(document.getElementById('soundMinInterval')?.value||120));
+    const min=density==='high'?Math.max(40,minBase*.6):(density==='low'?Math.max(250,minBase*1.8):minBase);
+    const now=performance.now();if(now-lastSoundAt<min)return false;lastSoundAt=now;
+    const maxVoices=Math.max(1,Math.min(8,Number(document.getElementById('soundMaxVoices')?.value||3)));if(activeSoundVoices>=maxVoices)return false;
+  }
+  return true;
+}
+function playMeshSound(event,{category='routing',point=null,force=false}={}){
+  if(!canPlayMeshSound(event,category,force))return;
+  const ctx=ensureAudio();if(!ctx)return;
+  const theme=document.getElementById('soundTheme')?.value||'formal';if(theme==='silent'&&!force)return;
+  const vol=Math.max(0,Math.min(1,Number(document.getElementById('soundVolume')?.value||35)/100));
+  const out=soundOutput(ctx,soundPanForPoint(point)),t=ctx.currentTime+.01,a=Math.max(.001,vol*.16);
+  activeSoundVoices++;
+  const done=(ms=500)=>setTimeout(()=>{activeSoundVoices=Math.max(0,activeSoundVoices-1);},ms);
+  if(theme==='pinball70'){
+    if(event==='origin'){noiseBurst(ctx,t,.12,a*.42,out,450);toneOsc(ctx,'sawtooth',180,520,t,.16,a*.45,out);toneOsc(ctx,'triangle',880,420,t+.07,.12,a*.25,out);done(260);}
+    else if(event==='relay'){noiseBurst(ctx,t,.055,a*.5,out,1200);toneOsc(ctx,'triangle',1900,720,t,.085,a*.62,out);toneOsc(ctx,'sine',2700,1350,t+.012,.07,a*.28,out);done(150);}
+    else if(event==='destination'){toneOsc(ctx,'triangle',740,1080,t,.13,a*.6,out);toneOsc(ctx,'sine',1480,1480,t+.08,.20,a*.42,out);done(330);}
+    else if(event==='ack'||event==='complete'){toneOsc(ctx,'sine',784,784,t,.13,a*.55,out);toneOsc(ctx,'sine',1047,1047,t+.09,.15,a*.5,out);toneOsc(ctx,'sine',1568,1568,t+.18,.25,a*.38,out);done(520);}
+    else if(event==='message'){toneOsc(ctx,'triangle',1047,1047,t,.18,a*.55,out);toneOsc(ctx,'sine',1568,1568,t+.08,.25,a*.4,out);done(420);}
+    else {noiseBurst(ctx,t,.10,a*.32,out,500);toneOsc(ctx,'sawtooth',420,110,t,.30,a*.45,out);done(430);}
+  }else if(theme==='radio'){
+    if(event==='origin'){noiseBurst(ctx,t,.07,a*.22,out,900);toneOsc(ctx,'sine',980,1080,t+.035,.10,a*.5,out);done(200);}
+    else if(event==='relay'){toneOsc(ctx,'square',1450,950,t,.045,a*.28,out);done(100);}
+    else if(event==='destination'||event==='ack'||event==='complete'){toneOsc(ctx,'sine',1180,1320,t,.12,a*.5,out);toneOsc(ctx,'sine',1520,1520,t+.10,.13,a*.35,out);done(300);}
+    else if(event==='message'){toneOsc(ctx,'sine',880,880,t,.09,a*.48,out);toneOsc(ctx,'sine',1320,1320,t+.12,.12,a*.42,out);done(300);}
+    else {noiseBurst(ctx,t,.08,a*.18,out,500);toneOsc(ctx,'square',360,180,t,.18,a*.28,out);done(280);}
+  }else{
+    if(event==='origin'){toneOsc(ctx,'sine',620,760,t,.10,a*.42,out);done(160);}
+    else if(event==='relay'){toneOsc(ctx,'sine',1050,900,t,.045,a*.27,out);done(100);}
+    else if(event==='destination'){toneOsc(ctx,'sine',820,1040,t,.12,a*.43,out);done(200);}
+    else if(event==='ack'||event==='complete'){toneOsc(ctx,'sine',880,880,t,.11,a*.42,out);toneOsc(ctx,'sine',1175,1175,t+.09,.16,a*.35,out);done(320);}
+    else if(event==='message'){toneOsc(ctx,'sine',660,880,t,.18,a*.42,out);done(260);}
+    else {toneOsc(ctx,'sine',320,190,t,.22,a*.38,out);done(300);}
+  }
+}
+function testSoundTheme(){
+  ensureAudio();
+  const seq=[['origin',0],['relay',240],['relay',430],['destination',650],['ack',900]];
+  seq.forEach(([event,delay])=>setTimeout(()=>playMeshSound(event,{force:true,category:'routing'}),delay));
 }
 function journeyKey(p){
   const meta=parsedMetadata(p);
@@ -2017,10 +2119,16 @@ function activityPulse(nodeNum,kind='origin',p=null){
   activityPulseAtPoint(pt,nodeNum,kind);
 }
 function animatePacketActivityNow(p,isNewJourney){
-  if(!document.getElementById('activityAnimationEnabled').checked) return;
   const from=packetNodeNum(p,'from');
   const relay=resolveRelayNodeNum(p.relay_node);
   const dir=String(p.direction||'').toLowerCase();
+  const port=String(p.portnum_name||p.portnum||'').toUpperCase();
+  const isTraceroute=port.includes('TRACEROUTE');
+  if(!isTraceroute){
+    if(isNewJourney && from!==null) playMeshSound('origin',{category:'routing',point:nodePointForActivity(from,p)});
+    else if(relay!==null && relay!==from) playMeshSound('relay',{category:'routing',point:nodePointForActivity(relay,p)});
+  }
+  if(!document.getElementById('activityAnimationEnabled').checked) return;
   if(from!==null) activityPulse(from,dir==='rx'?'response':'origin',p);
   if(relay!==null && relay!==from) activityPulse(relay,'relay',p);
 }
@@ -2049,7 +2157,7 @@ function mergeTraffic(rows, notify){
   trafficPackets.sort((a,b)=>packetTime(b)-packetTime(a)); if(trafficPackets.length>1500)trafficPackets=trafficPackets.slice(0,1500);
   if(notify) fresh.slice().sort((a,b)=>packetTime(a)-packetTime(b)).forEach(p=>{
     const jk=journeyKey(p); const newJourney=!journeySeen.has(jk);
-    if(newJourney){journeySeen.add(jk);playNotification(false);}
+    if(newJourney)journeySeen.add(jk);
     animatePacketActivity(p,newJourney);
     handleNodeInfoPacket(p);
   });
@@ -2358,6 +2466,7 @@ async function loadPrimaryMessages(force=false,preserveScroll=false){
     if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
     const rows=(b.data||[]).slice().sort((a,b)=>msgTimeMs(a)-msgTimeMs(b));
     const previousNewest=messageNewestSeen;
+    const newIncoming=messagesInitialized?rows.filter(m=>!m.mine&&!messageSeenIds.has(messageKey(m))):[];
     primaryMessages=rows;
     messageNewestSeen=Math.max(...rows.map(msgTimeMs),0);
     document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString(uiLocale())}`;
@@ -2369,6 +2478,7 @@ async function loadPrimaryMessages(force=false,preserveScroll=false){
       for(const m of rows)messageSeenIds.add(messageKey(m));
     }
     updateUnreadBadge();
+    if(newIncoming.length)playMeshSound('message',{category:'messages'});
     renderMessages(force||messageNewestSeen>previousNewest);
     if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();
     if(preserveScroll){
@@ -2431,8 +2541,12 @@ document.getElementById('trafficReload').addEventListener('click',async()=>{ tra
 document.getElementById('trafficDump').addEventListener('click',downloadTrafficDump);
 document.getElementById('soundEnabled').addEventListener('change',()=>{ ensureAudio(); savePrefs(); });
 document.getElementById('soundVolume').addEventListener('input',()=>{ document.getElementById('soundVolumeValue').textContent=`${document.getElementById('soundVolume').value}%`; savePrefs(); });
-document.getElementById('soundTone').addEventListener('change',savePrefs);
-document.getElementById('soundTest').addEventListener('click',()=>playNotification(true));
+document.getElementById('soundTheme').addEventListener('change',savePrefs);
+document.getElementById('soundDensity').addEventListener('change',savePrefs);
+document.getElementById('soundMinInterval').addEventListener('input',()=>{document.getElementById('soundMinIntervalValue').textContent=`${document.getElementById('soundMinInterval').value} ms`;savePrefs();});
+document.getElementById('soundMaxVoices').addEventListener('change',savePrefs);
+for(const id of ['soundRoutingEnabled','soundMessagesEnabled','soundAlertsEnabled','soundStereoEnabled'])document.getElementById(id).addEventListener('change',savePrefs);
+document.getElementById('soundTest').addEventListener('click',testSoundTheme);
 for(const id of ['activityAnimationEnabled','activityOriginEnabled','activityRelayEnabled','activityDuration']) document.getElementById(id).addEventListener('change',()=>{savePrefs(); if(!document.getElementById('activityAnimationEnabled').checked){activityLayer.clearLayers();activityMarkers.clear();}});
 document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore(false);});
 document.getElementById('nodeInfoFlowEnabled').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('nodeInfoFlowEnabled').checked){flowGeneration++;flowLayer.clearLayers();}});
@@ -2489,7 +2603,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV123';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV124';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -2537,6 +2651,12 @@ async function checkVersionStatus(force=false){
     renderVersionStatus(data); return data;
   }
 }
+function cleanReleaseNotesForModal(raw){
+  let s=String(raw||'').replace(/\r/g,'');
+  s=s.replace(/\n##\s+Screenshots[\s\S]*$/i,'');
+  s=s.split('\n').filter(line=>!/^!\[[^\]]*\]\([^)]*\)\s*$/.test(line.trim())).join('\n');
+  return s.replace(/^#{1,6}\s+/gm,'').trim();
+}
 function openVersionModal(){
   const d=versionStatusData||{localVersion:'__APP_VERSION__',status:'unavailable'};
   const summary=document.getElementById('versionModalSummary');
@@ -2545,7 +2665,7 @@ function openVersionModal(){
   if(d.updateAvailable) summary.textContent=`Instalada: v${d.localVersion} · disponível: v${d.latestVersion} · publicada em ${d.publishedAt?new Date(d.publishedAt).toLocaleString(uiLocale()):tr('data não informada')}.`;
   else if(d.status==='unavailable') summary.textContent=`Instalada: v${d.localVersion}. Não foi possível consultar o GitHub agora.`;
   else summary.textContent=`Instalada: v${d.localVersion}. Esta é a versão mais recente publicada.`;
-  notes.textContent=d.notes||d.message||'Não há notas de versão disponíveis.';
+  notes.textContent=cleanReleaseNotesForModal(d.notes||d.message)||'Não há notas de versão disponíveis.';
   if(d.releaseUrl && /^https:\/\/github\.com\/alexpmr\/traffic-analyzer\//.test(d.releaseUrl)) link.href=d.releaseUrl;
   else link.href='https://github.com/alexpmr/traffic-analyzer/releases/latest';
   document.getElementById('versionModalBackdrop').classList.add('open');
@@ -2554,7 +2674,7 @@ function closeVersionModal(){ document.getElementById('versionModalBackdrop').cl
 document.getElementById('versionBadge').addEventListener('click',openVersionModal);
 document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
 document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
-document.getElementById('versionCheckNow').addEventListener('click',async()=>{await checkVersionStatus(true);openVersionModal();});
+document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();}});
 
 const legend = L.control({position:'bottomright'});
@@ -3757,7 +3877,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.23.1"
+    server_version = "TrafficAnalyzer/1.24.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
