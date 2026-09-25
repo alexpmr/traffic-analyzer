@@ -1,0 +1,13 @@
+[Unit]
+Description=Traffic Analyzer - atualização automática por Latest Release estável
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/traffic-analyzer/auto_update.py
+User=root
+Group=root
+PrivateTmp=true
+ProtectHome=true
+Nice=10
