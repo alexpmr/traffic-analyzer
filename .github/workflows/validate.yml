@@ -106,6 +106,26 @@ jobs:
               print(json.dumps(logs,ensure_ascii=False,indent=2))
               severe=[x for x in logs if x.get("level")=="SEVERE" and "Failed to load resource" not in x.get("message","")]
               assert not severe,severe
+
+              lang=d.find_element(By.ID,"uiLanguage")
+              labels=[o.text for o in lang.find_elements(By.TAG_NAME,"option")]
+              assert labels==["🇧🇷 Português","🇺🇸 English"],labels
+
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionBadge"))
+              time.sleep(.2)
+              assert "open" in d.find_element(By.ID,"versionModalBackdrop").get_attribute("class")
+              assert d.find_element(By.ID,"versionContinue").text=="Continuar"
+              assert not d.find_elements(By.CSS_SELECTOR,"#versionModalBackdrop .updateCmd")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionContinue"))
+              assert "open" not in d.find_element(By.ID,"versionModalBackdrop").get_attribute("class")
+
+              sound_theme=d.find_element(By.ID,"soundTheme")
+              sound_values=[o.get_attribute("value") for o in sound_theme.find_elements(By.TAG_NAME,"option")]
+              assert sound_values==["pinball70","formal","radio","silent"],sound_values
+              d.execute_script("arguments[0].value='pinball70';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",sound_theme)
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"soundTest"))
+              time.sleep(1.2)
+
               for view in ["traffic","messages","health","anomalies","settings","help","map"]:
                   b=d.find_element(By.CSS_SELECTOR, f'.navbtn[data-view="{view}"]')
                   d.execute_script("arguments[0].click()", b)
