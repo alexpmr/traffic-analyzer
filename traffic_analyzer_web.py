@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.25.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.26.0 para MeshMonitor."""
 
 import csv
 import io
@@ -20,7 +20,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.25.1"
+APP_VERSION = "1.26.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -145,11 +145,12 @@ HTML = r'''<!doctype html>
   .unreadCount{display:none;background:#25d366;color:#07140c;border-radius:10px;min-width:18px;padding:1px 5px;margin-left:4px;font-size:10px;font-weight:900}.unread .unreadCount{display:inline-block}
   .msgActions{display:flex;gap:4px;justify-content:flex-end;margin-top:3px;opacity:.72}.msgActions button{padding:1px 6px;min-height:22px;border-radius:10px;font-size:11px;background:#26343d;border-color:#42515a;color:#d7e2e8}.msgRow:hover .msgActions{opacity:1}
   .msgReplyQuote{border-left:3px solid #53bdeb;background:rgba(0,0,0,.16);border-radius:5px;padding:5px 7px;margin:0 0 5px;font-size:11px;line-height:1.3}.msgReplyQuote b{display:block;color:#70cfff}.msgReplyQuote span{display:block;color:#c0ccd2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:680px}
-  .msgReactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.reactionChip{display:inline-flex;gap:3px;align-items:center;background:#182229;border:1px solid #40505a;border-radius:12px;padding:2px 7px;font-size:12px}.reactionChip.mine{border-color:#53bdeb}
-  .reactionPickerInline{display:none;gap:3px;flex-wrap:wrap;justify-content:flex-end;margin-top:4px}.reactionPickerInline.open{display:flex}.reactionPickerInline button{font-size:17px;line-height:1;padding:4px 6px;border-radius:9px;background:#26343d;border-color:#465762}
+  .msgReactions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.reactionChip{display:inline-flex;gap:5px;align-items:center;background:#182229;border:1px solid #40505a;border-radius:15px;padding:3px 8px;font-size:21px;line-height:1.1}.reactionChip b{font-size:11px;line-height:1}.reactionChip.mine{border-color:#53bdeb}
+  .reactionPickerInline{display:none;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:5px}.reactionPickerInline.open{display:flex}.reactionPickerInline button{font-size:27px;line-height:1;padding:6px 8px;min-width:42px;min-height:40px;border-radius:10px;background:#26343d;border-color:#465762}
   #messageComposer{flex-wrap:wrap}.replyComposerBar{display:none;flex:0 0 100%;align-items:center;gap:8px;background:#182229;border-left:3px solid #53bdeb;border-radius:6px;padding:6px 8px;box-sizing:border-box}.replyComposerBar.open{display:flex}.replyComposerText{min-width:0;flex:1;font-size:11px;color:#c0ccd2}.replyComposerText b{display:block;color:#70cfff}.replyComposerText span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.replyComposerClose{padding:2px 7px;border-radius:50%;font-size:14px}
-  .emojiToolBtn{width:38px;height:38px;border-radius:50%;font-size:20px;padding:0}.emojiPicker{display:none;position:absolute;left:12px;bottom:58px;width:min(360px,calc(100% - 80px));background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);padding:8px;z-index:1600;grid-template-columns:repeat(7,1fr);gap:4px}.emojiPicker.open{display:grid}.emojiPicker button{font-size:20px;padding:5px 2px;background:#202c33;border-color:#40505a;border-radius:8px}
-  body[data-theme="light"] .msgReplyQuote,body[data-theme="light"] .replyComposerBar,body[data-theme="light"] .reactionChip{background:#f4f7f9;border-color:#cbd5dd}body[data-theme="light"] .emojiPicker{background:#fff;border-color:#b9c6cf}body[data-theme="light"] .emojiPicker button,body[data-theme="light"] .reactionPickerInline button,body[data-theme="light"] .msgActions button{background:#f4f7f9;color:#18232d;border-color:#c2ced6}
+  .emojiToolBtn{width:42px;height:42px;border-radius:50%;font-size:27px;padding:0}.emojiPicker{display:none;position:absolute;left:12px;bottom:62px;width:min(390px,calc(100% - 80px));background:#17212b;border:1px solid #405668;border-radius:9px;box-shadow:0 10px 28px rgba(0,0,0,.42);padding:9px;z-index:1600;grid-template-columns:repeat(7,1fr);gap:6px}.emojiPicker.open{display:grid}.emojiPicker button{font-size:29px;line-height:1;padding:7px 3px;min-height:44px;background:#202c33;border-color:#40505a;border-radius:9px}
+  .messageNewBelow{display:none;position:absolute;right:22px;bottom:78px;z-index:1550;align-items:center;gap:5px;border-radius:18px;padding:7px 12px;background:#0b6f81;border:1px solid #53bdeb;color:#fff;font-weight:800;box-shadow:0 4px 16px rgba(0,0,0,.35)}.messageNewBelow.open{display:flex}
+  body[data-theme="light"] .msgReplyQuote,body[data-theme="light"] .replyComposerBar,body[data-theme="light"] .reactionChip{background:#f4f7f9;border-color:#cbd5dd}body[data-theme="light"] .emojiPicker{background:#fff;border-color:#b9c6cf}body[data-theme="light"] .emojiPicker button,body[data-theme="light"] .reactionPickerInline button,body[data-theme="light"] .msgActions button{background:#f4f7f9;color:#18232d;border-color:#c2ced6}body[data-theme="light"] .messageNewBelow{background:#087c9d;border-color:#0aa6c9;color:#fff}
   @media(max-width:650px){.msgBubble{max-width:88%}.msgText{padding-right:46px}#messageList{padding:10px 8px}#messageComposer{padding:8px}.msgCounter,.mentionHelp{display:none}.emojiPicker{left:8px;width:calc(100% - 70px)}}
 
   /* v1.20 - versão disponível e tema claro */
@@ -307,6 +308,7 @@ HTML = r'''<!doctype html>
     <span class="msgSpacer"></span><span id="messageStatus" class="msgHint">Carregando...</span><button id="messageLoadOlder" title="Carregar mais mensagens antigas">Carregar anteriores</button><button id="messageReload" title="Consultar novas mensagens agora">Atualizar</button>
   </div>
   <div id="messageList"><div class="emptyPanel">Carregando mensagens...</div></div>
+  <button id="messageNewBelow" class="messageNewBelow" type="button">↓ Novas mensagens</button>
   <div id="messageComposer">
     <div id="replyComposerBar" class="replyComposerBar"><div id="replyComposerText" class="replyComposerText"></div><button id="replyComposerClose" class="replyComposerClose" type="button" title="Cancelar resposta">×</button></div>
     <div id="mentionSuggestions" class="mentionSuggestions"></div>
@@ -545,9 +547,9 @@ const I18N_PAIRS=[
   ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
   ['Solicitação de atualização enviada.','Update request sent.'],['Nenhuma atualização disponível.','No update is available.'],
-  ['Responder','Reply'],['Reagir','React'],['Resposta','Reply'],['Respondendo a','Replying to'],['Mensagem original não carregada','Original message not loaded'],['Cancelar resposta','Cancel reply'],['Inserir emoji','Insert emoji'],
+  ['Responder','Reply'],['Reagir','React'],['Resposta','Reply'],['Respondendo a','Replying to'],['Mensagem original não carregada','Original message not loaded'],['Cancelar resposta','Cancel reply'],['Inserir emoji','Insert emoji'],['Novas mensagens','New messages'],
   ['Não foi possível identificar o pacote original para responder.','Could not identify the original packet to reply to.'],['Não foi possível identificar o pacote original para reagir.','Could not identify the original packet to react to.'],
-  ['Reação enviada ao MeshMonitor','Reaction sent to MeshMonitor'],['Falha no envio','Send failed'],
+  ['Reação enviada ao MeshMonitor','Reaction sent to MeshMonitor'],['Reação enviada em modo compatível','Reaction sent in compatibility mode'],['Falha no envio','Send failed'],
   ['Temas sonoros','Sound themes'],['Ativar sonificação da malha','Enable mesh sonification'],['Os sons acompanham eventos realmente observados. O Traffic Analyzer não inventa retransmissões para produzir efeitos.','Sounds follow events that were actually observed. Traffic Analyzer does not invent relays to produce effects.'],
   ['Tema:','Theme:'],['Fliperama anos 70','1970s Pinball'],['Formal','Formal'],['Rádio / Telecom','Radio / Telecom'],['Silencioso','Silent'],['Testar tema','Test theme'],
   ['Os efeitos são sintetizados localmente pelo navegador; nenhum arquivo de áudio é baixado.','Effects are synthesized locally by the browser; no audio file is downloaded.'],['Densidade sonora:','Sound density:'],['Baixa','Low'],['Normal','Normal'],['Alta','High'],
@@ -692,7 +694,7 @@ function renderHelp(){
       <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
       <h3>4. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
       <h4>Reply</h4><p>Use <b>Reply</b> or double-click a message. Traffic Analyzer uses the native Meshtastic/MeshMonitor <code>replyId</code> and shows a reference to the original message in the reply bubble.</p>
-      <h4>Emoji and reactions</h4><p>The emoji button inserts emoji into normal message text. On received messages, <b>React</b> offers 👍 👎 ❤️ 😂 😮 😢. These are structured Meshtastic tapbacks (<code>emoji=1</code> + <code>replyId</code>) and are grouped under the original message.</p>
+      <h4>Emoji and reactions</h4><p>The emoji button inserts emoji into normal message text. On received messages, <b>React</b> offers larger 👍 👎 ❤️ 😂 😮 😢 controls. Traffic Analyzer first attempts the native Meshtastic tapback (<code>emoji=1</code> + <code>replyId</code>). If MeshMonitor denies only that endpoint with HTTP 403, it automatically sends an emoji reply with <code>replyId</code> as a compatibility fallback.</p><h4>Scrolling</h4><p>When you scroll up to read older messages, automatic refresh preserves your position. New messages do not pull the view to the bottom; a <b>↓ New messages</b> button appears. Clicking it - or manually returning to the bottom - restores auto-scroll. <b>Load older</b> also preserves the reading position.</p>
       <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The <code>@</code> character is only the autocomplete trigger; selecting a result inserts the full node name without <code>@</code>.</p>
       <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
       <h3>6. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
@@ -713,7 +715,7 @@ function renderHelp(){
       <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
       <h3>4. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
       <h4>Responder</h4><p>Use <b>Responder</b> ou dê duplo clique em uma mensagem. O Traffic Analyzer usa o <code>replyId</code> nativo do Meshtastic/MeshMonitor e mostra no novo balão uma referência à mensagem original.</p>
-      <h4>Emojis e reações</h4><p>O botão de emoji insere emojis normalmente no texto. Em mensagens recebidas, <b>Reagir</b> oferece 👍 👎 ❤️ 😂 😮 😢. Essas reações são tapbacks Meshtastic estruturados (<code>emoji=1</code> + <code>replyId</code>) e aparecem agrupadas sob a mensagem original.</p>
+      <h4>Emojis e reações</h4><p>O botão de emoji insere emojis normalmente no texto. Em mensagens recebidas, <b>Reagir</b> oferece 👍 👎 ❤️ 😂 😮 😢 em tamanho ampliado. O Traffic Analyzer tenta primeiro o tapback Meshtastic nativo (<code>emoji=1</code> + <code>replyId</code>). Se o MeshMonitor negar somente esse endpoint com HTTP 403, usa automaticamente uma resposta emoji compatível com <code>replyId</code>, sem perder a ação.</p><h4>Rolagem</h4><p>Ao subir para ler mensagens antigas, as consultas automáticas preservam a posição. Mensagens novas não puxam a tela para o fim; aparece o botão <b>↓ Novas mensagens</b>. Ao clicar nele - ou ao rolar manualmente até o final - o auto-scroll é reativado. <b>Carregar anteriores</b> também preserva o ponto de leitura.</p>
       <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O <code>@</code> funciona somente como gatilho da busca; ao selecionar, o campo recebe o nome completo do nó sem o caractere <code>@</code>.</p>
       <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
       <h3>6. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
@@ -1724,7 +1726,7 @@ function setView(name){
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
   if(name==='tracklog'){initTrackMap();setTimeout(()=>trackMap.invalidateSize(),40);if(!tracklogLoaded)loadTracklog();}
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
-  if(name==='messages'){ loadPrimaryMessages(true); markMessagesRead(); }
+  if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
   if(name==='health') loadNetworkHealth();
   if(name==='anomalies') loadAnomalies();
 }
@@ -2074,6 +2076,7 @@ function toneOsc(ctx,type,f0,f1,start,duration,amp,output=ctx.destination){
 }
 let activeSoundVoices=0;
 let relaySoundCounter=0;
+let lastMessageSoundAt=0;
 function soundOutput(ctx,pan=0){
   if(!document.getElementById('soundStereoEnabled')?.checked || !ctx.createStereoPanner) return ctx.destination;
   const p=ctx.createStereoPanner();p.pan.value=Math.max(-0.8,Math.min(0.8,Number(pan)||0));p.connect(ctx.destination);return p;
@@ -2096,11 +2099,19 @@ function canPlayMeshSound(event,category,force=false){
     if(category==='routing'&&!document.getElementById('soundRoutingEnabled')?.checked)return false;
     if(category==='messages'&&!document.getElementById('soundMessagesEnabled')?.checked)return false;
     if(category==='alerts'&&!document.getElementById('soundAlertsEnabled')?.checked)return false;
+    const now=performance.now();
+    if(category==='messages'){
+      // Mensagens têm campainha própria e não são suprimidas por uma rajada
+      // de sons de roteamento. Apenas deduplica notificações muito próximas.
+      if(now-lastMessageSoundAt<650)return false;
+      lastMessageSoundAt=now;
+      return true;
+    }
     const density=document.getElementById('soundDensity')?.value||'normal';
     if(event==='relay'&&density==='low'&&(++relaySoundCounter%3)!==0)return false;
     const minBase=Math.max(40,Number(document.getElementById('soundMinInterval')?.value||120));
     const min=density==='high'?Math.max(40,minBase*.6):(density==='low'?Math.max(250,minBase*1.8):minBase);
-    const now=performance.now();if(now-lastSoundAt<min)return false;lastSoundAt=now;
+    if(now-lastSoundAt<min)return false;lastSoundAt=now;
     const maxVoices=Math.max(1,Math.min(8,Number(document.getElementById('soundMaxVoices')?.value||3)));if(activeSoundVoices>=maxVoices)return false;
   }
   return true;
@@ -2118,20 +2129,20 @@ function playMeshSound(event,{category='routing',point=null,force=false}={}){
     else if(event==='relay'){noiseBurst(ctx,t,.055,a*.5,out,1200);toneOsc(ctx,'triangle',1900,720,t,.085,a*.62,out);toneOsc(ctx,'sine',2700,1350,t+.012,.07,a*.28,out);done(150);}
     else if(event==='destination'){toneOsc(ctx,'triangle',740,1080,t,.13,a*.6,out);toneOsc(ctx,'sine',1480,1480,t+.08,.20,a*.42,out);done(330);}
     else if(event==='ack'||event==='complete'){toneOsc(ctx,'sine',784,784,t,.13,a*.55,out);toneOsc(ctx,'sine',1047,1047,t+.09,.15,a*.5,out);toneOsc(ctx,'sine',1568,1568,t+.18,.25,a*.38,out);done(520);}
-    else if(event==='message'){toneOsc(ctx,'triangle',1047,1047,t,.18,a*.55,out);toneOsc(ctx,'sine',1568,1568,t+.08,.25,a*.4,out);done(420);}
+    else if(event==='message'){toneOsc(ctx,'triangle',1175,1175,t,.13,a*.62,out);toneOsc(ctx,'sine',1568,1568,t+.10,.16,a*.50,out);toneOsc(ctx,'sine',2093,2093,t+.22,.26,a*.36,out);done(560);}
     else {noiseBurst(ctx,t,.10,a*.32,out,500);toneOsc(ctx,'sawtooth',420,110,t,.30,a*.45,out);done(430);}
   }else if(theme==='radio'){
     if(event==='origin'){noiseBurst(ctx,t,.07,a*.22,out,900);toneOsc(ctx,'sine',980,1080,t+.035,.10,a*.5,out);done(200);}
     else if(event==='relay'){toneOsc(ctx,'square',1450,950,t,.045,a*.28,out);done(100);}
     else if(event==='destination'||event==='ack'||event==='complete'){toneOsc(ctx,'sine',1180,1320,t,.12,a*.5,out);toneOsc(ctx,'sine',1520,1520,t+.10,.13,a*.35,out);done(300);}
-    else if(event==='message'){toneOsc(ctx,'sine',880,880,t,.09,a*.48,out);toneOsc(ctx,'sine',1320,1320,t+.12,.12,a*.42,out);done(300);}
+    else if(event==='message'){noiseBurst(ctx,t,.035,a*.14,out,1300);toneOsc(ctx,'sine',880,880,t+.02,.08,a*.48,out);toneOsc(ctx,'sine',1320,1320,t+.15,.10,a*.46,out);toneOsc(ctx,'sine',1760,1760,t+.28,.12,a*.32,out);done(460);}
     else {noiseBurst(ctx,t,.08,a*.18,out,500);toneOsc(ctx,'square',360,180,t,.18,a*.28,out);done(280);}
   }else{
     if(event==='origin'){toneOsc(ctx,'sine',620,760,t,.10,a*.42,out);done(160);}
     else if(event==='relay'){toneOsc(ctx,'sine',1050,900,t,.045,a*.27,out);done(100);}
     else if(event==='destination'){toneOsc(ctx,'sine',820,1040,t,.12,a*.43,out);done(200);}
     else if(event==='ack'||event==='complete'){toneOsc(ctx,'sine',880,880,t,.11,a*.42,out);toneOsc(ctx,'sine',1175,1175,t+.09,.16,a*.35,out);done(320);}
-    else if(event==='message'){toneOsc(ctx,'sine',660,880,t,.18,a*.42,out);done(260);}
+    else if(event==='message'){toneOsc(ctx,'sine',660,660,t,.11,a*.46,out);toneOsc(ctx,'sine',990,990,t+.14,.17,a*.40,out);done(360);}
     else {toneOsc(ctx,'sine',320,190,t,.22,a*.38,out);done(300);}
   }
 }
@@ -2489,6 +2500,10 @@ let messageFetchLimit=250;
 let messageNewestSeen=0;
 let messageSeenIds=new Set();
 let replyingTo=null;
+let messageAutoScroll=true;
+let messagePendingBelow=0;
+let messageScrollRestoring=false;
+const MESSAGE_BOTTOM_THRESHOLD=90;
 const MESSAGE_READ_KEY='trafficAnalyzerPrimaryLastReadV117';
 const MESSAGE_EMOJIS=['😀','😄','😉','👍','👎','❤️','😂','😮','😢','🙏','🔥','🎉','✅','❌','📡','📍','⚡','🚙','🛰️','📻','🔧'];
 const QUICK_REACTIONS=['👍','👎','❤️','😂','😮','😢'];
@@ -2505,8 +2520,29 @@ function messageByPacketId(id){const n=Number(id);return primaryMessages.find(m=
 function dateKey(ms){const d=new Date(ms);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function dayLabel(ms){const d=new Date(ms),now=new Date();const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());const that=new Date(d.getFullYear(),d.getMonth(),d.getDate());const delta=Math.round((today-that)/86400000);if(delta===0)return 'Hoje';if(delta===1)return 'Ontem';return d.toLocaleDateString(uiLocale(),{day:'2-digit',month:'long',year:'numeric'});}
 function lastReadMs(){return Number(localStorage.getItem(MESSAGE_READ_KEY)||0)||0;}
-function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine&&!isReactionMessage(m)).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();renderMessages();}
+function markMessagesRead(){if(!primaryMessages.length)return;const newest=Math.max(...primaryMessages.filter(m=>!m.mine&&!isReactionMessage(m)).map(msgTimeMs),0);if(newest>lastReadMs())localStorage.setItem(MESSAGE_READ_KEY,String(newest));updateUnreadBadge();document.querySelectorAll('#messageList .msgNewMark').forEach(el=>el.remove());}
 function updateUnreadBadge(){const lr=lastReadMs();const unread=primaryMessages.filter(m=>!m.mine&&!isReactionMessage(m)&&msgTimeMs(m)>lr).length;const nav=document.getElementById('messagesNav'),count=document.getElementById('messagesUnreadCount');count.textContent=String(unread);nav.classList.toggle('unread',unread>0);nav.title=unread?`${unread} mensagem(ns) não lida(s)`:'Sem mensagens não lidas';}
+function messageIsNearBottom(threshold=MESSAGE_BOTTOM_THRESHOLD){
+  const el=document.getElementById('messageList');if(!el)return true;
+  return (el.scrollHeight-el.scrollTop-el.clientHeight)<=threshold;
+}
+function updateMessageNewBelowButton(){
+  const btn=document.getElementById('messageNewBelow');if(!btn)return;
+  btn.classList.toggle('open',!messageAutoScroll&&messagePendingBelow>0);
+  btn.textContent=messagePendingBelow>1?`↓ ${tr('Novas mensagens')} (${messagePendingBelow})`:`↓ ${tr('Novas mensagens')}`;
+}
+function setMessageScrollTop(top){
+  const el=document.getElementById('messageList');if(!el)return;
+  messageScrollRestoring=true;
+  const previous=el.style.scrollBehavior;el.style.scrollBehavior='auto';el.scrollTop=Math.max(0,top);
+  requestAnimationFrame(()=>{el.style.scrollBehavior=previous;messageScrollRestoring=false;});
+}
+function scrollMessagesToBottom(smooth=true){
+  const el=document.getElementById('messageList');if(!el)return;
+  messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();
+  if(smooth)el.scrollTo({top:el.scrollHeight,behavior:'smooth'});else setMessageScrollTop(el.scrollHeight);
+  if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();
+}
 let mentionMatches=[];
 let mentionActiveIndex=0;
 let mentionStart=-1;
@@ -2595,9 +2631,12 @@ function bindMessageActions(){
   document.querySelectorAll('[data-reaction-msg]').forEach(btn=>btn.addEventListener('click',()=>sendReaction(btn.dataset.reactionMsg,btn.dataset.emoji)));
   document.querySelectorAll('.msgRow[data-mid]').forEach(row=>row.addEventListener('dblclick',()=>beginReply(row.dataset.mid)));
 }
-function renderMessages(keepBottom=false){
+function renderMessages(options={}){
+  const {forceBottom=false,preserveOffset=false,oldHeight=null,oldTop=null}=options||{};
   const el=document.getElementById('messageList'),visible=primaryMessages.filter(m=>!isReactionMessage(m));
-  if(!visible.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';return;}
+  const beforeHeight=oldHeight===null?el.scrollHeight:Number(oldHeight),beforeTop=oldTop===null?el.scrollTop:Number(oldTop);
+  const wasNearBottom=messageIsNearBottom();
+  if(!visible.length){el.innerHTML='<div class="emptyPanel">Nenhuma mensagem encontrada no canal primário.</div>';updateMessageNewBelowButton();return;}
   const groups=reactionGroups(),lr=lastReadMs();let html='',lastDay='';
   for(const m of visible){
     const ms=msgTimeMs(m),dk=dateKey(ms);if(dk!==lastDay){html+=`<div class="msgDay"><span>${esc(dayLabel(ms))}</span></div>`;lastDay=dk;}
@@ -2608,18 +2647,25 @@ function renderMessages(keepBottom=false){
     html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(mid)}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}${replyQuoteHtml(m)}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div>${reactionHtml(pid,groups)}${actions}${picker}</div></div>`;
   }
   el.innerHTML=html;bindMessageActions();
-  if(keepBottom||document.getElementById('viewMessages').classList.contains('active'))el.scrollTop=el.scrollHeight;
+  if(preserveOffset){
+    const delta=Math.max(0,el.scrollHeight-beforeHeight);setMessageScrollTop(beforeTop+delta);messageAutoScroll=false;
+  }else if(forceBottom||(messageAutoScroll&&wasNearBottom)){
+    scrollMessagesToBottom(false);
+  }else{
+    setMessageScrollTop(beforeTop);messageAutoScroll=false;
+  }
+  updateMessageNewBelowButton();
 }
 async function loadPrimaryMessages(force=false,preserveScroll=false){
   const list=document.getElementById('messageList');
-  const oldHeight=list.scrollHeight,oldTop=list.scrollTop;
+  const oldHeight=list.scrollHeight,oldTop=list.scrollTop,wasNearBottom=messageIsNearBottom();
+  const shouldFollow=Boolean(force||(messageAutoScroll&&wasNearBottom));
   try{
     const r=await fetch(`/api/messages?limit=${messageFetchLimit}&_=${Date.now()}`,{cache:'no-store'});
     const b=await r.json();
     if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
     const rows=(b.data||[]).slice().sort((a,b)=>msgTimeMs(a)-msgTimeMs(b));
-    const previousNewest=messageNewestSeen;
-    const newIncoming=messagesInitialized?rows.filter(m=>!m.mine&&!messageSeenIds.has(messageKey(m))):[];
+    const newIncoming=messagesInitialized?rows.filter(m=>!m.mine&&!isReactionMessage(m)&&!messageSeenIds.has(messageKey(m))):[];
     primaryMessages=rows;
     messageNewestSeen=Math.max(...rows.map(msgTimeMs),0);
     document.getElementById('messageStatus').textContent=`${rows.length} mensagens · atualizado ${new Date().toLocaleTimeString(uiLocale())}`;
@@ -2631,13 +2677,13 @@ async function loadPrimaryMessages(force=false,preserveScroll=false){
       for(const m of rows)messageSeenIds.add(messageKey(m));
     }
     updateUnreadBadge();
-    if(newIncoming.length)playMeshSound('message',{category:'messages'});
-    renderMessages(force||messageNewestSeen>previousNewest);
-    if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();
-    if(preserveScroll){
-      const delta=Math.max(0,list.scrollHeight-oldHeight);
-      list.scrollTop=oldTop+delta;
+    if(newIncoming.length){
+      playMeshSound('message',{category:'messages'});
+      if(!shouldFollow&&!preserveScroll)messagePendingBelow+=newIncoming.length;
     }
+    renderMessages({forceBottom:shouldFollow&&!preserveScroll,preserveOffset:preserveScroll,oldHeight,oldTop});
+    if(document.getElementById('viewMessages').classList.contains('active')&&shouldFollow&&!preserveScroll)markMessagesRead();
+    updateMessageNewBelowButton();
     return true;
   }catch(e){
     document.getElementById('messageStatus').textContent=`Erro: ${e}`;
@@ -2699,7 +2745,9 @@ async function sendReaction(mid,emoji){
   try{
     const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:emoji,replyId,emoji:1})});
     const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);
-    document.getElementById('messageStatus').textContent=tr('Reação enviada ao MeshMonitor');setTimeout(()=>loadPrimaryMessages(true),450);
+    const compat=b.reactionMode==='compat_reply';
+    document.getElementById('messageStatus').textContent=compat?tr('Reação enviada em modo compatível'):tr('Reação enviada ao MeshMonitor');
+    setTimeout(()=>loadPrimaryMessages(false,false),450);
   }catch(e){document.getElementById('messageStatus').textContent=`${tr('Falha no envio')}: ${e}`;alert(tr(`Não foi possível reagir: ${e}`));}
 }
 function stripMentionMarkers(text){
@@ -2710,7 +2758,7 @@ function stripMentionMarkers(text){
 }
 async function sendPrimaryMessage(){const input=document.getElementById('messageInput');const text=stripMentionMarkers(input.value.trim());if(!text)return;const bytes=new TextEncoder().encode(text).length;if(bytes>600){alert(tr('Mensagem muito longa. Reduza o texto para até aproximadamente 600 bytes.'));return;}const btn=document.getElementById('messageSend');btn.disabled=true;document.getElementById('messageStatus').textContent='Enviando...';try{const body={text};const replyId=replyingTo?messagePacketId(replyingTo):null;if(replyId)body.replyId=replyId;const r=await fetch('/api/messages/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);input.value='';clearReply();updateMessageCounter();document.getElementById('messageStatus').textContent='Mensagem enviada ao MeshMonitor';setTimeout(()=>loadPrimaryMessages(true),450);}catch(e){document.getElementById('messageStatus').textContent=`Falha no envio: ${e}`;alert(tr(`Não foi possível enviar: ${e}`));}finally{btn.disabled=false;input.focus();}}
 function updateMessageCounter(){const el=document.getElementById('messageInput'),n=new TextEncoder().encode(el.value).length,c=document.getElementById('messageCounter');c.textContent=`${n} B`;c.classList.toggle('over',n>600);}
-document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('replyComposerClose').addEventListener('click',clearReply);document.getElementById('messageEmojiBtn').addEventListener('click',toggleComposerEmojiPicker);buildEmojiPicker();document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target)){closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}});updateMessageCounter();renderReplyComposer();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
+document.getElementById('messageReload').addEventListener('click',reloadPrimaryMessages);document.getElementById('messageLoadOlder').addEventListener('click',loadOlderPrimaryMessages);document.getElementById('messageSend').addEventListener('click',sendPrimaryMessage);document.getElementById('messageNewBelow').addEventListener('click',()=>scrollMessagesToBottom(true));document.getElementById('messageList').addEventListener('scroll',()=>{if(messageScrollRestoring)return;const near=messageIsNearBottom();if(near){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();if(document.getElementById('viewMessages').classList.contains('active'))markMessagesRead();}else{messageAutoScroll=false;updateMessageNewBelowButton();}},{passive:true});document.getElementById('replyComposerClose').addEventListener('click',clearReply);document.getElementById('messageEmojiBtn').addEventListener('click',toggleComposerEmojiPicker);buildEmojiPicker();document.getElementById('messageInput').addEventListener('input',()=>{updateMessageCounter();mentionActiveIndex=0;refreshMentionSuggestions();});document.getElementById('messageInput').addEventListener('click',refreshMentionSuggestions);document.getElementById('messageInput').addEventListener('keydown',e=>{const box=document.getElementById('mentionSuggestions');if(box.classList.contains('open')){if(e.key==='ArrowDown'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex+1)%mentionMatches.length;refreshMentionSuggestions();return;}if(e.key==='ArrowUp'){e.preventDefault();mentionActiveIndex=(mentionActiveIndex-1+mentionMatches.length)%mentionMatches.length;refreshMentionSuggestions();return;}if((e.key==='Enter'||e.key==='Tab')&&mentionMatches.length){e.preventDefault();selectMention(mentionActiveIndex);return;}if(e.key==='Escape'){e.preventDefault();closeMentionSuggestions();return;}}if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendPrimaryMessage();}});document.addEventListener('click',e=>{if(!document.getElementById('messageComposer').contains(e.target)){closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}});updateMessageCounter();renderReplyComposer();setInterval(()=>loadPrimaryMessages(false),2500);loadPrimaryMessages(false);
 
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
@@ -2787,7 +2835,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV125';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV126';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -2978,16 +3026,39 @@ def _send_primary_message(text: str, reply_id=None, emoji: bool = False):
     if emoji:
         if reply is None:
             raise ValueError("Reação exige replyId")
-        # MeshMonitor expõe o emoji flag no endpoint legado /api/messages/send.
-        # Bearer tokens continuam aceitos nesse endpoint; sourceId mantém o envio
-        # vinculado à mesma fonte usada pelo restante da integração.
-        return _mm_api_post("/api/messages/send", {
+        native_payload = {
             "text": clean,
             "channel": 0,
             "replyId": reply,
             "emoji": 1,
             "sourceId": MM_SOURCE,
-        })
+        }
+        try:
+            body = _mm_api_post("/api/messages/send", native_payload)
+            if isinstance(body, dict):
+                body = dict(body)
+                body["reactionMode"] = "tapback"
+            return body
+        except RuntimeError as exc:
+            # MeshMonitor 4.x currently checks the legacy /api/messages/send
+            # permission without the same source scoping used by API v1. A token
+            # that can write channel_0 through /api/v1/sources/:source/messages
+            # can therefore receive HTTP 403 only for the tapback endpoint.
+            # In that exact case, send an emoji-only threaded reply through API v1.
+            # Traffic Analyzer renders it as a reaction, while other clients see a
+            # compatible reply instead of losing the user's action entirely.
+            if "MeshMonitor HTTP 403" not in str(exc):
+                raise
+            body = _mm_api_post(f"/api/v1/sources/{source}/messages", {
+                "text": clean,
+                "channel": 0,
+                "replyId": reply,
+            })
+            if isinstance(body, dict):
+                body = dict(body)
+                body["reactionMode"] = "compat_reply"
+                body["reactionWarning"] = "MeshMonitor recusou o tapback nativo (HTTP 403); enviada como resposta emoji compatível."
+            return body
     payload = {"text": clean, "channel": 0}
     if reply is not None:
         payload["replyId"] = reply
@@ -4085,7 +4156,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.25.1"
+    server_version = "TrafficAnalyzer/1.26.0"
 
     def _send(self, status, content_type, body: bytes):
         self.send_response(status)
