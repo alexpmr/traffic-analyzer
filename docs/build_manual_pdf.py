@@ -112,7 +112,6 @@ def main() -> None:
               P("Principais áreas", "TA_H2")]
     for item in [
         "<b>Mapa:</b> topologia e traceroutes observados, reprodução Histórica/Ao vivo e enquadramento.",
-        "<b>Tracklog:</b> histórico de posições recebidas de estações com mobilidade observada.",
         "<b>Tráfego:</b> pacotes RX/TX, filtros, payload amigável e dados técnicos.",
         "<b>Mensagens:</b> canal primário, respostas estruturadas, emojis, reações/tapbacks e localização de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
@@ -129,8 +128,8 @@ def main() -> None:
               P("Pausa, Ao vivo e Histórico", "TA_H2"),
               P("No modo Ao vivo, vários traceroutes podem percorrer o mapa ao mesmo tempo. No Histórico, eventos são iniciados conforme a ordem temporal observada e também podem permanecer simultaneamente em trânsito. Não existe limite funcional de quantidade de pacotes animados: Pausar congela todos os ativos e mantém eventos aguardando sem descarte por quantidade; Retomar continua o conjunto. Alterar a velocidade afeta animações já em andamento. Janelas históricas extensas têm sua escala temporal comprimida proporcionalmente para uma reprodução prática."),
               P("Os caminhos animados continuam restritos aos hops efetivamente observados. Ausência de rota conhecida não autoriza o Traffic Analyzer a inventar retransmissores."),
-              P("Tracklog", "TA_H2"),
-              P("O Tracklog utiliza posições realmente recebidas. Distância e percurso dependem da frequência dos POSITION_APP observados e não substituem um odômetro/GPS dedicado."),
+              P("Posições históricas", "TA_H2"),
+              P("A coleta de posições recebidas continua preservada internamente em traffic.db para relatórios e análises futuras. A v1.27.0 remove a aba Tracklog e deixa de expor esse histórico por endpoint público."),
               P("Mensagens, respostas e reações", "TA_H2"),
               P("Estados de ACK indicam confirmação de protocolo/roteamento quando disponível. Eles não significam que uma pessoa leu a mensagem. O @ é usado apenas para localizar um nó no autocomplete e não integra o texto final transmitido."),
               P("Responder usa o replyId nativo do Meshtastic/MeshMonitor para vincular a nova mensagem ao pacote original. O compositor também aceita emojis. Reações como like, dislike e coração tentam primeiro o tapback estruturado (emoji=1 + replyId). Se o endpoint legado de tapback retornar HTTP 403, mas a API v1 continuar permitindo escrita no canal, o Traffic Analyzer envia automaticamente uma resposta emoji compatível com replyId e informa esse modo no status."),
