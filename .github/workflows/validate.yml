@@ -21,6 +21,33 @@ jobs:
       - name: Validar shell
         run: bash -n install.sh update.sh
 
+      - name: Validar replies e reações no backend
+        run: |
+          python - <<'PY'
+          import traffic_analyzer_web as ta
+          calls=[]
+          ta.MM_API_TOKEN="test-token"
+          def fake(path, payload):
+              calls.append((path,payload))
+              return {"success":True}
+          ta._mm_api_post=fake
+
+          ta._send_primary_message("resposta", reply_id=123, emoji=False)
+          path,payload=calls.pop(0)
+          assert path.endswith("/messages"), path
+          assert payload["text"]=="resposta"
+          assert payload["channel"]==0
+          assert payload["replyId"]==123
+
+          ta._send_primary_message("❤️", reply_id=123, emoji=True)
+          path,payload=calls.pop(0)
+          assert path=="/api/messages/send", path
+          assert payload["text"]=="❤️"
+          assert payload["replyId"]==123
+          assert payload["emoji"]==1
+          assert payload["sourceId"]==ta.MM_SOURCE
+          PY
+
       - name: Validar JavaScript embutido
         run: |
           python - <<'PY'
@@ -125,6 +152,63 @@ jobs:
               d.execute_script("arguments[0].value='pinball70';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",sound_theme)
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"soundTest"))
               time.sleep(1.2)
+
+              # Mensagens: reply estruturado, emoji no compositor e reação agrupada.
+              d.execute_script("""
+                primaryMessages=[
+                  {id:'default_2_101',fromNodeId:'!00000002',fromName:'NODE2',text:'Mensagem original',channel:0,createdAt:Date.now()-3000,mine:false},
+                  {id:'default_1_102',fromNodeId:'!00000001',fromName:'TESTE',text:'Resposta',channel:0,createdAt:Date.now()-2000,mine:true,replyId:101},
+                  {id:'default_3_103',fromNodeId:'!00000003',fromName:'NODE3',text:'❤️',channel:0,createdAt:Date.now()-1000,mine:false,replyId:101,emoji:1}
+                ];
+                messagesInitialized=true;renderMessages(false);
+              """)
+              assert len(d.find_elements(By.CSS_SELECTOR,".msgRow"))==2
+              assert "❤️" in d.find_element(By.CSS_SELECTOR,".reactionChip").text
+              assert "Mensagem original" in d.find_element(By.CSS_SELECTOR,".msgReplyQuote").text
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'[data-replymsg="default_2_101"]'))
+              assert "open" in d.find_element(By.ID,"replyComposerBar").get_attribute("class")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"replyComposerClose"))
+              assert "open" not in d.find_element(By.ID,"replyComposerBar").get_attribute("class")
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"messageEmojiBtn"))
+              assert "open" in d.find_element(By.ID,"emojiPicker").get_attribute("class")
+              emoji_button=d.find_element(By.CSS_SELECTOR,"#emojiPicker [data-compose-emoji]")
+              emoji_text=emoji_button.get_attribute("data-compose-emoji")
+              d.execute_script("arguments[0].click()",emoji_button)
+              assert emoji_text in d.find_element(By.ID,"messageInput").get_attribute("value")
+
+              # Histórico: vários traceroutes podem estar em trânsito ao mesmo tempo.
+              d.execute_script("""
+                const now=Date.now();
+                const p1={nodeNum:1,nodeId:'!00000001',name:'A',lat:-15.80,lon:-47.90};
+                const p2={nodeNum:2,nodeId:'!00000002',name:'B',lat:-15.70,lon:-47.80};
+                const p3={nodeNum:3,nodeId:'!00000003',name:'C',lat:-15.60,lon:-47.70};
+                topology.traces=[
+                  {id:'h1',timestampMs:now,fromName:'A',toName:'C',animatable:true,forwardPath:[p1,p2,p3],returnPath:null},
+                  {id:'h2',timestampMs:now+20,fromName:'C',toName:'A',animatable:true,forwardPath:[p3,p2,p1],returnPath:null},
+                  {id:'h3',timestampMs:now+40,fromName:'A',toName:'B',animatable:true,forwardPath:[p1,p3,p2],returnPath:null}
+                ];
+                document.getElementById('playMode').value='history';
+                stopAnimation();
+                playHistoryLoop();
+              """)
+              time.sleep(.35)
+              active_history=d.execute_script("return activeHistoryAnimations.size")
+              assert active_history>=2,active_history
+              d.execute_script("stopAnimation();document.getElementById('playMode').value='live';startLivePolling();")
+
+              # Ao vivo: runLiveTrace inicia animações independentes, sem serialização.
+              active_live=d.execute_script("""
+                const now=Date.now();
+                const p1={nodeNum:1,nodeId:'!00000001',name:'A',lat:-15.80,lon:-47.90};
+                const p2={nodeNum:2,nodeId:'!00000002',name:'B',lat:-15.70,lon:-47.80};
+                const p3={nodeNum:3,nodeId:'!00000003',name:'C',lat:-15.60,lon:-47.70};
+                playbackRunning=true;liveAnimationPaused=false;document.getElementById('playMode').value='live';
+                runLiveTrace({id:'l1',timestampMs:now,fromName:'A',toName:'C',animatable:true,forwardPath:[p1,p2,p3],returnPath:null});
+                runLiveTrace({id:'l2',timestampMs:now,fromName:'C',toName:'A',animatable:true,forwardPath:[p3,p2,p1],returnPath:null});
+                return activeLiveAnimations.size;
+              """)
+              assert active_live>=2,active_live
+              d.execute_script("stopAnimation();stopLivePolling();")
 
               for view in ["traffic","messages","health","anomalies","settings","help","map"]:
                   b=d.find_element(By.CSS_SELECTOR, f'.navbtn[data-view="{view}"]')
