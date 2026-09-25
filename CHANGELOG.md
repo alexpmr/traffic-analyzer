@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.27.0 - 2026-09-25
+
+- Remove a aba Tracklog, o mapa, os controles e o JavaScript específico da interface.
+- Mantém a coleta histórica de posições no banco para uso interno, relatórios e análises, sem endpoint público de Tracklog.
+- Adiciona autenticação administrativa opcional no servidor, ativada por padrão pelo instalador da v1.27.0.
+- Mantém acesso público não autenticado em modo somente leitura.
+- Bloqueia alterações de Configurações para usuários não autenticados.
+- Mantém Mensagens legível sem login, mas bloqueia envio, reply, reações e demais ações de escrita.
+- Protege todos os endpoints POST com sessão administrativa e token CSRF.
+- Adiciona sessão com cookie HttpOnly, SameSite=Strict, expiração configurável e Secure automático atrás de HTTPS com X-Forwarded-Proto.
+- Adiciona rate limit de login após tentativas repetidas.
+- Armazena a senha administrativa somente como PBKDF2-SHA256 com salt e 600.000 iterações.
+- Adiciona utilitário `traffic-analyzer-set-password` para definir/trocar credenciais.
+- Altera `/etc/traffic-analyzer-map.env` para permissão 0600.
+- Impede que acesso público não autenticado dispare o auto-update por consulta de versão.
+- Documenta uso de reverse proxy HTTPS para exposição na internet.
+
 ## 1.26.0 - 2026-09-25
 
 - Corrige o auto-scroll da aba Mensagens para preservar a posição quando o usuário está lendo mensagens antigas.
