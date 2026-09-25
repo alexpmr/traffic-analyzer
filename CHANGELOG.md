@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.23.1 - 2026-09-25
+
+- Corrige falha crítica de inicialização da interface da v1.23.0.
+- Corrige a tabela de internacionalização, que continha uma entrada inválida por ausência de vírgula e interrompia o JavaScript antes da configuração das abas.
+- Mantém smoke test em Chromium para validar a abertura e a navegação entre as principais abas antes de novas publicações.
+
 ## 1.23.0 - 2026-09-25
 
 - Adiciona bandeiras do Brasil e dos Estados Unidos ao seletor de idioma.
