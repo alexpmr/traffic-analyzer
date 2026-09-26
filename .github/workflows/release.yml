@@ -248,10 +248,10 @@ jobs:
               assert saved.get("defaults",{}).get("rfLineColor")=="#ffff00",saved
               assert saved.get("defaults",{}).get("mqttLineColor")=="#ff8c42",saved
               assert saved.get("defaults",{}).get("rfLineWidth")==3 and saved.get("defaults",{}).get("mqttLineWidth")==3,saved
-              for view in ["traffic","messages","health","anomalies","settings","help","map"]:
+              for view in ["nodes","traffic","messages","health","anomalies","settings","help","map"]:
                   d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,f'.navbtn[data-view="{view}"]'))
                   time.sleep(.1)
-                  assert d.find_element(By.CSS_SELECTOR,".view.active").get_attribute("id")=={"traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
+                  assert d.find_element(By.CSS_SELECTOR,".view.active").get_attribute("id")=={"nodes":"viewNodes","traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionBadge"))
               assert d.find_element(By.ID,"versionContinue").text=="Continuar"
               assert not d.find_elements(By.CSS_SELECTOR,"#versionModalBackdrop .updateCmd")
