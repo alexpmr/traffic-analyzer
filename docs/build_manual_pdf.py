@@ -128,6 +128,8 @@ def main() -> None:
               P("Pausa, Ao vivo e Histórico", "TA_H2"),
               P("No modo Ao vivo, vários traceroutes podem percorrer o mapa ao mesmo tempo. No Histórico, eventos são iniciados conforme a ordem temporal observada e também podem permanecer simultaneamente em trânsito. Não existe limite funcional de quantidade de pacotes animados: Pausar congela todos os ativos e mantém eventos aguardando sem descarte por quantidade; Retomar continua o conjunto. Alterar a velocidade afeta animações já em andamento. Janelas históricas extensas têm sua escala temporal comprimida proporcionalmente para uma reprodução prática."),
               P("Os caminhos animados continuam restritos aos hops efetivamente observados. Ausência de rota conhecida não autoriza o Traffic Analyzer a inventar retransmissores."),
+              P("Mapa-base e provedores de tiles", "TA_H2"),
+              P("O modo Ruas usa o endpoint oficial atual do OpenStreetMap: https://tile.openstreetmap.org/{z}/{x}/{y}.png. A interface envia uma política de Referer compatível com requisições web cross-origin. Se os tiles OSM falharem repetidamente, o Traffic Analyzer troca temporariamente para o mapa Claro (CARTO) para evitar uma tela em branco. A troca manual de mapa-base continua disponível em Configurações."),
               P("Posições históricas", "TA_H2"),
               P("A coleta de posições recebidas continua preservada internamente em traffic.db para relatórios e análises futuras. A v1.27.0 remove a aba Tracklog e deixa de expor esse histórico por endpoint público."),
               P("Mensagens, respostas e reações", "TA_H2"),
