@@ -1,6 +1,23 @@
-# Traffic Analyzer v1.27.1
+# Traffic Analyzer v1.28.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.28.0
+
+- Visitantes sem login passam a poder **explorar e personalizar a interface localmente**: tema claro/escuro, mapa-base, brilho, filtros visuais, cor/espessura das linhas, exibição de nós e nomes, heatmap, animações, sons e aparência das mensagens.
+- Essas escolhas são gravadas apenas no **`localStorage` daquele navegador**. Um visitante não altera o servidor nem muda a tela de outros usuários.
+- Continuam exigindo login administrativo todas as ações de escrita: **enviar/responder/reagir a mensagens**, forçar refresh administrativo da topologia, alterar auto-update, disparar atualização e modificar o padrão global.
+- O administrador ganha o botão **Usar minha configuração visual atual como padrão dos visitantes**. Esse padrão é salvo no servidor e passa a ser a apresentação inicial para navegadores que ainda não possuem personalização local.
+- Se um visitante criar suas próprias preferências, elas prevalecem somente naquele navegador. O botão **Restaurar padrão do administrador** apaga o override local e volta ao padrão global.
+- O padrão global fica em `/var/lib/traffic-analyzer/ui-defaults.json` por padrão e é exposto para leitura em `GET /api/ui-defaults`. A gravação usa `POST /api/ui-defaults`, protegida pela mesma sessão administrativa e CSRF das demais operações sensíveis.
+- O backend aceita somente campos visuais conhecidos e valida faixas, tipos e enumerações antes de persistir qualquer valor.
+
+### Regra de permissão da v1.28.0
+
+**Visitante:** leitura + personalização visual local.  
+**Administrador:** tudo acima + mensagens, operações administrativas, atualização e definição do padrão global.
+
+Essa separação permite publicar o painel para consulta e exploração sem entregar capacidade de transmitir para a malha ou modificar o servidor.
 
 
 ## Correção da v1.27.1

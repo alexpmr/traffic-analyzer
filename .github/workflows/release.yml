@@ -116,7 +116,7 @@ jobs:
           print(sap.password_hash("SenhaTeste123!"))
           PY
           )"
-          TA_AUTH_ENABLED=true TA_AUTH_USER=admin TA_AUTH_PASSWORD_HASH="$AUTH_HASH" TA_AUTH_SESSION_HOURS=12 MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
+          TA_AUTH_ENABLED=true TA_AUTH_USER=admin TA_AUTH_PASSWORD_HASH="$AUTH_HASH" TA_AUTH_SESSION_HOURS=12 MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json UI_DEFAULTS_FILE=/tmp/ui-defaults.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
           echo $! >/tmp/ta-web.pid
           python - <<'PY'
           import time, urllib.request
@@ -162,7 +162,14 @@ jobs:
               assert d.execute_script("return authState.enabled===true && authState.authenticated===false")
               assert d.find_element(By.ID,"messageInput").get_attribute("disabled") is not None
               d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="settings"]'))
-              assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is not None
+              # Visitante pode personalizar somente a própria interface.
+              assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"mapType").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is not None
+              assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is not None
+              d.execute_script("arguments[0].value='light';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"uiTheme"))
+              assert d.execute_script("return document.body.dataset.theme==='light'")
+              assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).uiTheme==='light'")
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"authAction"))
               d.find_element(By.ID,"authUsername").clear()
               d.find_element(By.ID,"authUsername").send_keys("admin")
@@ -173,6 +180,14 @@ jobs:
                   time.sleep(.1)
               assert d.execute_script("return authState.authenticated===true")
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is None
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"saveVisitorDefaults"))
+              time.sleep(.4)
+              saved=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/ui-defaults',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
+              """)
+              assert saved.get("success") and saved.get("defaults",{}).get("uiTheme")=="light",saved
               for view in ["traffic","messages","health","anomalies","settings","help","map"]:
                   d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,f'.navbtn[data-view="{view}"]'))
                   time.sleep(.1)

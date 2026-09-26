@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.27.1"
+VERSION="1.28.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -101,6 +101,7 @@ sed -i 's#MAP_TITLE=Traffic Analyzer - MeshMonitor$#MAP_TITLE=Traffic Analyzer -
 sed -i 's#/var/lib/meshmonitor-route-discovery/topology.json#/var/lib/traffic-analyzer/topology.json#g' "$MAP_ENV_FILE"
 append_if_missing "$MAP_ENV_FILE" "MAP_TITLE" "Traffic Analyzer - MeshMonitor - por Alex, PT2VHF"
 append_if_missing "$MAP_ENV_FILE" "TOPOLOGY_FILE" "$STATE_DIR/topology.json"
+append_if_missing "$MAP_ENV_FILE" "UI_DEFAULTS_FILE" "$STATE_DIR/ui-defaults.json"
 append_if_missing "$MAP_ENV_FILE" "TA_AUTH_ENABLED" "true"
 append_if_missing "$MAP_ENV_FILE" "TA_AUTH_USER" "admin"
 append_if_missing "$MAP_ENV_FILE" "TA_AUTH_PASSWORD_HASH" ""
