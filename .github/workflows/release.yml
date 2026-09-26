@@ -244,6 +244,9 @@ jobs:
                 const done=arguments[0];fetch('/api/ui-defaults',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
               """)
               assert saved.get("success") and saved.get("defaults",{}).get("uiTheme")=="light",saved
+              assert saved.get("defaults",{}).get("rfLineColor")=="#ffff00",saved
+              assert saved.get("defaults",{}).get("mqttLineColor")=="#ff8c42",saved
+              assert saved.get("defaults",{}).get("rfLineWidth")==3 and saved.get("defaults",{}).get("mqttLineWidth")==3,saved
               for view in ["traffic","messages","health","anomalies","settings","help","map"]:
                   d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,f'.navbtn[data-view="{view}"]'))
                   time.sleep(.1)
