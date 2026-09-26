@@ -2478,13 +2478,15 @@ function nodeTableRows(){
     };
   });
 }
-function nodesCompare(a,b,key){
+function nodesCompare(a,b,key,dir=1){
   const av=a[key],bv=b[key];
   const missingA=av===null||av===undefined||av===''||((key==='lastInteraction'||key==='lastPosition')&&av===0);
   const missingB=bv===null||bv===undefined||bv===''||((key==='lastInteraction'||key==='lastPosition')&&bv===0);
   if(missingA!==missingB)return missingA?1:-1;
-  if(typeof av==='number'&&typeof bv==='number')return av-bv;
-  return String(av??'').localeCompare(String(bv??''),uiLocale(),{numeric:true,sensitivity:'base'});
+  let cmp=0;
+  if(typeof av==='number'&&typeof bv==='number')cmp=av-bv;
+  else cmp=String(av??'').localeCompare(String(bv??''),uiLocale(),{numeric:true,sensitivity:'base'});
+  return cmp*dir;
 }
 function renderNodesSortIndicators(){
   document.querySelectorAll('#nodesTable th[data-node-sort]').forEach(th=>{
@@ -2512,7 +2514,7 @@ function saveNodesColumnPrefs(){
 function renderNodesTable(){
   const body=document.getElementById('nodesRows');if(!body||!topology)return;
   const rows=nodeTableRows();
-  rows.sort((a,b)=>nodesCompare(a,b,nodesSortKey)*(nodesSortDir==='asc'?1:-1));
+  rows.sort((a,b)=>nodesCompare(a,b,nodesSortKey,nodesSortDir==='asc'?1:-1));
   const ref=nodesReferenceNode();
   document.getElementById('nodesSummary').textContent=`${rows.length} ${tr('nós conhecidos')}${ref?` · ${tr('Distância')}: ${ref.shortName||ref.longName||ref.nodeId}`:''}`;
   body.innerHTML=rows.map(x=>{
@@ -2540,11 +2542,15 @@ function openNodeFromList(nodeNum){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
   const marker=nodeMarkers.get(Number(nodeNum));
   if(marker){
+    closeNodeDetailsModal();
     setView('map');
     const latlng=marker.getLatLng();if(latlng)map.panTo(latlng,{animate:false});
     marker.openPopup();
     return;
   }
+  map.closePopup();
+  openNodeNum=null;
+  openNodePopupScrollTop=0;
   const body=document.getElementById('nodeDetailsModalBody');
   body.innerHTML=nodePopupHtml(n);
   document.getElementById('nodeDetailsBackdrop').classList.add('open');
@@ -2821,6 +2827,8 @@ function friendlyScalar(k,v){
   if(v===null||v===undefined||v==='') return '—';
   if(typeof v==='boolean') return v?'Sim':'Não';
   if(typeof v==='number'){
+    if(/hwModel/i.test(k)) return hardwareFriendly(v) || String(v);
+    if(/^role$/i.test(k)) return roleFriendly(v) || String(v);
     if(/latitudeI|longitudeI/.test(k) && Math.abs(v)>180) return (v/1e7).toFixed(7)+'°';
     if(/latitude|longitude/.test(k) && Math.abs(v)<=180) return Number(v).toFixed(7)+'°';
     if(/batteryLevel|channelUtilization|airUtilTx/i.test(k)) return nodeFmtPercent(v);
