@@ -1,7 +1,16 @@
-# Traffic Analyzer v1.27.0
+# Traffic Analyzer v1.27.1
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Correção da v1.27.1
+
+- Corrige o mapa-base **Ruas (OSM)** que passou a exibir tiles 403 "Access blocked" após a v1.27.0.
+- A causa era dupla: a aplicação ainda usava o formato antigo com subdomínios `{s}.tile.openstreetmap.org` e a nova camada de segurança da v1.27.0 enviava `Referrer-Policy: same-origin`, impedindo o navegador de enviar Referer ao servidor de tiles.
+- O endpoint OSM passa a usar exatamente `https://tile.openstreetmap.org/{z}/{x}/{y}.png`.
+- O cabeçalho de segurança passa a usar `strict-origin-when-cross-origin`, preservando proteção de privacidade sem bloquear o Referer exigido em requisições web cross-origin.
+- Se o OSM falhar repetidamente, o mapa muda temporariamente para **Claro (CARTO)** para evitar uma tela em branco. A escolha manual continua disponível em Configurações.
+- Mantém autenticação, modo somente leitura, Mensagens e demais recursos da v1.27.0.
 
 ## Novidades da v1.27.0
 
