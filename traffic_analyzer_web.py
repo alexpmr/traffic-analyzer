@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.30.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.31.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.30.0"
+APP_VERSION = "1.31.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -305,8 +305,9 @@ HTML = r'''<!doctype html>
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}
-  .nodePopup{min-width:380px;max-width:500px;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(150px,42%) minmax(0,1fr);gap:4px 8px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;gap:4px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(112px,1fr) minmax(0,1.35fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:145px;overflow:auto;margin-top:5px;padding-right:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
-  @media(max-width:600px){.nodePopup{min-width:0;max-width:76vw}.nodeMetaGrid{grid-template-columns:1fr}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
+  .nodePopup{width:min(860px,calc(100vw - 110px));max-width:860px;max-height:min(76vh,700px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
+  @media(max-width:900px){.nodePopup{width:min(640px,calc(100vw - 70px));max-height:72vh}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
+  @media(max-width:600px){.nodePopup{width:76vw;min-width:0;max-width:76vw;max-height:68vh;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
   .warn{color:#ffcc66}
   .short-label{background:rgba(14,22,33,.88);border:1px solid #405668;color:#fff;border-radius:4px;padding:1px 4px;font-weight:700;box-shadow:none}
   .short-label:before{display:none}
@@ -390,7 +391,7 @@ HTML = r'''<!doctype html>
 body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
 
   /* v1.22 - internacionalização e ajuda */
-  .languageControl{display:flex;align-items:center;gap:5px;font-size:11px;color:#cbd6df;white-space:nowrap}.languageControl select{font-size:11px;padding:4px 6px}.languageControl span{font-weight:700}
+  .languageControl{display:flex;align-items:center;font-size:11px;color:#cbd6df;white-space:nowrap}.languageControl select{font-size:11px;padding:4px 24px 4px 7px;min-width:128px;cursor:pointer}.languageControl span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   #viewHelp{overflow:auto}.helpCard{max-width:1100px;margin:18px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:22px;width:calc(100% - 36px);box-sizing:border-box;line-height:1.5}.helpCard h2{margin:0 0 8px}.helpCard h3{margin:22px 0 7px;color:#e9d46d}.helpCard h4{margin:15px 0 5px;color:#9fc6e4}.helpCard p,.helpCard li{font-size:13px}.helpCard ul{padding-left:22px}.helpCard code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:4px;padding:1px 4px}.helpCode{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:7px;padding:10px 12px;font-size:12px;overflow:auto}.helpCallout{background:#132a38;border-left:4px solid #3a8fbd;border-radius:6px;padding:10px 12px;margin:10px 0;font-size:12px}.helpWarn{background:#382d13;border-left-color:#d6a700}.helpGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 18px}.helpMini{background:#111a24;border:1px solid #293744;border-radius:8px;padding:11px}.helpMini b{display:block;margin-bottom:4px}.i18nNoTranslate{unicode-bidi:plaintext}
   body[data-theme="light"] .languageControl{color:#344654}body[data-theme="light"] .helpCard{background:#fff;border-color:#cbd5dd;color:#18232d}body[data-theme="light"] .helpCard h3{color:#7a6500}body[data-theme="light"] .helpCard h4{color:#245f7c}body[data-theme="light"] .helpMini{background:#f5f7f9;border-color:#dce3e8}body[data-theme="light"] .helpCode,body[data-theme="light"] .helpCard code{background:#f5f7f9;border-color:#cbd5dd;color:#17212b}body[data-theme="light"] .helpCallout{background:#e8f3f8}body[data-theme="light"] .helpWarn{background:#fff6d9}
   @media(max-width:780px){.helpGrid{grid-template-columns:1fr}.helpCard{width:calc(100% - 20px);margin:10px auto;padding:15px}}
@@ -1678,7 +1679,7 @@ function render(){
     } else {
       marker.bindTooltip(esc(n.name || n.nodeId), {direction:'top'});
     }
-    marker.bindPopup(nodePopupHtml(n), {maxWidth:540,minWidth:390});
+    marker.bindPopup(nodePopupHtml(n), {maxWidth:900,minWidth:280});
     marker.on('popupopen',()=>{loadNodeDetails(n.nodeNum,true).catch(e=>{
       const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
       if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
@@ -3428,7 +3429,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1290';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1310';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -3458,7 +3459,7 @@ function renderVersionStatus(data){
     badge.classList.add('error'); badge.textContent=`v${data?.localVersion||'__APP_VERSION__'} · não verificado`; badge.title='Não foi possível verificar a versão mais recente'; return;
   }
   if(data.updateAvailable){
-    badge.classList.add('update'); badge.textContent=`v${data.localVersion} → v${data.latestVersion} disponível`; badge.title='Nova versão disponível - clique para ver as novidades';
+    badge.classList.add('update'); badge.textContent=`v${data.localVersion} → v${data.latestVersion} · BAIXAR`; badge.title=`Baixar Traffic Analyzer v${data.latestVersion}`;
   }else{
     badge.classList.add('current'); badge.textContent=`v${data.localVersion} · ATUALIZADO`; badge.title='Esta é a versão mais recente publicada';
   }
@@ -3496,7 +3497,28 @@ function openVersionModal(){
   document.getElementById('versionModalBackdrop').classList.add('open');
 }
 function closeVersionModal(){ document.getElementById('versionModalBackdrop').classList.remove('open'); }
-document.getElementById('versionBadge').addEventListener('click',openVersionModal);
+function latestPackageUrl(data){
+  const url=String(data?.downloadUrl||'');
+  return /^https:\/\/github\.com\/alexpmr\/traffic-analyzer\/releases\/download\/v[^/]+\/traffic-analyzer-(?:v[^/]+|latest)\.zip(?:\?.*)?$/i.test(url)?url:'';
+}
+function handleVersionBadgeClick(){
+  const d=versionStatusData||{};
+  if(d.updateAvailable){
+    const url=latestPackageUrl(d);
+    if(url){
+      const badge=document.getElementById('versionBadge');
+      const previous=badge.textContent;
+      badge.textContent=`v${d.latestVersion} · download iniciado`;
+      const a=document.createElement('a');
+      a.href=url;a.rel='noopener noreferrer';a.style.display='none';
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>{if(versionStatusData===d)renderVersionStatus(d);else badge.textContent=previous;},1800);
+      return;
+    }
+  }
+  openVersionModal();
+}
+document.getElementById('versionBadge').addEventListener('click',handleVersionBadgeClick);
 document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
 document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
 document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
@@ -4982,6 +5004,12 @@ def _version_status(force: bool = False):
             latest = tag[1:] if tag.lower().startswith("v") else tag
             if not latest:
                 raise RuntimeError("Release Latest sem tag de versão")
+            wanted = f"traffic-analyzer-v{latest}.zip"
+            assets = release.get("assets") if isinstance(release.get("assets"), list) else []
+            asset = next((a for a in assets if isinstance(a, dict) and a.get("name") == wanted), None)
+            if not asset:
+                asset = next((a for a in assets if isinstance(a, dict) and a.get("name") == "traffic-analyzer-latest.zip"), None)
+            download_url = str(asset.get("browser_download_url") or "") if isinstance(asset, dict) else ""
             data = {
                 "success": True,
                 "status": "ok",
@@ -4989,6 +5017,8 @@ def _version_status(force: bool = False):
                 "latestVersion": latest,
                 "updateAvailable": _version_tuple(latest) > _version_tuple(APP_VERSION),
                 "releaseUrl": release.get("html_url"),
+                "downloadUrl": download_url,
+                "downloadName": asset.get("name") if isinstance(asset, dict) else None,
                 "publishedAt": release.get("published_at"),
                 "notes": str(release.get("body") or "").strip(),
                 "stable": not bool(release.get("draft")) and not bool(release.get("prerelease")),
@@ -5010,6 +5040,8 @@ def _version_status(force: bool = False):
                 "latestVersion": None,
                 "updateAvailable": False,
                 "releaseUrl": "https://github.com/alexpmr/traffic-analyzer/releases/latest",
+                "downloadUrl": "",
+                "downloadName": None,
                 "publishedAt": None,
                 "notes": "",
                 "message": str(exc),
