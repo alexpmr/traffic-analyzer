@@ -1,6 +1,23 @@
-# Traffic Analyzer v1.31.0
+# Traffic Analyzer v1.32.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.32.0
+
+- Nova aba superior **Nós**, com inventário dos nós conhecidos pelo MeshMonitor.
+- A tabela principal mostra **Nome longo, Nome curto, Role, Hardware, Saltos, Bateria, Tensão, Distância, SNR, Última interação e Última posição**.
+- Colunas técnicas opcionais podem ser ativadas pelo menu **Colunas**: **RSSI, Utilização do canal, Air Util TX, Node ID, PKC e Estado**.
+- Todos os títulos das colunas são clicáveis e alternam ordenação **crescente/decrescente**, com ordenação numérica real para saltos, bateria, distância, SNR e timestamps.
+- **Última interação** usa tempo relativo compacto (`30 s`, `10 min`, `3 h`, `2 d`) e semáforo: **verde até 1 h**, **amarelo de mais de 1 h até 12 h** e **vermelho acima de 12 h**; sem timestamp fica neutro.
+- A idade das interações é atualizada automaticamente enquanto a aba permanece aberta.
+- A distância é calculada em linha reta a partir do **nó local da fonte MeshMonitor**, identificado pela API v1 de status da própria fonte.
+- Clicar em um nó abre seu detalhe; quando ele possui marcador visível, o Traffic Analyzer leva ao mapa e abre o mesmo popup. Nós sem marcador podem ser consultados em um modal de detalhes.
+- O popup do nó passa a exibir **nome amigável do hardware**, seguindo a enumeração HardwareModel utilizada pelo MeshMonitor/Meshtastic (por exemplo, `110 → Heltec V4`, `43 → Heltec V3`).
+- Roles numéricas também passam a ser apresentadas por nome amigável.
+- O popup aberto é **preservado durante as atualizações periódicas da topologia** e mantém sua posição de rolagem, evitando o fechamento automático observado nas versões anteriores.
+- O checklist das consultas continua marcando **✓ verde somente quando uma resposta nova é efetivamente observada no MeshMonitor**; envio aceito sem resposta permanece aguardando.
+- Todos os percentuais exibidos no popup, metadados e tabela de nós passam a usar **1 casa decimal**, respeitando vírgula em Português e ponto em English.
+- Mantém todas as funções da v1.31.0, incluindo download direto da Latest Release pelo indicador superior.
 
 ## Novidades da v1.31.0
 
