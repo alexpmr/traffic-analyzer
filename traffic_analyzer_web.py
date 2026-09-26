@@ -1034,6 +1034,9 @@ const traceHudEntries = new Map();
 let traceHudContainer = null;
 
 const PREF_KEY = 'trafficAnalyzerPrefsV15';
+let serverUiDefaults={};
+let serverUiDefaultsUpdatedAtMs=null;
+
 function loadPrefs(){
   try {
     const current=localStorage.getItem(PREF_KEY);
@@ -1043,8 +1046,9 @@ function loadPrefs(){
     return {};
   } catch { return {}; }
 }
-function savePrefs(){
-  const prefs = {
+function collectPrefs(){
+  return {
+    defaultsVersion: 280,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
@@ -1082,7 +1086,41 @@ function savePrefs(){
     messageRowGap: Number(document.getElementById('messageRowGap').value || 4),
     uiTheme: document.getElementById('uiTheme').value || 'dark'
   };
-  localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+}
+function savePrefs(){ localStorage.setItem(PREF_KEY, JSON.stringify(collectPrefs())); }
+
+async function loadUiDefaults(){
+  try{
+    const r=await fetch('/api/ui-defaults',{cache:'no-store'});
+    const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    serverUiDefaults=(b.defaults&&typeof b.defaults==='object')?b.defaults:{};
+    serverUiDefaultsUpdatedAtMs=b.updatedAtMs||null;
+    const status=document.getElementById('visitorDefaultsStatus');
+    if(status)status.textContent=Object.keys(serverUiDefaults).length?tr('Padrão global carregado.'):tr('Padrão global ainda não definido; usando os padrões de fábrica.');
+    return b;
+  }catch(e){
+    serverUiDefaults={};serverUiDefaultsUpdatedAtMs=null;
+    const status=document.getElementById('visitorDefaultsStatus');if(status)status.textContent=tr('Erro')+': '+e;
+    return null;
+  }
+}
+async function saveVisitorDefaults(){
+  if(!authCanWrite()){openAuthModal();return;}
+  const btn=document.getElementById('saveVisitorDefaults');
+  const status=document.getElementById('visitorDefaultsStatus');
+  btn.disabled=true;
+  try{
+    const r=await authFetch('/api/ui-defaults',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefs:collectPrefs()})});
+    const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    serverUiDefaults=b.defaults||{};serverUiDefaultsUpdatedAtMs=b.updatedAtMs||null;
+    status.textContent=tr('Padrão global salvo.');
+  }catch(e){status.textContent=tr('Erro')+': '+e;}
+  finally{btn.disabled=!authCanWrite();}
+}
+function restoreAdminDefaults(){
+  localStorage.removeItem(PREF_KEY);
+  location.reload();
 }
 function setBaseMap(type,{allowFallback=true}={}){
   const cfg=baseMaps[type]||baseMaps.osm;
@@ -1141,17 +1179,18 @@ function applyMessageAppearance(){
 }
 function applyMessageFontSize(){applyMessageAppearance();}
 function initVisualPrefs(){
-  const prefs = loadPrefs();
+  const localPrefs = loadPrefs();
 
-  // v1.16.0: Ruas (OSM) volta a ser o mapa-base padrão.
-  // A migração roda uma única vez para neutralizar o antigo padrão Satélite;
-  // depois disso, qualquer escolha manual do usuário volta a ser preservada.
-  if(Number(prefs.defaultsVersion || 0) < 140){
-    prefs.mapType = 'osm';
-    if(!prefs.lineColor || String(prefs.lineColor).toLowerCase() === '#ff0000') prefs.lineColor = '#ffff00';
-    prefs.defaultsVersion = 140;
-    localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+  // Migra somente preferências locais antigas. Navegadores novos não gravam
+  // automaticamente o padrão global no localStorage, permitindo que mudanças
+  // futuras do administrador cheguem a quem ainda não criou um override local.
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 140){
+    localPrefs.mapType = 'osm';
+    if(!localPrefs.lineColor || String(localPrefs.lineColor).toLowerCase() === '#ff0000') localPrefs.lineColor = '#ffff00';
+    localPrefs.defaultsVersion = 280;
+    localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
+  const prefs = {...serverUiDefaults,...localPrefs};
 
   if(['all','1','6','12','24','168','720'].includes(String(prefs.ageHours))) document.getElementById('ageHours').value = String(prefs.ageHours);
   if(Number.isFinite(Number(prefs.minObs)) && Number(prefs.minObs)>=1) document.getElementById('minObs').value = String(Math.floor(Number(prefs.minObs)));
@@ -3053,6 +3092,8 @@ for(const id of ['messageBold','messageItalic','messageUnderline']) document.get
 document.getElementById('messageLineHeight').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
 document.getElementById('messageRowGap').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
 document.getElementById('uiTheme').addEventListener('change',()=>{applyTheme();savePrefs();});
+document.getElementById('restoreAdminDefaults').addEventListener('click',restoreAdminDefaults);
+document.getElementById('saveVisitorDefaults').addEventListener('click',saveVisitorDefaults);
 document.getElementById('flowToast').addEventListener('click',()=>setView('map'));
 
 let updateRuntimeData=null;
@@ -3184,19 +3225,23 @@ legend.onAdd = () => {
 };
 legend.addTo(map);
 
-initVisualPrefs();
-applyLanguage(currentLang,false);
-initI18nObserver();
-loadAuthStatus(false);
-checkVersionStatus(false);
-loadUpdateStatus();
-showWhatsNewIfNeeded();
-setInterval(()=>checkVersionStatus(false),30*60*1000);
-setInterval(()=>loadAuthStatus(false),60*1000);
-setInterval(()=>loadUpdateStatus(),15000);
-load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
-loadTrafficInitial();
-setInterval(() => load(false), 60000);
+async function bootstrap(){
+  await loadUiDefaults();
+  initVisualPrefs();
+  applyLanguage(currentLang,false);
+  initI18nObserver();
+  loadAuthStatus(false);
+  checkVersionStatus(false);
+  loadUpdateStatus();
+  showWhatsNewIfNeeded();
+  setInterval(()=>checkVersionStatus(false),30*60*1000);
+  setInterval(()=>loadAuthStatus(false),60*1000);
+  setInterval(()=>loadUpdateStatus(),15000);
+  load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
+  loadTrafficInitial();
+  setInterval(() => load(false), 60000);
+}
+bootstrap();
 </script>
 </body>
 </html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__APP_VERSION__', APP_VERSION.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
