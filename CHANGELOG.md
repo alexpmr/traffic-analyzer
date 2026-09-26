@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.32.0 - 2026-09-26
+
+- Adiciona a nova aba Nós com inventário ordenável dos nós conhecidos.
+- Exibe por padrão Nome longo, Nome curto, Role, Hardware, Saltos, Bateria, Tensão, Distância, SNR, Última interação e Última posição.
+- Adiciona colunas opcionais RSSI, Utilização do canal, Air Util TX, Node ID, PKC e Estado.
+- Permite ordenar qualquer coluna em ordem crescente ou decrescente clicando no título.
+- Colore a idade da última interação: verde até 1 h, amarelo entre 1 h e 12 h e vermelho acima de 12 h.
+- Atualiza automaticamente o texto de idade enquanto a aba Nós estiver aberta.
+- Consulta o endpoint de status da fonte do MeshMonitor para identificar o nó local e calcular a distância geográfica de cada nó com posição conhecida.
+- Permite abrir os detalhes do nó a partir da tabela, reutilizando o popup do mapa quando possível.
+- Converte hwModel numérico para nomes amigáveis de hardware e Role numérica para nomes legíveis.
+- Preserva o popup aberto e sua rolagem durante a regeneração periódica da topologia.
+- Mantém checks verdes somente após detectar respostas novas às consultas do nó.
+- Padroniza percentuais com uma casa decimal em popup, telemetria e inventário de nós.
+- Preserva os recursos e o fluxo de atualização da v1.31.0.
+
 ## 1.31.0 - 2026-09-26
 
 - Torna o popup dos nós mais largo e orientado para paisagem em telas de desktop.
