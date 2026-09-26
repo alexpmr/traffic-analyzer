@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.30.0 - 2026-09-26
+
+- Expande o popup de nós para exibir um inventário completo dos metadados esperados, marcando com ✓ os dados disponíveis e com ☐ os ausentes.
+- Adiciona latitude, longitude, coordenadas combinadas, altitude e data/hora da última posição ao popup.
+- Exibe metadados seguros do NodeDB do MeshMonitor, incluindo identidade, hardware/role, firmware, posição, RF, bateria, tensão, utilização de canal, Air Util TX, uptime, reboots, Store & Forward e PKC quando disponíveis.
+- Adiciona consultas individuais de Node Info, Position, Device Metrics, Environment Metrics, Air Quality, Power Metrics, Neighbor Info e Traceroute.
+- Adiciona botão Tudo, que dispara as consultas sequencialmente com intervalo entre transmissões e deixa o Traceroute por último.
+- Mostra no próprio popup o estado de cada consulta e marca ✓ à medida que uma resposta nova é detectada no MeshMonitor.
+- Atualiza os metadados do popup em tempo real enquanto houver respostas pendentes.
+- Encaminha as solicitações pelos endpoints do próprio MeshMonitor, preservando o MM como fonte de verdade e permitindo que as respostas fiquem disponíveis também na interface/banco do MM.
+- Mantém Neighbor Info sujeito às restrições de nó local/0-hop e aos limites do firmware/MeshMonitor.
+- Protege todas as consultas ativas com a autenticação administrativa e CSRF já usados nas demais operações de escrita.
+- Amplia o topology.json com metadados seguros para que o popup abra imediatamente com o máximo de informação já conhecida.
+- Preserva o mapa e os recursos RF/MQTT-não-RF da v1.29.0.
+
 ## 1.29.0 - 2026-09-26
 
 - Classifica cada observação de enlace como RF ou MQTT/não-RF usando evidência por hop dos traceroutes.
