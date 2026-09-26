@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.28.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.29.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.28.0"
+APP_VERSION = "1.29.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -299,7 +299,8 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668}
+  .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
+  .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
@@ -578,12 +579,17 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <label>Brilho: <input id="mapBrightness" type="range" min="30" max="150" step="5" value="100" style="width:150px;vertical-align:middle"> <span id="mapBrightnessValue">100%</span></label>
       </div>
       <div class="settingRow">
-        <label>Cor das linhas: <input id="lineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label>
+        <b>Enlaces RF confirmados</b><br>
+        <label>Cor: <input id="rfLineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
+        <label>Espessura: <input id="rfLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="rfLineWidthValue">3 px</span></label>
+        <div class="settingDesc">Linha contínua. Se o mesmo enlace tiver observações RF e MQTT/não-RF no período, prevalece a linha contínua por existir evidência RF.</div>
       </div>
       <div class="settingRow">
-        <label>Espessura das linhas: <input id="lineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="lineWidthValue">3 px</span></label>
-        <div class="settingDesc">Ajusta apenas a visualização dos enlaces; não altera a topologia nem os cálculos.</div>
-        <button id="lineStyleReset" type="button" style="margin-top:7px">Restaurar padrão</button>
+        <b>Enlaces MQTT / não-RF</b><br>
+        <label>Cor: <input id="mqttLineColor" type="color" value="#ff8c42" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
+        <label>Espessura: <input id="mqttLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="mqttLineWidthValue">3 px</span></label>
+        <div class="settingDesc">Linha tracejada quando o enlace não possui nenhuma observação RF no período selecionado. Inclui MQTT explícito e hops com SNR desconhecido tratados como não-RF.</div>
+        <button id="lineStyleReset" type="button" style="margin-top:7px">Restaurar cores e espessuras</button>
       </div>
       <div class="settingRow">
         <label><input id="showLines" type="checkbox" checked> Mostrar linhas</label><br>
@@ -1049,14 +1055,16 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 280,
+    defaultsVersion: 290,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
     mapType: document.getElementById('mapType').value,
     brightness: Number(document.getElementById('mapBrightness').value || 100),
-    lineColor: document.getElementById('lineColor').value || '#ffff00',
-    lineWidth: Number(document.getElementById('lineWidth').value || 3),
+    rfLineColor: document.getElementById('rfLineColor').value || '#ffff00',
+    rfLineWidth: Number(document.getElementById('rfLineWidth').value || 3),
+    mqttLineColor: document.getElementById('mqttLineColor').value || '#ff8c42',
+    mqttLineWidth: Number(document.getElementById('mqttLineWidth').value || 3),
     showShortNames: document.getElementById('showShortNames').checked,
     showLines: document.getElementById('showLines').checked,
     showNodes: document.getElementById('showNodes').checked,
@@ -1185,10 +1193,16 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 140){
-    localPrefs.mapType = 'osm';
-    if(!localPrefs.lineColor || String(localPrefs.lineColor).toLowerCase() === '#ff0000') localPrefs.lineColor = '#ffff00';
-    localPrefs.defaultsVersion = 280;
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 290){
+    if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
+    const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
+    const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
+    if(!localPrefs.rfLineColor) localPrefs.rfLineColor=(String(legacyColor).toLowerCase()==='#ff0000')?'#ffff00':legacyColor;
+    if(!localPrefs.rfLineWidth) localPrefs.rfLineWidth=legacyWidth;
+    if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
+    if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
+    delete localPrefs.lineColor; delete localPrefs.lineWidth;
+    localPrefs.defaultsVersion = 290;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -1198,8 +1212,12 @@ function initVisualPrefs(){
   document.getElementById('onlyIdentified').checked = Boolean(prefs.onlyIdentified);
   if(baseMaps[prefs.mapType]) document.getElementById('mapType').value = prefs.mapType;
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
-  if(/^#[0-9a-fA-F]{6}$/.test(prefs.lineColor || '')) document.getElementById('lineColor').value = prefs.lineColor;
-  if(Number.isFinite(Number(prefs.lineWidth))) document.getElementById('lineWidth').value = String(Math.max(1,Math.min(8,Number(prefs.lineWidth))));
+  const rfColor=prefs.rfLineColor || prefs.lineColor;
+  const rfWidth=prefs.rfLineWidth ?? prefs.lineWidth;
+  if(/^#[0-9a-fA-F]{6}$/.test(rfColor || '')) document.getElementById('rfLineColor').value = rfColor;
+  if(Number.isFinite(Number(rfWidth))) document.getElementById('rfLineWidth').value = String(Math.max(1,Math.min(8,Number(rfWidth))));
+  if(/^#[0-9a-fA-F]{6}$/.test(prefs.mqttLineColor || '')) document.getElementById('mqttLineColor').value = prefs.mqttLineColor;
+  if(Number.isFinite(Number(prefs.mqttLineWidth))) document.getElementById('mqttLineWidth').value = String(Math.max(1,Math.min(8,Number(prefs.mqttLineWidth))));
   if(typeof prefs.showShortNames === 'boolean') document.getElementById('showShortNames').checked = prefs.showShortNames;
   document.getElementById('showLines').checked = (typeof prefs.showLines === 'boolean') ? prefs.showLines : true;
   document.getElementById('showNodes').checked = (typeof prefs.showNodes === 'boolean') ? prefs.showNodes : true;
@@ -1232,7 +1250,8 @@ function initVisualPrefs(){
   document.getElementById('uiTheme').value = prefs.uiTheme === 'light' ? 'light' : 'dark';
   applyTheme();
   applyMessageAppearance();
-  document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;
+  document.getElementById('rfLineWidthValue').textContent=`${document.getElementById('rfLineWidth').value} px`;
+  document.getElementById('mqttLineWidthValue').textContent=`${document.getElementById('mqttLineWidth').value} px`;
   document.getElementById('soundVolumeValue').textContent = `${document.getElementById('soundVolume').value}%`;
   document.getElementById('soundMinIntervalValue').textContent = `${document.getElementById('soundMinInterval').value} ms`;
   setBaseMap(document.getElementById('mapType').value);
@@ -2759,9 +2778,10 @@ document.getElementById('showShortNames').addEventListener('change', () => { sav
 for(const id of ['showLines','showNodes','showHeatmap']) document.getElementById(id).addEventListener('change', () => { savePrefs(); render(); });
 document.getElementById('mapType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
 document.getElementById('mapBrightness').addEventListener('input', () => { applyBrightness(); savePrefs(); });
-document.getElementById('lineColor').addEventListener('input', () => { savePrefs(); render(); });
-document.getElementById('lineWidth').addEventListener('input',()=>{document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;savePrefs();render();});
-document.getElementById('lineStyleReset').addEventListener('click',()=>{document.getElementById('lineColor').value='#ffff00';document.getElementById('lineWidth').value='3';document.getElementById('lineWidthValue').textContent='3 px';savePrefs();render();});
+for(const id of ['rfLineColor','mqttLineColor']) document.getElementById(id).addEventListener('input', () => { savePrefs(); render(); renderLegend(); });
+document.getElementById('rfLineWidth').addEventListener('input',()=>{document.getElementById('rfLineWidthValue').textContent=`${document.getElementById('rfLineWidth').value} px`;savePrefs();render();renderLegend();});
+document.getElementById('mqttLineWidth').addEventListener('input',()=>{document.getElementById('mqttLineWidthValue').textContent=`${document.getElementById('mqttLineWidth').value} px`;savePrefs();render();renderLegend();});
+document.getElementById('lineStyleReset').addEventListener('click',()=>{document.getElementById('rfLineColor').value='#ffff00';document.getElementById('rfLineWidth').value='3';document.getElementById('mqttLineColor').value='#ff8c42';document.getElementById('mqttLineWidth').value='3';document.getElementById('rfLineWidthValue').textContent='3 px';document.getElementById('mqttLineWidthValue').textContent='3 px';savePrefs();render();renderLegend();});
 document.getElementById('animSpeed').addEventListener('change', savePrefs);
 document.getElementById('playMode').addEventListener('change', () => {
   stopAnimation(); stopLivePolling();
@@ -3388,7 +3408,7 @@ def _live_traceroutes(limit: int):
     keep = {
         "id", "packetId", "fromNodeNum", "toNodeNum", "fromNodeId", "toNodeId",
         "route", "routeBack", "snrTowards", "snrBack", "routePositions",
-        "channel", "timestamp", "createdAt",
+        "channel", "timestamp", "createdAt", "transportMechanism", "viaMqtt",
     }
     return [{k: row.get(k) for k in keep if k in row} for row in rows if isinstance(row, dict)]
 
@@ -4302,10 +4322,11 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
             out["brightness"] = v
     except (TypeError, ValueError):
         pass
-    color = str(raw.get("lineColor") or "")
-    if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-        out["lineColor"] = color.lower()
-    for key, lo, hi in [("lineWidth", 1, 8), ("soundVolume", 0, 100), ("soundMinInterval", 40, 800), ("soundMaxVoices", 1, 8), ("messageFontSize", 10, 20), ("messageRowGap", 1, 14)]:
+    for key in ("rfLineColor", "mqttLineColor", "lineColor"):
+        color = str(raw.get(key) or "")
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            out[key] = color.lower()
+    for key, lo, hi in [("rfLineWidth", 1, 8), ("mqttLineWidth", 1, 8), ("lineWidth", 1, 8), ("soundVolume", 0, 100), ("soundMinInterval", 40, 800), ("soundMaxVoices", 1, 8), ("messageFontSize", 10, 20), ("messageRowGap", 1, 14)]:
         try:
             v = int(raw.get(key))
             if lo <= v <= hi:
@@ -4330,7 +4351,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 280
+    out["defaultsVersion"] = 290
     return out
 
 
@@ -4554,7 +4575,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.28.0"
+    server_version = "TrafficAnalyzer/1.29.0"
 
     def _send(self, status, content_type, body: bytes, extra_headers=None):
         self.send_response(status)
