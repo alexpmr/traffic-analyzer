@@ -21,6 +21,13 @@ jobs:
       - name: Validar shell
         run: bash -n install.sh update.sh
 
+      - name: Validar política dos tiles de mapa
+        run: |
+          grep -Fq "https://tile.openstreetmap.org/{z}/{x}/{y}.png" traffic_analyzer_web.py
+          ! grep -Fq "https://{s}.tile.openstreetmap.org" traffic_analyzer_web.py
+          grep -Fq 'Referrer-Policy", "strict-origin-when-cross-origin"' traffic_analyzer_web.py
+          ! grep -Fq 'Referrer-Policy", "same-origin"' traffic_analyzer_web.py
+
       - name: Validar replies e reações no backend
         run: |
           python - <<'PY'
@@ -180,6 +187,16 @@ jobs:
               lang=d.find_element(By.ID,"uiLanguage")
               labels=[o.text for o in lang.find_elements(By.TAG_NAME,"option")]
               assert labels==["🇧🇷 Português","🇺🇸 English"],labels
+
+              osm_url=d.execute_script("return baseMaps.osm.url")
+              assert osm_url=="https://tile.openstreetmap.org/{z}/{x}/{y}.png",osm_url
+              fallback=d.execute_script("""
+                document.getElementById('mapType').value='osm';
+                setBaseMap('osm');
+                for(let i=0;i<4;i++)baseLayer.fire('tileerror');
+                return document.getElementById('mapType').value;
+              """)
+              assert fallback=="light",fallback
               assert not d.find_elements(By.CSS_SELECTOR,'.navbtn[data-view="tracklog"]')
               assert not d.find_elements(By.ID,"viewTracklog")
 
