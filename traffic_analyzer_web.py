@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.31.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.32.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.31.0"
+APP_VERSION = "1.32.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -326,6 +326,8 @@ HTML = r'''<!doctype html>
   .dashCard .value{font-size:27px;font-weight:800;line-height:1.05;margin:4px 0}.dashCard .label{font-size:12px;color:#aebbc7}.dashCard .sub{font-size:11px;color:#8194a5;margin-top:5px}
   .dashSection{background:#111a24;border:1px solid #293744;border-radius:9px;margin:10px 0;overflow:hidden}.dashSection h3{font-size:14px;margin:0;padding:10px 12px;background:#17212b;border-bottom:1px solid #293744}.dashSectionBody{padding:10px 12px;overflow:auto}
   .dashTable{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}.dashTable th{position:sticky;top:0;background:#17212b;color:#cbd6df;text-align:left;padding:8px;border-bottom:1px solid #405668}.dashTable td{padding:8px;border-bottom:1px solid #22313f}.dashTable tr:last-child td{border-bottom:0}
+  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeDetailsModal{width:min(900px,96vw);max-height:88vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
+  @media(max-width:800px){.nodesWrap{padding:8px}.nodesTableWrap{max-height:calc(100vh - 135px)}}
   .miniBars{display:flex;align-items:flex-end;gap:7px;height:130px;padding:8px 4px 22px}.miniBarWrap{flex:1;min-width:42px;text-align:center;position:relative;height:100%}.miniBar{position:absolute;bottom:19px;left:12%;right:12%;background:#3a8fbd;border-radius:4px 4px 0 0;min-height:2px}.miniBarLabel{position:absolute;bottom:0;left:0;right:0;font-size:10px;color:#91a4b3}.miniBarValue{position:absolute;bottom:calc(var(--h) + 23px);left:0;right:0;font-size:10px;color:#dbe6ee}
   .severity{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800}.sev-critical{background:#6e2020;color:#ffb2b2}.sev-warning{background:#6a4a13;color:#ffd98a}.sev-info{background:#174f64;color:#9ce8ff}.sev-ok{background:#174f37;color:#9df2bc}
   .anomalyRow{display:grid;grid-template-columns:92px minmax(150px,240px) minmax(300px,1fr) 160px;gap:8px;align-items:start;padding:10px 12px;border-bottom:1px solid #22313f;font-size:12px}.anomalyRow:last-child{border-bottom:0}.anomalyTitle{font-weight:800}.anomalyEvidence{color:#9fb0bf;margin-top:3px}.anomalyTime{color:#8194a5;text-align:right}
@@ -456,6 +458,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   <div class="authControls"><span id="authStateBadge" class="authBadge">Verificando acesso…</span><button id="authAction" class="authAction" type="button">Entrar</button></div>
   <div id="nav">
     <button class="navbtn active" data-view="map">Mapa</button>
+    <button class="navbtn" data-view="nodes">Nós</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
     <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
     <button class="navbtn" data-view="health">Saúde da Rede</button>
@@ -489,7 +492,58 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
 </div>
 <div id="map"></div>
 </section>
+<section id="viewNodes" class="view">
+  <div class="nodesWrap">
+    <div class="nodesToolbar">
+      <h2>Nós</h2>
+      <span id="nodesSummary" class="settingDesc">Carregando...</span>
+      <div class="nodesColumnsMenu">
+        <button id="nodesColumnsButton" type="button">Colunas</button>
+        <div id="nodesColumnsPanel" class="nodesColumnsPanel">
+          <label><input type="checkbox" data-node-column="rssi"> RSSI</label>
+          <label><input type="checkbox" data-node-column="channelUtilization"> Utilização do canal</label>
+          <label><input type="checkbox" data-node-column="airUtilTx"> Air Util TX</label>
+          <label><input type="checkbox" data-node-column="nodeId"> Node ID</label>
+          <label><input type="checkbox" data-node-column="pkc"> PKC</label>
+          <label><input type="checkbox" data-node-column="state"> Estado</label>
+        </div>
+      </div>
+      <button id="nodesReload" type="button">Atualizar</button>
+    </div>
+    <div id="nodesTableWrap" class="nodesTableWrap">
+      <table id="nodesTable" class="nodesTable">
+        <thead><tr>
+          <th data-node-sort="longName">Nome longo</th>
+          <th data-node-sort="shortName">Nome curto</th>
+          <th data-node-sort="role">Role</th>
+          <th data-node-sort="hardware">Hardware</th>
+          <th data-node-sort="hops">Saltos</th>
+          <th data-node-sort="battery">Bateria</th>
+          <th data-node-sort="voltage">Tensão</th>
+          <th data-node-sort="distance">Distância</th>
+          <th data-node-sort="snr">SNR</th>
+          <th data-node-sort="lastInteraction">Última interação</th>
+          <th data-node-sort="lastPosition">Última posição</th>
+          <th class="nodeOptional col-rssi" data-node-sort="rssi">RSSI</th>
+          <th class="nodeOptional col-channelUtilization" data-node-sort="channelUtilization">Utilização do canal</th>
+          <th class="nodeOptional col-airUtilTx" data-node-sort="airUtilTx">Air Util TX</th>
+          <th class="nodeOptional col-nodeId" data-node-sort="nodeId">Node ID</th>
+          <th class="nodeOptional col-pkc" data-node-sort="pkc">PKC</th>
+          <th class="nodeOptional col-state" data-node-sort="state">Estado</th>
+        </tr></thead>
+        <tbody id="nodesRows"><tr><td colspan="17">Carregando nós...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<div id="nodeDetailsBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-label="Detalhes do nó">
+  <div class="versionModal nodeDetailsModal">
+    <div class="versionModalHead"><h2>Detalhes do nó</h2><button id="nodeDetailsClose" class="versionClose" type="button" title="Fechar">×</button></div>
+    <div id="nodeDetailsModalBody"></div>
+  </div>
+</div>
 <section id="viewTraffic" class="view">
+
   <div id="trafficToolbar">
     <b>Tráfego ao vivo</b>
     <span id="trafficLive" class="liveBadge">● AO VIVO</span>
@@ -745,7 +799,8 @@ let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
 function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
 
 const I18N_PAIRS=[
-  ['Mapa','Map'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Configurações','Settings'],['Ajuda','Help'],
+  ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Configurações','Settings'],['Ajuda','Help'],
+  ['Colunas','Columns'],['Nome longo','Long name'],['Nome curto','Short name'],['Saltos','Hops'],['Distância','Distance'],['Última interação','Last interaction'],['Última posição','Last position'],['Detalhes do nó','Node details'],['Estado','State'],
   ['Idioma:','Language:'],['Idioma da interface','Interface language'],['Português','Portuguese'],
   ['Reprodução:','Playback:'],['Histórico','History'],['Ao vivo','Live'],['Velocidade:','Speed:'],['Enquadrar','Fit'],['Atualizar','Refresh'],
   ['Traceroute anterior','Previous traceroute'],['Próximo traceroute','Next traceroute'],['Pausar animações ao vivo','Pause live animations'],['Retomar animações ao vivo','Resume live animations'],['Reproduzir/retomar histórico','Play/resume history'],['Pausar histórico','Pause history'],
@@ -3429,7 +3484,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1310';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1320';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
