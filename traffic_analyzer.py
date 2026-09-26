@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.27.1
+Traffic Analyzer v1.29.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -356,6 +356,31 @@ def has_return_path(route_back_raw, snr_back_raw):
     return False
 
 
+def traceroute_record_transport(tr):
+    """Classifica como o registro de traceroute chegou ao MeshMonitor."""
+    if tr.get("viaMqtt") is True:
+        return "mqtt"
+    raw = tr.get("transportMechanism")
+    if raw is None:
+        raw = tr.get("transport_mechanism")
+    try:
+        mechanism = int(raw) if raw is not None else None
+    except Exception:
+        mechanism = None
+    if mechanism == 5:
+        return "mqtt"
+    if mechanism in {6, 7}:
+        return "non-rf"
+    return "rf"
+
+
+def link_transport_class(tr, link):
+    """Segue a semântica do MeshMonitor: sentinel por hop vence o transporte do registro."""
+    if link.get("snr_unknown"):
+        return "mqtt"
+    return traceroute_record_transport(tr)
+
+
 def build_leg_links(start_num, raw_intermediate, end_num, snr_raw, leg):
     """Replica a semântica de adjacency do MeshMonitor: SNR pertence ao receptor."""
     raw_hops = []
@@ -543,6 +568,9 @@ def build_topology(nodes, traceroutes, now_ms):
                     "observations": 0,
                     "forwardObservations": 0,
                     "returnObservations": 0,
+                    "rfObservations": 0,
+                    "mqttObservations": 0,
+                    "nonRfObservations": 0,
                     "firstSeenMs": ts,
                     "lastSeenMs": ts,
                     "snrSamples": [],
@@ -554,6 +582,14 @@ def build_topology(nodes, traceroutes, now_ms):
                 }
                 edge_acc[key] = acc
             acc["observations"] += 1
+            transport = link_transport_class(tr, link)
+            if transport == "rf":
+                acc["rfObservations"] += 1
+            elif transport == "mqtt":
+                acc["mqttObservations"] += 1
+                acc["nonRfObservations"] += 1
+            else:
+                acc["nonRfObservations"] += 1
             if link["leg"] == "forward":
                 acc["forwardObservations"] += 1
             else:
@@ -572,6 +608,7 @@ def build_topology(nodes, traceroutes, now_ms):
                 "leg": link["leg"],
                 "snr": link["snr_db"],
                 "traceId": tr.get("id"),
+                "transport": transport,
             })
 
     all_node_nums = set(nodes.keys()) | route_node_nums | set(snapshots_by_node.keys())
@@ -652,6 +689,10 @@ def build_topology(nodes, traceroutes, now_ms):
             "observations": acc["observations"],
             "forwardObservations": acc["forwardObservations"],
             "returnObservations": acc["returnObservations"],
+            "rfObservations": acc["rfObservations"],
+            "mqttObservations": acc["mqttObservations"],
+            "nonRfObservations": acc["nonRfObservations"],
+            "transportClass": "rf" if acc["rfObservations"] > 0 else ("mqtt" if acc["mqttObservations"] > 0 else "non-rf"),
             "firstSeenMs": acc["firstSeenMs"],
             "lastSeenMs": acc["lastSeenMs"],
             "avgSnr": avg_snr,
@@ -671,7 +712,7 @@ def build_topology(nodes, traceroutes, now_ms):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.19.0",
+        "version": "1.29.0",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
         "lookbackHours": TOPOLOGY_LOOKBACK_HOURS,
@@ -692,6 +733,8 @@ def build_topology(nodes, traceroutes, now_ms):
         "traces": topo_traces,
         "disclaimer": (
             "As linhas representam adjacências observadas nos traceroutes carregados e filtrados na interface. "
+            "Linha contínua indica ao menos uma observação RF no período; tracejado indica apenas MQTT/não-RF. "
+            "O sentinel de SNR desconhecido é tratado como MQTT/não-RF por compatibilidade com a semântica do MeshMonitor. "
             "Não são enlaces permanentes nem prova de conectividade bidirecional atual."
         ),
     }
