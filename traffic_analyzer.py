@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.31.0
+Traffic Analyzer v1.32.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -285,6 +285,17 @@ def fetch_traceroutes():
     return body.get("data", []) if isinstance(body, dict) else []
 
 
+def fetch_source_status():
+    source = urllib.parse.quote(MM_SOURCE, safe="")
+    try:
+        body = api_request("GET", f"/api/v1/sources/{source}/status")
+        data = body.get("data", {}) if isinstance(body, dict) else {}
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        LOG.warning("Não foi possível obter o nó local da fonte %s: %s", MM_SOURCE, exc)
+        return {}
+
+
 def request_nodeinfo(n, channel=None):
     source = urllib.parse.quote(MM_SOURCE, safe="")
     path = f"/api/v1/sources/{source}/actions/request-nodeinfo"
@@ -506,7 +517,7 @@ def _build_trace_record(tr, nodes, ts):
     }
 
 
-def build_topology(nodes, traceroutes, now_ms):
+def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
     cutoff = None if TOPOLOGY_LOOKBACK_HOURS == 0 else now_ms - TOPOLOGY_LOOKBACK_HOURS * 3600 * 1000
     route_rows = []
     topo_traces = []
@@ -737,9 +748,10 @@ def build_topology(nodes, traceroutes, now_ms):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.31.0",
+        "version": "1.32.0",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
+        "localNodeNum": local_node_num,
         "lookbackHours": TOPOLOGY_LOOKBACK_HOURS,
         "summary": {
             "nodesInApi": len(nodes),
@@ -765,8 +777,8 @@ def build_topology(nodes, traceroutes, now_ms):
     }
 
 
-def write_topology(nodes, traceroutes, now_ms):
-    topology = build_topology(nodes, traceroutes, now_ms)
+def write_topology(nodes, traceroutes, now_ms, local_node_num=None):
+    topology = build_topology(nodes, traceroutes, now_ms, local_node_num=local_node_num)
     atomic_json_write(TOPOLOGY_FILE, topology, mode=0o644)
     s = topology["summary"]
     LOG.info(
@@ -913,7 +925,7 @@ def run_discovery(nodes, traceroutes, now_ms, state):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Traffic Analyzer v1.31.0")
+    p = argparse.ArgumentParser(description="Traffic Analyzer v1.32.0")
     p.add_argument(
         "--topology-only",
         action="store_true",
@@ -938,12 +950,18 @@ def main():
     try:
         nodes = fetch_nodes()
         traceroutes = fetch_traceroutes()
+        source_status = fetch_source_status()
+        local_node_num = source_status.get("localNodeNum")
+        try:
+            local_node_num = int(local_node_num) if local_node_num is not None else None
+        except (TypeError, ValueError):
+            local_node_num = None
     except Exception as e:
         LOG.error("%s", e)
         return 3
 
     try:
-        write_topology(nodes, traceroutes, now_ms)
+        write_topology(nodes, traceroutes, now_ms, local_node_num=local_node_num)
     except Exception as e:
         LOG.exception("Falha ao gerar topologia: %s", e)
         return 4
