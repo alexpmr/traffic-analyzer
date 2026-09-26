@@ -1,6 +1,20 @@
-# Traffic Analyzer v1.28.0
+# Traffic Analyzer v1.29.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.29.0
+
+- O mapa passa a distinguir a evidência de transporte **por trecho do traceroute**, em vez de classificar toda a rota apenas pelo modo em que o registro chegou ao VHF3/MeshMonitor.
+- **Enlace com pelo menos uma observação RF no período:** linha contínua.
+- **Enlace com somente observações MQTT/não-RF no período:** linha tracejada.
+- Exemplo: se `A → B` usar MQTT/não-RF e `B → VHF3` for confirmado por RF, o mapa mostra `A ╌╌ B ── VHF3`.
+- Quando um mesmo enlace tiver observações RF e MQTT/não-RF, ele permanece contínuo porque existe evidência RF real; o popup informa separadamente as quantidades de observações RF e MQTT/não-RF.
+- O popup do enlace passa a mostrar classificação, total de observações, composição RF/MQTT-não-RF e SNR conhecido.
+- A legenda do mapa passa a explicar linha contínua, linha tracejada e o comportamento de enlaces mistos.
+- Em **Configurações → Mapa e topologia**, RF e MQTT/não-RF ganham controles independentes de **cor e espessura**.
+- Padrões: RF `#ffff00`, 3 px; MQTT/não-RF `#ff8c42`, 3 px, tracejado.
+- As novas preferências seguem a política da v1.28.0: visitante pode alterá-las apenas localmente; administrador pode gravá-las como padrão global.
+- A classificação por hop segue a semântica atual do MeshMonitor: o sentinel de SNR desconhecido do firmware é tratado como MQTT/não-RF para visualização. Esse sentinel também pode ocorrer por decrypt failure, relay role ou firmware antigo; portanto a legenda usa **MQTT/não-RF**, e não “MQTT comprovado”.
 
 ## Novidades da v1.28.0
 
