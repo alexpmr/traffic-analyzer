@@ -111,12 +111,12 @@ def main() -> None:
               P("O Traffic Analyzer usa a API do MeshMonitor como fonte de dados e mantém histórico próprio para análise. Ele não assume a conexão serial/TCP do rádio."),
               P("Principais áreas", "TA_H2")]
     for item in [
-        "<b>Mapa:</b> topologia e traceroutes observados, reprodução Histórica/Ao vivo e enquadramento.",
+        "<b>Mapa:</b> topologia e traceroutes observados, reprodução Histórica/Ao vivo, enquadramento e distinção visual entre enlaces RF confirmados e MQTT/não-RF.",
         "<b>Tráfego:</b> pacotes RX/TX, filtros, payload amigável e dados técnicos.",
         "<b>Mensagens:</b> canal primário, respostas estruturadas, emojis, reações/tapbacks e localização de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
         "<b>Anomalias:</b> heurísticas para silêncio, SNR, hops e assimetria de rotas.",
-        "<b>Configurações:</b> aparência, mapa, espessura/cor dos enlaces, temas sonoros e leitura do chat. Visitantes podem personalizar esses itens somente no próprio navegador; atualizações e padrões globais continuam administrativos.",
+        "<b>Configurações:</b> aparência, mapa e controles independentes de cor/espessura para enlaces RF e MQTT/não-RF, além de temas sonoros e leitura do chat. Visitantes podem personalizar esses itens somente no próprio navegador; atualizações e padrões globais continuam administrativos.",
         "<b>Ajuda/Help:</b> instruções incorporadas à própria interface.",
     ]:
         story.append(bullet(item))
@@ -128,6 +128,10 @@ def main() -> None:
               P("Pausa, Ao vivo e Histórico", "TA_H2"),
               P("No modo Ao vivo, vários traceroutes podem percorrer o mapa ao mesmo tempo. No Histórico, eventos são iniciados conforme a ordem temporal observada e também podem permanecer simultaneamente em trânsito. Não existe limite funcional de quantidade de pacotes animados: Pausar congela todos os ativos e mantém eventos aguardando sem descarte por quantidade; Retomar continua o conjunto. Alterar a velocidade afeta animações já em andamento. Janelas históricas extensas têm sua escala temporal comprimida proporcionalmente para uma reprodução prática."),
               P("Os caminhos animados continuam restritos aos hops efetivamente observados. Ausência de rota conhecida não autoriza o Traffic Analyzer a inventar retransmissores."),
+              P("RF, MQTT e estilo dos enlaces", "TA_H2"),
+              P("A partir da v1.29.0, a topologia preserva a evidência de transporte por observação de cada trecho. Linha contínua significa que existe ao menos uma observação RF confirmada do enlace no período selecionado. Linha tracejada significa que todas as observações daquele enlace no período foram classificadas como MQTT/não-RF. Se houver evidência dos dois tipos, o enlace permanece contínuo e o popup mostra a composição RF versus MQTT/não-RF."),
+              P("A classificação segue a semântica do MeshMonitor: o sentinel de SNR desconhecido do firmware é tratado como MQTT/não-RF no hop. Esse sentinel não prova exclusivamente o uso de MQTT, pois também pode aparecer em falha de descriptografia, relay role ou firmware antigo; por isso o Traffic Analyzer usa a expressão MQTT/não-RF."),
+              P("Em Configurações > Mapa e topologia, cor e espessura podem ser ajustadas separadamente para RF e MQTT/não-RF. Visitantes alteram apenas o próprio navegador; o administrador pode salvar esses valores no padrão global."),
               P("Mapa-base e provedores de tiles", "TA_H2"),
               P("O modo Ruas usa o endpoint oficial atual do OpenStreetMap: https://tile.openstreetmap.org/{z}/{x}/{y}.png. A interface envia uma política de Referer compatível com requisições web cross-origin. Se os tiles OSM falharem repetidamente, o Traffic Analyzer troca temporariamente para o mapa Claro (CARTO) para evitar uma tela em branco. A troca manual de mapa-base continua disponível em Configurações."),
               P("Posições históricas", "TA_H2"),
