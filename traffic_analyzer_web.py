@@ -1681,8 +1681,13 @@ async function runAllNodeQueries(nodeNum){
 
 function render(){
   if(!topology) return;
+  const reopenNodeNum=openNodeNum;
+  const popupEl=reopenNodeNum?document.querySelector('.leaflet-popup .nodePopup'):null;
+  if(popupEl)openNodePopupScrollTop=popupEl.scrollTop||0;
+  suppressNodePopupClose=true;
   lineLayer.clearLayers();
   nodeLayer.clearLayers();
+  nodeMarkers.clear();
   if(heatLayer){ map.removeLayer(heatLayer); heatLayer = null; }
 
   const cutoff = cutoffForSelection();
@@ -1776,13 +1781,27 @@ function render(){
       marker.bindTooltip(esc(n.name || n.nodeId), {direction:'top'});
     }
     marker.bindPopup(nodePopupHtml(n), {maxWidth:900,minWidth:280});
-    marker.on('popupopen',()=>{loadNodeDetails(n.nodeNum,true).catch(e=>{
-      const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
-      if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
-    });});
-    marker.addTo(nodeLayer); markerCount++;
+    marker.on('popupopen',()=>{
+      openNodeNum=Number(n.nodeNum);
+      loadNodeDetails(n.nodeNum,true).catch(e=>{
+        const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
+        if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
+      });
+    });
+    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;}});
+    marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
   }
 
+  if(reopenNodeNum!==null && nodeMarkers.has(Number(reopenNodeNum))){
+    const reopenMarker=nodeMarkers.get(Number(reopenNodeNum));
+    reopenMarker.openPopup();
+    setTimeout(()=>{
+      const el=document.querySelector('.leaflet-popup .nodePopup');
+      if(el)el.scrollTop=openNodePopupScrollTop||0;
+    },0);
+  }
+  suppressNodePopupClose=false;
+  renderNodesTable();
   const traceCount = (topology.traces || []).filter(t => cutoff === null || Number(t.timestampMs||0) >= cutoff).length;
   lastBounds = coords.length ? L.latLngBounds(coords) : null;
   document.getElementById('summary').innerHTML =
