@@ -270,8 +270,9 @@ jobs:
               assert len(styles)==2,styles
               assert styles[0]["dash"]=="10 8",styles
               assert styles[1]["dash"] in ("",None),styles
-              assert "Tipo de enlace" in d.find_element(By.CSS_SELECTOR,".legend").text
-              assert "MQTT / não-RF" in d.find_element(By.CSS_SELECTOR,".legend").text
+              legend_text=d.find_element(By.CSS_SELECTOR,".legend").get_attribute("textContent")
+              assert "Tipo de enlace" in legend_text,legend_text
+              assert "MQTT / não-RF" in legend_text,legend_text
               unauth_status=d.execute_async_script("""
                 const done=arguments[0];
                 fetch('/api/topology/refresh',{method:'POST'}).then(r=>done(r.status)).catch(()=>done(0));
