@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.28.0 - 2026-09-25
+
+- Libera para visitantes sem login as configurações exclusivamente visuais e locais: tema, mapa-base, filtros de exibição, brilho, linhas, nós, heatmap, animações, sons e aparência das mensagens.
+- Mantém essas preferências no `localStorage` do navegador do visitante; elas não alteram o servidor, a malha nem a experiência de outros usuários.
+- Mantém bloqueadas sem login todas as ações administrativas e de escrita: envio/reply/reações de mensagens, refresh administrativo da topologia, auto-update, disparo de atualização e alteração do padrão global.
+- Adiciona padrão visual global persistente no servidor. O administrador pode salvar a configuração visual atual como apresentação inicial de novos visitantes.
+- Novos navegadores recebem primeiro o padrão global do administrador; preferências locais do visitante passam a sobrescrevê-lo somente naquele navegador.
+- Adiciona botão `Restaurar padrão do administrador`, que remove o override local e volta à apresentação global na próxima carga.
+- Adiciona API pública somente leitura `GET /api/ui-defaults` e API administrativa protegida `POST /api/ui-defaults` com sessão e CSRF.
+- Valida e normaliza no backend todos os campos aceitos como padrão visual, impedindo gravação arbitrária no arquivo de configuração.
+- Atualiza testes, Ajuda, README, instalador e manual PDF para refletir a separação entre personalização local e administração.
+
 ## 1.27.1 - 2026-09-25
 
 - Corrige tiles 403 "Access blocked" no mapa Ruas (OSM).
