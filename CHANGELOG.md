@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.33.0 - 2026-09-26
+
+- Torna o popup de informações de nó arrastável pelo cabeçalho em mouse e touch.
+- Mantém o arraste independente da rolagem vertical do conteúdo do popup.
+- Limita o deslocamento do popup aos limites visíveis do mapa.
+- Eleva o popup acima da legenda e dos controles do Leaflet enquanto estiver aberto.
+- Oculta a ponta do popup quando a janela é deslocada do marcador.
+- Preserva o deslocamento e a rolagem durante atualizações automáticas da topologia do mesmo nó.
+- Reinicia a posição flutuante ao fechar o popup ou selecionar outro nó.
+- Mantém estático o modal de detalhes aberto pela aba Nós para nós sem marcador.
+- Adiciona smoke test de navegador para verificar o arraste real do popup.
+- Preserva os recursos da v1.32.0.
 ## 1.32.0 - 2026-09-26
 
 - Adiciona a nova aba Nós com inventário ordenável dos nós conhecidos.
