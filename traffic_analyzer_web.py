@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.27.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.28.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -8,6 +8,7 @@ import hmac
 import io
 import json
 import os
+import re
 import secrets
 import sqlite3
 import statistics
@@ -25,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.27.1"
+APP_VERSION = "1.28.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
