@@ -1,6 +1,21 @@
-# Traffic Analyzer v1.30.0
+# Traffic Analyzer v1.31.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.31.0
+
+- O popup dos nós passa a usar um layout **mais largo, em paisagem**, aproveitando melhor a largura da tela.
+- Os metadados são organizados em **duas duplas campo/valor por linha** em telas grandes, reduzindo bastante a altura total do popup.
+- O checklist das consultas também passa a usar duas colunas no desktop, e a área de últimos metadados pode distribuir registros em duas colunas.
+- O popup recebe **rolagem interna vertical** e limite de altura relativo à janela; quando o conteúdo exceder a tela, o mapa permanece parado e somente o popup rola.
+- Em telas médias e pequenas o layout retorna automaticamente para uma coluna, mantendo a interface responsiva.
+- A troca de idioma no cabeçalho passa a aparecer como um **único menu pull-down** compacto, mantendo 🇧🇷 Português e 🇺🇸 English e preservando a preferência no navegador.
+- Quando existir uma **Latest Release estável mais recente**, o indicador de versão no topo passa a mostrar **BAIXAR**. Clicar nele inicia diretamente o download do ZIP versionado publicado naquela Release.
+- O servidor identifica o asset exato `traffic-analyzer-vX.Y.Z.zip`, usando `traffic-analyzer-latest.zip` apenas como fallback da mesma Latest Release.
+- Quando não houver atualização, clicar no indicador continua abrindo as informações da versão instalada.
+- O `install.sh` agora **encerra de forma controlada a interface e o ciclo agendado da versão anterior antes de substituir os arquivos**, evitando atualização sobre uma instância em execução.
+- Após a instalação, os serviços são habilitados novamente, a topologia é regenerada e a interface retorna normalmente.
+- Configurações, token do MeshMonitor, autenticação, `traffic.db`, estado e demais dados persistentes continuam preservados.
 
 ## Novidades da v1.30.0
 
