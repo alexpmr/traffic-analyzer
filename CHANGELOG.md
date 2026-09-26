@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.29.0 - 2026-09-26
+
+- Classifica cada observação de enlace como RF ou MQTT/não-RF usando evidência por hop dos traceroutes.
+- Segue a regra do MeshMonitor em que o sentinel de SNR desconhecido do hop prevalece sobre o transporte do registro para identificar um trecho não confirmado por RF.
+- Mantém linha contínua quando existe ao menos uma observação RF do enlace no período selecionado.
+- Exibe linha tracejada quando todas as observações do enlace no período são MQTT/não-RF.
+- Adiciona ao popup do enlace contadores separados de observações RF e MQTT/não-RF e indicação explícita de enlaces mistos.
+- Adiciona legenda de tipos de enlace ao mapa, além da legenda existente de idade do tráfego.
+- Adiciona cor e espessura independentes para enlaces RF e MQTT/não-RF em Configurações.
+- Migra automaticamente a antiga cor/espessura única para o estilo RF e cria padrão separado para MQTT/não-RF.
+- Inclui as novas preferências no padrão global do administrador e no localStorage dos visitantes.
+- Adiciona testes automatizados para o cenário A-B MQTT/não-RF e B-VHF3 RF, além de smoke test do tracejado no navegador.
+
 ## 1.28.0 - 2026-09-25
 
 - Libera para visitantes sem login as configurações exclusivamente visuais e locais: tema, mapa-base, filtros de exibição, brilho, linhas, nós, heatmap, animações, sons e aparência das mensagens.
