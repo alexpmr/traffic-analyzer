@@ -68,6 +68,7 @@ UPDATE_SETTINGS_FILE = Path(os.getenv("UPDATE_SETTINGS_FILE", "/var/lib/traffic-
 UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-analyzer/update-request.json"))
 UPDATE_STATUS_FILE = Path(os.getenv("UPDATE_STATUS_FILE", "/var/lib/traffic-analyzer/update-status.json"))
 LAST_INSTALL_FILE = Path(os.getenv("LAST_INSTALL_FILE", "/var/lib/traffic-analyzer/last-install.json"))
+UI_DEFAULTS_FILE = Path(os.getenv("UI_DEFAULTS_FILE", "/var/lib/traffic-analyzer/ui-defaults.json"))
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
 
 AUTH_ENABLED = str(os.getenv("TA_AUTH_ENABLED", "false")).strip().lower() in {"1", "true", "yes", "on"}
@@ -4197,6 +4198,89 @@ def _write_json_file(path: Path, data: dict):
     os.replace(tmp, path)
 
 
+UI_DEFAULT_BOOLEAN_KEYS = {
+    "onlyIdentified", "showShortNames", "showLines", "showNodes", "showHeatmap",
+    "soundEnabled", "soundRoutingEnabled", "soundMessagesEnabled", "soundAlertsEnabled",
+    "soundStereoEnabled", "activityAnimationEnabled", "activityOriginEnabled",
+    "activityRelayEnabled", "autoZoomTraceroute", "nodeInfoFlowEnabled",
+    "messageBold", "messageItalic", "messageUnderline",
+}
+
+
+def _sanitize_ui_defaults(raw: dict) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    out = {}
+    if str(raw.get("ageHours")) in {"all", "1", "6", "12", "24", "168", "720"}:
+        out["ageHours"] = str(raw.get("ageHours"))
+    try:
+        v = int(raw.get("minObs"))
+        if 1 <= v <= 100000:
+            out["minObs"] = v
+    except (TypeError, ValueError):
+        pass
+    for key in UI_DEFAULT_BOOLEAN_KEYS:
+        if isinstance(raw.get(key), bool):
+            out[key] = raw[key]
+    if raw.get("mapType") in {"osm", "topo", "light", "dark", "satellite"}:
+        out["mapType"] = raw["mapType"]
+    try:
+        v = int(raw.get("brightness"))
+        if 30 <= v <= 150:
+            out["brightness"] = v
+    except (TypeError, ValueError):
+        pass
+    color = str(raw.get("lineColor") or "")
+    if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+        out["lineColor"] = color.lower()
+    for key, lo, hi in [("lineWidth", 1, 8), ("soundVolume", 0, 100), ("soundMinInterval", 40, 800), ("soundMaxVoices", 1, 8), ("messageFontSize", 10, 20), ("messageRowGap", 1, 14)]:
+        try:
+            v = int(raw.get(key))
+            if lo <= v <= hi:
+                out[key] = v
+        except (TypeError, ValueError):
+            pass
+    if raw.get("animSpeed") in {80, 150, 280, 500}:
+        out["animSpeed"] = int(raw["animSpeed"])
+    if raw.get("soundTheme") in {"pinball70", "formal", "radio", "silent"}:
+        out["soundTheme"] = raw["soundTheme"]
+    if raw.get("soundDensity") in {"low", "normal", "high"}:
+        out["soundDensity"] = raw["soundDensity"]
+    if raw.get("activityDuration") in {650, 1000, 1500, 2000}:
+        out["activityDuration"] = int(raw["activityDuration"])
+    if raw.get("messageFontFamily") in {"system", "arial", "verdana", "tahoma", "georgia", "mono"}:
+        out["messageFontFamily"] = raw["messageFontFamily"]
+    try:
+        v = float(raw.get("messageLineHeight"))
+        if 1.10 <= v <= 2.00:
+            out["messageLineHeight"] = round(v, 2)
+    except (TypeError, ValueError):
+        pass
+    if raw.get("uiTheme") in {"dark", "light"}:
+        out["uiTheme"] = raw["uiTheme"]
+    out["defaultsVersion"] = 280
+    return out
+
+
+def _ui_defaults_record() -> dict:
+    raw = _read_json_file(UI_DEFAULTS_FILE, {})
+    prefs = raw.get("prefs") if isinstance(raw.get("prefs"), dict) else raw
+    return {
+        "defaults": _sanitize_ui_defaults(prefs),
+        "updatedAtMs": raw.get("updatedAtMs") if isinstance(raw, dict) else None,
+    }
+
+
+def _save_ui_defaults(payload: dict) -> dict:
+    prefs_raw = payload.get("prefs") if isinstance(payload, dict) else None
+    prefs = _sanitize_ui_defaults(prefs_raw if isinstance(prefs_raw, dict) else {})
+    if not prefs:
+        raise ValueError("Nenhuma preferência visual válida foi informada.")
+    data = {"prefs": prefs, "updatedAtMs": int(time.time() * 1000)}
+    _write_json_file(UI_DEFAULTS_FILE, data)
+    return {"defaults": prefs, "updatedAtMs": data["updatedAtMs"]}
+
+
 def _update_settings():
     raw = _read_json_file(UPDATE_SETTINGS_FILE, {"enabled": False, "rollbackEnabled": True})
     return {
@@ -4398,7 +4482,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.27.1"
+    server_version = "TrafficAnalyzer/1.28.0"
 
     def _send(self, status, content_type, body: bytes, extra_headers=None):
         self.send_response(status)
@@ -4437,6 +4521,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/auth/status":
             self._send(200, "application/json; charset=utf-8", json.dumps(_auth_status(self), ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/ui-defaults":
+            try:
+                body = {"success": True, **_ui_defaults_record()}
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/version-status":
             try:
@@ -4640,6 +4731,21 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, "authenticated": False}, ensure_ascii=False).encode("utf-8"), {"Set-Cookie": _auth_set_cookie_header(self, "", 0)})
             return
         if not _auth_require_write(self):
+            return
+        if path == "/api/ui-defaults":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 16384:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                body = _save_ui_defaults(payload)
+                self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, **body}, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/topology/refresh":
             try:
