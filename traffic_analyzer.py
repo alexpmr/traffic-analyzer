@@ -358,7 +358,8 @@ def has_return_path(route_back_raw, snr_back_raw):
 
 def traceroute_record_transport(tr):
     """Classifica como o registro de traceroute chegou ao MeshMonitor."""
-    if tr.get("viaMqtt") is True:
+    via_mqtt = tr.get("viaMqtt")
+    if via_mqtt is True or str(via_mqtt).strip().lower() in {"1", "true", "yes", "on"}:
         return "mqtt"
     raw = tr.get("transportMechanism")
     if raw is None:
