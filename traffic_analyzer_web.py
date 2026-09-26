@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.29.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.30.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.29.0"
+APP_VERSION = "1.30.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -305,6 +305,8 @@ HTML = r'''<!doctype html>
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}
+  .nodePopup{min-width:380px;max-width:500px;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(150px,42%) minmax(0,1fr);gap:4px 8px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;gap:4px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(112px,1fr) minmax(0,1.35fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:145px;overflow:auto;margin-top:5px;padding-right:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
+  @media(max-width:600px){.nodePopup{min-width:0;max-width:76vw}.nodeMetaGrid{grid-template-columns:1fr}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
   .warn{color:#ffcc66}
   .short-label{background:rgba(14,22,33,.88);border:1px solid #405668;color:#fff;border-radius:4px;padding:1px 4px;font-weight:700;box-shadow:none}
   .short-label:before{display:none}
@@ -1346,6 +1348,240 @@ function edgeStatsForWindow(e, cutoff){
   };
 }
 
+const NODE_QUERY_DEFS=[
+  {id:'nodeinfo',label:'Node Info'},
+  {id:'position',label:'Position'},
+  {id:'telemetry_device',label:'Device Metrics'},
+  {id:'telemetry_environment',label:'Environment Metrics'},
+  {id:'telemetry_airQuality',label:'Air Quality'},
+  {id:'telemetry_power',label:'Power Metrics'},
+  {id:'neighbors',label:'Neighbor Info'},
+  {id:'traceroute',label:'Traceroute'}
+];
+const nodeQueryRuns=new Map();
+const NODE_QUERY_TIMEOUT_MS=75000;
+const NODE_QUERY_POLL_MS=2000;
+function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
+function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
+function nodeFmtTs(v){
+  const n=Number(v); if(!Number.isFinite(n)||n<=0)return '—';
+  const ms=n<100000000000? n*1000:n;
+  return new Date(ms).toLocaleString(uiLocale());
+}
+function nodeFmtDurationSeconds(v){
+  const n=Math.max(0,Number(v)); if(!Number.isFinite(n))return '—';
+  const d=Math.floor(n/86400),h=Math.floor((n%86400)/3600),m=Math.floor((n%3600)/60);
+  return [d?`${d}d`:null,h?`${h}h`:null,m?`${m}min`:null].filter(Boolean).join(' ')||'< 1 min';
+}
+function nodeMetaLine(label,value,display=null){
+  const ok=nodeHas(value);
+  const text=ok?(display===null?String(value):String(display)):'sem informação';
+  return `<div class="nodeMetaLabel">${ok?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} ${esc(label)}</div><div class="nodeMetaValue ${ok?'':'nodeMetaMissing'}">${esc(text)}</div>`;
+}
+function nodeBoolLine(label,value){
+  if(value===null||value===undefined)return nodeMetaLine(label,null);
+  return nodeMetaLine(label,value,value?'sim':'não');
+}
+function nodeQueryRun(nodeNum){
+  const key=Number(nodeNum);
+  if(!nodeQueryRuns.has(key)){
+    const states={}; NODE_QUERY_DEFS.forEach(d=>states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''});
+    nodeQueryRuns.set(key,{states,details:null,pollTimer:null});
+  }
+  return nodeQueryRuns.get(key);
+}
+function nodeQueryStateHtml(nodeNum){
+  const run=nodeQueryRun(nodeNum);
+  return NODE_QUERY_DEFS.map(d=>{
+    const s=run.states[d.id]||{state:'idle'};
+    let mark='☐',cls='',txt='não consultado';
+    if(s.state==='sending'){mark='…';cls='nodeQueryWait';txt='enviando…';}
+    else if(s.state==='waiting'){mark='☐';cls='nodeQueryWait';txt=s.message||'aguardando resposta';}
+    else if(s.state==='received'){mark='✓';cls='nodeQueryOk';txt=s.message||`respondido ${s.receivedAt?nodeFmtTs(s.receivedAt):''}`;}
+    else if(s.state==='timeout'){mark='⌛';cls='nodeQueryTimeout';txt=s.message||'sem resposta / timeout';}
+    else if(s.state==='error'){mark='✕';cls='nodeQueryError';txt=s.message||'erro';}
+    else if(s.state==='unsupported'){mark='—';cls='';txt=s.message||'não suportado / não aplicável';}
+    return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(d.label)}</b></div><div class="nodeQueryState">${esc(txt)}</div></div>`;
+  }).join('');
+}
+function nodeMetadataHtml(base,details){
+  const n=(details&&details.node)||base||{};
+  const lat=nodeHas(n.latitude)?Number(n.latitude):null,lon=nodeHas(n.longitude)?Number(n.longitude):null;
+  const coords=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(6)}, ${lon.toFixed(6)}`:null;
+  return [
+    nodeMetaLine('Node ID',n.nodeId),
+    nodeMetaLine('Nome longo',n.longName||n.name),
+    nodeMetaLine('Nome curto',n.shortName),
+    nodeMetaLine('Hardware',n.hwModel),
+    nodeMetaLine('Role',n.role),
+    nodeMetaLine('Firmware',n.firmwareVersion),
+    nodeBoolLine('Public key',n.publicKeyAvailable!==undefined?n.publicKeyAvailable:n.publicKey),
+    nodeMetaLine('Status',n.nodeStatus),
+    nodeMetaLine('Coordenadas',coords),
+    nodeMetaLine('Latitude',Number.isFinite(lat)?lat:null,Number.isFinite(lat)?lat.toFixed(6):null),
+    nodeMetaLine('Longitude',Number.isFinite(lon)?lon:null,Number.isFinite(lon)?lon.toFixed(6):null),
+    nodeMetaLine('Altitude',n.altitude,nodeHas(n.altitude)?`${n.altitude} m`:null),
+    nodeMetaLine('Última posição',n.positionTimestamp,nodeFmtTs(n.positionTimestamp)),
+    nodeMetaLine('Precisão da posição',n.positionPrecisionBits,nodeHas(n.positionPrecisionBits)?`${n.positionPrecisionBits} bits`:null),
+    nodeMetaLine('Precisão GPS',n.positionGpsAccuracy,nodeHas(n.positionGpsAccuracy)?`${n.positionGpsAccuracy} m`:null),
+    nodeMetaLine('HDOP',n.positionHdop),
+    nodeMetaLine('Fonte da posição',n.positionLocationSource||n.positionSource),
+    nodeMetaLine('Hops',n.hopsAway),
+    nodeMetaLine('Hops da última mensagem',n.lastMessageHops),
+    nodeMetaLine('SNR',n.snr,nodeHas(n.snr)?`${n.snr} dB`:null),
+    nodeMetaLine('RSSI',n.rssi,nodeHas(n.rssi)?`${n.rssi} dBm`:null),
+    nodeMetaLine('Canal',n.channel),
+    nodeMetaLine('Último contato',n.lastHeard,nodeFmtTs(n.lastHeard)),
+    nodeMetaLine('Bateria',n.batteryLevel,nodeHas(n.batteryLevel)?`${n.batteryLevel}%`:null),
+    nodeMetaLine('Tensão',n.voltage,nodeHas(n.voltage)?`${nodeFmtNum(n.voltage,2)} V`:null),
+    nodeMetaLine('Utilização do canal',n.channelUtilization,nodeHas(n.channelUtilization)?`${nodeFmtNum(n.channelUtilization,1)}%`:null),
+    nodeMetaLine('Air util TX',n.airUtilTx,nodeHas(n.airUtilTx)?`${nodeFmtNum(n.airUtilTx,1)}%`:null),
+    nodeMetaLine('Uptime',n.uptimeSeconds,nodeHas(n.uptimeSeconds)?nodeFmtDurationSeconds(n.uptimeSeconds):null),
+    nodeMetaLine('Reboots',n.rebootCount),
+    nodeBoolLine('Store & Forward',n.isStoreForwardServer),
+    nodeBoolLine('PKC disponível',n.hasPKC)
+  ].join('');
+}
+function nodePopupHtml(n){
+  const lat=Number(n.latitude),lon=Number(n.longitude);
+  const coords=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(6)}, ${lon.toFixed(6)}`:null;
+  const trafficAge=nodeTrafficAge(n);
+  return `<div class="nodePopup" id="nodePopup-${Number(n.nodeNum)}">
+    <div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div>
+    <div class="nodePopupId">${esc(n.nodeId||'')}</div>
+    <div class="nodePopupSectionTitle">Resumo</div>
+    <div class="nodeMetaGrid">
+      ${nodeMetaLine('Nome longo',n.longName)}
+      ${nodeMetaLine('Nome curto',n.shortName)}
+      ${nodeMetaLine('Estado',n.state)}
+      ${nodeMetaLine('Coordenadas',coords)}
+      ${nodeMetaLine('Altitude',n.altitude,nodeHas(n.altitude)?`${n.altitude} m`:null)}
+      ${nodeMetaLine('Último tráfego',trafficAge.ts,trafficAge.ts?new Date(trafficAge.ts).toLocaleString(uiLocale()):null)}
+    </div>
+    <div class="nodePopupSection">
+      <div class="nodePopupSectionTitle">Informações do nó</div>
+      <div class="nodeMetaGrid" id="nodeMeta-${Number(n.nodeNum)}">${nodeMetadataHtml(n,null)}</div>
+    </div>
+    <div class="nodePopupSection">
+      <div class="nodePopupSectionTitle">Consultas ao nó</div>
+      <div class="nodeQueryButtons">
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'nodeinfo')">Node Info</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'position')">Position</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_device')">Device</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_environment')">Environment</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_airQuality')">Air Quality</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_power')">Power</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'neighbors')">Neighbors</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'traceroute')">Traceroute</button>
+        <button type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">Tudo</button>
+      </div>
+      <div class="nodeQueryList" id="nodeQueries-${Number(n.nodeNum)}">${nodeQueryStateHtml(n.nodeNum)}</div>
+      <div class="nodePopupActionsNote">As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.</div>
+    </div>
+    <div class="nodePopupSection">
+      <div class="nodePopupSectionTitle">Últimos metadados recebidos</div>
+      <div id="nodeTelemetry-${Number(n.nodeNum)}" class="nodeTelemetryRows"><span class="nodeSmall">Carregando dados do MeshMonitor…</span></div>
+    </div>
+  </div>`;
+}
+function nodeTelemetryHtml(details){
+  if(!details)return '<span class="nodeSmall">Sem dados carregados.</span>';
+  const rows=(details.telemetry&&details.telemetry.latest)||[];
+  const trace=details.traceroute;
+  const neighbors=details.neighbors||{};
+  let html='';
+  if(rows.length){
+    html+=rows.slice(0,18).map(r=>`<div>${nodeHas(r.value)?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} <b>${esc(r.telemetryType||'telemetria')}</b>: ${esc(nodeHas(r.value)?`${r.value}${r.unit?` ${r.unit}`:''}`:'sem valor')} <span class="nodeSmall">· ${esc(nodeFmtTs(r.timestamp||r.createdAt))}</span></div>`).join('');
+  }else html+='<div><span class="nodeMetaMissing">☐</span> Telemetria — sem registros</div>';
+  if(trace)html+=`<div><span class="nodeMetaPresent">✓</span> <b>Último traceroute</b>: ${esc(trace.fromNodeId||'')} → ${esc(trace.toNodeId||'')} <span class="nodeSmall">· ${esc(nodeFmtTs(trace.timestamp||trace.createdAt))}</span></div>`;
+  else html+='<div><span class="nodeMetaMissing">☐</span> Traceroute — sem registro envolvendo o nó</div>';
+  if(neighbors.available===false)html+=`<div><span class="nodeMetaNA">—</span> Neighbor Info — ${esc(neighbors.error||'consulta histórica indisponível')}</div>`;
+  else if((neighbors.data||[]).length)html+=`<div><span class="nodeMetaPresent">✓</span> <b>Neighbor Info</b>: ${neighbors.data.length} registro(s), último ${esc(nodeFmtTs(neighbors.latestTimestamp))}</div>`;
+  else html+='<div><span class="nodeMetaMissing">☐</span> Neighbor Info — sem registro</div>';
+  return html;
+}
+function renderNodePopupData(nodeNum,details){
+  const run=nodeQueryRun(nodeNum); if(details)run.details=details;
+  const base=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum))||{};
+  const meta=document.getElementById(`nodeMeta-${Number(nodeNum)}`);
+  if(meta)meta.innerHTML=nodeMetadataHtml(base,run.details);
+  const tel=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
+  if(tel)tel.innerHTML=nodeTelemetryHtml(run.details);
+  const q=document.getElementById(`nodeQueries-${Number(nodeNum)}`);
+  if(q)q.innerHTML=nodeQueryStateHtml(nodeNum);
+}
+function telemetrySignal(details,kind){
+  const rows=((details||{}).telemetry||{}).latest||[]; let max=0;
+  for(const r of rows){if(r.kind===kind){const t=Number(r.timestamp||r.createdAt||0);if(t>max)max=t;}}
+  return max||null;
+}
+function nodeResponseSignal(action,details){
+  if(!details)return null;
+  const n=details.node||{};
+  if(action==='nodeinfo')return Number(n.updatedAt||0)||[n.longName,n.shortName,n.hwModel,n.role,n.firmwareVersion].join('|');
+  if(action==='position')return Number(n.positionTimestamp||0)||((nodeHas(n.latitude)&&nodeHas(n.longitude))?`${n.latitude}|${n.longitude}|${n.altitude??''}`:null);
+  if(action==='telemetry_device')return telemetrySignal(details,'device');
+  if(action==='telemetry_environment')return telemetrySignal(details,'environment');
+  if(action==='telemetry_airQuality')return telemetrySignal(details,'airQuality');
+  if(action==='telemetry_power')return telemetrySignal(details,'power');
+  if(action==='neighbors')return Number(details.neighbors?.latestTimestamp||0)||null;
+  if(action==='traceroute')return details.traceroute?String(details.traceroute.id||details.traceroute.packetId||'')+'|'+String(details.traceroute.timestamp||details.traceroute.createdAt||''):null;
+  return null;
+}
+async function loadNodeDetails(nodeNum,checkResponses=true){
+  const r=await fetch(`/api/node-details?nodeNum=${encodeURIComponent(Number(nodeNum))}&_=${Date.now()}`,{cache:'no-store'});
+  const b=await r.json();
+  if(!r.ok||!b.success)throw new Error(b.message||b.error||`HTTP ${r.status}`);
+  const run=nodeQueryRun(nodeNum);run.details=b;
+  if(checkResponses){
+    const now=Date.now();
+    for(const d of NODE_QUERY_DEFS){
+      const s=run.states[d.id];if(!s||s.state!=='waiting')continue;
+      const current=nodeResponseSignal(d.id,b);
+      const changed=current!==null&&current!==undefined&&String(current)!==String(s.baseline??'');
+      if(changed){s.state='received';s.receivedAt=now;s.message=`respondido ${new Date(now).toLocaleTimeString(uiLocale())}`;}
+      else if(now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){s.state='timeout';s.message='sem resposta / timeout';}
+    }
+  }
+  renderNodePopupData(nodeNum,b);
+  const pending=Object.values(run.states).some(s=>s.state==='waiting'||s.state==='sending');
+  if(pending)scheduleNodePolling(nodeNum);else stopNodePolling(nodeNum);
+  return b;
+}
+function stopNodePolling(nodeNum){const run=nodeQueryRun(nodeNum);if(run.pollTimer){clearTimeout(run.pollTimer);run.pollTimer=null;}}
+function scheduleNodePolling(nodeNum){
+  const run=nodeQueryRun(nodeNum);if(run.pollTimer)return;
+  run.pollTimer=setTimeout(async()=>{run.pollTimer=null;try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar respostas do nó:',e);if(Object.values(run.states).some(s=>s.state==='waiting'))scheduleNodePolling(nodeNum);}},NODE_QUERY_POLL_MS);
+}
+async function sendNodeQuery(nodeNum,action,fromAll=false){
+  const def=NODE_QUERY_DEFS.find(x=>x.id===action);if(!def)return;
+  if(!authCanWrite()){openAuthModal();return;}
+  const run=nodeQueryRun(nodeNum);
+  try{
+    if(!run.details)await loadNodeDetails(nodeNum,false);
+    const s=run.states[action];
+    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.message='enviando…';
+    renderNodePopupData(nodeNum,run.details);
+    const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(nodeNum),action})});
+    const b=await r.json();
+    if(!r.ok||!b.success){
+      const message=b.message||b.error||`HTTP ${r.status}`,lower=String(message).toLowerCase();
+      s.state=(r.status===403||r.status===429||lower.includes('direct')||lower.includes('not allowed')||lower.includes('rate'))?'unsupported':'error';s.message=message;
+    }else{s.state='waiting';s.sentAt=Number(b.requestedAtMs||Date.now());s.message='aguardando resposta';scheduleNodePolling(nodeNum);}
+  }catch(e){const s=run.states[action];s.state='error';s.message=String(e.message||e);}
+  renderNodePopupData(nodeNum,run.details);
+  if(!fromAll)scheduleNodePolling(nodeNum);
+}
+async function runAllNodeQueries(nodeNum){
+  if(!authCanWrite()){openAuthModal();return;}
+  const run=nodeQueryRun(nodeNum);
+  NODE_QUERY_DEFS.forEach(d=>{run.states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''};});
+  renderNodePopupData(nodeNum,run.details);
+  const order=NODE_QUERY_DEFS.filter(d=>d.id!=='traceroute').map(d=>d.id).concat(['traceroute']);
+  for(const action of order){await sendNodeQuery(nodeNum,action,true);await new Promise(resolve=>setTimeout(resolve,1400));}
+  scheduleNodePolling(nodeNum);
+}
+
 function render(){
   if(!topology) return;
   lineLayer.clearLayers();
@@ -1442,18 +1678,11 @@ function render(){
     } else {
       marker.bindTooltip(esc(n.name || n.nodeId), {direction:'top'});
     }
-    marker.bindPopup(
-      `<b>${esc(n.name || n.nodeId)}</b><br>`+
-      `${esc(n.nodeId)}<br>`+
-      `Short name: ${esc(n.shortName ?? '—')}<br>`+
-      `Estado: <b>${esc(n.state)}</b><br>`+
-      `Posição: ${esc(n.positionSource || '—')}<br>`+
-      `Hops: ${esc(n.hopsAway ?? '—')} | SNR: ${snr(n.snr)} | RSSI: ${esc(n.rssi ?? '—')}<br>`+
-      `Hardware: ${esc(n.hwModel ?? '—')} | Role: ${esc(n.role ?? '—')}<br>`+
-      `Public key: ${n.publicKey ? 'sim' : 'não'}<br>`+
-      `Último tráfego: ${trafficAge.ts ? new Date(trafficAge.ts).toLocaleString(uiLocale()) : '—'}<br>`+
-      `Situação: <b>${esc(trafficAge.label)}</b>${trafficAge.ts ? ` - ouvido ${esc(humanAge(trafficAge.ts))}` : ''}`
-    );
+    marker.bindPopup(nodePopupHtml(n), {maxWidth:540,minWidth:390});
+    marker.on('popupopen',()=>{loadNodeDetails(n.nodeNum,true).catch(e=>{
+      const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
+      if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
+    });});
     marker.addTo(nodeLayer); markerCount++;
   }
 
@@ -3461,6 +3690,185 @@ def _live_traceroutes(limit: int):
         "channel", "timestamp", "createdAt", "transportMechanism", "viaMqtt",
     }
     return [{k: row.get(k) for k in keep if k in row} for row in rows if isinstance(row, dict)]
+NODE_SAFE_FIELDS = {
+    "nodeNum", "nodeId", "longName", "shortName", "hwModel", "role", "hopsAway",
+    "lastMessageHops", "latitude", "longitude", "altitude", "batteryLevel", "voltage",
+    "channelUtilization", "airUtilTx", "lastHeard", "snr", "rssi",
+    "lastTracerouteRequest", "firmwareVersion", "channel", "mobile", "rebootCount",
+    "hasPKC", "isStoreForwardServer", "nodeStatus", "nodeStatusUpdatedAt",
+    "positionChannel", "positionPrecisionBits", "positionGpsAccuracy", "positionHdop",
+    "positionTimestamp", "positionLocationSource", "transportLastRf", "transportLastMqtt",
+    "transportLastUdp", "createdAt", "updatedAt", "uptimeSeconds",
+}
+NODE_TELEMETRY_FIELDS = {
+    "telemetryType", "timestamp", "value", "unit", "createdAt", "packetTimestamp",
+    "packetId", "channel",
+}
+
+
+def _node_num(value):
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        raise ValueError("nodeNum inválido")
+    if n <= 0 or n > 0xFFFFFFFF:
+        raise ValueError("nodeNum inválido")
+    return n & 0xFFFFFFFF
+
+
+def _node_hex_id(n: int) -> str:
+    return f"!{n & 0xFFFFFFFF:08x}"
+
+
+def _telemetry_kind(type_name) -> str:
+    name = re.sub(r"[^a-z0-9]+", "", str(type_name or "").lower())
+    if any(k in name for k in ("pm10", "pm25", "pm2", "co2", "voc", "eco2", "airquality")):
+        return "airQuality"
+    if any(k in name for k in ("current", "power", "energy", "ch1", "ch2", "ch3")):
+        return "power"
+    if any(k in name for k in (
+        "temperature", "humidity", "pressure", "gas", "iaq", "lux", "wind",
+        "weight", "radiation", "distance",
+    )):
+        return "environment"
+    if any(k in name for k in ("battery", "voltage", "channelutil", "airutil", "uptime")):
+        return "device"
+    return "other"
+
+
+def _node_details(node_num):
+    n = _node_num(node_num)
+    source = urllib.parse.quote(MM_SOURCE, safe="")
+    nodes_body = _mm_api_get(f"/api/v1/sources/{source}/nodes")
+    rows = nodes_body.get("data", []) if isinstance(nodes_body, dict) else []
+    row = None
+    for candidate in rows:
+        try:
+            if isinstance(candidate, dict) and int(candidate.get("nodeNum")) == n:
+                row = candidate
+                break
+        except (TypeError, ValueError):
+            continue
+    row = row or {}
+    node_id = str(row.get("nodeId") or _node_hex_id(n))
+    node = {k: row.get(k) for k in NODE_SAFE_FIELDS if k in row}
+    node.setdefault("nodeNum", n)
+    node.setdefault("nodeId", node_id)
+    node["publicKeyAvailable"] = bool(row.get("publicKey"))
+
+    telemetry_rows = []
+    try:
+        params = urllib.parse.urlencode({"nodeId": node_id, "limit": "160"})
+        tel_body = _mm_api_get(f"/api/v1/sources/{source}/telemetry?{params}")
+        raw_tel = tel_body.get("data", []) if isinstance(tel_body, dict) else []
+        for item in raw_tel:
+            if not isinstance(item, dict):
+                continue
+            projected = {k: item.get(k) for k in NODE_TELEMETRY_FIELDS if k in item}
+            projected["kind"] = _telemetry_kind(projected.get("telemetryType"))
+            telemetry_rows.append(projected)
+        telemetry_rows.sort(key=lambda x: int(x.get("timestamp") or x.get("createdAt") or 0), reverse=True)
+    except Exception:
+        telemetry_rows = []
+
+    relevant_traces = []
+    try:
+        for tr in _live_traceroutes(200):
+            try:
+                if int(tr.get("fromNodeNum") or 0) == n or int(tr.get("toNodeNum") or 0) == n:
+                    relevant_traces.append(tr)
+                    continue
+                route_values = []
+                for key in ("route", "routeBack"):
+                    value = tr.get(key)
+                    if isinstance(value, list):
+                        route_values.extend(value)
+                    elif isinstance(value, str) and value.strip():
+                        try:
+                            parsed = json.loads(value)
+                            if isinstance(parsed, list):
+                                route_values.extend(parsed)
+                        except Exception:
+                            pass
+                if any(int(v) == n for v in route_values):
+                    relevant_traces.append(tr)
+            except Exception:
+                continue
+        relevant_traces.sort(key=lambda x: int(x.get("timestamp") or x.get("createdAt") or 0), reverse=True)
+    except Exception:
+        relevant_traces = []
+
+    neighbors = {"available": True, "data": [], "latestTimestamp": None}
+    try:
+        q = urllib.parse.urlencode({"sourceId": MM_SOURCE})
+        nb_body = _mm_api_get(f"/api/neighborinfo/{n}?{q}")
+        nb_rows = nb_body if isinstance(nb_body, list) else (nb_body.get("data", []) if isinstance(nb_body, dict) else [])
+        clean_nb = []
+        for item in nb_rows:
+            if not isinstance(item, dict):
+                continue
+            keep = {
+                "nodeNum", "neighborNodeNum", "neighborNodeId", "neighborName",
+                "snr", "timestamp", "lastRxTime", "nodeId", "nodeName", "bidirectional",
+            }
+            clean_nb.append({k: item.get(k) for k in keep if k in item})
+        neighbors["data"] = clean_nb[:80]
+        stamps = []
+        for item in clean_nb:
+            for key in ("timestamp", "lastRxTime"):
+                try:
+                    stamps.append(int(item.get(key) or 0))
+                except Exception:
+                    pass
+        neighbors["latestTimestamp"] = max(stamps) if stamps else None
+    except Exception as exc:
+        neighbors = {"available": False, "data": [], "latestTimestamp": None, "error": str(exc)[:240]}
+
+    return {
+        "success": True,
+        "nodeNum": n,
+        "node": node,
+        "telemetry": {"latest": telemetry_rows[:80]},
+        "traceroute": relevant_traces[0] if relevant_traces else None,
+        "neighbors": neighbors,
+        "readAtMs": int(time.time() * 1000),
+    }
+
+
+def _request_node_query(node_num, action):
+    n = _node_num(node_num)
+    action = str(action or "").strip()
+    source = urllib.parse.quote(MM_SOURCE, safe="")
+    destination = _node_hex_id(n)
+    if action == "nodeinfo":
+        body = _mm_api_post(f"/api/v1/sources/{source}/actions/request-nodeinfo", {"destination": n})
+    elif action == "position":
+        body = _mm_api_post(f"/api/v1/sources/{source}/actions/request-position", {"destination": n})
+    elif action == "traceroute":
+        body = _mm_api_post(f"/api/v1/sources/{source}/actions/traceroute", {"destination": n})
+    elif action == "neighbors":
+        body = _mm_api_post(f"/api/v1/sources/{source}/actions/request-neighbors", {"destination": n})
+    elif action.startswith("telemetry_"):
+        telemetry_type = action.split("_", 1)[1]
+        allowed = {"device", "environment", "airQuality", "power"}
+        if telemetry_type not in allowed:
+            raise ValueError("Tipo de telemetria inválido")
+        body = _mm_api_post("/api/telemetry/request", {
+            "destination": destination,
+            "telemetryType": telemetry_type,
+            "sourceId": MM_SOURCE,
+        })
+    else:
+        raise ValueError("Consulta de nó inválida")
+    if isinstance(body, dict) and body.get("success") is False:
+        raise RuntimeError(str(body.get("message") or body.get("error") or "MeshMonitor recusou a consulta"))
+    return {
+        "success": True,
+        "action": action,
+        "nodeNum": n,
+        "requestedAtMs": int(time.time() * 1000),
+        "meshMonitor": body,
+    }
 
 
 
@@ -4722,6 +5130,17 @@ class Handler(BaseHTTPRequestHandler):
                     "success": False, "error": "live_unavailable", "message": str(e),
                 }, ensure_ascii=False).encode("utf-8"))
             return
+        if path == "/api/node-details":
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                node_num = (query.get("nodeNum") or [None])[0]
+                body = _node_details(node_num)
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "error": "bad_node", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "error": "node_details_unavailable", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
         if path == "/api/packets":
             try:
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
@@ -4889,6 +5308,25 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/node-query":
+            try:
+                if "application/json" not in str(self.headers.get("Content-Type") or "").lower():
+                    raise ValueError("Content-Type application/json obrigatório")
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 4096:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                body = _request_node_query(payload.get("nodeNum"), payload.get("action"))
+                self._send(202, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "error": "bad_request", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                message = str(e)
+                status = 429 if "HTTP 429" in message else (403 if "HTTP 403" in message else 502)
+                self._send(status, "application/json; charset=utf-8", json.dumps({"success": False, "error": "node_query_failed", "message": message}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/topology/refresh":
             try:
