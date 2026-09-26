@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.32.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.33.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.32.0"
+APP_VERSION = "1.33.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -304,7 +304,8 @@ HTML = r'''<!doctype html>
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
-  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}
+  .leaflet-popup-pane{z-index:1200}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}.leaflet-popup.nodePopupFloating{z-index:1300}.leaflet-popup.nodePopupDragging{z-index:1400}.leaflet-popup.nodePopupDetached .leaflet-popup-tip-container{display:none}
+  .nodePopupDragHandle{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;margin:0 0 7px;padding:3px 30px 7px 0;background:#17212b;border-bottom:1px solid rgba(64,86,104,.75);cursor:grab;touch-action:none;user-select:none}.nodePopupDragHandle:active{cursor:grabbing}.nodePopupDragGlyph{flex:0 0 auto;color:#7fd0ff;font-size:16px;font-weight:900;line-height:1}.nodePopupDragText{min-width:0;flex:1}.nodePopupDragHint{flex:0 0 auto;color:#8194a5;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.nodePopupStaticHandle{margin-bottom:7px}
   .nodePopup{width:min(860px,calc(100vw - 110px));max-width:860px;max-height:min(76vh,700px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
   @media(max-width:900px){.nodePopup{width:min(640px,calc(100vw - 70px));max-height:72vh}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
   @media(max-width:600px){.nodePopup{width:76vw;min-width:0;max-width:76vw;max-height:68vh;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
@@ -800,7 +801,7 @@ function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
 
 const I18N_PAIRS=[
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Configurações','Settings'],['Ajuda','Help'],
-  ['Colunas','Columns'],['Nome longo','Long name'],['Nome curto','Short name'],['Saltos','Hops'],['Distância','Distance'],['Última interação','Last interaction'],['Última posição','Last position'],['Detalhes do nó','Node details'],['Estado','State'],
+  ['Colunas','Columns'],['Nome longo','Long name'],['Nome curto','Short name'],['Saltos','Hops'],['Distância','Distance'],['Última interação','Last interaction'],['Última posição','Last position'],['Detalhes do nó','Node details'],['Estado','State'],['Arraste para mover','Drag to move'],['arraste','drag'],
   ['Idioma:','Language:'],['Idioma da interface','Interface language'],['Português','Portuguese'],
   ['Reprodução:','Playback:'],['Histórico','History'],['Ao vivo','Live'],['Velocidade:','Speed:'],['Enquadrar','Fit'],['Atualizar','Refresh'],
   ['Traceroute anterior','Previous traceroute'],['Próximo traceroute','Next traceroute'],['Pausar animações ao vivo','Pause live animations'],['Retomar animações ao vivo','Resume live animations'],['Reproduzir/retomar histórico','Play/resume history'],['Pausar histórico','Pause history'],
@@ -1085,6 +1086,7 @@ const nodeMarkers = new Map();
 let openNodeNum = null;
 let suppressNodePopupClose = false;
 let openNodePopupScrollTop = 0;
+let nodePopupDragState={nodeNum:null,x:0,y:0};
 let nodesSortKey = 'lastInteraction';
 let nodesSortDir = 'desc';
 const NODES_COLUMNS_KEY='trafficAnalyzerNodesColumnsV132';
@@ -3718,7 +3720,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1320';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1330';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
