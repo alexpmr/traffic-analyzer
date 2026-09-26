@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.27.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.27.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -25,7 +25,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.27.0"
+APP_VERSION = "1.27.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -948,7 +948,7 @@ const map = L.map('map', {preferCanvas:true, zoomSnap:0.05, zoomDelta:0.25}).set
 
 const baseMaps = {
   osm: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     options: {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}
   },
   topo: {
@@ -970,6 +970,8 @@ const baseMaps = {
 };
 
 let baseLayer = null;
+let baseMapTileErrors = 0;
+let baseMapFallbackActive = false;
 const lineLayer = L.layerGroup().addTo(map);
 const nodeLayer = L.layerGroup().addTo(map);
 const animationLayer = L.layerGroup().addTo(map);
@@ -1056,10 +1058,23 @@ function savePrefs(){
   };
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
 }
-function setBaseMap(type){
-  const cfg = baseMaps[type] || baseMaps.osm;
-  if(baseLayer) map.removeLayer(baseLayer);
-  baseLayer = L.tileLayer(cfg.url, cfg.options).addTo(map);
+function setBaseMap(type,{allowFallback=true}={}){
+  const cfg=baseMaps[type]||baseMaps.osm;
+  if(baseLayer)map.removeLayer(baseLayer);
+  baseMapTileErrors=0;
+  baseMapFallbackActive=false;
+  baseLayer=L.tileLayer(cfg.url,cfg.options).addTo(map);
+  baseLayer.on('tileload',()=>{baseMapTileErrors=Math.max(0,baseMapTileErrors-1);});
+  baseLayer.on('tileerror',()=>{
+    baseMapTileErrors++;
+    if(type==='osm'&&allowFallback&&baseMapTileErrors>=4&&!baseMapFallbackActive){
+      baseMapFallbackActive=true;
+      const select=document.getElementById('mapType');
+      if(select)select.value='light';
+      flowToast('<b>Mapa OSM indisponível</b><div class="flowNote">O Traffic Analyzer mudou temporariamente para o mapa Claro (CARTO). Você pode trocar o mapa-base em Configurações.</div>',true);
+      setBaseMap('light',{allowFallback:false});
+    }
+  });
   baseLayer.bringToBack();
   applyBrightness();
 }
@@ -3060,7 +3075,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV127';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1271';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4383,7 +4398,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.27.0"
+    server_version = "TrafficAnalyzer/1.27.1"
 
     def _send(self, status, content_type, body: bytes, extra_headers=None):
         self.send_response(status)
@@ -4392,7 +4407,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
         for key, value in (extra_headers or {}).items():
             self.send_header(str(key), str(value))
