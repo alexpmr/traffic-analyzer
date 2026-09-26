@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.31.0 - 2026-09-26
+
+- Torna o popup dos nós mais largo e orientado para paisagem em telas de desktop.
+- Organiza metadados em duas duplas campo/valor por linha e distribui checklist/metadados recebidos em colunas quando houver espaço.
+- Adiciona rolagem vertical interna ao popup com altura máxima relativa à viewport.
+- Mantém comportamento responsivo em telas médias e pequenas, voltando para disposição vertical quando necessário.
+- Transforma a troca de idioma do cabeçalho em um menu pull-down compacto, preservando Português e English e a preferência local.
+- Faz o indicador superior de nova versão iniciar diretamente o download do ZIP da Latest Release estável.
+- Inclui na API de status da versão o asset ZIP exato da Release mais recente, com fallback para traffic-analyzer-latest.zip.
+- Mantém o modal de versão quando não existir atualização para baixar.
+- Altera o instalador para parar a instância web, o timer e uma execução agendada anterior antes de substituir os arquivos.
+- Reinicia os serviços normalmente ao final e mantém configurações, credenciais e dados persistentes.
+- Preserva consultas de nós, mapa, RF/MQTT-não-RF, mensagens e demais recursos da v1.30.0.
+
 ## 1.30.0 - 2026-09-26
 
 - Expande o popup de nós para exibir um inventário completo dos metadados esperados, marcando com ✓ os dados disponíveis e com ☐ os ausentes.
