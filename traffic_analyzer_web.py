@@ -1079,6 +1079,14 @@ const activityMarkers = new Map();
 let heatLayer = null;
 let topology = null;
 const nodeTrafficLastSeen = new Map();
+const nodeMarkers = new Map();
+let openNodeNum = null;
+let suppressNodePopupClose = false;
+let openNodePopupScrollTop = 0;
+let nodesSortKey = 'lastInteraction';
+let nodesSortDir = 'desc';
+const NODES_COLUMNS_KEY='trafficAnalyzerNodesColumnsV132';
+let nodesOptionalColumns=new Set();
 let lastBounds = null;
 let historyIndex = 0;
 let playbackRunning = false;
@@ -1327,6 +1335,39 @@ function initVisualPrefs(){
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dt = (ms) => ms ? new Date(ms).toLocaleString(uiLocale()) : '—';
 const snr = (v) => (v === null || v === undefined) ? '—' : `${Number(v).toFixed(1)} dB`;
+const HARDWARE_MODELS={
+0:'UNSET',1:'TLORA_V2',2:'TLORA_V1',3:'TLORA_V2_1_1P6',4:'TBEAM',5:'HELTEC_V2_0',6:'TBEAM_V0P7',7:'T_ECHO',8:'TLORA_V1_1P3',9:'RAK4631',10:'HELTEC_V2_1',11:'HELTEC_V1',12:'LILYGO_TBEAM_S3_CORE',13:'RAK11200',14:'NANO_G1',15:'TLORA_V2_1_1P8',16:'TLORA_T3_S3',17:'NANO_G1_EXPLORER',18:'NANO_G2_ULTRA',19:'LORA_TYPE',20:'WIPHONE',21:'WIO_WM1110',22:'RAK2560',23:'HELTEC_HRU_3601',24:'HELTEC_WIRELESS_BRIDGE',25:'STATION_G1',26:'RAK11310',27:'SENSELORA_RP2040',28:'SENSELORA_S3',29:'CANARYONE',30:'RP2040_LORA',31:'STATION_G2',32:'LORA_RELAY_V1',33:'T_ECHO_PLUS',34:'PPR',35:'GENIEBLOCKS',36:'NRF52_UNKNOWN',37:'PORTDUINO',38:'ANDROID_SIM',39:'DIY_V1',40:'NRF52840_PCA10059',41:'DR_DEV',42:'M5STACK',43:'HELTEC_V3',44:'HELTEC_WSL_V3',45:'BETAFPV_2400_TX',46:'BETAFPV_900_NANO_TX',47:'RPI_PICO',48:'HELTEC_WIRELESS_TRACKER',49:'HELTEC_WIRELESS_PAPER',50:'T_DECK',51:'T_WATCH_S3',52:'PICOMPUTER_S3',53:'HELTEC_HT62',54:'EBYTE_ESP32_S3',55:'ESP32_S3_PICO',56:'CHATTER_2',57:'HELTEC_WIRELESS_PAPER_V1_0',58:'HELTEC_WIRELESS_TRACKER_V1_0',59:'UNPHONE',60:'TD_LORAC',61:'CDEBYTE_EORA_S3',62:'TWC_MESH_V4',63:'NRF52_PROMICRO_DIY',64:'RADIOMASTER_900_BANDIT_NANO',65:'HELTEC_CAPSULE_SENSOR_V3',66:'HELTEC_VISION_MASTER_T190',67:'HELTEC_VISION_MASTER_E213',68:'HELTEC_VISION_MASTER_E290',69:'HELTEC_MESH_NODE_T114',70:'SENSECAP_INDICATOR',71:'TRACKER_T1000_E',72:'RAK3172',73:'WIO_E5',74:'RADIOMASTER_900_BANDIT',75:'ME25LS01_4Y10TD',76:'RP2040_FEATHER_RFM95',77:'M5STACK_COREBASIC',78:'M5STACK_CORE2',79:'RPI_PICO2',80:'M5STACK_CORES3',81:'SEEED_XIAO_S3',82:'MS24SF1',83:'TLORA_C6',84:'WISMESH_TAP',85:'ROUTASTIC',86:'MESH_TAB',87:'MESHLINK',88:'XIAO_NRF52_KIT',89:'THINKNODE_M1',90:'THINKNODE_M2',91:'T_ETH_ELITE',92:'HELTEC_SENSOR_HUB',93:'MUZI_BASE',94:'HELTEC_MESH_POCKET',95:'SEEED_SOLAR_NODE',96:'NOMADSTAR_METEOR_PRO',97:'CROWPANEL',98:'LINK_32',99:'SEEED_WIO_TRACKER_L1',100:'SEEED_WIO_TRACKER_L1_EINK',101:'MUZI_R1_NEO',102:'T_DECK_PRO',103:'T_LORA_PAGER',104:'M5STACK_RESERVED',105:'WISMESH_TAG',106:'RAK3312',107:'THINKNODE_M5',108:'HELTEC_MESH_SOLAR',109:'T_ECHO_LITE',110:'HELTEC_V4',111:'M5STACK_C6L',112:'M5STACK_CARDPUTER_ADV',113:'HELTEC_WIRELESS_TRACKER_V2',114:'T_WATCH_ULTRA',115:'THINKNODE_M3',116:'WISMESH_TAP_V2',117:'RAK3401',118:'RAK6421',119:'THINKNODE_M4',120:'THINKNODE_M6',121:'MESHSTICK_1262',122:'TBEAM_1_WATT',123:'T5_S3_EPAPER_PRO',124:'TBEAM_BPF',125:'MINI_EPAPER_S3',126:'TDISPLAY_S3_PRO',127:'HELTEC_MESH_NODE_T096',128:'MESH_TRACKER_X1',129:'THINKNODE_M7',130:'THINKNODE_M8',131:'THINKNODE_M9',132:'HELTEC_V4_R8',133:'HELTEC_MESH_NODE_T1',134:'STATION_G3',135:'T_IMPULSE_PLUS',136:'T_ECHO_CARD',137:'SEEED_WIO_TRACKER_L2',138:'CROWPANEL_P4',139:'HELTEC_MESH_TOWER_V2',140:'MESHNOLOGY_W10',141:'HELTEC_RC32',142:'HELTEC_RC52',143:'HELTEC_RCC6',255:'PRIVATE_HW'
+};
+const DEVICE_ROLES={0:'Client',1:'Client (Mute)',2:'Router',3:'Router Client',4:'Repeater',5:'Tracker',6:'Sensor',7:'TAK',8:'Client (Hidden)',9:'Lost and Found',10:'TAK Tracker',11:'Router (Late)',12:'Client (Base)'};
+function hardwareFriendly(v){
+  if(v===null||v===undefined||v==='')return null;
+  const n=Number(v),raw=HARDWARE_MODELS[n];
+  if(!raw)return `Unknown (${v})`;
+  const exact={UNSET:'Unset',TBEAM:'T-Beam',T_ECHO:'T-Echo',T_ECHO_PLUS:'T-Echo Plus',T_ECHO_LITE:'T-Echo Lite',T_ECHO_CARD:'T-Echo Card',T_DECK:'T-Deck',T_DECK_PRO:'T-Deck Pro',LILYGO_TBEAM_S3_CORE:'LilyGo T-Beam S3 Core',HELTEC_V2_0:'Heltec V2.0',HELTEC_V2_1:'Heltec V2.1',HELTEC_V1:'Heltec V1',HELTEC_V3:'Heltec V3',HELTEC_V4:'Heltec V4',HELTEC_V4_R8:'Heltec V4 R8',STATION_G1:'Station G1',STATION_G2:'Station G2',STATION_G3:'Station G3'};
+  if(exact[raw])return exact[raw];
+  return raw.split('_').map(w=>{
+    if(/^RAK\d+$/i.test(w))return w.toUpperCase();
+    if(/^(GPS|NRF|ESP|RP|RPI|DIY|M5STACK|WIO|TWC|TAK|HT|RC|TX|S3|C6|E5)$/i.test(w))return w.toUpperCase();
+    if(/^V\d/.test(w))return w.replaceAll('P','.');
+    return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
+  }).join(' ');
+}
+function roleFriendly(v){
+  if(v===null||v===undefined||v==='')return null;
+  const n=Number(v);return Number.isFinite(n)?(DEVICE_ROLES[n]||`Unknown (${v})`):String(v);
+}
+function nodeFmtPercent(v){
+  const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})}%`:'—';
+}
+function telemetryDisplay(type,value,unit=''){
+  if(!nodeHas(value))return 'sem valor';
+  const key=String(type||'').toLowerCase(),u=String(unit||'').trim();
+  if(u==='%'||/battery|channelutil|airutil|humidity/.test(key))return nodeFmtPercent(value);
+  if(/voltage/.test(key)||u.toLowerCase()==='v')return `${Number(value).toLocaleString(uiLocale(),{minimumFractionDigits:2,maximumFractionDigits:2})} V`;
+  if(/snr/.test(key)||u.toLowerCase()==='db')return `${Number(value).toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} dB`;
+  if(Number.isFinite(Number(value)))return `${Number(value).toLocaleString(uiLocale(),{maximumFractionDigits:3})}${u?` ${u}`:''}`;
+  return `${value}${u?` ${u}`:''}`;
+}
 
 function nodeLastTrafficMs(n){
   const archived=Number(nodeTrafficLastSeen.get(Number(n.nodeNum))||0);
@@ -1468,8 +1509,8 @@ function nodeMetadataHtml(base,details){
     nodeMetaLine('Node ID',n.nodeId),
     nodeMetaLine('Nome longo',n.longName||n.name),
     nodeMetaLine('Nome curto',n.shortName),
-    nodeMetaLine('Hardware',n.hwModel),
-    nodeMetaLine('Role',n.role),
+    nodeMetaLine('Hardware',n.hwModel,hardwareFriendly(n.hwModel)),
+    nodeMetaLine('Role',n.role,roleFriendly(n.role)),
     nodeMetaLine('Firmware',n.firmwareVersion),
     nodeBoolLine('Public key',n.publicKeyAvailable!==undefined?n.publicKeyAvailable:n.publicKey),
     nodeMetaLine('Status',n.nodeStatus),
@@ -1488,10 +1529,10 @@ function nodeMetadataHtml(base,details){
     nodeMetaLine('RSSI',n.rssi,nodeHas(n.rssi)?`${n.rssi} dBm`:null),
     nodeMetaLine('Canal',n.channel),
     nodeMetaLine('Último contato',n.lastHeard,nodeFmtTs(n.lastHeard)),
-    nodeMetaLine('Bateria',n.batteryLevel,nodeHas(n.batteryLevel)?`${n.batteryLevel}%`:null),
+    nodeMetaLine('Bateria',n.batteryLevel,nodeHas(n.batteryLevel)?nodeFmtPercent(n.batteryLevel):null),
     nodeMetaLine('Tensão',n.voltage,nodeHas(n.voltage)?`${nodeFmtNum(n.voltage,2)} V`:null),
-    nodeMetaLine('Utilização do canal',n.channelUtilization,nodeHas(n.channelUtilization)?`${nodeFmtNum(n.channelUtilization,1)}%`:null),
-    nodeMetaLine('Air util TX',n.airUtilTx,nodeHas(n.airUtilTx)?`${nodeFmtNum(n.airUtilTx,1)}%`:null),
+    nodeMetaLine('Utilização do canal',n.channelUtilization,nodeHas(n.channelUtilization)?nodeFmtPercent(n.channelUtilization):null),
+    nodeMetaLine('Air util TX',n.airUtilTx,nodeHas(n.airUtilTx)?nodeFmtPercent(n.airUtilTx):null),
     nodeMetaLine('Uptime',n.uptimeSeconds,nodeHas(n.uptimeSeconds)?nodeFmtDurationSeconds(n.uptimeSeconds):null),
     nodeMetaLine('Reboots',n.rebootCount),
     nodeBoolLine('Store & Forward',n.isStoreForwardServer),
@@ -1547,7 +1588,7 @@ function nodeTelemetryHtml(details){
   const neighbors=details.neighbors||{};
   let html='';
   if(rows.length){
-    html+=rows.slice(0,18).map(r=>`<div>${nodeHas(r.value)?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} <b>${esc(r.telemetryType||'telemetria')}</b>: ${esc(nodeHas(r.value)?`${r.value}${r.unit?` ${r.unit}`:''}`:'sem valor')} <span class="nodeSmall">· ${esc(nodeFmtTs(r.timestamp||r.createdAt))}</span></div>`).join('');
+    html+=rows.slice(0,18).map(r=>`<div>${nodeHas(r.value)?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} <b>${esc(r.telemetryType||'telemetria')}</b>: ${esc(telemetryDisplay(r.telemetryType,r.value,r.unit))} <span class="nodeSmall">· ${esc(nodeFmtTs(r.timestamp||r.createdAt))}</span></div>`).join('');
   }else html+='<div><span class="nodeMetaMissing">☐</span> Telemetria — sem registros</div>';
   if(trace)html+=`<div><span class="nodeMetaPresent">✓</span> <b>Último traceroute</b>: ${esc(trace.fromNodeId||'')} → ${esc(trace.toNodeId||'')} <span class="nodeSmall">· ${esc(nodeFmtTs(trace.timestamp||trace.createdAt))}</span></div>`;
   else html+='<div><span class="nodeMetaMissing">☐</span> Traceroute — sem registro envolvendo o nó</div>';
@@ -2599,10 +2640,10 @@ function friendlyScalar(k,v){
   if(typeof v==='number'){
     if(/latitudeI|longitudeI/.test(k) && Math.abs(v)>180) return (v/1e7).toFixed(7)+'°';
     if(/latitude|longitude/.test(k) && Math.abs(v)<=180) return Number(v).toFixed(7)+'°';
-    if(/batteryLevel/i.test(k)) return `${v}%`;
+    if(/batteryLevel|channelUtilization|airUtilTx/i.test(k)) return nodeFmtPercent(v);
     if(/voltage/i.test(k)) return `${Number(v).toFixed(3)} V`;
     if(/temperature/i.test(k)) return `${Number(v).toFixed(1)} °C`;
-    if(/humidity/i.test(k)) return `${Number(v).toFixed(1)}%`;
+    if(/humidity/i.test(k)) return nodeFmtPercent(v);
     if(/pressure/i.test(k)) return `${Number(v).toFixed(1)} hPa`;
     if(/snr/i.test(k)) return `${Number(v).toFixed(2)} dB`;
     if(/rssi/i.test(k)) return `${v} dBm`;
