@@ -407,6 +407,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   .readOnlyBanner{display:none;margin:8px 0 14px;padding:9px 11px;border-radius:7px;background:#5a4213;border:1px solid #7d6222;color:#ffe49a;font-size:12px;font-weight:700}.readOnlyBanner.open{display:block}
   .messageReadOnly{display:none;padding:4px 8px;border-radius:10px;background:#5a4213;color:#ffe49a;border:1px solid #7d6222;font-size:10px;font-weight:800}.messageReadOnly.open{display:inline-block}
   #viewSettings.authLocked .settingsCard input:disabled,#viewSettings.authLocked .settingsCard select:disabled,#viewSettings.authLocked .settingsCard button:disabled{opacity:.58;cursor:not-allowed}
+  .localPrefsToolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 14px;padding:10px 11px;border:1px solid #304353;border-radius:7px;background:#111a24}.localPrefsToolbar .settingDesc{margin:0;flex:1;min-width:240px}.adminOnlyBadge{display:inline-block;margin-left:7px;padding:2px 7px;border-radius:999px;background:#4f3d13;border:1px solid #806620;color:#ffe49a;font-size:10px;vertical-align:middle}.adminOnlySection.locked{opacity:.78}.adminOnlySection.locked .settingDesc{color:#81909d}
   #messageComposer.readOnly{opacity:.68}.authLockIcon{font-weight:900;margin-right:4px}
   body[data-theme="light"] .authHint{background:#f5f7f9;border-color:#cbd5dd;color:#425566}body[data-theme="light"] .readOnlyBanner,body[data-theme="light"] .messageReadOnly{background:#fff5d2;color:#6f5310;border-color:#d9bb56}
 
@@ -545,7 +546,11 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
 <section id="viewSettings" class="view">
   <div class="settingsCard">
     <h2>Configurações do Traffic Analyzer</h2>
-    <div id="settingsReadOnly" class="readOnlyBanner">🔒 Modo somente leitura — faça login para alterar estas configurações.</div>
+    <div id="settingsReadOnly" class="readOnlyBanner">🔒 Visitante: a personalização visual abaixo fica somente neste navegador. Recursos administrativos continuam bloqueados.</div>
+    <div class="localPrefsToolbar">
+      <button id="restoreAdminDefaults" type="button">Restaurar padrão do administrador</button>
+      <div class="settingDesc">Mapa, aparência, animações, sons e leitura podem ser personalizados localmente sem alterar o servidor ou a experiência de outros visitantes.</div>
+    </div>
 
     <h3>Aparência</h3>
     <div class="settingsGrid">
@@ -668,23 +673,38 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
     </div>
 
-    <h3>Atualizações</h3>
+    <div id="adminDefaultsSection" class="adminOnlySection">
+      <h3>Apresentação padrão para visitantes <span class="adminOnlyBadge">Administrador</span></h3>
+      <div class="settingsGrid">
+        <div class="settingRow">
+          <button id="saveVisitorDefaults" type="button" data-admin-only>Usar minha configuração visual atual como padrão dos visitantes</button>
+          <div class="settingDesc">Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.</div>
+        </div>
+        <div class="settingRow">
+          <div id="visitorDefaultsStatus" class="settingDesc">Carregando padrão global...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="adminOnlySection">
+    <h3>Atualizações <span class="adminOnlyBadge">Administrador</span></h3>
     <div class="settingsGrid">
       <div class="settingRow">
-        <label><input id="autoUpdateEnabled" type="checkbox"> Atualizar automaticamente ao detectar nova versão estável</label>
+        <label><input id="autoUpdateEnabled" type="checkbox" data-admin-only> Atualizar automaticamente ao detectar nova versão estável</label>
         <div class="settingDesc">A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.</div>
       </div>
       <div class="settingRow">
-        <label><input id="rollbackEnabled" type="checkbox" checked> Rollback automático se a nova versão não ficar saudável</label>
+        <label><input id="rollbackEnabled" type="checkbox" checked data-admin-only> Rollback automático se a nova versão não ficar saudável</label>
         <div class="settingDesc">Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.</div>
       </div>
       <div class="settingRow">
-        <button id="updateNow" type="button">Atualizar agora</button>
+        <button id="updateNow" type="button" data-admin-only>Atualizar agora</button>
         <div class="settingDesc">Instala somente a Latest Release estável publicada no repositório oficial.</div>
       </div>
       <div class="settingRow">
         <div id="updateStatusBox" class="updateStatusBox">Carregando status de atualização...</div>
       </div>
+    </div>
     </div>
 
     <h3>Fluxos e privacidade</h3>
@@ -777,6 +797,11 @@ const I18N_PAIRS=[
   ['Adiciona popup de novidades exibido uma única vez ao iniciar após uma atualização.','Adds a what\'s-new popup shown once when the application starts after an update.'],
   ['O atualizador manual traffic-analyzer-update passa a usar a mesma cadeia segura de Latest Release estável do auto-update.','The manual traffic-analyzer-update command now uses the same secure stable Latest Release chain as auto-update.'],
   ['O atualizador manual `traffic-analyzer-update` passa a usar a mesma cadeia segura de Latest Release estável do auto-update.','The manual `traffic-analyzer-update` command now uses the same secure stable Latest Release chain as auto-update.'],
+  ['Restaurar padrão do administrador','Restore administrator default'],['Visitante: a personalização visual abaixo fica somente neste navegador. Recursos administrativos continuam bloqueados.','Visitor: the visual customization below stays only in this browser. Administrative features remain locked.'],
+  ['Mapa, aparência, animações, sons e leitura podem ser personalizados localmente sem alterar o servidor ou a experiência de outros visitantes.','Map, appearance, animations, sounds, and reading preferences can be customized locally without changing the server or other visitors experience.'],
+  ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
+  ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
+  ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
 const I18N_EN_PT=new Map(I18N_PAIRS.map(([pt,en])=>[en,pt]));
@@ -904,7 +929,7 @@ function renderHelp(){
       <h3>4. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
       <h3>5. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
       <h3>6. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
-      <h3>7. Authentication and Internet exposure</h3><p>When authentication is enabled, access without sign-in is read only. Settings remain visible but cannot be changed; Messages can be read but sending, replies and reactions are disabled. Every write API is also protected on the server with an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
+      <h3>7. Authentication and Internet exposure</h3><p>When authentication is enabled, visitors may freely change visual and reading preferences in Settings; these changes stay only in that browser. Administrative actions remain locked: sending/replying/reacting to messages, forcing topology refresh, changing update settings, triggering updates, and changing the server-side visitor default all require an authenticated administrator session.</p><p>The administrator can save the current visual setup as the global default for new visitors. A visitor can still override it locally and can use <b>Restore administrator default</b> at any time. Every server write API remains protected by an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
       <h3>8. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
       <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
       <div class="helpCode i18nNoTranslate">cat /opt/traffic-analyzer/VERSION</div>
@@ -924,7 +949,7 @@ function renderHelp(){
       <h3>4. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
       <h3>5. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
       <h3>6. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
-      <h3>7. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, o acesso sem login funciona em modo somente leitura. Configurações continuam visíveis, mas não podem ser alteradas; Mensagens podem ser lidas, porém envio, respostas e reações ficam bloqueados. Todas as APIs de escrita também são protegidas no servidor por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
+      <h3>7. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, visitantes podem alterar livremente preferências visuais e de leitura em Configurações; essas alterações ficam somente naquele navegador. Ações administrativas continuam bloqueadas: enviar/responder/reagir a mensagens, forçar atualização da topologia, alterar o auto-update, disparar atualização e mudar o padrão global dos visitantes exigem sessão administrativa autenticada.</p><p>O administrador pode salvar a configuração visual atual como padrão global para novos visitantes. Cada visitante ainda pode sobrescrevê-la localmente e usar <b>Restaurar padrão do administrador</b> quando quiser. Todas as APIs de escrita no servidor permanecem protegidas por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
       <h3>8. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
       <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
@@ -1905,7 +1930,8 @@ function applyAuthState(){
   const settings=document.getElementById('viewSettings');
   settings.classList.toggle('authLocked',locked);
   document.getElementById('settingsReadOnly').classList.toggle('open',locked);
-  settings.querySelectorAll('input,select,textarea,button').forEach(el=>{el.disabled=locked;});
+  settings.querySelectorAll('[data-admin-only]').forEach(el=>{el.disabled=locked;});
+  document.querySelectorAll('.adminOnlySection').forEach(el=>el.classList.toggle('locked',locked));
   document.getElementById('messageReadOnly').classList.toggle('open',locked);
   const composer=document.getElementById('messageComposer');composer.classList.toggle('readOnly',locked);
   for(const id of ['messageInput','messageSend','messageEmojiBtn','replyComposerClose']){
@@ -3076,7 +3102,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1271';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1280';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
