@@ -227,6 +227,23 @@ jobs:
                 return document.getElementById('mapType').value;
               """)
               assert fallback=="light",fallback
+              d.execute_script("nodeMarkers.get(1).openPopup()")
+              WebDriverWait(d,10).until(EC.presence_of_element_located((By.CSS_SELECTOR,".nodePopupDragHandle")))
+              before=d.execute_script("const p=document.querySelector('.leaflet-popup').getBoundingClientRect();return {left:p.left,top:p.top};")
+              moved=d.execute_script("""
+                const h=document.querySelector('.nodePopupDragHandle');
+                const r=h.getBoundingClientRect();
+                const sx=r.left+30,sy=r.top+15;
+                h.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:sx,clientY:sy,pointerId:77,pointerType:'mouse',button:0}));
+                h.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:sx+120,clientY:sy+70,pointerId:77,pointerType:'mouse',button:0}));
+                h.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,clientX:sx+120,clientY:sy+70,pointerId:77,pointerType:'mouse',button:0}));
+                const p=document.querySelector('.leaflet-popup').getBoundingClientRect();
+                return {left:p.left,top:p.top,state:nodePopupDragState,detached:document.querySelector('.leaflet-popup').classList.contains('nodePopupDetached')};
+              """)
+              assert moved["state"]["nodeNum"]==1,moved
+              assert abs(moved["left"]-before["left"])>30 or abs(moved["top"]-before["top"])>30,(before,moved)
+              assert moved["detached"] is True,moved
+              d.execute_script("map.closePopup()")
               assert not d.find_elements(By.CSS_SELECTOR,'.navbtn[data-view="tracklog"]')
               assert not d.find_elements(By.ID,"viewTracklog")
 
