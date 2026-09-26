@@ -414,12 +414,12 @@ jobs:
               assert active_live>=2,active_live
               d.execute_script("stopAnimation();stopLivePolling();")
 
-              for view in ["traffic","messages","health","anomalies","settings","help","map"]:
+              for view in ["nodes","traffic","messages","health","anomalies","settings","help","map"]:
                   b=d.find_element(By.CSS_SELECTOR, f'.navbtn[data-view="{view}"]')
                   d.execute_script("arguments[0].click()", b)
                   time.sleep(.15)
                   active=d.find_element(By.CSS_SELECTOR, ".view.active").get_attribute("id")
-                  expected={"traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
+                  expected={"nodes":"viewNodes","traffic":"viewTraffic","messages":"viewMessages","health":"viewHealth","anomalies":"viewAnomalies","settings":"viewSettings","help":"viewHelp","map":"viewMap"}[view]
                   assert active==expected,(view,active,expected)
               logs=d.get_log("browser")
               print("BROWSER LOGS AFTER NAVIGATION")
