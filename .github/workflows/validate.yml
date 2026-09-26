@@ -20,6 +20,34 @@ jobs:
       - name: Validar Python
         run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
 
+      - name: Validar classificação RF e MQTT por hop
+        run: |
+          python - <<'PY'
+          import traffic_analyzer as ta
+          nodes={
+            10:{"nodeNum":10,"longName":"A","shortName":"A","latitude":-15.80,"longitude":-47.90},
+            20:{"nodeNum":20,"longName":"B","shortName":"B","latitude":-15.81,"longitude":-47.89},
+            30:{"nodeNum":30,"longName":"VHF3","shortName":"VHF3","latitude":-15.82,"longitude":-47.88},
+          }
+          tr=[{
+            "id":1,"packetId":123,"fromNodeNum":10,"toNodeNum":30,
+            "fromNodeId":"!0000000a","toNodeId":"!0000001e",
+            "route":"[20]","snrTowards":"[-128,20]","routeBack":None,"snrBack":None,
+            "channel":0,"timestamp":1700000000000,"createdAt":1700000000000,
+            "transportMechanism":1,
+          }]
+          top=ta.build_topology(nodes,tr,1700000000000)
+          edges={frozenset((e["a"],e["b"])):e for e in top["edges"]}
+          ab=edges[frozenset((10,20))]
+          bv=edges[frozenset((20,30))]
+          assert ab["rfObservations"]==0 and ab["mqttObservations"]==1 and ab["nonRfObservations"]==1,ab
+          assert ab["transportClass"]=="mqtt",ab
+          assert bv["rfObservations"]==1 and bv["nonRfObservations"]==0,bv
+          assert bv["transportClass"]=="rf",bv
+          assert ab["events"][0]["transport"]=="mqtt",ab
+          assert bv["events"][0]["transport"]=="rf",bv
+          PY
+
       - name: Validar shell
         run: bash -n install.sh update.sh
 
@@ -210,11 +238,40 @@ jobs:
               time.sleep(.1)
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
               assert d.find_element(By.ID,"mapType").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"rfLineColor").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"rfLineWidth").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"mqttLineColor").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"mqttLineWidth").get_attribute("disabled") is None
               assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is not None
               assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is not None
               d.execute_script("arguments[0].value='light';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"uiTheme"))
               assert d.execute_script("return document.body.dataset.theme==='light'")
               assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).uiTheme==='light'")
+              # A-B somente MQTT/não-RF deve ser tracejado; B-VHF3 RF deve ser contínuo.
+              styles=d.execute_script("""
+                topology={
+                  generatedAtMs:Date.now(),
+                  nodes:[
+                    {nodeNum:10,nodeId:'!0000000a',name:'A',shortName:'A',latitude:-15.80,longitude:-47.90,state:'identified'},
+                    {nodeNum:20,nodeId:'!00000014',name:'B',shortName:'B',latitude:-15.81,longitude:-47.89,state:'identified'},
+                    {nodeNum:30,nodeId:'!0000001e',name:'VHF3',shortName:'VHF3',latitude:-15.82,longitude:-47.88,state:'identified'}
+                  ],
+                  edges:[
+                    {a:10,b:20,aId:'!0000000a',bId:'!00000014',aName:'A',bName:'B',geometry:[[-15.80,-47.90],[-15.81,-47.89]],events:[{timestampMs:Date.now(),leg:'forward',snr:null,traceId:1,transport:'mqtt'}]},
+                    {a:20,b:30,aId:'!00000014',bId:'!0000001e',aName:'B',bName:'VHF3',geometry:[[-15.81,-47.89],[-15.82,-47.88]],events:[{timestampMs:Date.now(),leg:'forward',snr:5,traceId:1,transport:'rf'}]}
+                  ],
+                  traces:[]
+                };
+                document.getElementById('ageHours').value='all';
+                document.getElementById('showLines').checked=true;
+                render();
+                return lineLayer.getLayers().map(x=>({dash:x.options.dashArray||'',color:x.options.color,weight:x.options.weight}));
+              """)
+              assert len(styles)==2,styles
+              assert styles[0]["dash"]=="10 8",styles
+              assert styles[1]["dash"] in ("",None),styles
+              assert "Tipo de enlace" in d.find_element(By.CSS_SELECTOR,".legend").text
+              assert "MQTT / não-RF" in d.find_element(By.CSS_SELECTOR,".legend").text
               unauth_status=d.execute_async_script("""
                 const done=arguments[0];
                 fetch('/api/topology/refresh',{method:'POST'}).then(r=>done(r.status)).catch(()=>done(0));
