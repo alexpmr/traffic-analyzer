@@ -1,6 +1,21 @@
-# Traffic Analyzer v1.29.0
+# Traffic Analyzer v1.30.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.30.0
+
+- O popup de cada nó passa a funcionar como um **painel completo de diagnóstico**, mostrando tanto as informações disponíveis quanto os campos ainda ausentes.
+- Cada metadado esperado recebe um indicador visual: **✓** quando existe informação e **☐** quando o MeshMonitor ainda não possui o dado.
+- O popup mostra **latitude, longitude e coordenadas combinadas**, altitude e data/hora da última posição quando disponíveis.
+- Passam a ser exibidos, entre outros dados: Node ID, nomes, hardware, role, firmware, status, posição, precisão GPS, hops, SNR/RSSI, canal, bateria, tensão, utilização de canal, Air Util TX, uptime, reboots, Store & Forward e disponibilidade de PKC.
+- Nova seção **Consultas ao nó**, com ações individuais para **Node Info, Position, Device Metrics, Environment Metrics, Air Quality, Power Metrics, Neighbor Info e Traceroute**.
+- Novo botão **Tudo** executa as consultas em sequência, com pequeno espaçamento para reduzir rajadas de tráfego na malha; **Traceroute é enviado por último**.
+- O checklist da consulta muda conforme o processamento: não consultado, aguardando resposta, **✓ respondido**, timeout, erro ou não suportado/não aplicável.
+- Enquanto o popup permanece aberto, o Traffic Analyzer consulta o MeshMonitor periodicamente e mostra os metadados à medida que as respostas chegam.
+- As consultas usam os **endpoints oficiais do MeshMonitor**. Assim, as respostas são recebidas, processadas e persistidas pelo MM como nas consultas iniciadas por ele próprio; o Traffic Analyzer não cria um NodeDB paralelo.
+- Neighbor Info respeita as restrições do MeshMonitor, inclusive consulta apenas a nó local/0-hop e rate limit do firmware quando aplicáveis.
+- As transmissões iniciadas pelo popup são tratadas como ações de escrita e continuam protegidas pelo **login administrativo + CSRF** do Traffic Analyzer.
+- O mapa, a distinção RF/MQTT-não-RF, as animações, o chat e os demais recursos da v1.29.0 permanecem preservados.
 
 ## Novidades da v1.29.0
 
