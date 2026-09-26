@@ -146,7 +146,7 @@ jobs:
           print(sap.password_hash("SenhaTeste123!"))
           PY
           )"
-          TA_AUTH_ENABLED=true TA_AUTH_USER=admin TA_AUTH_PASSWORD_HASH="$AUTH_HASH" TA_AUTH_SESSION_HOURS=12 MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
+          TA_AUTH_ENABLED=true TA_AUTH_USER=admin TA_AUTH_PASSWORD_HASH="$AUTH_HASH" TA_AUTH_SESSION_HOURS=12 MAP_BIND=127.0.0.1 MAP_PORT=8788 TOPOLOGY_FILE=/tmp/topology.json TRAFFIC_ARCHIVE_DB=/tmp/traffic.db UPDATE_SETTINGS_FILE=/tmp/update-settings.json UPDATE_REQUEST_FILE=/tmp/update-request.json UPDATE_STATUS_FILE=/tmp/update-status.json LAST_INSTALL_FILE=/tmp/last-install.json UI_DEFAULTS_FILE=/tmp/ui-defaults.json python traffic_analyzer_web.py >/tmp/ta-web.log 2>&1 &
           echo $! >/tmp/ta-web.pid
           python - <<'PY'
           import time, urllib.request
@@ -200,20 +200,31 @@ jobs:
               assert not d.find_elements(By.CSS_SELECTOR,'.navbtn[data-view="tracklog"]')
               assert not d.find_elements(By.ID,"viewTracklog")
 
-              # Sem login: escrita bloqueada no servidor e interface em somente leitura.
+              # Sem login: visitante pode personalizar localmente, mas escrita no servidor/malha continua bloqueada.
               time.sleep(.3)
               assert d.execute_script("return authState.enabled===true && authState.authenticated===false")
               assert d.find_element(By.ID,"messageInput").get_attribute("disabled") is not None
               d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="settings"]'))
               time.sleep(.1)
-              assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is not None
+              assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"mapType").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is not None
+              assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is not None
+              d.execute_script("arguments[0].value='light';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"uiTheme"))
+              assert d.execute_script("return document.body.dataset.theme==='light'")
+              assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).uiTheme==='light'")
               unauth_status=d.execute_async_script("""
                 const done=arguments[0];
                 fetch('/api/topology/refresh',{method:'POST'}).then(r=>done(r.status)).catch(()=>done(0));
               """)
               assert unauth_status==401,unauth_status
+              unauth_defaults=d.execute_async_script("""
+                const done=arguments[0];
+                fetch('/api/ui-defaults',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefs:{uiTheme:'light'}})}).then(r=>done(r.status)).catch(()=>done(0));
+              """)
+              assert unauth_defaults==401,unauth_defaults
 
-              # Login administrativo libera Configurações e escrita de Mensagens.
+              # Login administrativo libera apenas ações administrativas e escrita de Mensagens.
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"authAction"))
               d.find_element(By.ID,"authUsername").clear()
               d.find_element(By.ID,"authUsername").send_keys("admin")
@@ -224,6 +235,14 @@ jobs:
                   time.sleep(.1)
               assert d.execute_script("return authState.authenticated===true")
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is None
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"saveVisitorDefaults"))
+              time.sleep(.4)
+              saved=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/ui-defaults',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
+              """)
+              assert saved.get("success") and saved.get("defaults",{}).get("uiTheme")=="light",saved
               d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="messages"]'))
               time.sleep(.1)
               assert d.find_element(By.ID,"messageInput").get_attribute("disabled") is None
