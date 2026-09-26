@@ -1150,6 +1150,7 @@ function setBaseMap(type,{allowFallback=true}={}){
   });
   baseLayer.bringToBack();
   applyBrightness();
+  renderLegend();
 }
 function applyBrightness(){
   const value = Math.max(30, Math.min(150, Number(document.getElementById('mapBrightness').value || 100)));
@@ -1298,10 +1299,18 @@ function edgeStatsForWindow(e, cutoff){
   const events = Array.isArray(e.events) ? e.events : null;
   if(!events){
     if(cutoff !== null && (e.lastSeenMs || 0) < cutoff) return null;
+    const observations=Number(e.observations || 0);
+    let rf=Number(e.rfObservations || 0);
+    const mqtt=Number(e.mqttObservations || 0);
+    let nonRf=Number(e.nonRfObservations || mqtt);
+    if(rf+nonRf===0 && observations>0) rf=observations; // topologias antigas = RF por compatibilidade
     return {
-      observations:Number(e.observations || 0),
+      observations,
       forward:Number(e.forwardObservations || 0),
       back:Number(e.returnObservations || 0),
+      rf, mqtt, nonRf, otherNonRf:Math.max(0,nonRf-mqtt),
+      mixed:rf>0&&nonRf>0,
+      displayTransport:rf>0?'rf':(nonRf>0?'mqtt':'rf'),
       avgSnr:e.avgSnr, minSnr:e.minSnr, maxSnr:e.maxSnr,
       lastSeenMs:e.lastSeenMs, latestTraceId:e.latestTraceId, latestChannel:e.latestChannel
     };
@@ -1310,10 +1319,17 @@ function edgeStatsForWindow(e, cutoff){
   if(!active.length) return null;
   const snrs = active.map(x => x.snr).filter(x => x !== null && x !== undefined && Number.isFinite(Number(x))).map(Number);
   const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
+  const rf=active.filter(x => !x.transport || x.transport === 'rf').length;
+  const mqtt=active.filter(x => x.transport === 'mqtt').length;
+  const otherNonRf=active.filter(x => x.transport === 'non-rf').length;
+  const nonRf=mqtt+otherNonRf;
   return {
     observations:active.length,
     forward:active.filter(x => x.leg === 'forward').length,
     back:active.filter(x => x.leg === 'return').length,
+    rf, mqtt, nonRf, otherNonRf,
+    mixed:rf>0&&nonRf>0,
+    displayTransport:rf>0?'rf':(nonRf>0?'mqtt':'rf'),
     avgSnr:snrs.length ? snrs.reduce((a,b)=>a+b,0)/snrs.length : null,
     minSnr:snrs.length ? Math.min(...snrs) : null,
     maxSnr:snrs.length ? Math.max(...snrs) : null,
@@ -1339,7 +1355,7 @@ function render(){
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
   const visibleNodes = new Set();
   const heatWeights = new Map();
-  let edgeCount = 0;
+  let edgeCount = 0, rfEdgeCount = 0, mqttOnlyEdgeCount = 0, mixedEdgeCount = 0;
 
   for(const e of topology.edges || []){
     if(!e.geometry) continue;
@@ -1349,20 +1365,29 @@ function render(){
     if(onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
+    if(stats.mixed) mixedEdgeCount++;
+    else if(stats.displayTransport==='mqtt') mqttOnlyEdgeCount++;
+    else rfEdgeCount++;
     const obs = Math.max(1, Number(stats.observations || 1));
     heatWeights.set(Number(e.a), (heatWeights.get(Number(e.a)) || 0) + obs);
     heatWeights.set(Number(e.b), (heatWeights.get(Number(e.b)) || 0) + obs);
 
     if(showLines){
-      const lineColor = document.getElementById('lineColor').value || '#ffff00';
-      const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById('lineWidth').value||3)));
-      const line = L.polyline(e.geometry, {weight:lineWidth, opacity:.82, color:lineColor});
+      const mqttOnly=stats.displayTransport==='mqtt';
+      const lineColor=mqttOnly?(document.getElementById('mqttLineColor').value||'#ff8c42'):(document.getElementById('rfLineColor').value||'#ffff00');
+      const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById(mqttOnly?'mqttLineWidth':'rfLineWidth').value||3)));
+      const style={weight:lineWidth,opacity:.82,color:lineColor};
+      if(mqttOnly) style.dashArray='10 8';
+      const line = L.polyline(e.geometry, style);
+      const classLabel=stats.mixed?'Misto RF + MQTT/não-RF (exibido como RF)':(mqttOnly?'MQTT / não-RF':'RF confirmado');
       line.bindPopup(
         `<b>${esc(e.aName)} ↔ ${esc(e.bName)}</b><br>`+
         `${esc(e.aId)} ↔ ${esc(e.bId)}<br>`+
-        `Observações: <b>${stats.observations}</b><br>`+
+        `Classificação: <b>${esc(classLabel)}</b><br>`+
+        `Observações: <b>${stats.observations}</b> · RF: <b>${stats.rf}</b> · MQTT/não-RF: <b>${stats.nonRf}</b><br>`+
+        (stats.otherNonRf?`MQTT inferido/explícito: ${stats.mqtt} · outros não-RF: ${stats.otherNonRf}<br>`:'')+
         `Ida: ${stats.forward} | Volta: ${stats.back}<br>`+
-        `SNR médio: ${snr(stats.avgSnr)}<br>`+
+        `SNR médio RF conhecido: ${snr(stats.avgSnr)}<br>`+
         `Faixa SNR: ${snr(stats.minSnr)} a ${snr(stats.maxSnr)}<br>`+
         `Última observação: ${dt(stats.lastSeenMs)}<br>`+
         `Traceroute: ${esc(stats.latestTraceId ?? '—')} | canal: ${esc(stats.latestChannel ?? '—')}`
@@ -1429,6 +1454,9 @@ function render(){
   lastBounds = coords.length ? L.latLngBounds(coords) : null;
   document.getElementById('summary').innerHTML =
     `<span class="metric"><b>${edgeCount}</b> enlaces no filtro</span>`+
+    `<span class="metric"><b>${rfEdgeCount}</b> RF</span>`+
+    `<span class="metric"><b>${mqttOnlyEdgeCount}</b> MQTT/não-RF</span>`+
+    (mixedEdgeCount?`<span class="metric"><b>${mixedEdgeCount}</b> mistos</span>`:'')+
     `<span class="metric"><b>${mappableCount}</b> nós no mapa</span>`+
     `<span class="metric"><b>${mappableStates.identified || 0}</b> identificados</span>`+
     `<span class="metric"><b>${mappableStates.stub || 0}</b> stubs</span>`+
@@ -3238,11 +3266,26 @@ document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(
 document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();closeAuthModal();}});
 
+let legendContainer=null;
+function renderLegend(){
+  if(!legendContainer)return;
+  const rfColor=document.getElementById('rfLineColor')?.value||'#ffff00';
+  const mqttColor=document.getElementById('mqttLineColor')?.value||'#ff8c42';
+  const rfWidth=Math.max(1,Math.min(8,Number(document.getElementById('rfLineWidth')?.value||3)));
+  const mqttWidth=Math.max(1,Math.min(8,Number(document.getElementById('mqttLineWidth')?.value||3)));
+  legendContainer.innerHTML =
+    '<b>'+tr('Último tráfego')+'</b><br><span class="dot trafficFresh"></span>'+tr('até 2 h')+'<br><span class="dot trafficWarm"></span>'+tr('2 a 24 h')+'<br><span class="dot trafficOld"></span>'+tr('mais de 24 h')+'<br><span class="dot trafficUnknown"></span>'+tr('sem registro')+
+    '<div class="legendSection"><b>'+tr('Tipo de enlace')+'</b><br>'+
+    '<span class="legendLine" style="border-top-color:'+esc(rfColor)+';border-top-width:'+rfWidth+'px"></span>'+tr('RF confirmado')+'<br>'+
+    '<span class="legendLine mqtt" style="border-top-color:'+esc(mqttColor)+';border-top-width:'+mqttWidth+'px"></span>'+tr('MQTT / não-RF')+
+    '<div class="legendNote">'+tr('Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.')+'</div></div>';
+}
 const legend = L.control({position:'bottomright'});
 legend.onAdd = () => {
-  const d = L.DomUtil.create('div','legend');
-  d.innerHTML = '<b>Último tráfego</b><br><span class="dot trafficFresh"></span>até 2 h<br><span class="dot trafficWarm"></span>2 a 24 h<br><span class="dot trafficOld"></span>mais de 24 h<br><span class="dot trafficUnknown"></span>sem registro';
-  return d;
+  legendContainer = L.DomUtil.create('div','legend');
+  L.DomEvent.disableClickPropagation(legendContainer);
+  renderLegend();
+  return legendContainer;
 };
 legend.addTo(map);
 
