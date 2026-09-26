@@ -116,7 +116,7 @@ def main() -> None:
         "<b>Mensagens:</b> canal primário, respostas estruturadas, emojis, reações/tapbacks e localização de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
         "<b>Anomalias:</b> heurísticas para silêncio, SNR, hops e assimetria de rotas.",
-        "<b>Configurações:</b> aparência, mapa, espessura/cor dos enlaces, temas sonoros, leitura do chat, atualizações, atividade e privacidade.",
+        "<b>Configurações:</b> aparência, mapa, espessura/cor dos enlaces, temas sonoros e leitura do chat. Visitantes podem personalizar esses itens somente no próprio navegador; atualizações e padrões globais continuam administrativos.",
         "<b>Ajuda/Help:</b> instruções incorporadas à própria interface.",
     ]:
         story.append(bullet(item))
@@ -139,8 +139,9 @@ def main() -> None:
               P("Temas sonoros", "TA_H2"),
               P("A interface oferece Fliperama anos 70, Formal, Rádio / Telecom e Silencioso. No modo Fliperama, o início da viagem lembra um lançador mecânico, relays observados recebem ricochetes metálicos e chegada/ACK recebe efeito de alvo/pontuação. A chegada de uma nova mensagem usa uma assinatura sonora própria, separada do limitador de sons de roteamento, para continuar audível em períodos de tráfego intenso. Reações não disparam a campainha de nova mensagem."),
               P("Autenticação e acesso externo", "TA_H2"),
-              P("Com a autenticação habilitada, visitantes sem login usam a interface em modo somente leitura. Configurações não podem ser alteradas e Mensagens continua visível, mas sem envio, resposta ou reação."),
-              P("As ações de escrita também são protegidas no servidor por sessão administrativa e token CSRF. A credencial é armazenada apenas como hash derivado, e as sessões expiram automaticamente."),
+              P("Com a autenticação habilitada, visitantes sem login podem alterar preferências visuais e de leitura em Configurações. Essas mudanças ficam apenas no localStorage daquele navegador e não modificam o servidor nem a experiência de outros visitantes. Mensagens continua visível, mas sem envio, resposta ou reação."),
+              P("O administrador pode salvar sua configuração visual atual como padrão global para novos visitantes. O visitante pode sobrescrever esse padrão localmente e restaurá-lo quando quiser. Atualizações, refresh administrativo da topologia, envio de mensagens e qualquer escrita persistente no servidor continuam protegidos por sessão administrativa e token CSRF."),
+              P("As credenciais são armazenadas apenas como hash derivado, e as sessões expiram automaticamente."),
               P("Para configurar ou trocar a credencial administrativa, execute traffic-analyzer-set-password como root no servidor."),
               P("Para acesso pela Internet, publique a aplicação atrás de HTTPS com reverse proxy. O Traffic Analyzer não implementa TLS diretamente."),
               P("Privacidade", "TA_H2"),
