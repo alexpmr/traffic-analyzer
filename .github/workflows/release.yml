@@ -224,8 +224,9 @@ jobs:
               assert len(styles)==2,styles
               assert styles[0]["dash"]=="10 8",styles
               assert styles[1]["dash"] in ("",None),styles
-              assert "Tipo de enlace" in d.find_element(By.CSS_SELECTOR,".legend").text
-              assert "MQTT / não-RF" in d.find_element(By.CSS_SELECTOR,".legend").text
+              legend_text=d.find_element(By.CSS_SELECTOR,".legend").get_attribute("textContent")
+              assert "Tipo de enlace" in legend_text,legend_text
+              assert "MQTT / não-RF" in legend_text,legend_text
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"authAction"))
               d.find_element(By.ID,"authUsername").clear()
               d.find_element(By.ID,"authUsername").send_keys("admin")
