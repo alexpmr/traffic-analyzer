@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.27.1 - 2026-09-25
+
+- Corrige tiles 403 "Access blocked" no mapa Ruas (OSM).
+- Substitui o endereço legado com subdomínios por `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, conforme a política atual do OSM.
+- Troca `Referrer-Policy: same-origin` por `strict-origin-when-cross-origin` para que requisições web de tiles enviem Referer válido sem expor o caminho completo.
+- Adiciona fallback automático temporário para Claro (CARTO) após falhas repetidas dos tiles OSM.
+- Mantém todos os controles de segurança e autenticação adicionados na v1.27.0.
+
 ## 1.27.0 - 2026-09-25
 
 - Remove a aba Tracklog, o mapa, os controles e o JavaScript específico da interface.
