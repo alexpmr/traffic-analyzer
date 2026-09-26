@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.30.0"
+VERSION="1.31.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -44,6 +44,16 @@ if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
 fi
 if ! getent passwd "$SERVICE_USER" >/dev/null 2>&1; then
   useradd --system --gid "$SERVICE_GROUP" --home-dir /nonexistent --shell /usr/sbin/nologin "$SERVICE_USER"
+fi
+
+# Em atualizacoes, encerra de forma controlada a instancia anterior antes de
+# substituir executaveis/arquivos. O auto-updater permanece ativo para poder
+# concluir o processo e executar rollback se necessario.
+if systemctl list-unit-files traffic-analyzer-map.service >/dev/null 2>&1 || systemctl is-active --quiet traffic-analyzer-map.service 2>/dev/null; then
+  echo "Encerrando a versao anterior do Traffic Analyzer antes da instalacao..."
+  systemctl stop traffic-analyzer.timer 2>/dev/null || true
+  systemctl stop traffic-analyzer.service 2>/dev/null || true
+  systemctl stop traffic-analyzer-map.service 2>/dev/null || true
 fi
 
 PREVIOUS_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
