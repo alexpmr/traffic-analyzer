@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.29.0
+Traffic Analyzer v1.30.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -652,10 +652,34 @@ def build_topology(nodes, traceroutes, now_ms):
             "positionSource": position_source,
             "lastHeard": row.get("lastHeard") if row else None,
             "hopsAway": row.get("hopsAway") if row else None,
+            "lastMessageHops": row.get("lastMessageHops") if row else None,
             "snr": row.get("snr") if row else None,
             "rssi": row.get("rssi") if row else None,
             "hwModel": row.get("hwModel") if row else None,
             "role": row.get("role") if row else None,
+            "firmwareVersion": row.get("firmwareVersion") if row else None,
+            "channel": row.get("channel") if row else None,
+            "batteryLevel": row.get("batteryLevel") if row else None,
+            "voltage": row.get("voltage") if row else None,
+            "channelUtilization": row.get("channelUtilization") if row else None,
+            "airUtilTx": row.get("airUtilTx") if row else None,
+            "rebootCount": row.get("rebootCount") if row else None,
+            "mobile": row.get("mobile") if row else None,
+            "nodeStatus": row.get("nodeStatus") if row else None,
+            "nodeStatusUpdatedAt": row.get("nodeStatusUpdatedAt") if row else None,
+            "positionChannel": row.get("positionChannel") if row else None,
+            "positionPrecisionBits": row.get("positionPrecisionBits") if row else None,
+            "positionGpsAccuracy": row.get("positionGpsAccuracy") if row else None,
+            "positionHdop": row.get("positionHdop") if row else None,
+            "positionTimestamp": row.get("positionTimestamp") if row else None,
+            "positionLocationSource": row.get("positionLocationSource") if row else None,
+            "transportLastRf": row.get("transportLastRf") if row else None,
+            "transportLastMqtt": row.get("transportLastMqtt") if row else None,
+            "transportLastUdp": row.get("transportLastUdp") if row else None,
+            "isStoreForwardServer": row.get("isStoreForwardServer") if row else None,
+            "hasPKC": row.get("hasPKC") if row else None,
+            "createdAt": row.get("createdAt") if row else None,
+            "updatedAt": row.get("updatedAt") if row else None,
             "publicKey": bool(row.get("publicKey")) if row else False,
             "routeParticipant": n in route_node_nums,
         })
@@ -713,7 +737,7 @@ def build_topology(nodes, traceroutes, now_ms):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.29.0",
+        "version": "1.30.0",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
         "lookbackHours": TOPOLOGY_LOOKBACK_HOURS,
@@ -889,7 +913,7 @@ def run_discovery(nodes, traceroutes, now_ms, state):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Traffic Analyzer v1.19.0")
+    p = argparse.ArgumentParser(description="Traffic Analyzer v1.30.0")
     p.add_argument(
         "--topology-only",
         action="store_true",
