@@ -1,7 +1,20 @@
-# Traffic Analyzer v1.32.0
+# Traffic Analyzer v1.33.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+## Novidades da v1.33.0
+
+- O popup de informações do nó no mapa passa a ser **arrastável pela tela**.
+- O cabeçalho do popup recebe uma alça visual de movimento; clique/toque e arraste para reposicionar a janela sem mover o mapa.
+- O deslocamento é limitado à área visível do mapa para evitar que a janela seja perdida fora da tela.
+- Quando o popup é movido para longe do marcador, a ponta de ancoragem é ocultada para deixá-lo com comportamento de janela flutuante.
+- O popup fica acima da legenda e dos controles do mapa enquanto estiver aberto/arrastando, evitando sobreposição da legenda sobre as informações do nó.
+- A **rolagem interna** continua independente do arraste: o conteúdo longo permanece rolável normalmente.
+- A posição escolhida e a posição de rolagem são preservadas durante atualizações automáticas da topologia enquanto o mesmo nó continuar aberto.
+- Ao fechar o popup ou abrir outro nó, a posição flutuante é reiniciada para uma abertura normal junto ao novo marcador.
+- O modal de detalhes usado por nós sem marcador continua estático, sem comportamento de arraste.
+- Inclui smoke test automatizado que abre um nó, arrasta o popup e confirma o deslocamento no navegador.
+- Preserva todos os recursos da v1.32.0, incluindo a aba Nós, nomes amigáveis de hardware e percentuais com uma casa decimal.
 ## Novidades da v1.32.0
 
 - Nova aba superior **Nós**, com inventário dos nós conhecidos pelo MeshMonitor.
