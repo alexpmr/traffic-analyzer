@@ -1685,6 +1685,75 @@ async function runAllNodeQueries(nodeNum){
   scheduleNodePolling(nodeNum);
 }
 
+function resetNodePopupDrag(nodeNum){
+  nodePopupDragState={nodeNum:Number(nodeNum),x:0,y:0};
+}
+function applyNodePopupDragOffset(nodeNum){
+  const n=Number(nodeNum);
+  const inner=document.getElementById('nodePopup-'+n);
+  const popup=inner?.closest?.('.leaflet-popup');
+  if(!popup)return;
+  if(Number(nodePopupDragState.nodeNum)!==n)resetNodePopupDrag(n);
+  popup.classList.add('nodePopupFloating');
+  popup.style.marginLeft=String(Number(nodePopupDragState.x)||0)+'px';
+  popup.style.marginTop=String(Number(nodePopupDragState.y)||0)+'px';
+  popup.classList.toggle('nodePopupDetached',Math.abs(Number(nodePopupDragState.x)||0)>3||Math.abs(Number(nodePopupDragState.y)||0)>3);
+}
+function clampNodePopupDrag(popup,x,y){
+  popup.style.marginLeft=String(x)+'px';
+  popup.style.marginTop=String(y)+'px';
+  const mapRect=map.getContainer().getBoundingClientRect();
+  const rect=popup.getBoundingClientRect();
+  const pad=6;
+  let nx=x,ny=y;
+  if(rect.left<mapRect.left+pad)nx+=(mapRect.left+pad)-rect.left;
+  if(rect.right>mapRect.right-pad)nx-=rect.right-(mapRect.right-pad);
+  if(rect.top<mapRect.top+pad)ny+=(mapRect.top+pad)-rect.top;
+  if(rect.bottom>mapRect.bottom-pad)ny-=rect.bottom-(mapRect.bottom-pad);
+  return {x:nx,y:ny};
+}
+function initNodePopupDrag(nodeNum){
+  const n=Number(nodeNum);
+  const inner=document.getElementById('nodePopup-'+n);
+  const popup=inner?.closest?.('.leaflet-popup');
+  const handle=inner?.querySelector?.('.nodePopupDragHandle');
+  if(!popup||!handle)return;
+  if(Number(nodePopupDragState.nodeNum)!==n)resetNodePopupDrag(n);
+  applyNodePopupDragOffset(n);
+  if(handle.dataset.dragReady==='1')return;
+  handle.dataset.dragReady='1';
+  if(window.L?.DomEvent){L.DomEvent.disableClickPropagation(handle);L.DomEvent.disableScrollPropagation(handle);}
+  let active=false,startX=0,startY=0,startOffsetX=0,startOffsetY=0,mapWasDragging=false,pointerId=null;
+  const finish=e=>{
+    if(!active)return;
+    active=false;
+    popup.classList.remove('nodePopupDragging');
+    try{if(pointerId!==null&&handle.hasPointerCapture?.(pointerId))handle.releasePointerCapture(pointerId);}catch{}
+    if(mapWasDragging&&!map.dragging.enabled())map.dragging.enable();
+    mapWasDragging=false;pointerId=null;
+    e?.preventDefault?.();e?.stopPropagation?.();
+  };
+  handle.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    active=true;pointerId=e.pointerId;
+    startX=e.clientX;startY=e.clientY;
+    startOffsetX=Number(nodePopupDragState.x)||0;startOffsetY=Number(nodePopupDragState.y)||0;
+    mapWasDragging=map.dragging.enabled();
+    if(mapWasDragging)map.dragging.disable();
+    popup.classList.add('nodePopupDragging');
+    try{handle.setPointerCapture(e.pointerId);}catch{}
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(!active||e.pointerId!==pointerId)return;
+    e.preventDefault();e.stopPropagation();
+    const next=clampNodePopupDrag(popup,startOffsetX+(e.clientX-startX),startOffsetY+(e.clientY-startY));
+    nodePopupDragState={nodeNum:n,x:next.x,y:next.y};
+    applyNodePopupDragOffset(n);
+  });
+  handle.addEventListener('pointerup',finish);
+  handle.addEventListener('pointercancel',finish);
+}
 function render(){
   if(!topology) return;
   const reopenNodeNum=openNodeNum;
@@ -1788,13 +1857,16 @@ function render(){
     }
     marker.bindPopup(nodePopupHtml(n), {maxWidth:900,minWidth:280});
     marker.on('popupopen',()=>{
-      openNodeNum=Number(n.nodeNum);
+      const popupNodeNum=Number(n.nodeNum);
+      if(openNodeNum!==popupNodeNum)resetNodePopupDrag(popupNodeNum);
+      openNodeNum=popupNodeNum;
+      setTimeout(()=>initNodePopupDrag(popupNodeNum),0);
       loadNodeDetails(n.nodeNum,true).catch(e=>{
         const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
         if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
       });
     });
-    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;}});
+    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;nodePopupDragState={nodeNum:null,x:0,y:0};}});
     marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
   }
 
@@ -1804,6 +1876,7 @@ function render(){
     setTimeout(()=>{
       const el=document.querySelector('.leaflet-popup .nodePopup');
       if(el)el.scrollTop=openNodePopupScrollTop||0;
+      initNodePopupDrag(reopenNodeNum);
     },0);
   }
   suppressNodePopupClose=false;
