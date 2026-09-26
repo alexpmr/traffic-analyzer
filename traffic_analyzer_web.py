@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.28.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.29.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,7 +26,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.28.0"
+APP_VERSION = "1.29.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -299,7 +299,8 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668}
+  .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
+  .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
@@ -578,12 +579,17 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <label>Brilho: <input id="mapBrightness" type="range" min="30" max="150" step="5" value="100" style="width:150px;vertical-align:middle"> <span id="mapBrightnessValue">100%</span></label>
       </div>
       <div class="settingRow">
-        <label>Cor das linhas: <input id="lineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label>
+        <b>Enlaces RF confirmados</b><br>
+        <label>Cor: <input id="rfLineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
+        <label>Espessura: <input id="rfLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="rfLineWidthValue">3 px</span></label>
+        <div class="settingDesc">Linha contínua. Se o mesmo enlace tiver observações RF e MQTT/não-RF no período, prevalece a linha contínua por existir evidência RF.</div>
       </div>
       <div class="settingRow">
-        <label>Espessura das linhas: <input id="lineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="lineWidthValue">3 px</span></label>
-        <div class="settingDesc">Ajusta apenas a visualização dos enlaces; não altera a topologia nem os cálculos.</div>
-        <button id="lineStyleReset" type="button" style="margin-top:7px">Restaurar padrão</button>
+        <b>Enlaces MQTT / não-RF</b><br>
+        <label>Cor: <input id="mqttLineColor" type="color" value="#ff8c42" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
+        <label>Espessura: <input id="mqttLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="mqttLineWidthValue">3 px</span></label>
+        <div class="settingDesc">Linha tracejada quando o enlace não possui nenhuma observação RF no período selecionado. Inclui MQTT explícito e hops com SNR desconhecido tratados como não-RF.</div>
+        <button id="lineStyleReset" type="button" style="margin-top:7px">Restaurar cores e espessuras</button>
       </div>
       <div class="settingRow">
         <label><input id="showLines" type="checkbox" checked> Mostrar linhas</label><br>
@@ -803,6 +809,13 @@ const I18N_PAIRS=[
   ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
+  ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
+  ['Linha contínua. Se o mesmo enlace tiver observações RF e MQTT/não-RF no período, prevalece a linha contínua por existir evidência RF.','Solid line. If the same link has RF and MQTT/non-RF observations in the period, the solid line prevails because RF evidence exists.'],
+  ['Linha tracejada quando o enlace não possui nenhuma observação RF no período selecionado. Inclui MQTT explícito e hops com SNR desconhecido tratados como não-RF.','Dashed line when the link has no RF observation in the selected period. Includes explicit MQTT and hops with unknown SNR treated as non-RF.'],
+  ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
+  ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
+  ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (exibido como RF)','Mixed RF + MQTT/non-RF (shown as RF)'],
+  ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
 const I18N_EN_PT=new Map(I18N_PAIRS.map(([pt,en])=>[en,pt]));
@@ -920,7 +933,7 @@ function renderHelp(){
     el.innerHTML=`<h2>Traffic Analyzer Help</h2>
       <p>Traffic Analyzer is a companion web application for MeshMonitor. It analyzes Meshtastic traffic, observed RF topology, traceroutes, messages, node activity, network health, and anomalies without taking over the radio connection used by MeshMonitor.</p>
       <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
-      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node color indicates the age of the last observed traffic. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
+      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
       <ul><li><b>History:</b> replays traceroutes on their observed timeline and allows several packets to move simultaneously. Long windows are proportionally time-compressed.</li><li><b>Live:</b> each new complete traceroute starts independently without waiting for earlier animations to finish.</li><li><b>No artificial limit:</b> there is no functional cap on packets in transit; all observed events are kept.</li><li><b>Pause:</b> freezes every visual animation. Collection and processing continue, and waiting events are released on resume.</li><li><b>Speed:</b> also affects packets already moving and the History timeline.</li><li><b>Auto Zoom:</b> can follow all nodes involved in simultaneous traceroute animations.</li></ul>
       <h3>2. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
       <h3>3. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
@@ -929,7 +942,7 @@ function renderHelp(){
       <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The <code>@</code> character is only the autocomplete trigger; selecting a result inserts the full node name without <code>@</code>.</p>
       <h3>4. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
       <h3>5. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
-      <h3>6. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, and Auto Zoom.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
+      <h3>6. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, Auto Zoom, and independent color/thickness for confirmed RF versus MQTT/non-RF links.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
       <h3>7. Authentication and Internet exposure</h3><p>When authentication is enabled, visitors may freely change visual and reading preferences in Settings; these changes stay only in that browser. Administrative actions remain locked: sending/replying/reacting to messages, forcing topology refresh, changing update settings, triggering updates, and changing the server-side visitor default all require an authenticated administrator session.</p><p>The administrator can save the current visual setup as the global default for new visitors. A visitor can still override it locally and can use <b>Restore administrator default</b> at any time. Every server write API remains protected by an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
       <h3>8. Language</h3><p>Use the language selector at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
       <h3>9. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Under Settings → Updates, auto-update can be enabled. The interface only creates a request; a dedicated systemd service downloads the stable Release, validates the package, creates a backup, installs it, checks /health, and rolls back if needed.</p>
@@ -940,7 +953,7 @@ function renderHelp(){
     el.innerHTML=`<h2>Ajuda do Traffic Analyzer</h2>
       <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
       <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
-      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A cor do nó indica a idade do último tráfego observado. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
+      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
       <ul><li><b>Histórico:</b> reproduz traceroutes em ordem temporal e permite vários pacotes simultaneamente. Janelas longas têm a escala de tempo comprimida proporcionalmente.</li><li><b>Ao vivo:</b> novos traceroutes completos iniciam sua própria animação sem esperar os anteriores terminarem.</li><li><b>Sem limite artificial:</b> não há teto funcional de pacotes em trânsito; a interface acompanha todos os eventos observados.</li><li><b>Pausa:</b> congela todas as animações visuais. Coleta e processamento continuam, e o que ficou aguardando é liberado ao retomar.</li><li><b>Velocidade:</b> afeta também os pacotes que já estão se movendo e a linha do tempo do Histórico.</li><li><b>Auto Zoom:</b> opcionalmente acompanha em conjunto os nós envolvidos nas animações simultâneas.</li></ul>
       <h3>2. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
       <h3>3. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
@@ -949,7 +962,7 @@ function renderHelp(){
       <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O <code>@</code> funciona somente como gatilho da busca; ao selecionar, o campo recebe o nome completo do nó sem o caractere <code>@</code>.</p>
       <h3>4. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
       <h3>5. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
-      <h3>6. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor e Auto Zoom.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
+      <h3>6. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor, Auto Zoom e cor/espessura independentes para enlaces RF confirmados e MQTT/não-RF.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
       <h3>7. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, visitantes podem alterar livremente preferências visuais e de leitura em Configurações; essas alterações ficam somente naquele navegador. Ações administrativas continuam bloqueadas: enviar/responder/reagir a mensagens, forçar atualização da topologia, alterar o auto-update, disparar atualização e mudar o padrão global dos visitantes exigem sessão administrativa autenticada.</p><p>O administrador pode salvar a configuração visual atual como padrão global para novos visitantes. Cada visitante ainda pode sobrescrevê-la localmente e usar <b>Restaurar padrão do administrador</b> quando quiser. Todas as APIs de escrita no servidor permanecem protegidas por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
       <h3>8. Idioma</h3><p>Use o seletor de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
       <h3>9. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Em Configurações → Atualizações, o auto-update pode ser ativado. A interface cria apenas uma solicitação e um serviço systemd dedicado baixa a Release estável, valida o pacote, cria backup, instala, verifica /health e executa rollback se necessário.</p>
@@ -1049,14 +1062,16 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 280,
+    defaultsVersion: 290,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
     mapType: document.getElementById('mapType').value,
     brightness: Number(document.getElementById('mapBrightness').value || 100),
-    lineColor: document.getElementById('lineColor').value || '#ffff00',
-    lineWidth: Number(document.getElementById('lineWidth').value || 3),
+    rfLineColor: document.getElementById('rfLineColor').value || '#ffff00',
+    rfLineWidth: Number(document.getElementById('rfLineWidth').value || 3),
+    mqttLineColor: document.getElementById('mqttLineColor').value || '#ff8c42',
+    mqttLineWidth: Number(document.getElementById('mqttLineWidth').value || 3),
     showShortNames: document.getElementById('showShortNames').checked,
     showLines: document.getElementById('showLines').checked,
     showNodes: document.getElementById('showNodes').checked,
@@ -1142,6 +1157,7 @@ function setBaseMap(type,{allowFallback=true}={}){
   });
   baseLayer.bringToBack();
   applyBrightness();
+  renderLegend();
 }
 function applyBrightness(){
   const value = Math.max(30, Math.min(150, Number(document.getElementById('mapBrightness').value || 100)));
@@ -1185,10 +1201,16 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 140){
-    localPrefs.mapType = 'osm';
-    if(!localPrefs.lineColor || String(localPrefs.lineColor).toLowerCase() === '#ff0000') localPrefs.lineColor = '#ffff00';
-    localPrefs.defaultsVersion = 280;
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 290){
+    if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
+    const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
+    const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
+    if(!localPrefs.rfLineColor) localPrefs.rfLineColor=(String(legacyColor).toLowerCase()==='#ff0000')?'#ffff00':legacyColor;
+    if(!localPrefs.rfLineWidth) localPrefs.rfLineWidth=legacyWidth;
+    if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
+    if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
+    delete localPrefs.lineColor; delete localPrefs.lineWidth;
+    localPrefs.defaultsVersion = 290;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -1198,8 +1220,12 @@ function initVisualPrefs(){
   document.getElementById('onlyIdentified').checked = Boolean(prefs.onlyIdentified);
   if(baseMaps[prefs.mapType]) document.getElementById('mapType').value = prefs.mapType;
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
-  if(/^#[0-9a-fA-F]{6}$/.test(prefs.lineColor || '')) document.getElementById('lineColor').value = prefs.lineColor;
-  if(Number.isFinite(Number(prefs.lineWidth))) document.getElementById('lineWidth').value = String(Math.max(1,Math.min(8,Number(prefs.lineWidth))));
+  const rfColor=prefs.rfLineColor || prefs.lineColor;
+  const rfWidth=prefs.rfLineWidth ?? prefs.lineWidth;
+  if(/^#[0-9a-fA-F]{6}$/.test(rfColor || '')) document.getElementById('rfLineColor').value = rfColor;
+  if(Number.isFinite(Number(rfWidth))) document.getElementById('rfLineWidth').value = String(Math.max(1,Math.min(8,Number(rfWidth))));
+  if(/^#[0-9a-fA-F]{6}$/.test(prefs.mqttLineColor || '')) document.getElementById('mqttLineColor').value = prefs.mqttLineColor;
+  if(Number.isFinite(Number(prefs.mqttLineWidth))) document.getElementById('mqttLineWidth').value = String(Math.max(1,Math.min(8,Number(prefs.mqttLineWidth))));
   if(typeof prefs.showShortNames === 'boolean') document.getElementById('showShortNames').checked = prefs.showShortNames;
   document.getElementById('showLines').checked = (typeof prefs.showLines === 'boolean') ? prefs.showLines : true;
   document.getElementById('showNodes').checked = (typeof prefs.showNodes === 'boolean') ? prefs.showNodes : true;
@@ -1232,7 +1258,8 @@ function initVisualPrefs(){
   document.getElementById('uiTheme').value = prefs.uiTheme === 'light' ? 'light' : 'dark';
   applyTheme();
   applyMessageAppearance();
-  document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;
+  document.getElementById('rfLineWidthValue').textContent=`${document.getElementById('rfLineWidth').value} px`;
+  document.getElementById('mqttLineWidthValue').textContent=`${document.getElementById('mqttLineWidth').value} px`;
   document.getElementById('soundVolumeValue').textContent = `${document.getElementById('soundVolume').value}%`;
   document.getElementById('soundMinIntervalValue').textContent = `${document.getElementById('soundMinInterval').value} ms`;
   setBaseMap(document.getElementById('mapType').value);
@@ -1279,10 +1306,18 @@ function edgeStatsForWindow(e, cutoff){
   const events = Array.isArray(e.events) ? e.events : null;
   if(!events){
     if(cutoff !== null && (e.lastSeenMs || 0) < cutoff) return null;
+    const observations=Number(e.observations || 0);
+    let rf=Number(e.rfObservations || 0);
+    const mqtt=Number(e.mqttObservations || 0);
+    let nonRf=Number(e.nonRfObservations || mqtt);
+    if(rf+nonRf===0 && observations>0) rf=observations; // topologias antigas = RF por compatibilidade
     return {
-      observations:Number(e.observations || 0),
+      observations,
       forward:Number(e.forwardObservations || 0),
       back:Number(e.returnObservations || 0),
+      rf, mqtt, nonRf, otherNonRf:Math.max(0,nonRf-mqtt),
+      mixed:rf>0&&nonRf>0,
+      displayTransport:rf>0?'rf':(nonRf>0?'mqtt':'rf'),
       avgSnr:e.avgSnr, minSnr:e.minSnr, maxSnr:e.maxSnr,
       lastSeenMs:e.lastSeenMs, latestTraceId:e.latestTraceId, latestChannel:e.latestChannel
     };
@@ -1291,10 +1326,17 @@ function edgeStatsForWindow(e, cutoff){
   if(!active.length) return null;
   const snrs = active.map(x => x.snr).filter(x => x !== null && x !== undefined && Number.isFinite(Number(x))).map(Number);
   const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
+  const rf=active.filter(x => !x.transport || x.transport === 'rf').length;
+  const mqtt=active.filter(x => x.transport === 'mqtt').length;
+  const otherNonRf=active.filter(x => x.transport === 'non-rf').length;
+  const nonRf=mqtt+otherNonRf;
   return {
     observations:active.length,
     forward:active.filter(x => x.leg === 'forward').length,
     back:active.filter(x => x.leg === 'return').length,
+    rf, mqtt, nonRf, otherNonRf,
+    mixed:rf>0&&nonRf>0,
+    displayTransport:rf>0?'rf':(nonRf>0?'mqtt':'rf'),
     avgSnr:snrs.length ? snrs.reduce((a,b)=>a+b,0)/snrs.length : null,
     minSnr:snrs.length ? Math.min(...snrs) : null,
     maxSnr:snrs.length ? Math.max(...snrs) : null,
@@ -1320,7 +1362,7 @@ function render(){
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
   const visibleNodes = new Set();
   const heatWeights = new Map();
-  let edgeCount = 0;
+  let edgeCount = 0, rfEdgeCount = 0, mqttOnlyEdgeCount = 0, mixedEdgeCount = 0;
 
   for(const e of topology.edges || []){
     if(!e.geometry) continue;
@@ -1330,20 +1372,29 @@ function render(){
     if(onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
+    if(stats.mixed) mixedEdgeCount++;
+    else if(stats.displayTransport==='mqtt') mqttOnlyEdgeCount++;
+    else rfEdgeCount++;
     const obs = Math.max(1, Number(stats.observations || 1));
     heatWeights.set(Number(e.a), (heatWeights.get(Number(e.a)) || 0) + obs);
     heatWeights.set(Number(e.b), (heatWeights.get(Number(e.b)) || 0) + obs);
 
     if(showLines){
-      const lineColor = document.getElementById('lineColor').value || '#ffff00';
-      const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById('lineWidth').value||3)));
-      const line = L.polyline(e.geometry, {weight:lineWidth, opacity:.82, color:lineColor});
+      const mqttOnly=stats.displayTransport==='mqtt';
+      const lineColor=mqttOnly?(document.getElementById('mqttLineColor').value||'#ff8c42'):(document.getElementById('rfLineColor').value||'#ffff00');
+      const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById(mqttOnly?'mqttLineWidth':'rfLineWidth').value||3)));
+      const style={weight:lineWidth,opacity:.82,color:lineColor};
+      if(mqttOnly) style.dashArray='10 8';
+      const line = L.polyline(e.geometry, style);
+      const classLabel=stats.mixed?'Misto RF + MQTT/não-RF (exibido como RF)':(mqttOnly?'MQTT / não-RF':'RF confirmado');
       line.bindPopup(
         `<b>${esc(e.aName)} ↔ ${esc(e.bName)}</b><br>`+
         `${esc(e.aId)} ↔ ${esc(e.bId)}<br>`+
-        `Observações: <b>${stats.observations}</b><br>`+
+        `Classificação: <b>${esc(classLabel)}</b><br>`+
+        `Observações: <b>${stats.observations}</b> · RF: <b>${stats.rf}</b> · MQTT/não-RF: <b>${stats.nonRf}</b><br>`+
+        (stats.otherNonRf?`MQTT inferido/explícito: ${stats.mqtt} · outros não-RF: ${stats.otherNonRf}<br>`:'')+
         `Ida: ${stats.forward} | Volta: ${stats.back}<br>`+
-        `SNR médio: ${snr(stats.avgSnr)}<br>`+
+        `SNR médio RF conhecido: ${snr(stats.avgSnr)}<br>`+
         `Faixa SNR: ${snr(stats.minSnr)} a ${snr(stats.maxSnr)}<br>`+
         `Última observação: ${dt(stats.lastSeenMs)}<br>`+
         `Traceroute: ${esc(stats.latestTraceId ?? '—')} | canal: ${esc(stats.latestChannel ?? '—')}`
@@ -1410,6 +1461,9 @@ function render(){
   lastBounds = coords.length ? L.latLngBounds(coords) : null;
   document.getElementById('summary').innerHTML =
     `<span class="metric"><b>${edgeCount}</b> enlaces no filtro</span>`+
+    `<span class="metric"><b>${rfEdgeCount}</b> RF</span>`+
+    `<span class="metric"><b>${mqttOnlyEdgeCount}</b> MQTT/não-RF</span>`+
+    (mixedEdgeCount?`<span class="metric"><b>${mixedEdgeCount}</b> mistos</span>`:'')+
     `<span class="metric"><b>${mappableCount}</b> nós no mapa</span>`+
     `<span class="metric"><b>${mappableStates.identified || 0}</b> identificados</span>`+
     `<span class="metric"><b>${mappableStates.stub || 0}</b> stubs</span>`+
@@ -2759,9 +2813,10 @@ document.getElementById('showShortNames').addEventListener('change', () => { sav
 for(const id of ['showLines','showNodes','showHeatmap']) document.getElementById(id).addEventListener('change', () => { savePrefs(); render(); });
 document.getElementById('mapType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
 document.getElementById('mapBrightness').addEventListener('input', () => { applyBrightness(); savePrefs(); });
-document.getElementById('lineColor').addEventListener('input', () => { savePrefs(); render(); });
-document.getElementById('lineWidth').addEventListener('input',()=>{document.getElementById('lineWidthValue').textContent=`${document.getElementById('lineWidth').value} px`;savePrefs();render();});
-document.getElementById('lineStyleReset').addEventListener('click',()=>{document.getElementById('lineColor').value='#ffff00';document.getElementById('lineWidth').value='3';document.getElementById('lineWidthValue').textContent='3 px';savePrefs();render();});
+for(const id of ['rfLineColor','mqttLineColor']) document.getElementById(id).addEventListener('input', () => { savePrefs(); render(); renderLegend(); });
+document.getElementById('rfLineWidth').addEventListener('input',()=>{document.getElementById('rfLineWidthValue').textContent=`${document.getElementById('rfLineWidth').value} px`;savePrefs();render();renderLegend();});
+document.getElementById('mqttLineWidth').addEventListener('input',()=>{document.getElementById('mqttLineWidthValue').textContent=`${document.getElementById('mqttLineWidth').value} px`;savePrefs();render();renderLegend();});
+document.getElementById('lineStyleReset').addEventListener('click',()=>{document.getElementById('rfLineColor').value='#ffff00';document.getElementById('rfLineWidth').value='3';document.getElementById('mqttLineColor').value='#ff8c42';document.getElementById('mqttLineWidth').value='3';document.getElementById('rfLineWidthValue').textContent='3 px';document.getElementById('mqttLineWidthValue').textContent='3 px';savePrefs();render();renderLegend();});
 document.getElementById('animSpeed').addEventListener('change', savePrefs);
 document.getElementById('playMode').addEventListener('change', () => {
   stopAnimation(); stopLivePolling();
@@ -3144,7 +3199,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1280';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1290';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -3218,11 +3273,26 @@ document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(
 document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();closeAuthModal();}});
 
+let legendContainer=null;
+function renderLegend(){
+  if(!legendContainer)return;
+  const rfColor=document.getElementById('rfLineColor')?.value||'#ffff00';
+  const mqttColor=document.getElementById('mqttLineColor')?.value||'#ff8c42';
+  const rfWidth=Math.max(1,Math.min(8,Number(document.getElementById('rfLineWidth')?.value||3)));
+  const mqttWidth=Math.max(1,Math.min(8,Number(document.getElementById('mqttLineWidth')?.value||3)));
+  legendContainer.innerHTML =
+    '<b>'+tr('Último tráfego')+'</b><br><span class="dot trafficFresh"></span>'+tr('até 2 h')+'<br><span class="dot trafficWarm"></span>'+tr('2 a 24 h')+'<br><span class="dot trafficOld"></span>'+tr('mais de 24 h')+'<br><span class="dot trafficUnknown"></span>'+tr('sem registro')+
+    '<div class="legendSection"><b>'+tr('Tipo de enlace')+'</b><br>'+
+    '<span class="legendLine" style="border-top-color:'+esc(rfColor)+';border-top-width:'+rfWidth+'px"></span>'+tr('RF confirmado')+'<br>'+
+    '<span class="legendLine mqtt" style="border-top-color:'+esc(mqttColor)+';border-top-width:'+mqttWidth+'px"></span>'+tr('MQTT / não-RF')+
+    '<div class="legendNote">'+tr('Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.')+'</div></div>';
+}
 const legend = L.control({position:'bottomright'});
 legend.onAdd = () => {
-  const d = L.DomUtil.create('div','legend');
-  d.innerHTML = '<b>Último tráfego</b><br><span class="dot trafficFresh"></span>até 2 h<br><span class="dot trafficWarm"></span>2 a 24 h<br><span class="dot trafficOld"></span>mais de 24 h<br><span class="dot trafficUnknown"></span>sem registro';
-  return d;
+  legendContainer = L.DomUtil.create('div','legend');
+  L.DomEvent.disableClickPropagation(legendContainer);
+  renderLegend();
+  return legendContainer;
 };
 legend.addTo(map);
 
@@ -3388,7 +3458,7 @@ def _live_traceroutes(limit: int):
     keep = {
         "id", "packetId", "fromNodeNum", "toNodeNum", "fromNodeId", "toNodeId",
         "route", "routeBack", "snrTowards", "snrBack", "routePositions",
-        "channel", "timestamp", "createdAt",
+        "channel", "timestamp", "createdAt", "transportMechanism", "viaMqtt",
     }
     return [{k: row.get(k) for k in keep if k in row} for row in rows if isinstance(row, dict)]
 
@@ -4302,10 +4372,11 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
             out["brightness"] = v
     except (TypeError, ValueError):
         pass
-    color = str(raw.get("lineColor") or "")
-    if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-        out["lineColor"] = color.lower()
-    for key, lo, hi in [("lineWidth", 1, 8), ("soundVolume", 0, 100), ("soundMinInterval", 40, 800), ("soundMaxVoices", 1, 8), ("messageFontSize", 10, 20), ("messageRowGap", 1, 14)]:
+    for key in ("rfLineColor", "mqttLineColor", "lineColor"):
+        color = str(raw.get(key) or "")
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            out[key] = color.lower()
+    for key, lo, hi in [("rfLineWidth", 1, 8), ("mqttLineWidth", 1, 8), ("lineWidth", 1, 8), ("soundVolume", 0, 100), ("soundMinInterval", 40, 800), ("soundMaxVoices", 1, 8), ("messageFontSize", 10, 20), ("messageRowGap", 1, 14)]:
         try:
             v = int(raw.get(key))
             if lo <= v <= hi:
@@ -4330,7 +4401,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 280
+    out["defaultsVersion"] = 290
     return out
 
 
@@ -4554,7 +4625,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.28.0"
+    server_version = "TrafficAnalyzer/1.29.0"
 
     def _send(self, status, content_type, body: bytes, extra_headers=None):
         self.send_response(status)
