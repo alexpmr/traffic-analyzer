@@ -1543,13 +1543,15 @@ function nodeMetadataHtml(base,details){
     nodeBoolLine('PKC disponível',n.hasPKC)
   ].join('');
 }
-function nodePopupHtml(n){
+function nodePopupHtml(n,draggable=true){
   const lat=Number(n.latitude),lon=Number(n.longitude);
   const coords=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(6)}, ${lon.toFixed(6)}`:null;
   const trafficAge=nodeTrafficAge(n);
+  const titleBlock=draggable
+    ? `<div class="nodePopupDragHandle" data-node-drag="${Number(n.nodeNum)}" title="Arraste para mover"><span class="nodePopupDragGlyph" aria-hidden="true">⠿</span><div class="nodePopupDragText"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div><span class="nodePopupDragHint">arraste</span></div>`
+    : `<div class="nodePopupStaticHandle"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div>`;
   return `<div class="nodePopup" id="nodePopup-${Number(n.nodeNum)}">
-    <div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div>
-    <div class="nodePopupId">${esc(n.nodeId||'')}</div>
+    ${titleBlock}
     <div class="nodePopupSectionTitle">Resumo</div>
     <div class="nodeMetaGrid">
       ${nodeMetaLine('Nome longo',n.longName)}
@@ -2556,7 +2558,7 @@ function openNodeFromList(nodeNum){
   openNodeNum=null;
   openNodePopupScrollTop=0;
   const body=document.getElementById('nodeDetailsModalBody');
-  body.innerHTML=nodePopupHtml(n);
+  body.innerHTML=nodePopupHtml(n,false);
   document.getElementById('nodeDetailsBackdrop').classList.add('open');
   loadNodeDetails(nodeNum,true).catch(e=>{
     const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
