@@ -3484,6 +3484,14 @@ document.getElementById('healthReload').addEventListener('click',()=>loadNetwork
 document.getElementById('anomalyReload').addEventListener('click',()=>loadAnomalies(true));
 document.getElementById('anomalySeverity').addEventListener('change',renderAnomalies);
 
+function accessCountryLabel(value){
+  const raw=String(value||'').trim();
+  if(!raw)return tr('Não informado');
+  if(/^[A-Za-z]{2}$/.test(raw)){
+    try{return new Intl.DisplayNames([uiLocale()],{type:'region'}).of(raw.toUpperCase())||raw.toUpperCase();}catch{}
+  }
+  return tr(raw);
+}
 function accessClientSummary(rows,label){
   const items=(rows||[]).slice(0,8);
   if(!items.length)return '<div class="emptyPanel">Sem dados.</div>';
@@ -3511,10 +3519,10 @@ function renderAccessStats(){
     return `<div class="miniBarWrap"><div class="miniBarValue" style="--h:${pct}px">${fmtNum(x.accesses)}</div><div class="miniBar" style="height:${pct}px"></div><div class="miniBarLabel">${esc(label)}</div></div>`;
   }).join('')||'<div class="emptyPanel">Sem dados no período.</div>';
 
-  document.getElementById('accessCountryRows').innerHTML=(b.countries||[]).map(x=>`<tr><td><b>${esc(tr(x.country||'Não informado'))}</b></td><td>${fmtNum(x.accesses)}</td><td>${fmtNum(x.unique_ips)}</td></tr>`).join('')||'<tr><td colspan="3" class="emptyPanel">Sem dados.</td></tr>';
-  document.getElementById('accessCityRows').innerHTML=(b.cities||[]).map(x=>`<tr><td><b>${esc(tr(x.city||'Não informado'))}</b></td><td>${esc(tr(x.country||'Não informado'))}</td><td>${fmtNum(x.accesses)}</td><td>${fmtNum(x.unique_ips)}</td></tr>`).join('')||'<tr><td colspan="4" class="emptyPanel">Sem dados.</td></tr>';
+  document.getElementById('accessCountryRows').innerHTML=(b.countries||[]).map(x=>`<tr><td><b>${esc(accessCountryLabel(x.country))}</b></td><td>${fmtNum(x.accesses)}</td><td>${fmtNum(x.unique_ips)}</td></tr>`).join('')||'<tr><td colspan="3" class="emptyPanel">Sem dados.</td></tr>';
+  document.getElementById('accessCityRows').innerHTML=(b.cities||[]).map(x=>`<tr><td><b>${esc(tr(x.city||'Não informado'))}</b></td><td>${esc(accessCountryLabel(x.country))}</td><td>${fmtNum(x.accesses)}</td><td>${fmtNum(x.unique_ips)}</td></tr>`).join('')||'<tr><td colspan="4" class="emptyPanel">Sem dados.</td></tr>';
   document.getElementById('accessIpRows').innerHTML=(b.ips||[]).map(x=>{
-    const where=[x.city,x.country].filter(Boolean).map(v=>tr(v)).join(' / ')||tr('Não informado');
+    const where=[x.city,x.country].filter(Boolean).map((v,i)=>i===1?accessCountryLabel(v):tr(v)).join(' / ')||tr('Não informado');
     return `<tr><td><code>${esc(x.ip||'—')}</code></td><td>${esc(where)}</td><td><b>${fmtNum(x.accesses)}</b></td><td>${x.first_seen?esc(new Date(Number(x.first_seen)).toLocaleString(uiLocale())):'—'}</td><td>${x.last_seen?esc(new Date(Number(x.last_seen)).toLocaleString(uiLocale())):'—'}</td><td>${esc(x.user_agent||'—')}</td></tr>`;
   }).join('')||'<tr><td colspan="6" class="emptyPanel">Sem dados.</td></tr>';
 
