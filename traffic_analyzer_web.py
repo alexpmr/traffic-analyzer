@@ -4501,6 +4501,339 @@ def _archive_init():
     _tracklog_backfill()
 
 
+def _access_init():
+    ACCESS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with _archive_connect() as conn:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS web_access (
+          access_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          timestamp INTEGER NOT NULL,
+          event TEXT NOT NULL,
+          ip TEXT NOT NULL,
+          country TEXT,
+          city TEXT,
+          user_agent TEXT,
+          referer TEXT,
+          accept_language TEXT,
+          authenticated INTEGER NOT NULL DEFAULT 0,
+          username TEXT,
+          path TEXT,
+          method TEXT,
+          status INTEGER,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_web_access_time ON web_access(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_web_access_ip ON web_access(ip);
+        CREATE INDEX IF NOT EXISTS idx_web_access_event ON web_access(event);
+        CREATE INDEX IF NOT EXISTS idx_web_access_country ON web_access(country);
+        CREATE INDEX IF NOT EXISTS idx_web_access_city ON web_access(city);
+        """)
+        if ACCESS_RETENTION_DAYS > 0:
+            cutoff = int(time.time() * 1000) - ACCESS_RETENTION_DAYS * 86400 * 1000
+            conn.execute("DELETE FROM web_access WHERE timestamp < ?", (cutoff,))
+            conn.commit()
+
+
+def _access_peer_ip(handler) -> str:
+    try:
+        return str(handler.client_address[0] or "unknown")
+    except Exception:
+        return "unknown"
+
+
+def _access_is_trusted_proxy_peer(ip: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(str(ip))
+        return addr.is_loopback or addr.is_private
+    except Exception:
+        return False
+
+
+def _access_client_ip(handler) -> str:
+    peer = _access_peer_ip(handler)
+    if _access_is_trusted_proxy_peer(peer):
+        forwarded = str(handler.headers.get("X-Forwarded-For") or "").split(",", 1)[0].strip()
+        if forwarded:
+            try:
+                ipaddress.ip_address(forwarded)
+                return forwarded
+            except Exception:
+                pass
+        real_ip = str(handler.headers.get("X-Real-IP") or "").strip()
+        if real_ip:
+            try:
+                ipaddress.ip_address(real_ip)
+                return real_ip
+            except Exception:
+                pass
+    return peer
+
+
+def _access_geo_from_headers(handler, client_ip: str):
+    peer = _access_peer_ip(handler)
+    if not _access_is_trusted_proxy_peer(peer):
+        return None, None
+    country = (
+        handler.headers.get("CF-IPCountry")
+        or handler.headers.get("X-Vercel-IP-Country")
+        or handler.headers.get("X-Country-Code")
+        or handler.headers.get("X-Geo-Country")
+    )
+    city = (
+        handler.headers.get("CF-IPCity")
+        or handler.headers.get("X-Vercel-IP-City")
+        or handler.headers.get("X-City")
+        or handler.headers.get("X-Geo-City")
+    )
+    try:
+        if city:
+            city = urllib.parse.unquote(str(city))
+    except Exception:
+        city = str(city or "")
+    return (str(country).strip() if country else None, str(city).strip() if city else None)
+
+
+def _access_geo(client_ip: str, handler=None):
+    country = city = None
+    if handler is not None:
+        country, city = _access_geo_from_headers(handler, client_ip)
+        if country or city:
+            return country, city
+    try:
+        addr = ipaddress.ip_address(client_ip)
+        if addr.is_private or addr.is_loopback:
+            return "Local", "Rede local"
+    except Exception:
+        return country, city
+    if not ACCESS_GEOIP_URL:
+        return country, city
+
+    now = time.time()
+    with _access_geo_lock:
+        cached = _access_geo_cache.get(client_ip)
+        if cached and now - float(cached.get("ts") or 0) < 86400:
+            return cached.get("country"), cached.get("city")
+    try:
+        url = ACCESS_GEOIP_URL.replace("{ip}", urllib.parse.quote(client_ip, safe=""))
+        req = urllib.request.Request(url, headers={"User-Agent": f"TrafficAnalyzer/{APP_VERSION}"})
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        if isinstance(payload, dict):
+            country = payload.get("country") or payload.get("country_name") or payload.get("countryCode") or payload.get("country_code")
+            city = payload.get("city") or payload.get("town")
+    except Exception:
+        pass
+    with _access_geo_lock:
+        _access_geo_cache[client_ip] = {"ts": now, "country": country, "city": city}
+        if len(_access_geo_cache) > 2048:
+            oldest = sorted(_access_geo_cache.items(), key=lambda kv: float(kv[1].get("ts") or 0))[:256]
+            for key, _ in oldest:
+                _access_geo_cache.pop(key, None)
+    return country, city
+
+
+def _access_safe_referer(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        parts = urllib.parse.urlsplit(raw)
+        return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))[:500]
+    except Exception:
+        return raw.split("?", 1)[0][:500]
+
+
+def _access_rotate_log_if_needed():
+    try:
+        if ACCESS_LOG_FILE.exists() and ACCESS_LOG_FILE.stat().st_size >= ACCESS_LOG_MAX_BYTES:
+            rotated = ACCESS_LOG_FILE.with_suffix(ACCESS_LOG_FILE.suffix + ".1")
+            try:
+                rotated.unlink(missing_ok=True)
+            except TypeError:
+                if rotated.exists():
+                    rotated.unlink()
+            ACCESS_LOG_FILE.replace(rotated)
+    except Exception:
+        pass
+
+
+def _record_access_event(handler, event="pageview", status=200, path=None, username=None):
+    now_ms = int(time.time() * 1000)
+    client_ip = _access_client_ip(handler)
+    country, city = _access_geo(client_ip, handler)
+    session = _auth_session(handler)
+    authenticated = bool(session)
+    if username is None and session:
+        username = session.get("user")
+    record = {
+        "timestamp": now_ms,
+        "event": str(event or "pageview"),
+        "ip": client_ip,
+        "country": country,
+        "city": city,
+        "userAgent": str(handler.headers.get("User-Agent") or "")[:600],
+        "referer": _access_safe_referer(handler.headers.get("Referer") or ""),
+        "acceptLanguage": str(handler.headers.get("Accept-Language") or "")[:200],
+        "authenticated": authenticated,
+        "username": str(username or "")[:120] or None,
+        "path": str(path or handler.path.split("?", 1)[0])[:300],
+        "method": str(getattr(handler, "command", "GET") or "GET")[:16],
+        "status": int(status),
+        "createdAt": now_ms,
+    }
+    try:
+        with _archive_connect() as conn:
+            conn.execute(
+                """INSERT INTO web_access (
+                     timestamp,event,ip,country,city,user_agent,referer,accept_language,
+                     authenticated,username,path,method,status,created_at
+                   ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    record["timestamp"], record["event"], record["ip"], record["country"], record["city"],
+                    record["userAgent"], record["referer"], record["acceptLanguage"],
+                    1 if record["authenticated"] else 0, record["username"], record["path"],
+                    record["method"], record["status"], record["createdAt"],
+                ),
+            )
+            conn.commit()
+    except Exception as exc:
+        print(f"AVISO: falha ao registrar acesso no banco: {exc}", flush=True)
+    try:
+        ACCESS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with _access_log_lock:
+            _access_rotate_log_if_needed()
+            with ACCESS_LOG_FILE.open("a", encoding="utf-8") as logf:
+                logf.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+    except Exception as exc:
+        print(f"AVISO: falha ao escrever access.log: {exc}", flush=True)
+
+
+def _access_browser(user_agent: str) -> str:
+    ua = str(user_agent or "")
+    if "Edg/" in ua:
+        return "Edge"
+    if "OPR/" in ua or "Opera" in ua:
+        return "Opera"
+    if "Chrome/" in ua and "Chromium/" not in ua:
+        return "Chrome"
+    if "Firefox/" in ua:
+        return "Firefox"
+    if "Safari/" in ua and "Chrome/" not in ua:
+        return "Safari"
+    return "Outro"
+
+
+def _access_os(user_agent: str) -> str:
+    ua = str(user_agent or "")
+    if "Windows" in ua:
+        return "Windows"
+    if "Android" in ua:
+        return "Android"
+    if "iPhone" in ua or "iPad" in ua:
+        return "iOS/iPadOS"
+    if "Mac OS X" in ua or "Macintosh" in ua:
+        return "macOS"
+    if "Linux" in ua:
+        return "Linux"
+    return "Outro"
+
+
+def _access_stats(days=30):
+    days = max(1, min(int(days or 30), 3650))
+    now_ms = int(time.time() * 1000)
+    cutoff = now_ms - days * 86400 * 1000
+    cutoff7 = now_ms - 7 * 86400 * 1000
+    cutoff30 = now_ms - 30 * 86400 * 1000
+    today = datetime.now().strftime("%Y-%m-%d")
+    with _archive_connect() as conn:
+        total = int(conn.execute("SELECT COUNT(*) n FROM web_access WHERE event='pageview'").fetchone()["n"] or 0)
+        today_count = int(conn.execute(
+            "SELECT COUNT(*) n FROM web_access WHERE event='pageview' AND date(timestamp/1000,'unixepoch','localtime')=?",
+            (today,),
+        ).fetchone()["n"] or 0)
+        count7 = int(conn.execute("SELECT COUNT(*) n FROM web_access WHERE event='pageview' AND timestamp>=?", (cutoff7,)).fetchone()["n"] or 0)
+        count30 = int(conn.execute("SELECT COUNT(*) n FROM web_access WHERE event='pageview' AND timestamp>=?", (cutoff30,)).fetchone()["n"] or 0)
+        unique30 = int(conn.execute("SELECT COUNT(DISTINCT ip) n FROM web_access WHERE event='pageview' AND timestamp>=?", (cutoff30,)).fetchone()["n"] or 0)
+        login_failed30 = int(conn.execute("SELECT COUNT(*) n FROM web_access WHERE event='login_failed' AND timestamp>=?", (cutoff30,)).fetchone()["n"] or 0)
+        login_success30 = int(conn.execute("SELECT COUNT(*) n FROM web_access WHERE event='login_success' AND timestamp>=?", (cutoff30,)).fetchone()["n"] or 0)
+        daily_rows = conn.execute(
+            """SELECT date(timestamp/1000,'unixepoch','localtime') day,
+                      COUNT(*) accesses, COUNT(DISTINCT ip) unique_ips
+               FROM web_access
+               WHERE event='pageview' AND timestamp>=?
+               GROUP BY day ORDER BY day""",
+            (cutoff,),
+        ).fetchall()
+        country_rows = conn.execute(
+            """SELECT COALESCE(NULLIF(country,''),'Não informado') country,
+                      COUNT(*) accesses, COUNT(DISTINCT ip) unique_ips
+               FROM web_access
+               WHERE event='pageview' AND timestamp>=?
+               GROUP BY COALESCE(NULLIF(country,''),'Não informado')
+               ORDER BY accesses DESC LIMIT 30""",
+            (cutoff,),
+        ).fetchall()
+        city_rows = conn.execute(
+            """SELECT COALESCE(NULLIF(city,''),'Não informado') city,
+                      COALESCE(NULLIF(country,''),'Não informado') country,
+                      COUNT(*) accesses, COUNT(DISTINCT ip) unique_ips
+               FROM web_access
+               WHERE event='pageview' AND timestamp>=?
+               GROUP BY COALESCE(NULLIF(city,''),'Não informado'), COALESCE(NULLIF(country,''),'Não informado')
+               ORDER BY accesses DESC LIMIT 40""",
+            (cutoff,),
+        ).fetchall()
+        ip_rows = conn.execute(
+            """SELECT ip, MAX(country) country, MAX(city) city, COUNT(*) accesses,
+                      MIN(timestamp) first_seen, MAX(timestamp) last_seen,
+                      MAX(user_agent) user_agent
+               FROM web_access
+               WHERE event='pageview' AND timestamp>=?
+               GROUP BY ip ORDER BY accesses DESC, last_seen DESC LIMIT 100""",
+            (cutoff,),
+        ).fetchall()
+        ua_rows = conn.execute(
+            """SELECT user_agent, COUNT(*) accesses
+               FROM web_access
+               WHERE event='pageview' AND timestamp>=?
+               GROUP BY user_agent""",
+            (cutoff,),
+        ).fetchall()
+
+    browser_counts = {}
+    os_counts = {}
+    for row in ua_rows:
+        count = int(row["accesses"] or 0)
+        browser = _access_browser(row["user_agent"])
+        os_name = _access_os(row["user_agent"])
+        browser_counts[browser] = browser_counts.get(browser, 0) + count
+        os_counts[os_name] = os_counts.get(os_name, 0) + count
+
+    return {
+        "success": True,
+        "generatedAtMs": now_ms,
+        "days": days,
+        "logFile": str(ACCESS_LOG_FILE),
+        "retentionDays": ACCESS_RETENTION_DAYS,
+        "geoipConfigured": bool(ACCESS_GEOIP_URL),
+        "summary": {
+            "today": today_count,
+            "last7d": count7,
+            "last30d": count30,
+            "uniqueIps30d": unique30,
+            "total": total,
+            "loginSuccess30d": login_success30,
+            "loginFailed30d": login_failed30,
+        },
+        "daily": [dict(r) for r in daily_rows],
+        "countries": [dict(r) for r in country_rows],
+        "cities": [dict(r) for r in city_rows],
+        "ips": [dict(r) for r in ip_rows],
+        "browsers": [{"name": k, "accesses": v} for k, v in sorted(browser_counts.items(), key=lambda kv: kv[1], reverse=True)],
+        "operatingSystems": [{"name": k, "accesses": v} for k, v in sorted(os_counts.items(), key=lambda kv: kv[1], reverse=True)],
+    }
+
+
 def _archive_key(item: dict):
     rid = item.get("id")
     if rid is not None:
