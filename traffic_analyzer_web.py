@@ -4156,8 +4156,58 @@ def _node_details(node_num):
             projected["kind"] = _telemetry_kind(projected.get("telemetryType"))
             telemetry_rows.append(projected)
         telemetry_rows.sort(key=lambda x: int(x.get("timestamp") or x.get("createdAt") or 0), reverse=True)
+        # Popup = estado atual: conserva apenas a amostra mais recente de cada
+        # tipo de metadado. O histórico completo continua persistido no MM.
+        latest_by_type = []
+        seen_types = set()
+        for item in telemetry_rows:
+            key = str(item.get("telemetryType") or "telemetry")
+            if key in seen_types:
+                continue
+            seen_types.add(key)
+            latest_by_type.append(item)
+        telemetry_rows = latest_by_type
     except Exception:
         telemetry_rows = []
+
+    # Evidência de resposta real: pacotes RX originados pelo nó após uma
+    # solicitação. Isso detecta respostas mesmo quando o conteúdo é idêntico
+    # ao que já estava salvo no NodeDB.
+    response_packets = []
+    try:
+        since_ms = int(time.time() * 1000) - 15 * 60 * 1000
+        params = urllib.parse.urlencode({
+            "limit": "250",
+            "from_node": str(n),
+            "since": str(since_ms),
+        })
+        pkt_body = _mm_api_get(f"/api/v1/sources/{source}/packets?{params}")
+        pkt_rows = pkt_body.get("data", []) if isinstance(pkt_body, dict) else []
+        allowed_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP"}
+        for item in pkt_rows:
+            if not isinstance(item, dict):
+                continue
+            port = str(item.get("portnum_name") or "")
+            if port not in allowed_ports:
+                continue
+            direction = str(item.get("direction") or "").lower()
+            if direction and direction != "rx":
+                continue
+            ts = item.get("timestamp") or item.get("created_at") or item.get("createdAt")
+            try:
+                ts = int(float(ts))
+                if ts < 10_000_000_000:
+                    ts *= 1000
+            except Exception:
+                continue
+            response_packets.append({
+                "port": port,
+                "timestampMs": ts,
+                "packetId": item.get("packet_id") or item.get("packetId"),
+            })
+        response_packets.sort(key=lambda x: int(x.get("timestampMs") or 0), reverse=True)
+    except Exception:
+        response_packets = []
 
     relevant_traces = []
     try:
@@ -4217,6 +4267,7 @@ def _node_details(node_num):
         "nodeNum": n,
         "node": node,
         "telemetry": {"latest": telemetry_rows[:80]},
+        "responses": response_packets[:80],
         "traceroute": relevant_traces[0] if relevant_traces else None,
         "neighbors": neighbors,
         "readAtMs": int(time.time() * 1000),
