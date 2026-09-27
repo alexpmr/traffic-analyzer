@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.0"
+APP_VERSION = "1.36.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -321,7 +321,7 @@ HTML = r'''<!doctype html>
   @media(max-width:900px){.nodePopup{width:min(720px,calc(100vw - 50px));min-width:0;max-height:calc(100vh - 60px);resize:vertical}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
   @media(max-width:600px){.nodePopup{width:calc(100vw - 44px);min-width:0;max-width:calc(100vw - 44px);min-height:220px;max-height:calc(100vh - 54px);resize:vertical;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
   .nodeWindow{position:absolute;z-index:1600;display:none;flex-direction:column;background:#17212b;border:1px solid #52697a;border-radius:10px;box-shadow:0 18px 48px rgba(0,0,0,.52);overflow:hidden;min-width:360px;min-height:240px;max-width:calc(100% - 16px);max-height:calc(100% - 16px)}
-  .nodeWindow.open{display:flex}.nodeWindow.dragging,.nodeWindow.resizing{user-select:none}.nodeWindow.maximized{border-radius:6px}
+  .nodeWindow.open{display:flex}.nodeWindow.dragging,.nodeWindow.resizing{user-select:none}.nodeWindow.maximized{position:fixed!important;left:8px!important;top:8px!important;width:calc(100vw - 16px)!important;height:calc(100vh - 16px)!important;max-width:none!important;max-height:none!important;border-radius:6px;z-index:5000}
   .nodeWindowHeader{display:flex;align-items:center;gap:9px;flex:0 0 auto;padding:8px 10px;background:#1b2a36;border-bottom:1px solid #405668;cursor:move;touch-action:none;user-select:none}
   .nodeWindowGrip{font-size:17px;color:#7fd0ff;font-weight:900;line-height:1}.nodeWindowTitleWrap{min-width:0;flex:1}.nodeWindowTitle{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nodeWindowId{font-size:10px;color:#9fb0be;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .nodeWindowActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}.nodeWindowActions button{font-size:10px;padding:4px 8px}.nodeWindowClose{background:#462a2e;border-color:#87515a;color:#ffd5da;font-weight:800}
@@ -1769,7 +1769,10 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
       if(responded){
         const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
         s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}`;
-      }else if(s.state==='waiting'&&now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){s.state='timeout';s.message=tr('sem resposta / timeout');}
+      }else if(s.state==='waiting'&&now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){
+        s.state='timeout';
+        s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');
+      }
     }
   }
   renderNodePopupData(nodeNum,b);
@@ -1789,14 +1792,20 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const s=run.states[action];
-    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.message='enviando…';
+    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.message='enviando…';
     renderNodePopupData(nodeNum,run.details);
     const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(nodeNum),action})});
     const b=await r.json();
     if(!r.ok||!b.success){
       const message=b.message||b.error||`HTTP ${r.status}`,lower=String(message).toLowerCase();
       s.state=(r.status===403||r.status===429||lower.includes('direct')||lower.includes('not allowed')||lower.includes('rate'))?'unsupported':'error';s.message=message;
-    }else{s.state='waiting';s.sentAt=Number(b.requestedAtMs||Date.now());s.message=tr('aguardando resposta');if(!fromAll)scheduleNodePolling(nodeNum);}
+    }else{
+      s.state='waiting';
+      s.sentAt=Number(b.requestedAtMs||Date.now());
+      s.acceptedMessage=String(b.acceptedMessage||'').trim();
+      s.message=s.acceptedMessage||tr('aguardando resposta');
+      if(!fromAll)scheduleNodePolling(nodeNum);
+    }
   }catch(e){const s=run.states[action];s.state='error';s.message=String(e.message||e);}
   renderNodePopupData(nodeNum,run.details);
   if(!fromAll)scheduleNodePolling(nodeNum);
@@ -1813,7 +1822,7 @@ async function waitNodeQueryTerminal(nodeNum,action){
     await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_POLL_MS));
   }
   const s=run.states[action];
-  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=tr('sem resposta / timeout');renderNodePopupData(nodeNum,run.details);}
+  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');renderNodePopupData(nodeNum,run.details);}
   return s;
 }
 async function runAllNodeQueries(nodeNum){
@@ -1875,12 +1884,13 @@ function applyNodeWindowGeometry(){
   const el=document.getElementById('nodeWindow');if(!el)return;
   const btn=document.getElementById('nodeWindowExpand');
   if(nodeWindowState.maximized){
-    const b=nodeWindowBounds();
+    if(el.parentElement!==document.body)document.body.appendChild(el);
     el.classList.add('maximized');
-    Object.assign(el.style,{left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px'});
     if(btn)btn.textContent='↙ '+tr('Restaurar');
     return;
   }
+  const mapView=document.getElementById('viewMap');
+  if(mapView&&el.parentElement!==mapView)mapView.appendChild(el);
   el.classList.remove('maximized');
   if(nodeWindowState.left==null){
     const d=nodeWindowDefaultGeometry();
@@ -1911,7 +1921,11 @@ function toggleNodeWindowExpanded(){
 function closeNodeWindow(){
   const n=Number(nodeWindowState.nodeNum);
   if(Number.isFinite(n))stopNodePolling(n);
-  document.getElementById('nodeWindow')?.classList.remove('open');
+  const el=document.getElementById('nodeWindow');
+  el?.classList.remove('open','maximized');
+  const mapView=document.getElementById('viewMap');
+  if(el&&mapView&&el.parentElement!==mapView)mapView.appendChild(el);
+  nodeWindowState.maximized=false;nodeWindowState.restore=null;
   openNodeNum=null;nodeWindowState.nodeNum=null;
 }
 function openNodeWindow(nodeNum){
@@ -4237,7 +4251,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1360';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1361';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4723,33 +4737,102 @@ def _request_node_query(node_num, action):
     action = str(action or "").strip()
     source = urllib.parse.quote(MM_SOURCE, safe="")
     destination = _node_hex_id(n)
+    requested_at_ms = int(time.time() * 1000)
+    endpoint = None
+    channel = None
+
+    # MeshMonitor 4.16.x: NodeInfo/Position/NeighborInfo/Telemetry use the
+    # source-aware main request API. Traceroute stays on the v1 action path,
+    # which already resolves the shared/broadcast channel correctly.
     if action == "nodeinfo":
-        body = _mm_api_post(f"/api/v1/sources/{source}/actions/request-nodeinfo", {"destination": n})
+        endpoint = "/api/nodeinfo/request"
+        channel = 0
+        body = _mm_api_post(endpoint, {
+            "destination": destination,
+            "sourceId": MM_SOURCE,
+            "channel": channel,
+        })
     elif action == "position":
-        body = _mm_api_post(f"/api/v1/sources/{source}/actions/request-position", {"destination": n})
+        endpoint = "/api/position/request"
+        channel = 0
+        body = _mm_api_post(endpoint, {
+            "destination": destination,
+            "sourceId": MM_SOURCE,
+            "channel": channel,
+        })
     elif action == "traceroute":
-        body = _mm_api_post(f"/api/v1/sources/{source}/actions/traceroute", {"destination": n})
+        endpoint = f"/api/v1/sources/{source}/actions/traceroute"
+        body = _mm_api_post(endpoint, {"destination": n})
+        if isinstance(body, dict):
+            data = body.get("data") if isinstance(body.get("data"), dict) else {}
+            try:
+                channel = int(data.get("channel")) if data.get("channel") is not None else None
+            except (TypeError, ValueError):
+                channel = None
     elif action == "neighbors":
-        body = _mm_api_post(f"/api/v1/sources/{source}/actions/request-neighbors", {"destination": n})
+        endpoint = "/api/neighborinfo/request"
+        body = _mm_api_post(endpoint, {
+            "destination": destination,
+            "sourceId": MM_SOURCE,
+        })
     elif action.startswith("telemetry_"):
         telemetry_type = action.split("_", 1)[1]
         allowed = {"device", "environment", "airQuality", "power"}
         if telemetry_type not in allowed:
             raise ValueError("Tipo de telemetria inválido")
-        body = _mm_api_post("/api/telemetry/request", {
+        endpoint = "/api/telemetry/request"
+        body = _mm_api_post(endpoint, {
             "destination": destination,
             "telemetryType": telemetry_type,
             "sourceId": MM_SOURCE,
         })
     else:
         raise ValueError("Consulta de nó inválida")
+
     if isinstance(body, dict) and body.get("success") is False:
         raise RuntimeError(str(body.get("message") or body.get("error") or "MeshMonitor recusou a consulta"))
+
+    # Main API responses may expose packetId/requestId at top level, while the
+    # v1 traceroute response puts details in data.
+    packet_id = None
+    request_id = None
+    if isinstance(body, dict):
+        packet_id = body.get("packetId")
+        request_id = body.get("requestId")
+        data = body.get("data") if isinstance(body.get("data"), dict) else {}
+        if packet_id is None:
+            packet_id = data.get("packetId")
+        if request_id is None:
+            request_id = data.get("requestId")
+        if channel is None:
+            try:
+                channel = int(data.get("channel")) if data.get("channel") is not None else None
+            except (TypeError, ValueError):
+                channel = None
+
+    accepted_parts = ["MM aceitou"]
+    if channel is not None:
+        accepted_parts.append(f"canal {channel}")
+    if packet_id is not None:
+        accepted_parts.append(f"packet {packet_id}")
+    accepted_message = " · ".join(accepted_parts) + " · aguardando RX"
+
     return {
         "success": True,
         "action": action,
         "nodeNum": n,
-        "requestedAtMs": int(time.time() * 1000),
+        # Important: this is captured BEFORE the MM API call. Very close nodes
+        # can reply before the HTTP request itself returns.
+        "requestedAtMs": requested_at_ms,
+        "acceptedAtMs": int(time.time() * 1000),
+        "acceptedMessage": accepted_message,
+        "diagnostic": {
+            "sourceId": MM_SOURCE,
+            "endpoint": endpoint,
+            "channel": channel,
+            "packetId": packet_id,
+            "requestId": request_id,
+        },
         "meshMonitor": body,
     }
 
