@@ -338,7 +338,7 @@ HTML = r'''<!doctype html>
   .dashCard .value{font-size:27px;font-weight:800;line-height:1.05;margin:4px 0}.dashCard .label{font-size:12px;color:#aebbc7}.dashCard .sub{font-size:11px;color:#8194a5;margin-top:5px}
   .dashSection{background:#111a24;border:1px solid #293744;border-radius:9px;margin:10px 0;overflow:hidden}.dashSection h3{font-size:14px;margin:0;padding:10px 12px;background:#17212b;border-bottom:1px solid #293744}.dashSectionBody{padding:10px 12px;overflow:auto}
   .dashTable{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}.dashTable th{position:sticky;top:0;background:#17212b;color:#cbd6df;text-align:left;padding:8px;border-bottom:1px solid #405668}.dashTable td{padding:8px;border-bottom:1px solid #22313f}.dashTable tr:last-child td{border-bottom:0}
-  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeDetailsModal{width:min(900px,96vw);max-height:88vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
+  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesFilter{display:flex;align-items:center;gap:4px}.nodesFilter input{width:220px;max-width:36vw}.nodesFilterClear{padding:4px 8px}.batteryGood{color:#78e7a6;font-weight:800}.batteryWarn{color:#ffd36b;font-weight:800}.batteryBad{color:#ff8d83;font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeDetailsModal{width:min(900px,96vw);max-height:88vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
   @media(max-width:800px){.nodesWrap{padding:8px}.nodesTableWrap{max-height:calc(100vh - 135px)}}
   .miniBars{display:flex;align-items:flex-end;gap:7px;height:130px;padding:8px 4px 22px}.miniBarWrap{flex:1;min-width:42px;text-align:center;position:relative;height:100%}.miniBar{position:absolute;bottom:19px;left:12%;right:12%;background:#3a8fbd;border-radius:4px 4px 0 0;min-height:2px}.miniBarLabel{position:absolute;bottom:0;left:0;right:0;font-size:10px;color:#91a4b3}.miniBarValue{position:absolute;bottom:calc(var(--h) + 23px);left:0;right:0;font-size:10px;color:#dbe6ee}
   .severity{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800}.sev-critical{background:#6e2020;color:#ffb2b2}.sev-warning{background:#6a4a13;color:#ffd98a}.sev-info{background:#174f64;color:#9ce8ff}.sev-ok{background:#174f37;color:#9df2bc}
@@ -510,6 +510,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div class="nodesToolbar">
       <h2>Nós</h2>
       <span id="nodesSummary" class="settingDesc">Carregando...</span>
+      <div class="nodesFilter"><label>Filtrar: <input id="nodesFilter" type="search" placeholder="nome, ID, hardware..." autocomplete="off"></label><button id="nodesFilterClear" class="nodesFilterClear" type="button" title="Limpar filtro">×</button></div>
       <div class="nodesColumnsMenu">
         <button id="nodesColumnsButton" type="button">Colunas</button>
         <div id="nodesColumnsPanel" class="nodesColumnsPanel">
@@ -833,6 +834,7 @@ let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
 function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
 
 const I18N_PAIRS=[
+  ['Filtrar:','Filter:'],['Limpar filtro','Clear filter'],['nome, ID, hardware...','name, ID, hardware...'],['VHF3 sem posição','VHF3 has no position'],['Nó sem posição conhecida; não é possível focalizá-lo no mapa.','Node has no known position; it cannot be focused on the map.'],
   ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
   ['Colunas','Columns'],['Nome longo','Long name'],['Nome curto','Short name'],['Saltos','Hops'],['Distância','Distance'],['Última interação','Last interaction'],['Última posição','Last position'],['Detalhes do nó','Node details'],['Estado','State'],['Arraste para mover','Drag to move'],['arraste','drag'],
@@ -1123,6 +1125,7 @@ let openNodePopupScrollTop = 0;
 let nodePopupDragState={nodeNum:null,x:0,y:0};
 let nodesSortKey = 'lastInteraction';
 let nodesSortDir = 'desc';
+let nodesFilterText = '';
 const NODES_COLUMNS_KEY='trafficAnalyzerNodesColumnsV132';
 let nodesOptionalColumns=new Set();
 let lastBounds = null;
@@ -2604,11 +2607,15 @@ function haversineKm(aLat,aLon,bLat,bLon){
   return 6371*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
 }
 function nodesReferenceNode(){
-  const local=Number(topology?.localNodeNum);
-  if(Number.isFinite(local)){
-    const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===local);
-    if(n&&Number.isFinite(Number(n.latitude))&&Number.isFinite(Number(n.longitude)))return n;
-  }
+  const nodes=topology?.nodes||[];
+  const exact=nodes.find(n=>{
+    const values=[n.shortName,n.longName,n.name].filter(Boolean).map(v=>String(v).trim().toUpperCase());
+    return values.includes('VHF3');
+  }) || nodes.find(n=>{
+    const values=[n.shortName,n.longName,n.name].filter(Boolean).map(v=>String(v).trim().toUpperCase());
+    return values.some(v=>v.includes('VHF3'));
+  });
+  if(exact&&Number.isFinite(Number(exact.latitude))&&Number.isFinite(Number(exact.longitude)))return exact;
   return null;
 }
 function nodeTableRows(){
@@ -2672,19 +2679,42 @@ function saveNodesColumnPrefs(){
   localStorage.setItem(NODES_COLUMNS_KEY,JSON.stringify([...nodesOptionalColumns]));
   applyNodesColumns();
 }
+function nodesNormalizeText(value){
+  return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function nodeMatchesFilter(row){
+  const q=nodesNormalizeText(nodesFilterText).trim();
+  if(!q)return true;
+  const n=row.raw||{};
+  const hay=[
+    row.longName,row.shortName,row.role,row.hardware,row.hops,row.battery,row.voltage,row.distance,row.snr,
+    row.rssi,row.channelUtilization,row.airUtilTx,row.nodeId,row.state,
+    n.name,n.nodeNum,n.firmwareVersion
+  ].map(nodesNormalizeText).join(' ');
+  return hay.includes(q);
+}
+function batteryClass(value){
+  const n=Number(value);
+  if(!Number.isFinite(n))return '';
+  if(n<20)return 'batteryBad';
+  if(n<50)return 'batteryWarn';
+  return 'batteryGood';
+}
 function renderNodesTable(){
   const body=document.getElementById('nodesRows');if(!body||!topology)return;
-  const rows=nodeTableRows();
+  const allRows=nodeTableRows();
+  const rows=allRows.filter(nodeMatchesFilter);
   rows.sort((a,b)=>nodesCompare(a,b,nodesSortKey,nodesSortDir==='asc'?1:-1));
   const ref=nodesReferenceNode();
-  document.getElementById('nodesSummary').textContent=`${rows.length} ${tr('nós conhecidos')}${ref?` · ${tr('Distância')}: ${ref.shortName||ref.longName||ref.nodeId}`:''}`;
+  const countText=nodesFilterText.trim()?`${rows.length} de ${allRows.length}`:`${allRows.length}`;
+  document.getElementById('nodesSummary').textContent=`${countText} ${tr('nós conhecidos')}${ref?` · ${tr('Distância')}: VHF3`:` · ${tr('VHF3 sem posição')}`}`;
   body.innerHTML=rows.map(x=>{
     const n=x.raw,ageCls=nodeAgeClass(x.lastInteraction);
     const interaction=x.lastInteraction?compactAgeFromMs(x.lastInteraction):'—';
     const position=x.lastPosition?compactAgeFromMs(x.lastPosition):'—';
     return `<tr data-node-num="${Number(n.nodeNum)}" title="${esc(tr('Clique para abrir o mapa'))}">`+
       `<td class="nodeNameCell">${esc(x.longName||'—')}</td><td>${esc(x.shortName||'—')}</td><td>${esc(x.role||'—')}</td><td>${esc(x.hardware||'—')}</td>`+
-      `<td>${x.hops==null?'—':esc(x.hops)}</td><td>${x.battery==null?'—':esc(nodeFmtPercent(x.battery))}</td><td>${x.voltage==null?'—':esc(nodeFmtNum(x.voltage,2)+' V')}</td>`+
+      `<td>${x.hops==null?'—':esc(x.hops)}</td><td>${x.battery==null?'—':`<span class="${batteryClass(x.battery)}">${esc(nodeFmtPercent(x.battery))}</span>`}</td><td>${x.voltage==null?'—':esc(nodeFmtNum(x.voltage,2)+' V')}</td>`+
       `<td>${x.distance==null?'—':esc(`${x.distance.toLocaleString(uiLocale(),{minimumFractionDigits:x.distance<10?1:0,maximumFractionDigits:1})} km`)}</td>`+
       `<td>${x.snr==null?'—':esc(`${x.snr.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} dB`)}</td>`+
       `<td><span class="nodeAge ${ageCls}"><span class="nodeAgeDot"></span>${esc(interaction)}</span></td><td>${esc(position)}</td>`+
@@ -2702,24 +2732,25 @@ function closeNodeDetailsModal(){
 function openNodeFromList(nodeNum){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
   const marker=nodeMarkers.get(Number(nodeNum));
-  if(marker){
-    closeNodeDetailsModal();
-    setView('map');
-    const latlng=marker.getLatLng();if(latlng)map.panTo(latlng,{animate:false});
-    marker.openPopup();
+  if(!marker){
+    document.getElementById('nodesSummary').textContent=tr('Nó sem posição conhecida; não é possível focalizá-lo no mapa.');
     return;
   }
+  closeNodeDetailsModal();
   map.closePopup();
   openNodeNum=null;
   openNodePopupScrollTop=0;
-  const body=document.getElementById('nodeDetailsModalBody');
-  body.innerHTML=nodePopupHtml(n,false);
-  document.getElementById('nodeDetailsBackdrop').classList.add('open');
-  loadNodeDetails(nodeNum,true).catch(e=>{
-    const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
-    if(el)el.textContent=String(e.message||e);
-  });
+  nodePopupDragState={nodeNum:null,x:0,y:0};
+  setView('map');
+  setTimeout(()=>{
+    const latlng=marker.getLatLng();
+    if(!latlng)return;
+    const targetZoom=Math.min(map.getMaxZoom(),Math.max(Number(map.getZoom()||0),15));
+    map.setView(latlng,targetZoom,{animate:true});
+  },60);
 }
+document.getElementById('nodesFilter').addEventListener('input',e=>{nodesFilterText=String(e.target.value||'');renderNodesTable();});
+document.getElementById('nodesFilterClear').addEventListener('click',()=>{const el=document.getElementById('nodesFilter');el.value='';nodesFilterText='';el.focus();renderNodesTable();});
 document.getElementById('nodesColumnsButton').addEventListener('click',e=>{
   e.stopPropagation();
   document.getElementById('nodesColumnsPanel').classList.toggle('open');
