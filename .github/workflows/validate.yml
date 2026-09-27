@@ -310,6 +310,10 @@ jobs:
                 fetch('/api/ui-defaults',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefs:{uiTheme:'light'}})}).then(r=>done(r.status)).catch(()=>done(0));
               """)
               assert unauth_defaults==401,unauth_defaults
+              unauth_access=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/access-stats?days=30',{cache:'no-store'}).then(r=>done(r.status)).catch(()=>done(0));
+              """)
+              assert unauth_access==401,unauth_access
 
               # Login administrativo libera apenas ações administrativas e escrita de Mensagens.
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"authAction"))
@@ -321,6 +325,12 @@ jobs:
                   if d.execute_script("return authState.authenticated===true"): break
                   time.sleep(.1)
               assert d.execute_script("return authState.authenticated===true")
+              access_stats=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/access-stats?days=30',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
+              """)
+              assert access_stats.get("success"),access_stats
+              assert str(access_stats.get("logFile","")).endswith("access.log"),access_stats
+              assert access_stats.get("summary",{}).get("today",0)>=1,access_stats
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
               assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is None
               assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is None
