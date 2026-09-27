@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.35.0 - 2026-09-27
+## 1.35.1 - 2026-09-27
 
 - Torna o botão Tudo das consultas ao nó não bloqueante: todas as perguntas são disparadas na mesma rodada, com espaçamento de 700 ms entre transmissões, sem aguardar timeout da anterior.
 - Reduz o timeout interativo das consultas para 15 s e acompanha cada tarefa de forma independente.
@@ -10,6 +10,7 @@
 - Reordena as consultas para Informações do nó, Posição, Energia, Traceroute, Dispositivo, Ambiente, Qualidade do ar, Vizinhos e Tudo.
 - Torna o popup de informações do nó redimensionável e adiciona Expandir/Restaurar, preservando o comportamento de arraste.
 - Ao clicar no indicador de versão, força uma nova consulta ao GitHub e abre o popup com o estado atual ou com as novidades da versão disponível.
+- Abre o popup de versão imediatamente ao clique e atualiza seu conteúdo assim que a verificação for concluída.
 - Mantém no popup de versão o link direto para a Release e adiciona botão Fechar.
 - Altera a verificação automática de novas versões para uma vez por hora.
 - Preserva todos os recursos da v1.34.0.
