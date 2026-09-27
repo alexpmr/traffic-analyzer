@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.33.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.34.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.33.0"
+APP_VERSION = "1.34.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -4060,7 +4060,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1330';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1340';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -6080,7 +6080,7 @@ def _refresh_topology_now():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "TrafficAnalyzer/1.29.0"
+    server_version = f"TrafficAnalyzer/{APP_VERSION}"
 
     def _send(self, status, content_type, body: bytes, extra_headers=None):
         self.send_response(status)
