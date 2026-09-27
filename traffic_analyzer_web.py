@@ -1450,18 +1450,19 @@ function edgeStatsForWindow(e, cutoff){
 }
 
 const NODE_QUERY_DEFS=[
-  {id:'nodeinfo',label:'Node Info'},
-  {id:'position',label:'Position'},
-  {id:'telemetry_device',label:'Device Metrics'},
-  {id:'telemetry_environment',label:'Environment Metrics'},
-  {id:'telemetry_airQuality',label:'Air Quality'},
-  {id:'telemetry_power',label:'Power Metrics'},
-  {id:'neighbors',label:'Neighbor Info'},
+  {id:'nodeinfo',label:'Informações do nó'},
+  {id:'position',label:'Posição'},
+  {id:'telemetry_device',label:'Métricas do dispositivo'},
+  {id:'telemetry_environment',label:'Métricas ambientais'},
+  {id:'telemetry_airQuality',label:'Qualidade do ar'},
+  {id:'telemetry_power',label:'Métricas de energia'},
+  {id:'neighbors',label:'Informações de vizinhos'},
   {id:'traceroute',label:'Traceroute'}
 ];
 const nodeQueryRuns=new Map();
-const NODE_QUERY_TIMEOUT_MS=75000;
+const NODE_QUERY_TIMEOUT_MS=30000;
 const NODE_QUERY_POLL_MS=2000;
+const NODE_QUERY_GUARD_MS=4000;
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
@@ -1476,12 +1477,12 @@ function nodeFmtDurationSeconds(v){
 }
 function nodeMetaLine(label,value,display=null){
   const ok=nodeHas(value);
-  const text=ok?(display===null?String(value):String(display)):'sem informação';
-  return `<div class="nodeMetaLabel">${ok?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} ${esc(label)}</div><div class="nodeMetaValue ${ok?'':'nodeMetaMissing'}">${esc(text)}</div>`;
+  const text=ok?(display===null?String(value):String(display)):tr('sem informação');
+  return `<div class="nodeMetaLabel">${ok?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} ${esc(tr(label))}</div><div class="nodeMetaValue ${ok?'':'nodeMetaMissing'}">${esc(text)}</div>`;
 }
 function nodeBoolLine(label,value){
   if(value===null||value===undefined)return nodeMetaLine(label,null);
-  return nodeMetaLine(label,value,value?'sim':'não');
+  return nodeMetaLine(label,value,value?tr('sim'):tr('não'));
 }
 function nodeQueryRun(nodeNum){
   const key=Number(nodeNum);
@@ -1495,14 +1496,14 @@ function nodeQueryStateHtml(nodeNum){
   const run=nodeQueryRun(nodeNum);
   return NODE_QUERY_DEFS.map(d=>{
     const s=run.states[d.id]||{state:'idle'};
-    let mark='☐',cls='',txt='não consultado';
-    if(s.state==='sending'){mark='…';cls='nodeQueryWait';txt='enviando…';}
-    else if(s.state==='waiting'){mark='☐';cls='nodeQueryWait';txt=s.message||'aguardando resposta';}
-    else if(s.state==='received'){mark='✓';cls='nodeQueryOk';txt=s.message||`respondido ${s.receivedAt?nodeFmtTs(s.receivedAt):''}`;}
-    else if(s.state==='timeout'){mark='⌛';cls='nodeQueryTimeout';txt=s.message||'sem resposta / timeout';}
-    else if(s.state==='error'){mark='✕';cls='nodeQueryError';txt=s.message||'erro';}
-    else if(s.state==='unsupported'){mark='—';cls='';txt=s.message||'não suportado / não aplicável';}
-    return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(d.label)}</b></div><div class="nodeQueryState">${esc(txt)}</div></div>`;
+    let mark='☐',cls='',txt=tr('não consultado');
+    if(s.state==='sending'){mark='…';cls='nodeQueryWait';txt=tr('enviando…');}
+    else if(s.state==='waiting'){mark='☐';cls='nodeQueryWait';txt=s.message||tr('aguardando resposta');}
+    else if(s.state==='received'){mark='✓';cls='nodeQueryOk';txt=s.message||`${tr('respondido')} ${s.receivedAt?nodeFmtTs(s.receivedAt):''}`;}
+    else if(s.state==='timeout'){mark='⌛';cls='nodeQueryTimeout';txt=s.message||tr('sem resposta / timeout');}
+    else if(s.state==='error'){mark='✕';cls='nodeQueryError';txt=s.message||tr('erro');}
+    else if(s.state==='unsupported'){mark='—';cls='';txt=s.message||tr('não suportado / não aplicável');}
+    return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(tr(d.label))}</b></div><div class="nodeQueryState">${esc(txt)}</div></div>`;
   }).join('');
 }
 function nodeMetadataHtml(base,details){
@@ -1618,17 +1619,28 @@ function telemetrySignal(details,kind){
   for(const r of rows){if(r.kind===kind){const t=Number(r.timestamp||r.createdAt||0);if(t>max)max=t;}}
   return max||null;
 }
+function latestResponsePacketMs(details,port){
+  let best=0;
+  for(const p of (details?.responses||[])){
+    if(String(p.port||'')!==port)continue;
+    const t=Number(p.timestampMs||0);
+    if(Number.isFinite(t)&&t>best)best=t;
+  }
+  return best||null;
+}
 function nodeResponseSignal(action,details){
   if(!details)return null;
-  const n=details.node||{};
-  if(action==='nodeinfo')return Number(n.updatedAt||0)||[n.longName,n.shortName,n.hwModel,n.role,n.firmwareVersion].join('|');
-  if(action==='position')return Number(n.positionTimestamp||0)||((nodeHas(n.latitude)&&nodeHas(n.longitude))?`${n.latitude}|${n.longitude}|${n.altitude??''}`:null);
-  if(action==='telemetry_device')return telemetrySignal(details,'device');
-  if(action==='telemetry_environment')return telemetrySignal(details,'environment');
-  if(action==='telemetry_airQuality')return telemetrySignal(details,'airQuality');
-  if(action==='telemetry_power')return telemetrySignal(details,'power');
-  if(action==='neighbors')return Number(details.neighbors?.latestTimestamp||0)||null;
-  if(action==='traceroute')return details.traceroute?String(details.traceroute.id||details.traceroute.packetId||'')+'|'+String(details.traceroute.timestamp||details.traceroute.createdAt||''):null;
+  if(action==='nodeinfo')return latestResponsePacketMs(details,'NODEINFO_APP');
+  if(action==='position')return latestResponsePacketMs(details,'POSITION_APP');
+  if(action==='telemetry_device'||action==='telemetry_environment'||action==='telemetry_airQuality'||action==='telemetry_power')return latestResponsePacketMs(details,'TELEMETRY_APP');
+  if(action==='neighbors')return latestResponsePacketMs(details,'NEIGHBORINFO_APP')||Number(details.neighbors?.latestTimestamp||0)||null;
+  if(action==='traceroute'){
+    const tr=details.traceroute;
+    if(!tr)return null;
+    let t=Number(tr.timestamp||tr.createdAt||0);
+    if(t>0&&t<10000000000)t*=1000;
+    return t||null;
+  }
   return null;
 }
 async function loadNodeDetails(nodeNum,checkResponses=true){
@@ -1640,10 +1652,10 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
     const now=Date.now();
     for(const d of NODE_QUERY_DEFS){
       const s=run.states[d.id];if(!s||s.state!=='waiting')continue;
-      const current=nodeResponseSignal(d.id,b);
-      const changed=current!==null&&current!==undefined&&String(current)!==String(s.baseline??'');
-      if(changed){s.state='received';s.receivedAt=now;s.message=`respondido ${new Date(now).toLocaleTimeString(uiLocale())}`;}
-      else if(now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){s.state='timeout';s.message='sem resposta / timeout';}
+      const current=Number(nodeResponseSignal(d.id,b)||0);
+      const responded=Number.isFinite(current)&&current>=Math.max(0,Number(s.sentAt||0)-1000);
+      if(responded){s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} ${new Date(current||now).toLocaleTimeString(uiLocale())}`;}
+      else if(now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){s.state='timeout';s.message=tr('sem resposta / timeout');}
     }
   }
   renderNodePopupData(nodeNum,b);
@@ -1670,19 +1682,55 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
     if(!r.ok||!b.success){
       const message=b.message||b.error||`HTTP ${r.status}`,lower=String(message).toLowerCase();
       s.state=(r.status===403||r.status===429||lower.includes('direct')||lower.includes('not allowed')||lower.includes('rate'))?'unsupported':'error';s.message=message;
-    }else{s.state='waiting';s.sentAt=Number(b.requestedAtMs||Date.now());s.message='aguardando resposta';scheduleNodePolling(nodeNum);}
+    }else{s.state='waiting';s.sentAt=Number(b.requestedAtMs||Date.now());s.message=tr('aguardando resposta');if(!fromAll)scheduleNodePolling(nodeNum);}
   }catch(e){const s=run.states[action];s.state='error';s.message=String(e.message||e);}
   renderNodePopupData(nodeNum,run.details);
   if(!fromAll)scheduleNodePolling(nodeNum);
 }
+async function waitNodeQueryTerminal(nodeNum,action){
+  const run=nodeQueryRun(nodeNum);
+  const deadline=Date.now()+NODE_QUERY_TIMEOUT_MS+2500;
+  while(Date.now()<deadline){
+    const s=run.states[action];
+    if(!s||!['waiting','sending'].includes(s.state))return s;
+    try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar consulta sequencial:',e);}
+    const latest=run.states[action];
+    if(!latest||!['waiting','sending'].includes(latest.state))return latest;
+    await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_POLL_MS));
+  }
+  const s=run.states[action];
+  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=tr('sem resposta / timeout');renderNodePopupData(nodeNum,run.details);}
+  return s;
+}
 async function runAllNodeQueries(nodeNum){
   if(!authCanWrite()){openAuthModal();return;}
   const run=nodeQueryRun(nodeNum);
+  if(run.allActive)return;
+  run.allActive=true;run.allDone=0;
   NODE_QUERY_DEFS.forEach(d=>{run.states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''};});
-  renderNodePopupData(nodeNum,run.details);
-  const order=NODE_QUERY_DEFS.filter(d=>d.id!=='traceroute').map(d=>d.id).concat(['traceroute']);
-  for(const action of order){await sendNodeQuery(nodeNum,action,true);await new Promise(resolve=>setTimeout(resolve,1400));}
-  scheduleNodePolling(nodeNum);
+  try{
+    if(!run.details)await loadNodeDetails(nodeNum,false);
+    const hops=Number(run.details?.node?.hopsAway);
+    if(Number.isFinite(hops)&&hops>0){
+      const s=run.states.neighbors;s.state='unsupported';s.message=tr('somente nó local ou 0-hop');
+    }
+    const order=['nodeinfo','position','telemetry_device','telemetry_environment','telemetry_airQuality','telemetry_power'];
+    if(!(Number.isFinite(hops)&&hops>0))order.push('neighbors');
+    order.push('traceroute');
+    run.allTotal=order.length;
+    renderNodePopupData(nodeNum,run.details);
+    for(const action of order){
+      await sendNodeQuery(nodeNum,action,true);
+      const sent=run.states[action];
+      if(sent&&['waiting','sending'].includes(sent.state))await waitNodeQueryTerminal(nodeNum,action);
+      run.allDone=(run.allDone||0)+1;
+      renderNodePopupData(nodeNum,run.details);
+      if(action!==order[order.length-1])await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_GUARD_MS));
+    }
+  }finally{
+    run.allActive=false;
+    renderNodePopupData(nodeNum,run.details);
+  }
 }
 
 function resetNodePopupDrag(nodeNum){
