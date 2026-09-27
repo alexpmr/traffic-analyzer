@@ -2569,6 +2569,13 @@ function applyAuthState(){
     const el=document.getElementById(id);if(el)el.disabled=locked;
   }
   const refresh=document.getElementById('reload');if(refresh)refresh.disabled=locked;
+  const accessLocked=document.getElementById('accessLocked'),accessContent=document.getElementById('accessContent');
+  if(accessLocked&&accessContent){
+    accessLocked.style.display=locked?'':'none';
+    accessContent.style.display=locked?'none':'';
+    if(locked){accessPayload=null;accessLoadedAt=0;}
+    else if(document.getElementById('viewAccess')?.classList.contains('active'))setTimeout(()=>loadAccessStats(true),0);
+  }
   if(locked){clearReply();closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}
   if(messagesInitialized)renderMessages({forceBottom:false});
 }
