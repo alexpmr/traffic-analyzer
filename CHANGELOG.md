@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.36.1 - 2026-09-27
+
+- Corrige o envio de NodeInfo, Position, Neighbor Info e Telemetry usando os endpoints source-aware do MeshMonitor 4.16.x.
+- NodeInfo e Position passam a usar explicitamente o canal primário 0 e o source configurado.
+- Telemetry e Neighbor Info passam a enviar sourceId explicitamente.
+- O timestamp da solicitação é capturado antes da chamada ao MeshMonitor, evitando perder respostas que chegam durante o próprio request HTTP.
+- O status individual informa quando o MeshMonitor aceitou a consulta e inclui canal/packet ID quando disponíveis.
+- Em timeout, diferencia consulta aceita de ausência de resposta RX.
+- O botão Expandir da janela do nó passa a usar praticamente toda a viewport do navegador, inclusive sobre as barras superiores.
+- Restaurar devolve a janela à geometria anterior.
+- Preserva consultas assíncronas, barras de progresso e demais recursos da v1.36.0.
+
 ## 1.36.0 - 2026-09-27
 
 - Substitui o popup de informações do nó baseado em Leaflet por uma janela flutuante independente sobre o mapa.
