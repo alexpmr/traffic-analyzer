@@ -439,7 +439,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div class="versionModalHead"><h2 id="versionModalTitle">Versão do Traffic Analyzer</h2><button id="versionModalClose" class="versionClose" type="button" title="Fechar">×</button></div>
     <p id="versionModalSummary" class="settingDesc">Consultando a versão publicada…</p>
     <div id="versionNotes" class="versionNotes">Sem informações carregadas.</div>
-    <div class="versionActions"><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionContinue" type="button">Fechar</button></div>
+    <div class="versionActions"><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionCloseAction" type="button">Fechar</button><button id="versionContinue" type="button">Continuar</button></div>
   </div>
 </div>
 <div id="whatsNewBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
@@ -4183,10 +4183,11 @@ async function handleVersionBadgeClick(){
   if(badge){badge.classList.add('checking');badge.textContent=`v__APP_VERSION__ · ${tr('verificando…')}`;}
   const d=await checkVersionStatus(true);
   renderVersionStatus(d);
-  if(d?.updateAvailable)openVersionModal();
+  openVersionModal();
 }
 document.getElementById('versionBadge').addEventListener('click',handleVersionBadgeClick);
 document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
+document.getElementById('versionCloseAction').addEventListener('click',closeVersionModal);
 document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
 document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();closeAuthModal();}});
