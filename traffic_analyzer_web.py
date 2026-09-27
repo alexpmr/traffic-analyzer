@@ -329,7 +329,7 @@ HTML = r'''<!doctype html>
   .traceHud{background:rgba(14,22,33,.90);border:1px solid #405668;border-radius:8px;color:#e8edf2;padding:7px 9px;min-width:260px;max-width:410px;max-height:34vh;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.28);pointer-events:none}.traceHud:empty{display:none}.traceHudItem{padding:5px 0;border-bottom:1px solid rgba(64,86,104,.55)}.traceHudItem:last-child{border-bottom:0}.traceHudHead{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.traceHudTotal{color:#ffd166;font-weight:700;margin-left:5px}.traceHudLeg{font-size:10px;color:#b9c7d2;margin-top:2px}.traceHudLeg.active{color:#fff;font-weight:800}.traceHudLeg .forward{color:#54e8ff}.traceHudLeg .return{color:#ff83e7}.traceHudDim{color:#8093a3}
 
   /* v1.15 - Saúde da Rede e Anomalias */
-  #viewHealth,#viewAnomalies{overflow:auto;background:#0e1621}
+  #viewHealth,#viewAnomalies,#viewAccess{overflow:auto;background:#0e1621}
   .dashboardWrap{width:100%;box-sizing:border-box;padding:14px;max-width:1500px;margin:0 auto}
   .dashboardToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
   .dashboardToolbar h2{margin:0 auto 0 0;font-size:18px}
@@ -475,6 +475,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
     <button class="navbtn" data-view="health">Saúde da Rede</button>
     <button class="navbtn" data-view="anomalies">Anomalias</button>
+    <button class="navbtn" data-view="access">Acessos</button>
     <button class="navbtn" data-view="settings">Configurações</button>
     <button class="navbtn" data-view="help">Ajuda</button>
   </div>
@@ -611,6 +612,27 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="anomalyCards" class="dashGrid"><div class="dashCard"><div class="label">Analisando...</div></div></div>
     <div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div>
     <div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas: silêncio prolongado, degradação de SNR, mudança relevante na quantidade de hops e traceroute assimétrico. Elas servem para priorizar investigação e não constituem prova isolada de defeito, indisponibilidade ou causalidade.</div></div>
+  </div>
+</section>
+<section id="viewAccess" class="view">
+  <div class="dashboardWrap">
+    <div class="dashboardToolbar">
+      <h2>Acessos</h2>
+      <span id="accessUpdated" class="settingDesc"></span>
+      <label>Período: <select id="accessDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="365">1 ano</option></select></label>
+      <button id="accessReload" type="button">Atualizar</button>
+      <button id="accessDownload" type="button">Baixar log</button>
+    </div>
+    <div id="accessLocked" class="readOnlyBanner" style="display:none">🔒 Faça login como administrador para visualizar os registros de acesso.</div>
+    <div id="accessContent">
+      <div id="accessCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div>
+      <div class="dashSection"><h3>Acessos por dia</h3><div class="dashSectionBody"><div id="accessDaily" class="miniBars"></div></div></div>
+      <div class="dashSection"><h3>Países</h3><div class="dashSectionBody"><table class="dashTable" style="min-width:520px"><thead><tr><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCountryRows"></tbody></table></div></div>
+      <div class="dashSection"><h3>Cidades</h3><div class="dashSectionBody"><table class="dashTable" style="min-width:620px"><thead><tr><th>Cidade</th><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCityRows"></tbody></table></div></div>
+      <div class="dashSection"><h3>IPs</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>IP</th><th>Cidade / País</th><th>Acessos</th><th>Primeiro acesso</th><th>Último acesso</th><th>Navegador</th></tr></thead><tbody id="accessIpRows"></tbody></table></div></div>
+      <div class="dashSection"><h3>Navegadores e sistemas</h3><div id="accessClients" class="dashSectionBody"></div></div>
+      <div id="accessNote" class="methodNote"></div>
+    </div>
   </div>
 </section>
 
@@ -811,7 +833,8 @@ let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
 function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
 
 const I18N_PAIRS=[
-  ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Configurações','Settings'],['Ajuda','Help'],
+  ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
+  ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
   ['Colunas','Columns'],['Nome longo','Long name'],['Nome curto','Short name'],['Saltos','Hops'],['Distância','Distance'],['Última interação','Last interaction'],['Última posição','Last position'],['Detalhes do nó','Node details'],['Estado','State'],['Arraste para mover','Drag to move'],['arraste','drag'],
   ['Idioma:','Language:'],['Idioma da interface','Interface language'],['Português','Portuguese'],
   ['Reprodução:','Playback:'],['Histórico','History'],['Ao vivo','Live'],['Velocidade:','Speed:'],['Enquadrar','Fit'],['Atualizar','Refresh'],
@@ -2726,7 +2749,7 @@ setInterval(()=>{
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',settings:'viewSettings',help:'viewHelp'};
+  const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',access:'viewAccess',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
@@ -2736,6 +2759,7 @@ function setView(name){
   if(name==='settings'||name==='messages')applyAuthState();
   if(name==='health') loadNetworkHealth();
   if(name==='anomalies') loadAnomalies();
+  if(name==='access') loadAccessStats();
 }
 
 function packetTypeClass(name){
