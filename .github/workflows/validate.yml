@@ -227,33 +227,43 @@ jobs:
                 return document.getElementById('mapType').value;
               """)
               assert fallback=="light",fallback
-              d.execute_script("nodeMarkers.get(1).openPopup()")
-              WebDriverWait(d,10).until(EC.presence_of_element_located((By.CSS_SELECTOR,".nodePopupDragHandle")))
-              before=d.execute_script("const p=document.querySelector('.leaflet-popup').getBoundingClientRect();return {left:p.left,top:p.top};")
+              d.execute_script("openNodeWindow(1)")
+              WebDriverWait(d,10).until(lambda x: "open" in x.find_element(By.ID,"nodeWindow").get_attribute("class"))
+              before=d.execute_script("const p=document.getElementById('nodeWindow').getBoundingClientRect();return {left:p.left,top:p.top,width:p.width,height:p.height};")
               moved=d.execute_script("""
-                const h=document.querySelector('.nodePopupDragHandle');
+                const h=document.getElementById('nodeWindowHeader');
                 const r=h.getBoundingClientRect();
-                const sx=r.left+30,sy=r.top+15;
+                const sx=r.left+40,sy=r.top+15;
                 h.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:sx,clientY:sy,pointerId:77,pointerType:'mouse',button:0}));
-                h.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:sx+120,clientY:sy+70,pointerId:77,pointerType:'mouse',button:0}));
-                h.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,clientX:sx+120,clientY:sy+70,pointerId:77,pointerType:'mouse',button:0}));
-                const p=document.querySelector('.leaflet-popup').getBoundingClientRect();
-                return {left:p.left,top:p.top,state:nodePopupDragState,detached:document.querySelector('.leaflet-popup').classList.contains('nodePopupDetached')};
+                h.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:sx+110,clientY:sy+55,pointerId:77,pointerType:'mouse',button:0}));
+                h.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,clientX:sx+110,clientY:sy+55,pointerId:77,pointerType:'mouse',button:0}));
+                const p=document.getElementById('nodeWindow').getBoundingClientRect();
+                return {left:p.left,top:p.top,width:p.width,height:p.height,state:nodeWindowState};
               """)
               assert moved["state"]["nodeNum"]==1,moved
               assert abs(moved["left"]-before["left"])>30 or abs(moved["top"]-before["top"])>30,(before,moved)
-              assert moved["detached"] is True,moved
-              # O refresh periódico/re-render não pode devolver o popup à âncora original.
-              d.execute_script("render()")
-              time.sleep(.45)
-              persisted=d.execute_script("""
-                const p=document.querySelector('.leaflet-popup').getBoundingClientRect();
-                return {left:p.left,top:p.top,state:nodePopupDragState};
+              resized=d.execute_script("""
+                const h=document.getElementById('nodeWindowResizeHandle');
+                const r=h.getBoundingClientRect();
+                const sx=r.left+8,sy=r.top+8;
+                h.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,clientX:sx,clientY:sy,pointerId:78,pointerType:'mouse',button:0}));
+                h.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:sx-90,clientY:sy-70,pointerId:78,pointerType:'mouse',button:0}));
+                h.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,clientX:sx-90,clientY:sy-70,pointerId:78,pointerType:'mouse',button:0}));
+                const p=document.getElementById('nodeWindow').getBoundingClientRect();
+                return {left:p.left,top:p.top,width:p.width,height:p.height};
               """)
-              assert persisted["state"]["nodeNum"]==1,persisted
-              assert abs(persisted["left"]-moved["left"])<8,(moved,persisted)
-              assert abs(persisted["top"]-moved["top"])<8,(moved,persisted)
-              d.execute_script("map.closePopup()")
+              assert resized["width"] < moved["width"]-30 or resized["height"] < moved["height"]-30,(moved,resized)
+              d.execute_script("render()")
+              time.sleep(.35)
+              persisted=d.execute_script("const p=document.getElementById('nodeWindow').getBoundingClientRect();return {left:p.left,top:p.top,width:p.width,height:p.height};")
+              assert abs(persisted["left"]-resized["left"])<8,(resized,persisted)
+              assert abs(persisted["top"]-resized["top"])<8,(resized,persisted)
+              assert abs(persisted["width"]-resized["width"])<8,(resized,persisted)
+              assert abs(persisted["height"]-resized["height"])<8,(resized,persisted)
+              d.execute_script("toggleNodeWindowExpanded()")
+              assert "maximized" in d.find_element(By.ID,"nodeWindow").get_attribute("class")
+              d.execute_script("toggleNodeWindowExpanded();closeNodeWindow()")
+              assert "open" not in d.find_element(By.ID,"nodeWindow").get_attribute("class")
               assert not d.find_elements(By.CSS_SELECTOR,'.navbtn[data-view="tracklog"]')
               assert not d.find_elements(By.ID,"viewTracklog")
 

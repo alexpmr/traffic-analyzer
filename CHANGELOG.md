@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.36.0 - 2026-09-27
+
+- Substitui o popup de informações do nó baseado em Leaflet por uma janela flutuante independente sobre o mapa.
+- Permite arrastar a janela livremente pelo cabeçalho.
+- Adiciona redimensionamento real pelo canto inferior direito para ampliar e reduzir a janela.
+- Adiciona botões Reposicionar, Expandir/Restaurar e Fechar no cabeçalho da janela.
+- Mantém posição e dimensões durante refreshes da topologia e atualizações assíncronas das consultas.
+- Faz o conteúdo usar rolagem interna da própria janela, sem depender das limitações de tamanho/posição do popup Leaflet.
+- Reutiliza a mesma janela ao selecionar outro nó no mapa.
+- Sanitiza erros de Neighbor Info para não exibir HTML bruto/404 do MeshMonitor.
+- Atualiza os smoke tests para validar abertura, arraste, redução de tamanho, persistência após render e expansão/restauração.
+- Preserva consultas assíncronas, barras de progresso, checagem horária de versão e demais recursos da v1.35.1.
+
 ## 1.35.1 - 2026-09-27
 
 - Torna o botão Tudo das consultas ao nó não bloqueante: todas as perguntas são disparadas na mesma rodada, com espaçamento de 700 ms entre transmissões, sem aguardar timeout da anterior.

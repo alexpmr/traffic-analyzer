@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.35.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.35.1"
+APP_VERSION = "1.36.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -297,7 +297,7 @@ HTML = r'''<!doctype html>
   #nav{display:flex;gap:5px;align-items:center}
   .navbtn{font-weight:700;padding:6px 10px}.navbtn.active{background:#e4b800;color:#101820;border-color:#ffe34d}
   .view{display:none;flex:1;min-height:0;min-width:0}.view.active{display:flex;flex-direction:column}
-  #viewMap #map{flex:1;min-height:0}
+  #viewMap{position:relative;overflow:hidden}#viewMap #map{flex:1;min-height:0}
   #trafficToolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:#111c27;border-bottom:1px solid #293744}
   #trafficStats{display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#14202b;border-bottom:1px solid #293744}
   #trafficBody{display:grid;grid-template-columns:max-content minmax(360px,1fr);flex:1;min-height:0;min-width:0}
@@ -320,6 +320,15 @@ HTML = r'''<!doctype html>
   .nodePopup{width:min(1120px,calc(100vw - 90px));max-width:calc(100vw - 28px);min-width:min(560px,calc(100vw - 28px));min-height:260px;max-height:calc(100vh - 70px);overflow:auto;resize:both;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeQueryProgress{height:4px;margin-top:4px;border-radius:999px;overflow:hidden;background:#263846}.nodeQueryProgressBar{height:100%;width:0;background:#6fc7ff;transition:width .25s linear}.nodeQueryOk .nodeQueryProgressBar{background:#58d68d}.nodeQueryTimeout .nodeQueryProgressBar{background:#f2c94c}.nodeQueryError .nodeQueryProgressBar{background:#ff6b6b}.leaflet-popup.nodePopupMaximized{left:8px!important;top:8px!important;transform:none!important;margin:0!important;width:calc(100% - 16px)!important;height:calc(100% - 16px)!important;max-width:none!important}.leaflet-popup.nodePopupMaximized .leaflet-popup-content-wrapper{width:100%;height:100%;box-sizing:border-box}.leaflet-popup.nodePopupMaximized .leaflet-popup-content{width:100%!important;height:100%;margin:0;padding:10px;box-sizing:border-box}.leaflet-popup.nodePopupMaximized .nodePopup{width:100%;height:100%;max-width:none;max-height:none;min-width:0;min-height:0;resize:none}.leaflet-popup.nodePopupMaximized .leaflet-popup-tip-container{display:none}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
   @media(max-width:900px){.nodePopup{width:min(720px,calc(100vw - 50px));min-width:0;max-height:calc(100vh - 60px);resize:vertical}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
   @media(max-width:600px){.nodePopup{width:calc(100vw - 44px);min-width:0;max-width:calc(100vw - 44px);min-height:220px;max-height:calc(100vh - 54px);resize:vertical;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
+  .nodeWindow{position:absolute;z-index:1600;display:none;flex-direction:column;background:#17212b;border:1px solid #52697a;border-radius:10px;box-shadow:0 18px 48px rgba(0,0,0,.52);overflow:hidden;min-width:360px;min-height:240px;max-width:calc(100% - 16px);max-height:calc(100% - 16px)}
+  .nodeWindow.open{display:flex}.nodeWindow.dragging,.nodeWindow.resizing{user-select:none}.nodeWindow.maximized{border-radius:6px}
+  .nodeWindowHeader{display:flex;align-items:center;gap:9px;flex:0 0 auto;padding:8px 10px;background:#1b2a36;border-bottom:1px solid #405668;cursor:move;touch-action:none;user-select:none}
+  .nodeWindowGrip{font-size:17px;color:#7fd0ff;font-weight:900;line-height:1}.nodeWindowTitleWrap{min-width:0;flex:1}.nodeWindowTitle{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nodeWindowId{font-size:10px;color:#9fb0be;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nodeWindowActions{display:flex;gap:5px;align-items:center;flex:0 0 auto}.nodeWindowActions button{font-size:10px;padding:4px 8px}.nodeWindowClose{background:#462a2e;border-color:#87515a;color:#ffd5da;font-weight:800}
+  .nodeWindowBody{flex:1;min-height:0;overflow:auto;padding:10px;box-sizing:border-box;overscroll-behavior:contain;scrollbar-gutter:stable}
+  .nodeWindowBody .nodePopup{width:100%;max-width:none;min-width:0;min-height:0;max-height:none;overflow:visible;resize:none;padding:0}.nodeWindowBody .nodePopupStaticHandle{display:none}.nodeWindowBody .nodeTelemetryRows{max-height:none;overflow:visible}
+  .nodeWindowResizeHandle{position:absolute;right:0;bottom:0;width:22px;height:22px;cursor:nwse-resize;z-index:4;touch-action:none}.nodeWindowResizeHandle:after{content:'';position:absolute;right:4px;bottom:4px;width:10px;height:10px;border-right:2px solid #86a7bc;border-bottom:2px solid #86a7bc}
+  @media(max-width:700px){.nodeWindow{min-width:280px;min-height:220px}.nodeWindowHeader{gap:5px;padding:6px}.nodeWindowActions button{padding:4px 6px}.nodeWindowBody{padding:7px}}
   .warn{color:#ffcc66}
   .short-label{background:rgba(14,22,33,.88);border:1px solid #405668;color:#fff;border-radius:4px;padding:1px 4px;font-weight:700;box-shadow:none}
   .short-label:before{display:none}
@@ -504,6 +513,19 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   <div class="mapActions"><button id="fit">Enquadrar</button><button id="reload">Atualizar</button></div>
 </div>
 <div id="map"></div>
+<div id="nodeWindow" class="nodeWindow" role="dialog" aria-label="Informações do nó">
+  <div id="nodeWindowHeader" class="nodeWindowHeader">
+    <span class="nodeWindowGrip" aria-hidden="true">⠿</span>
+    <div class="nodeWindowTitleWrap"><div id="nodeWindowTitle" class="nodeWindowTitle">Nó</div><div id="nodeWindowId" class="nodeWindowId"></div></div>
+    <div class="nodeWindowActions">
+      <button id="nodeWindowReset" type="button">↺ Reposicionar</button>
+      <button id="nodeWindowExpand" type="button">⛶ Expandir</button>
+      <button id="nodeWindowClose" class="nodeWindowClose" type="button">Fechar</button>
+    </div>
+  </div>
+  <div id="nodeWindowBody" class="nodeWindowBody"></div>
+  <div id="nodeWindowResizeHandle" class="nodeWindowResizeHandle" title="Arraste para redimensionar"></div>
+</div>
 </section>
 <section id="viewNodes" class="view">
   <div class="nodesWrap">
@@ -1127,6 +1149,7 @@ let suppressNodePopupClose = false;
 let openNodePopupScrollTop = 0;
 let nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
 let nodePopupExpandedNode=null;
+let nodeWindowState={nodeNum:null,left:null,top:null,width:null,height:null,maximized:false,restore:null};
 let nodesSortKey = 'lastInteraction';
 let nodesSortDir = 'desc';
 let nodesFilterText = '';
@@ -1826,6 +1849,134 @@ async function runAllNodeQueries(nodeNum){
   }
 }
 
+function nodeWindowBounds(){
+  const view=document.getElementById('viewMap');
+  const mapEl=document.getElementById('map');
+  if(!view||!mapEl)return {left:8,top:8,width:800,height:500};
+  const vr=view.getBoundingClientRect(),mr=mapEl.getBoundingClientRect();
+  return {left:mr.left-vr.left+8,top:mr.top-vr.top+8,width:Math.max(240,mr.width-16),height:Math.max(180,mr.height-16)};
+}
+function nodeWindowDefaultGeometry(){
+  const b=nodeWindowBounds();
+  const w=Math.min(b.width,Math.max(Math.min(900,b.width),Math.round(b.width*.72)));
+  const h=Math.min(b.height,Math.max(Math.min(480,b.height),Math.round(b.height*.72)));
+  return {left:b.left+Math.max(0,Math.round((b.width-w)/2)),top:b.top+Math.max(0,Math.round((b.height-h)/2)),width:w,height:h};
+}
+function clampNodeWindowGeometry(g){
+  const b=nodeWindowBounds();
+  const minW=Math.min(360,b.width),minH=Math.min(240,b.height);
+  const width=Math.max(minW,Math.min(Number(g.width)||minW,b.width));
+  const height=Math.max(minH,Math.min(Number(g.height)||minH,b.height));
+  const left=Math.max(b.left,Math.min(Number(g.left)||b.left,b.left+b.width-width));
+  const top=Math.max(b.top,Math.min(Number(g.top)||b.top,b.top+b.height-height));
+  return {left,top,width,height};
+}
+function applyNodeWindowGeometry(){
+  const el=document.getElementById('nodeWindow');if(!el)return;
+  const btn=document.getElementById('nodeWindowExpand');
+  if(nodeWindowState.maximized){
+    const b=nodeWindowBounds();
+    el.classList.add('maximized');
+    Object.assign(el.style,{left:b.left+'px',top:b.top+'px',width:b.width+'px',height:b.height+'px'});
+    if(btn)btn.textContent='↙ '+tr('Restaurar');
+    return;
+  }
+  el.classList.remove('maximized');
+  if(nodeWindowState.left==null){
+    const d=nodeWindowDefaultGeometry();
+    Object.assign(nodeWindowState,d);
+  }
+  const g=clampNodeWindowGeometry(nodeWindowState);
+  Object.assign(nodeWindowState,g);
+  Object.assign(el.style,{left:g.left+'px',top:g.top+'px',width:g.width+'px',height:g.height+'px'});
+  if(btn)btn.textContent='⛶ '+tr('Expandir');
+}
+function resetNodeWindowGeometry(){
+  nodeWindowState.maximized=false;nodeWindowState.restore=null;
+  Object.assign(nodeWindowState,nodeWindowDefaultGeometry());
+  applyNodeWindowGeometry();
+}
+function toggleNodeWindowExpanded(){
+  const el=document.getElementById('nodeWindow');if(!el?.classList.contains('open'))return;
+  if(!nodeWindowState.maximized){
+    nodeWindowState.restore={left:nodeWindowState.left,top:nodeWindowState.top,width:nodeWindowState.width,height:nodeWindowState.height};
+    nodeWindowState.maximized=true;
+  }else{
+    nodeWindowState.maximized=false;
+    if(nodeWindowState.restore)Object.assign(nodeWindowState,nodeWindowState.restore);
+    nodeWindowState.restore=null;
+  }
+  applyNodeWindowGeometry();
+}
+function closeNodeWindow(){
+  const n=Number(nodeWindowState.nodeNum);
+  if(Number.isFinite(n))stopNodePolling(n);
+  document.getElementById('nodeWindow')?.classList.remove('open');
+  openNodeNum=null;nodeWindowState.nodeNum=null;
+}
+function openNodeWindow(nodeNum){
+  const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
+  const previous=Number(nodeWindowState.nodeNum);
+  if(Number.isFinite(previous)&&previous!==Number(nodeNum))stopNodePolling(previous);
+  nodeWindowState.nodeNum=Number(nodeNum);openNodeNum=Number(nodeNum);
+  const title=document.getElementById('nodeWindowTitle'),id=document.getElementById('nodeWindowId'),body=document.getElementById('nodeWindowBody'),win=document.getElementById('nodeWindow');
+  if(title)title.textContent=n.name||n.longName||n.nodeId||tr('Nó');
+  if(id)id.textContent=n.nodeId||'';
+  if(body){
+    body.innerHTML=nodePopupHtml(n,false);
+    body.scrollTop=0;
+    const run=nodeQueryRun(nodeNum);
+    if(run.details)renderNodePopupData(nodeNum,run.details);
+  }
+  win?.classList.add('open');
+  applyNodeWindowGeometry();
+  loadNodeDetails(nodeNum,true).catch(e=>{
+    const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
+    if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
+  });
+}
+function initNodeWindowInteractions(){
+  const win=document.getElementById('nodeWindow'),head=document.getElementById('nodeWindowHeader'),handle=document.getElementById('nodeWindowResizeHandle');
+  if(!win||!head||!handle)return;
+  let drag=null,resize=null;
+  head.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button')||nodeWindowState.maximized)return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    e.preventDefault();
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:Number(nodeWindowState.left)||0,top:Number(nodeWindowState.top)||0};
+    win.classList.add('dragging');try{head.setPointerCapture(e.pointerId);}catch{}
+  });
+  head.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==drag.id)return;
+    e.preventDefault();
+    const g=clampNodeWindowGeometry({left:drag.left+(e.clientX-drag.x),top:drag.top+(e.clientY-drag.y),width:nodeWindowState.width,height:nodeWindowState.height});
+    Object.assign(nodeWindowState,g);applyNodeWindowGeometry();
+  });
+  const finishDrag=e=>{if(!drag)return;try{if(head.hasPointerCapture?.(drag.id))head.releasePointerCapture(drag.id);}catch{}drag=null;win.classList.remove('dragging');e?.preventDefault?.();};
+  head.addEventListener('pointerup',finishDrag);head.addEventListener('pointercancel',finishDrag);
+  head.addEventListener('dblclick',e=>{if(!e.target.closest('button'))toggleNodeWindowExpanded();});
+  handle.addEventListener('pointerdown',e=>{
+    if(nodeWindowState.maximized)return;
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    resize={id:e.pointerId,x:e.clientX,y:e.clientY,width:Number(nodeWindowState.width)||400,height:Number(nodeWindowState.height)||300};
+    win.classList.add('resizing');try{handle.setPointerCapture(e.pointerId);}catch{}
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(!resize||e.pointerId!==resize.id)return;
+    e.preventDefault();e.stopPropagation();
+    const g=clampNodeWindowGeometry({left:nodeWindowState.left,top:nodeWindowState.top,width:resize.width+(e.clientX-resize.x),height:resize.height+(e.clientY-resize.y)});
+    Object.assign(nodeWindowState,g);applyNodeWindowGeometry();
+  });
+  const finishResize=e=>{if(!resize)return;try{if(handle.hasPointerCapture?.(resize.id))handle.releasePointerCapture(resize.id);}catch{}resize=null;win.classList.remove('resizing');e?.preventDefault?.();e?.stopPropagation?.();};
+  handle.addEventListener('pointerup',finishResize);handle.addEventListener('pointercancel',finishResize);
+  document.getElementById('nodeWindowClose').addEventListener('click',closeNodeWindow);
+  document.getElementById('nodeWindowReset').addEventListener('click',resetNodeWindowGeometry);
+  document.getElementById('nodeWindowExpand').addEventListener('click',toggleNodeWindowExpanded);
+  window.addEventListener('resize',()=>{if(win.classList.contains('open'))applyNodeWindowGeometry();});
+}
+initNodeWindowInteractions();
+
 function toggleNodePopupExpanded(nodeNum){
   const n=Number(nodeNum);
   nodePopupExpandedNode=Number(nodePopupExpandedNode)===n?null:n;
@@ -1953,10 +2104,6 @@ function initNodePopupDrag(nodeNum){
 }
 function render(){
   if(!topology) return;
-  const reopenNodeNum=openNodeNum;
-  const popupEl=reopenNodeNum?document.querySelector('.leaflet-popup .nodePopup'):null;
-  if(popupEl)openNodePopupScrollTop=popupEl.scrollTop||0;
-  suppressNodePopupClose=true;
   lineLayer.clearLayers();
   nodeLayer.clearLayers();
   nodeMarkers.clear();
@@ -2052,35 +2199,19 @@ function render(){
     } else {
       marker.bindTooltip(esc(n.name || n.nodeId), {direction:'top'});
     }
-    marker.bindPopup(nodePopupHtml(n), {maxWidth:1160,minWidth:280,autoPan:false});
-    marker.on('popupopen',()=>{
-      const popupNodeNum=Number(n.nodeNum);
-      if(Number(nodePopupDragState.nodeNum)!==popupNodeNum){resetNodePopupDrag(popupNodeNum);nodePopupExpandedNode=null;}
-      openNodeNum=popupNodeNum;
-      setTimeout(()=>initNodePopupDrag(popupNodeNum),0);
-      setTimeout(()=>initNodePopupDrag(popupNodeNum),90);
-      loadNodeDetails(n.nodeNum,true).catch(e=>{
-        const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
-        if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
-      });
-    });
-    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};nodePopupExpandedNode=null;}});
+    marker.on('click',()=>openNodeWindow(n.nodeNum));
     marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
   }
 
-  if(reopenNodeNum!==null && nodeMarkers.has(Number(reopenNodeNum))){
-    const reopenMarker=nodeMarkers.get(Number(reopenNodeNum));
-    reopenMarker.openPopup();
-    const restorePopupPosition=()=>{
-      const el=document.querySelector('.leaflet-popup .nodePopup');
-      if(el)el.scrollTop=openNodePopupScrollTop||0;
-      initNodePopupDrag(reopenNodeNum);
-    };
-    setTimeout(restorePopupPosition,0);
-    setTimeout(restorePopupPosition,90);
-    setTimeout(restorePopupPosition,260);
+  if(openNodeNum!==null){
+    const active=(topology.nodes||[]).find(x=>Number(x.nodeNum)===Number(openNodeNum));
+    if(active){
+      const title=document.getElementById('nodeWindowTitle'),id=document.getElementById('nodeWindowId');
+      if(title)title.textContent=active.name||active.longName||active.nodeId||tr('Nó');
+      if(id)id.textContent=active.nodeId||'';
+      applyNodeWindowGeometry();
+    }else closeNodeWindow();
   }
-  setTimeout(()=>{suppressNodePopupClose=false;},250);
   renderNodesTable();
   const traceCount = (topology.traces || []).filter(t => cutoff === null || Number(t.timestampMs||0) >= cutoff).length;
   lastBounds = coords.length ? L.latLngBounds(coords) : null;
@@ -4106,7 +4237,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1351';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1360';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4567,7 +4698,13 @@ def _node_details(node_num):
                     pass
         neighbors["latestTimestamp"] = max(stamps) if stamps else None
     except Exception as exc:
-        neighbors = {"available": False, "data": [], "latestTimestamp": None, "error": str(exc)[:240]}
+        msg = str(exc or "").strip()
+        low = msg.lower()
+        if "<html" in low or "<!doctype" in low or "cannot get /api/neighborinfo" in low or "/api/neighborinfo/" in low and ("404" in low or "cannot get" in low):
+            msg = "Neighbor Info indisponível neste MeshMonitor / endpoint não suportado"
+        elif len(msg) > 240:
+            msg = msg[:237] + "..."
+        neighbors = {"available": False, "data": [], "latestTimestamp": None, "error": msg}
 
     return {
         "success": True,
