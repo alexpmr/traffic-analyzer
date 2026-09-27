@@ -1615,7 +1615,7 @@ function nodePopupHtml(n,draggable=true){
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_power')">${esc(tr('Energia'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'neighbors')">${esc(tr('Vizinhos'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'traceroute')">Traceroute</button>
-        <button type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">${esc(tr('Tudo'))}</button>
+        <button id="nodeAllBtn-${Number(n.nodeNum)}" type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">${esc(tr('Tudo'))}</button>
       </div>
       <div class="nodeQueryList" id="nodeQueries-${Number(n.nodeNum)}">${nodeQueryStateHtml(n.nodeNum)}</div>
       <div class="nodePopupActionsNote">${esc(tr('As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.'))}</div>
@@ -1669,6 +1669,11 @@ function renderNodePopupData(nodeNum,details){
   if(tel)tel.innerHTML=nodeTelemetryHtml(run.details);
   const q=document.getElementById(`nodeQueries-${Number(nodeNum)}`);
   if(q)q.innerHTML=nodeQueryStateHtml(nodeNum);
+  const allBtn=document.getElementById(`nodeAllBtn-${Number(nodeNum)}`);
+  if(allBtn){
+    allBtn.disabled=Boolean(run.allActive);
+    allBtn.textContent=run.allActive?`${tr('Tudo')} ${Number(run.allDone||0)}/${Number(run.allTotal||0)}`:tr('Tudo');
+  }
 }
 function telemetrySignal(details,kind){
   const rows=((details||{}).telemetry||{}).latest||[]; let max=0;
@@ -1686,9 +1691,25 @@ function latestResponsePacketMs(details,port){
 }
 function nodeResponseSignal(action,details){
   if(!details)return null;
+  const n=details.node||{};
   if(action==='nodeinfo')return latestResponsePacketMs(details,'NODEINFO_APP');
-  if(action==='position')return latestResponsePacketMs(details,'POSITION_APP');
-  if(action==='telemetry_device'||action==='telemetry_environment'||action==='telemetry_airQuality'||action==='telemetry_power')return latestResponsePacketMs(details,'TELEMETRY_APP');
+  if(action==='position'){
+    let pos=Number(n.positionTimestamp||0);
+    if(pos>0&&pos<10000000000)pos*=1000;
+    return Math.max(Number(latestResponsePacketMs(details,'POSITION_APP')||0),Number(pos||0))||null;
+  }
+  if(action==='telemetry_device'){
+    return Math.max(Number(telemetrySignal(details,'device')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
+  }
+  if(action==='telemetry_environment'){
+    return Math.max(Number(telemetrySignal(details,'environment')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
+  }
+  if(action==='telemetry_airQuality'){
+    return Math.max(Number(telemetrySignal(details,'airQuality')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
+  }
+  if(action==='telemetry_power'){
+    return Math.max(Number(telemetrySignal(details,'power')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
+  }
   if(action==='neighbors')return latestResponsePacketMs(details,'NEIGHBORINFO_APP')||Number(details.neighbors?.latestTimestamp||0)||null;
   if(action==='traceroute'){
     const tr=details.traceroute;
