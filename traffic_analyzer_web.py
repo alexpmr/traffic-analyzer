@@ -316,9 +316,9 @@ HTML = r'''<!doctype html>
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
   .leaflet-popup-pane{z-index:1200}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}.leaflet-popup.nodePopupFloating{z-index:1300}.leaflet-popup.nodePopupDragging{z-index:1400}.leaflet-popup.nodePopupDetached .leaflet-popup-tip-container{display:none}.leaflet-popup a.leaflet-popup-close-button{z-index:30}
-  .nodePopupDragHandle{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;margin:0 0 7px;padding:3px 30px 7px 0;background:#17212b;border-bottom:1px solid rgba(64,86,104,.75);cursor:grab;touch-action:none;user-select:none}.nodePopupDragHandle:active{cursor:grabbing}.nodePopupDragGlyph{flex:0 0 auto;color:#7fd0ff;font-size:16px;font-weight:900;line-height:1}.nodePopupDragText{min-width:0;flex:1}.nodePopupDragHint{flex:0 0 auto;color:#8194a5;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.nodePopupStaticHandle{margin-bottom:7px}
-  .nodePopup{width:min(860px,calc(100vw - 110px));max-width:860px;max-height:min(76vh,700px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
-  @media(max-width:900px){.nodePopup{width:min(640px,calc(100vw - 70px));max-height:72vh}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
+  .nodePopupDragHandle{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;margin:0 0 7px;padding:3px 0 7px 0;background:#17212b;border-bottom:1px solid rgba(64,86,104,.75);cursor:grab;touch-action:none;user-select:none}.nodePopupDragHandle:active{cursor:grabbing}.nodePopupDragGlyph{flex:0 0 auto;color:#7fd0ff;font-size:16px;font-weight:900;line-height:1}.nodePopupDragText{min-width:0;flex:1}.nodePopupDragHint{flex:0 0 auto;color:#8194a5;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.nodePopupHeaderActions{display:flex;align-items:center;gap:5px;flex:0 0 auto}.nodePopupHeaderActions button{font-size:10px;padding:4px 8px;cursor:pointer}.nodePopupCloseVisible{background:#462a2e;border-color:#87515a;color:#ffd5da;font-weight:800}.nodePopupReset{background:#213744}.nodePopupStaticHandle{margin-bottom:7px}
+  .nodePopup{width:min(1120px,calc(100vw - 70px));max-width:1120px;max-height:min(80vh,760px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
+  @media(max-width:900px){.nodePopup{width:min(720px,calc(100vw - 50px));max-height:74vh}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
   @media(max-width:600px){.nodePopup{width:76vw;min-width:0;max-width:76vw;max-height:68vh;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
   .warn{color:#ffcc66}
   .short-label{background:rgba(14,22,33,.88);border:1px solid #405668;color:#fff;border-radius:4px;padding:1px 4px;font-weight:700;box-shadow:none}
@@ -834,6 +834,7 @@ let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
 function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
 
 const I18N_PAIRS=[
+  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
   ['Filtrar:','Filter:'],['Limpar filtro','Clear filter'],['nome, ID, hardware...','name, ID, hardware...'],['VHF3 sem posição','VHF3 has no position'],['Nó sem posição conhecida; não é possível focalizá-lo no mapa.','Node has no known position; it cannot be focused on the map.'],
   ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
@@ -1586,11 +1587,11 @@ function nodePopupHtml(n,draggable=true){
   const coords=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(6)}, ${lon.toFixed(6)}`:null;
   const trafficAge=nodeTrafficAge(n);
   const titleBlock=draggable
-    ? `<div class="nodePopupDragHandle" data-node-drag="${Number(n.nodeNum)}" title="Arraste para mover"><span class="nodePopupDragGlyph" aria-hidden="true">⠿</span><div class="nodePopupDragText"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div><span class="nodePopupDragHint">arraste</span></div>`
+    ? `<div class="nodePopupDragHandle" data-node-drag="${Number(n.nodeNum)}" title="${esc(tr('Arraste para mover'))}"><span class="nodePopupDragGlyph" aria-hidden="true">⠿</span><div class="nodePopupDragText"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div><span class="nodePopupDragHint">${esc(tr('arraste'))}</span><div class="nodePopupHeaderActions"><button class="nodePopupReset" type="button" onclick="event.stopPropagation();resetNodePopupPosition(${Number(n.nodeNum)})">↺ ${esc(tr('Reposicionar'))}</button><button class="nodePopupCloseVisible" type="button" onclick="event.stopPropagation();closeNodePopupWindow(${Number(n.nodeNum)})">${esc(tr('Fechar'))}</button></div></div>`
     : `<div class="nodePopupStaticHandle"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div>`;
   return `<div class="nodePopup" id="nodePopup-${Number(n.nodeNum)}">
     ${titleBlock}
-    <div class="nodePopupSectionTitle">Resumo</div>
+    <div class="nodePopupSectionTitle">${esc(tr('Resumo'))}</div>
     <div class="nodeMetaGrid">
       ${nodeMetaLine('Nome longo',n.longName)}
       ${nodeMetaLine('Nome curto',n.shortName)}
@@ -1600,30 +1601,48 @@ function nodePopupHtml(n,draggable=true){
       ${nodeMetaLine('Último tráfego',trafficAge.ts,trafficAge.ts?new Date(trafficAge.ts).toLocaleString(uiLocale()):null)}
     </div>
     <div class="nodePopupSection">
-      <div class="nodePopupSectionTitle">Informações do nó</div>
+      <div class="nodePopupSectionTitle">${esc(tr('Informações do nó'))}</div>
       <div class="nodeMetaGrid" id="nodeMeta-${Number(n.nodeNum)}">${nodeMetadataHtml(n,null)}</div>
     </div>
     <div class="nodePopupSection">
-      <div class="nodePopupSectionTitle">Consultas ao nó</div>
+      <div class="nodePopupSectionTitle">${esc(tr('Consultas ao nó'))}</div>
       <div class="nodeQueryButtons">
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'nodeinfo')">Node Info</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'position')">Position</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_device')">Device</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_environment')">Environment</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_airQuality')">Air Quality</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_power')">Power</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'neighbors')">Neighbors</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'nodeinfo')">${esc(tr('Informações do nó'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'position')">${esc(tr('Posição'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_device')">${esc(tr('Dispositivo'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_environment')">${esc(tr('Ambiente'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_airQuality')">${esc(tr('Qualidade do ar'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_power')">${esc(tr('Energia'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'neighbors')">${esc(tr('Vizinhos'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'traceroute')">Traceroute</button>
-        <button type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">Tudo</button>
+        <button type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">${esc(tr('Tudo'))}</button>
       </div>
       <div class="nodeQueryList" id="nodeQueries-${Number(n.nodeNum)}">${nodeQueryStateHtml(n.nodeNum)}</div>
-      <div class="nodePopupActionsNote">As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.</div>
+      <div class="nodePopupActionsNote">${esc(tr('As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.'))}</div>
     </div>
     <div class="nodePopupSection">
-      <div class="nodePopupSectionTitle">Últimos metadados recebidos</div>
+      <div class="nodePopupSectionTitle">${esc(tr('Últimos metadados recebidos'))}</div>
       <div id="nodeTelemetry-${Number(n.nodeNum)}" class="nodeTelemetryRows"><span class="nodeSmall">Carregando dados do MeshMonitor…</span></div>
     </div>
   </div>`;
+}
+function telemetryFriendlyLabel(type){
+  const key=String(type||'telemetria');
+  const pt={
+    messageHops:'Saltos da mensagem',snr_remote:'SNR remoto',batteryLevel:'Bateria',voltage:'Tensão',
+    channelUtilization:'Utilização do canal',airUtilTx:'Air Util TX',uptimeSeconds:'Tempo ligado',
+    temperature:'Temperatura',humidity:'Umidade',pressure:'Pressão',gasResistance:'Resistência do gás',
+    current:'Corrente',power:'Potência',energy:'Energia',co2:'CO₂',pm25:'PM2,5',pm10:'PM10',
+    latitude:'Latitude',longitude:'Longitude',altitude:'Altitude',linkQuality:'Qualidade do enlace'
+  };
+  const en={
+    messageHops:'Message hops',snr_remote:'Remote SNR',batteryLevel:'Battery',voltage:'Voltage',
+    channelUtilization:'Channel utilization',airUtilTx:'Air Util TX',uptimeSeconds:'Uptime',
+    temperature:'Temperature',humidity:'Humidity',pressure:'Pressure',gasResistance:'Gas resistance',
+    current:'Current',power:'Power',energy:'Energy',co2:'CO₂',pm25:'PM2.5',pm10:'PM10',
+    latitude:'Latitude',longitude:'Longitude',altitude:'Altitude',linkQuality:'Link quality'
+  };
+  return (currentLang==='en'?en:pt)[key]||key;
 }
 function nodeTelemetryHtml(details){
   if(!details)return '<span class="nodeSmall">Sem dados carregados.</span>';
@@ -1632,7 +1651,7 @@ function nodeTelemetryHtml(details){
   const neighbors=details.neighbors||{};
   let html='';
   if(rows.length){
-    html+=rows.slice(0,18).map(r=>`<div>${nodeHas(r.value)?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} <b>${esc(r.telemetryType||'telemetria')}</b>: ${esc(telemetryDisplay(r.telemetryType,r.value,r.unit))} <span class="nodeSmall">· ${esc(nodeFmtTs(r.timestamp||r.createdAt))}</span></div>`).join('');
+    html+=rows.slice(0,18).map(r=>`<div>${nodeHas(r.value)?'<span class="nodeMetaPresent">✓</span>':'<span class="nodeMetaMissing">☐</span>'} <b>${esc(telemetryFriendlyLabel(r.telemetryType))}</b>: ${esc(telemetryDisplay(r.telemetryType,r.value,r.unit))} <span class="nodeSmall">· ${esc(nodeFmtTs(r.timestamp||r.createdAt))}</span></div>`).join('');
   }else html+='<div><span class="nodeMetaMissing">☐</span> Telemetria — sem registros</div>';
   if(trace)html+=`<div><span class="nodeMetaPresent">✓</span> <b>Último traceroute</b>: ${esc(trace.fromNodeId||'')} → ${esc(trace.toNodeId||'')} <span class="nodeSmall">· ${esc(nodeFmtTs(trace.timestamp||trace.createdAt))}</span></div>`;
   else html+='<div><span class="nodeMetaMissing">☐</span> Traceroute — sem registro envolvendo o nó</div>';
@@ -1770,6 +1789,15 @@ async function runAllNodeQueries(nodeNum){
   }
 }
 
+function resetNodePopupPosition(nodeNum){
+  resetNodePopupDrag(nodeNum);
+  applyNodePopupDragOffset(nodeNum);
+}
+function closeNodePopupWindow(nodeNum){
+  if(Number(nodePopupDragState.nodeNum)===Number(nodeNum))nodePopupDragState={nodeNum:null,x:0,y:0};
+  openNodeNum=null;openNodePopupScrollTop=0;
+  map.closePopup();
+}
 function resetNodePopupDrag(nodeNum){
   nodePopupDragState={nodeNum:Number(nodeNum),x:0,y:0};
 }
@@ -1943,7 +1971,7 @@ function render(){
     marker.bindPopup(nodePopupHtml(n), {maxWidth:900,minWidth:280});
     marker.on('popupopen',()=>{
       const popupNodeNum=Number(n.nodeNum);
-      if(openNodeNum!==popupNodeNum)resetNodePopupDrag(popupNodeNum);
+      if(Number(nodePopupDragState.nodeNum)!==popupNodeNum)resetNodePopupDrag(popupNodeNum);
       openNodeNum=popupNodeNum;
       setTimeout(()=>initNodePopupDrag(popupNodeNum),0);
       loadNodeDetails(n.nodeNum,true).catch(e=>{
@@ -1964,7 +1992,7 @@ function render(){
       initNodePopupDrag(reopenNodeNum);
     },0);
   }
-  suppressNodePopupClose=false;
+  setTimeout(()=>{suppressNodePopupClose=false;},250);
   renderNodesTable();
   const traceCount = (topology.traces || []).filter(t => cutoff === null || Number(t.timestampMs||0) >= cutoff).length;
   lastBounds = coords.length ? L.latLngBounds(coords) : null;
