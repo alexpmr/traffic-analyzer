@@ -203,6 +203,16 @@ jobs:
               assert moved["state"]["nodeNum"]==1,moved
               assert abs(moved["left"]-before["left"])>30 or abs(moved["top"]-before["top"])>30,(before,moved)
               assert moved["detached"] is True,moved
+              # O refresh periódico/re-render não pode devolver o popup à âncora original.
+              d.execute_script("render()")
+              time.sleep(.45)
+              persisted=d.execute_script("""
+                const p=document.querySelector('.leaflet-popup').getBoundingClientRect();
+                return {left:p.left,top:p.top,state:nodePopupDragState};
+              """)
+              assert persisted["state"]["nodeNum"]==1,persisted
+              assert abs(persisted["left"]-moved["left"])<8,(moved,persisted)
+              assert abs(persisted["top"]-moved["top"])<8,(moved,persisted)
               d.execute_script("map.closePopup()")
               assert not d.find_elements(By.CSS_SELECTOR,'.navbtn[data-view="tracklog"]')
               assert not d.find_elements(By.ID,"viewTracklog")
