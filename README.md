@@ -1,6 +1,19 @@
-# Traffic Analyzer v1.36.1
+# Traffic Analyzer v1.36.2
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.36.2
+
+- Remove o **canal 0 forçado** das consultas NodeInfo e Posição; o próprio MeshMonitor 4.16.x volta a resolver o canal correto do nó conforme source e NodeDB.
+- Quando `MM_SOURCE=default`, o Traffic Analyzer resolve e usa o **ID real da fonte primária** do MeshMonitor antes das consultas.
+- Neighbor Info e Telemetria também usam explicitamente esse source real, reduzindo risco de envio pelo manager/source errado em ambientes multi-source.
+- O canal efetivamente selecionado pelo MeshMonitor passa a ser extraído da resposta da API e mostrado no status da consulta.
+- O intervalo entre consultas do botão **Tudo** sobe de 700 ms para **2 s**, reduzindo colisões entre requests/respostas sem voltar ao comportamento bloqueante.
+- O timeout individual passa de 15 s para **20 s**.
+- A detecção de respostas inclui detalhes do Packet Monitor quando disponíveis: portnum, canal, SNR e RSSI.
+- Mantém respostas tardias: uma consulta marcada como timeout pode mudar para **respondida** caso o pacote chegue depois.
+- Continua distinguindo **MM aceitou o TX** de **nenhuma resposta RX**.
+- Preserva todos os demais recursos da v1.36.1.
 
 ## Novidades da v1.36.1
 

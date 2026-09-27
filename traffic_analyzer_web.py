@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.2 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.1"
+APP_VERSION = "1.36.2"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -1524,9 +1524,9 @@ const NODE_QUERY_DEFS=[
   {id:'neighbors',label:'Informações de vizinhos'}
 ];
 const nodeQueryRuns=new Map();
-const NODE_QUERY_TIMEOUT_MS=15000;
+const NODE_QUERY_TIMEOUT_MS=20000;
 const NODE_QUERY_POLL_MS=1000;
-const NODE_QUERY_STAGGER_MS=700;
+const NODE_QUERY_STAGGER_MS=2000;
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
@@ -1723,14 +1723,36 @@ function telemetrySignal(details,kind){
   }
   return max||null;
 }
-function latestResponsePacketMs(details,port){
-  let best=0;
+function latestResponsePacket(details,port){
+  let best=null,bestTs=0;
   for(const p of (details?.responses||[])){
     if(String(p.port||'')!==port)continue;
     const t=Number(p.timestampMs||0);
-    if(Number.isFinite(t)&&t>best)best=t;
+    if(Number.isFinite(t)&&t>bestTs){best=p;bestTs=t;}
   }
-  return best||null;
+  return best;
+}
+function latestResponsePacketMs(details,port){
+  return Number(latestResponsePacket(details,port)?.timestampMs||0)||null;
+}
+function nodeResponseDetail(action,details,signalMs){
+  let port=null;
+  if(action==='nodeinfo')port='NODEINFO_APP';
+  else if(action==='position')port='POSITION_APP';
+  else if(action==='neighbors')port='NEIGHBORINFO_APP';
+  else if(action.startsWith('telemetry_'))port='TELEMETRY_APP';
+  const p=port?latestResponsePacket(details,port):null;
+  if(!p)return '';
+  const pts=Number(p.timestampMs||0),sig=Number(signalMs||0);
+  if(sig&&pts&&Math.abs(pts-sig)>5000)return '';
+  const bits=[String(p.port||port)];
+  const ch=Number(p.channel);
+  if(Number.isInteger(ch)&&ch>=0&&ch<=7)bits.push('canal '+ch);
+  const sn=Number(p.snr);
+  if(Number.isFinite(sn))bits.push('SNR '+sn.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})+' dB');
+  const rs=Number(p.rssi);
+  if(Number.isFinite(rs))bits.push('RSSI '+Math.round(rs)+' dBm');
+  return bits.join(' · ');
 }
 function nodeResponseSignal(action,details){
   if(!details)return null;
@@ -1768,7 +1790,8 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
       const responded=Number.isFinite(current)&&current>=Math.max(0,Number(s.sentAt||0)-1000);
       if(responded){
         const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
-        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}`;
+        const detail=nodeResponseDetail(d.id,b,current);
+        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${detail?' · '+detail:''}`;
       }else if(s.state==='waiting'&&now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){
         s.state='timeout';
         s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');
@@ -4251,7 +4274,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1361';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1362';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4656,6 +4679,13 @@ def _node_details(node_num):
                 "port": port,
                 "timestampMs": ts,
                 "packetId": item.get("packet_id") or item.get("packetId"),
+                "channel": item.get("channel"),
+                "rssi": item.get("rssi"),
+                "snr": item.get("snr"),
+                "hopLimit": item.get("hop_limit") or item.get("hopLimit"),
+                "hopStart": item.get("hop_start") or item.get("hopStart"),
+                "fromNode": item.get("from_node") or item.get("fromNode"),
+                "toNode": item.get("to_node") or item.get("toNode"),
             })
         response_packets.sort(key=lambda x: int(x.get("timestampMs") or 0), reverse=True)
     except Exception:
@@ -4732,10 +4762,72 @@ def _node_details(node_num):
     }
 
 
+_mm_source_resolution_cache = {"checked_at": 0.0, "configured": None, "resolved": None}
+
+
+def _resolved_mm_source_id():
+    """Return the concrete MeshMonitor source id behind MM_SOURCE/default."""
+    configured = str(MM_SOURCE or "default").strip() or "default"
+    now = time.time()
+    cached = _mm_source_resolution_cache
+    if (
+        cached.get("configured") == configured
+        and cached.get("resolved")
+        and now - float(cached.get("checked_at") or 0) < 300
+    ):
+        return str(cached["resolved"])
+
+    resolved = configured
+    if configured == "default":
+        try:
+            body = _mm_api_get("/api/v1/sources")
+            rows = body.get("data", []) if isinstance(body, dict) else []
+            primary = next(
+                (row for row in rows if isinstance(row, dict) and row.get("isPrimary") and row.get("id")),
+                None,
+            )
+            if primary:
+                resolved = str(primary.get("id"))
+            elif rows and isinstance(rows[0], dict) and rows[0].get("id"):
+                resolved = str(rows[0].get("id"))
+        except Exception:
+            resolved = configured
+
+    cached.update({"checked_at": now, "configured": configured, "resolved": resolved})
+    return resolved
+
+
+def _mm_response_channel(body):
+    """Extract the channel selected by MeshMonitor from structured data/message."""
+    if not isinstance(body, dict):
+        return None
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    for value in (body.get("channel"), data.get("channel")):
+        try:
+            if value is not None:
+                channel = int(value)
+                if 0 <= channel <= 7:
+                    return channel
+        except (TypeError, ValueError):
+            pass
+    for text_value in (body.get("message"), data.get("message")):
+        text_value = str(text_value or "")
+        match = re.search(r"\bchannel\s+(\d+)\b", text_value, re.IGNORECASE)
+        if match:
+            try:
+                channel = int(match.group(1))
+                if 0 <= channel <= 7:
+                    return channel
+            except (TypeError, ValueError):
+                pass
+    return None
+
+
 def _request_node_query(node_num, action):
     n = _node_num(node_num)
     action = str(action or "").strip()
-    source = urllib.parse.quote(MM_SOURCE, safe="")
+    source_id = _resolved_mm_source_id()
+    source = urllib.parse.quote(source_id, safe="")
     destination = _node_hex_id(n)
     requested_at_ms = int(time.time() * 1000)
     endpoint = None
@@ -4746,19 +4838,15 @@ def _request_node_query(node_num, action):
     # which already resolves the shared/broadcast channel correctly.
     if action == "nodeinfo":
         endpoint = "/api/nodeinfo/request"
-        channel = 0
         body = _mm_api_post(endpoint, {
             "destination": destination,
-            "sourceId": MM_SOURCE,
-            "channel": channel,
+            "sourceId": source_id,
         })
     elif action == "position":
         endpoint = "/api/position/request"
-        channel = 0
         body = _mm_api_post(endpoint, {
             "destination": destination,
-            "sourceId": MM_SOURCE,
-            "channel": channel,
+            "sourceId": source_id,
         })
     elif action == "traceroute":
         endpoint = f"/api/v1/sources/{source}/actions/traceroute"
@@ -4773,7 +4861,7 @@ def _request_node_query(node_num, action):
         endpoint = "/api/neighborinfo/request"
         body = _mm_api_post(endpoint, {
             "destination": destination,
-            "sourceId": MM_SOURCE,
+            "sourceId": source_id,
         })
     elif action.startswith("telemetry_"):
         telemetry_type = action.split("_", 1)[1]
@@ -4784,7 +4872,7 @@ def _request_node_query(node_num, action):
         body = _mm_api_post(endpoint, {
             "destination": destination,
             "telemetryType": telemetry_type,
-            "sourceId": MM_SOURCE,
+            "sourceId": source_id,
         })
     else:
         raise ValueError("Consulta de nó inválida")
@@ -4805,10 +4893,7 @@ def _request_node_query(node_num, action):
         if request_id is None:
             request_id = data.get("requestId")
         if channel is None:
-            try:
-                channel = int(data.get("channel")) if data.get("channel") is not None else None
-            except (TypeError, ValueError):
-                channel = None
+            channel = _mm_response_channel(body)
 
     accepted_parts = ["MM aceitou"]
     if channel is not None:
@@ -4816,6 +4901,11 @@ def _request_node_query(node_num, action):
     if packet_id is not None:
         accepted_parts.append(f"packet {packet_id}")
     accepted_message = " · ".join(accepted_parts) + " · aguardando RX"
+    mm_message = ""
+    if isinstance(body, dict):
+        mm_message = str(body.get("message") or "")
+        if not mm_message and isinstance(body.get("data"), dict):
+            mm_message = str(body["data"].get("message") or "")
 
     return {
         "success": True,
@@ -4827,11 +4917,12 @@ def _request_node_query(node_num, action):
         "acceptedAtMs": int(time.time() * 1000),
         "acceptedMessage": accepted_message,
         "diagnostic": {
-            "sourceId": MM_SOURCE,
+            "sourceId": source_id,
             "endpoint": endpoint,
             "channel": channel,
             "packetId": packet_id,
             "requestId": request_id,
+            "meshMonitorMessage": mm_message,
         },
         "meshMonitor": body,
     }

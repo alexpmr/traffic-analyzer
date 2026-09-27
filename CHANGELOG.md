@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.36.2 - 2026-09-27
+
+- Remove o canal 0 fixo das consultas NodeInfo e Position; o MeshMonitor volta a resolver o canal correto do nó.
+- Resolve o ID concreto da fonte primária quando MM_SOURCE está configurado como default.
+- Usa o source concreto nas consultas NodeInfo, Position, Neighbor Info e Telemetry.
+- Extrai e exibe o canal efetivamente selecionado pelo MeshMonitor.
+- Aumenta o espaçamento do botão Tudo de 700 ms para 2 s para reduzir rajadas/collisions entre requests e respostas.
+- Aumenta o timeout individual de 15 s para 20 s.
+- Enriquece a evidência de RX com portnum, canal, SNR e RSSI quando disponíveis no Packet Monitor.
+- Mantém a conversão de timeout para respondido quando uma resposta tardia é detectada.
+- Preserva o diagnóstico separado entre TX aceito pelo MeshMonitor e ausência de RX.
+- Preserva expansão em tela cheia e demais recursos da v1.36.1.
+
 ## 1.36.1 - 2026-09-27
 
 - Corrige o envio de NodeInfo, Position, Neighbor Info e Telemetry usando os endpoints source-aware do MeshMonitor 4.16.x.
