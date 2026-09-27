@@ -5909,6 +5909,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         if path in ("/", "/index.html"):
+            _record_access_event(self, event="pageview", status=200, path=path)
             self._send(200, "text/html; charset=utf-8", HTML.encode("utf-8"))
             return
         if path == "/api/auth/status":
@@ -5940,6 +5941,30 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/current-release-notes":
             self._send(200, "application/json; charset=utf-8", json.dumps(_current_release_info(), ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/access-stats":
+            if AUTH_ENABLED and not _auth_session(self):
+                self._send(401, "application/json; charset=utf-8", json.dumps({"success": False, "error": "authentication_required", "message": "Autenticação administrativa necessária."}, ensure_ascii=False).encode("utf-8"))
+                return
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                days = int((query.get("days") or ["30"])[0])
+                body = _access_stats(days)
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/access-log":
+            if AUTH_ENABLED and not _auth_session(self):
+                self._send(401, "application/json; charset=utf-8", json.dumps({"success": False, "error": "authentication_required", "message": "Autenticação administrativa necessária."}, ensure_ascii=False).encode("utf-8"))
+                return
+            try:
+                if not ACCESS_LOG_FILE.exists():
+                    ACCESS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+                    ACCESS_LOG_FILE.touch()
+                self._send_file(ACCESS_LOG_FILE, "application/x-ndjson; charset=utf-8", "traffic-analyzer-access.log")
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path in ("/api/topology", "/topology.json"):
             try:
@@ -6110,12 +6135,14 @@ class Handler(BaseHTTPRequestHandler):
                 password_ok = _auth_verify_password(password)
                 if not (user_ok and password_ok):
                     _auth_register_failure(ip)
+                    _record_access_event(self, event="login_failed", status=401, path="/api/auth/login", username=username)
                     time.sleep(0.18)
                     self._send(401, "application/json; charset=utf-8", json.dumps({"success": False, "error": "invalid_credentials", "message": "Usuário ou senha inválidos."}, ensure_ascii=False).encode("utf-8"))
                     return
                 _auth_clear_failures(ip)
                 sid, csrf, expires = _auth_new_session()
                 body = {"success": True, "authenticated": True, "user": AUTH_USER, "csrfToken": csrf, "expiresAtMs": int(expires * 1000)}
+                _record_access_event(self, event="login_success", status=200, path="/api/auth/login", username=AUTH_USER)
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"), {"Set-Cookie": _auth_set_cookie_header(self, sid, AUTH_SESSION_SECONDS)})
             except ValueError as e:
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
@@ -6240,12 +6267,14 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     _archive_init()
+    _access_init()
     archive_thread = threading.Thread(target=_archive_worker, name="traffic-archive", daemon=True)
     archive_thread.start()
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
     print(f"Traffic Analyzer v{APP_VERSION} ouvindo em http://{BIND}:{PORT}/", flush=True)
     print(f"Topologia: {TOPOLOGY_FILE}", flush=True)
     print(f"Arquivo histórico de tráfego: {TRAFFIC_ARCHIVE_DB}", flush=True)
+    print(f"Log de acessos web: {ACCESS_LOG_FILE}", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
