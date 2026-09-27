@@ -2018,7 +2018,7 @@ function render(){
     } else {
       marker.bindTooltip(esc(n.name || n.nodeId), {direction:'top'});
     }
-    marker.bindPopup(nodePopupHtml(n), {maxWidth:900,minWidth:280});
+    marker.bindPopup(nodePopupHtml(n), {maxWidth:1160,minWidth:280,autoPan:false});
     marker.on('popupopen',()=>{
       const popupNodeNum=Number(n.nodeNum);
       if(Number(nodePopupDragState.nodeNum)!==popupNodeNum)resetNodePopupDrag(popupNodeNum);
