@@ -1856,9 +1856,10 @@ function applyNodePopupDragOffset(nodeNum){
 
   let x=Number(nodePopupDragState.x)||0;
   let y=Number(nodePopupDragState.y)||0;
+  const hasSaved=nodePopupDragState.left!==null&&nodePopupDragState.left!==undefined&&nodePopupDragState.top!==null&&nodePopupDragState.top!==undefined;
   const savedLeft=Number(nodePopupDragState.left);
   const savedTop=Number(nodePopupDragState.top);
-  if(Number.isFinite(savedLeft)&&Number.isFinite(savedTop)){
+  if(hasSaved&&Number.isFinite(savedLeft)&&Number.isFinite(savedTop)){
     popup.style.marginLeft='0px';
     popup.style.marginTop='0px';
     const mapRect=map.getContainer().getBoundingClientRect();
