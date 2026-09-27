@@ -6,6 +6,7 @@ import csv
 import hashlib
 import hmac
 import io
+import ipaddress
 import json
 import os
 import re
@@ -53,6 +54,16 @@ TRAFFIC_ARCHIVE_DB = Path(os.getenv(
     "TRAFFIC_ARCHIVE_DB",
     "/var/lib/traffic-analyzer/traffic.db",
 ))
+ACCESS_LOG_FILE = Path(os.getenv(
+    "TA_ACCESS_LOG_FILE",
+    str(TRAFFIC_ARCHIVE_DB.parent / "access.log"),
+))
+ACCESS_LOG_MAX_BYTES = max(1_000_000, int(os.getenv("TA_ACCESS_LOG_MAX_BYTES", str(20 * 1024 * 1024))))
+ACCESS_RETENTION_DAYS = max(0, int(os.getenv("TA_ACCESS_RETENTION_DAYS", "365")))
+ACCESS_GEOIP_URL = str(os.getenv("TA_ACCESS_GEOIP_URL", "")).strip()
+_access_log_lock = threading.Lock()
+_access_geo_lock = threading.Lock()
+_access_geo_cache = {}
 ARCHIVE_POLL_SECONDS = max(1.0, float(os.getenv("ARCHIVE_POLL_SECONDS", "2")))
 ARCHIVE_PAGE_SIZE = max(100, min(int(os.getenv("ARCHIVE_PAGE_SIZE", "500")), 1000))
 ARCHIVE_OVERLAP_MS = max(1000, int(os.getenv("ARCHIVE_OVERLAP_MS", "10000")))
