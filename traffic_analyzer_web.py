@@ -1125,7 +1125,7 @@ const nodeMarkers = new Map();
 let openNodeNum = null;
 let suppressNodePopupClose = false;
 let openNodePopupScrollTop = 0;
-let nodePopupDragState={nodeNum:null,x:0,y:0};
+let nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
 let nodesSortKey = 'lastInteraction';
 let nodesSortDir = 'desc';
 let nodesFilterText = '';
@@ -1817,12 +1817,34 @@ function resetNodePopupPosition(nodeNum){
   applyNodePopupDragOffset(nodeNum);
 }
 function closeNodePopupWindow(nodeNum){
-  if(Number(nodePopupDragState.nodeNum)===Number(nodeNum))nodePopupDragState={nodeNum:null,x:0,y:0};
+  if(Number(nodePopupDragState.nodeNum)===Number(nodeNum))nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
   openNodeNum=null;openNodePopupScrollTop=0;
   map.closePopup();
 }
 function resetNodePopupDrag(nodeNum){
-  nodePopupDragState={nodeNum:Number(nodeNum),x:0,y:0};
+  nodePopupDragState={nodeNum:Number(nodeNum),x:0,y:0,left:null,top:null};
+}
+function rememberNodePopupScreenPosition(nodeNum,popup){
+  if(!popup)return;
+  const mapRect=map.getContainer().getBoundingClientRect();
+  const rect=popup.getBoundingClientRect();
+  if(Number(nodePopupDragState.nodeNum)!==Number(nodeNum))resetNodePopupDrag(nodeNum);
+  nodePopupDragState.left=rect.left-mapRect.left;
+  nodePopupDragState.top=rect.top-mapRect.top;
+}
+function clampNodePopupDrag(popup,x,y){
+  popup.style.marginLeft=String(x)+'px';
+  popup.style.marginTop=String(y)+'px';
+  const mapRect=map.getContainer().getBoundingClientRect();
+  const rect=popup.getBoundingClientRect();
+  const pad=6;
+  const minLeft=mapRect.left+pad;
+  const minTop=mapRect.top+pad;
+  const maxLeft=Math.max(minLeft,mapRect.right-pad-rect.width);
+  const maxTop=Math.max(minTop,mapRect.bottom-pad-rect.height);
+  const targetLeft=Math.min(maxLeft,Math.max(minLeft,rect.left));
+  const targetTop=Math.min(maxTop,Math.max(minTop,rect.top));
+  return {x:x+(targetLeft-rect.left),y:y+(targetTop-rect.top)};
 }
 function applyNodePopupDragOffset(nodeNum){
   const n=Number(nodeNum);
@@ -1831,22 +1853,26 @@ function applyNodePopupDragOffset(nodeNum){
   if(!popup)return;
   if(Number(nodePopupDragState.nodeNum)!==n)resetNodePopupDrag(n);
   popup.classList.add('nodePopupFloating');
-  popup.style.marginLeft=String(Number(nodePopupDragState.x)||0)+'px';
-  popup.style.marginTop=String(Number(nodePopupDragState.y)||0)+'px';
-  popup.classList.toggle('nodePopupDetached',Math.abs(Number(nodePopupDragState.x)||0)>3||Math.abs(Number(nodePopupDragState.y)||0)>3);
-}
-function clampNodePopupDrag(popup,x,y){
-  popup.style.marginLeft=String(x)+'px';
-  popup.style.marginTop=String(y)+'px';
-  const mapRect=map.getContainer().getBoundingClientRect();
-  const rect=popup.getBoundingClientRect();
-  const pad=6;
-  let nx=x,ny=y;
-  if(rect.left<mapRect.left+pad)nx+=(mapRect.left+pad)-rect.left;
-  if(rect.right>mapRect.right-pad)nx-=rect.right-(mapRect.right-pad);
-  if(rect.top<mapRect.top+pad)ny+=(mapRect.top+pad)-rect.top;
-  if(rect.bottom>mapRect.bottom-pad)ny-=rect.bottom-(mapRect.bottom-pad);
-  return {x:nx,y:ny};
+
+  let x=Number(nodePopupDragState.x)||0;
+  let y=Number(nodePopupDragState.y)||0;
+  const savedLeft=Number(nodePopupDragState.left);
+  const savedTop=Number(nodePopupDragState.top);
+  if(Number.isFinite(savedLeft)&&Number.isFinite(savedTop)){
+    popup.style.marginLeft='0px';
+    popup.style.marginTop='0px';
+    const mapRect=map.getContainer().getBoundingClientRect();
+    const base=popup.getBoundingClientRect();
+    x=(mapRect.left+savedLeft)-base.left;
+    y=(mapRect.top+savedTop)-base.top;
+  }
+  const next=clampNodePopupDrag(popup,x,y);
+  popup.style.marginLeft=String(next.x)+'px';
+  popup.style.marginTop=String(next.y)+'px';
+  nodePopupDragState.x=next.x;
+  nodePopupDragState.y=next.y;
+  rememberNodePopupScreenPosition(n,popup);
+  popup.classList.toggle('nodePopupDetached',Math.abs(next.x)>3||Math.abs(next.y)>3);
 }
 function initNodePopupDrag(nodeNum){
   const n=Number(nodeNum);
@@ -1884,7 +1910,7 @@ function initNodePopupDrag(nodeNum){
     if(!active||e.pointerId!==pointerId)return;
     e.preventDefault();e.stopPropagation();
     const next=clampNodePopupDrag(popup,startOffsetX+(e.clientX-startX),startOffsetY+(e.clientY-startY));
-    nodePopupDragState={nodeNum:n,x:next.x,y:next.y};
+    nodePopupDragState={nodeNum:n,x:next.x,y:next.y,left:null,top:null};
     applyNodePopupDragOffset(n);
   });
   handle.addEventListener('pointerup',finish);
@@ -2002,7 +2028,7 @@ function render(){
         if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
       });
     });
-    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;nodePopupDragState={nodeNum:null,x:0,y:0};}});
+    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};}});
     marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
   }
 
@@ -2798,7 +2824,7 @@ function openNodeFromList(nodeNum){
   map.closePopup();
   openNodeNum=null;
   openNodePopupScrollTop=0;
-  nodePopupDragState={nodeNum:null,x:0,y:0};
+  nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
   setView('map');
   setTimeout(()=>{
     const latlng=marker.getLatLng();
