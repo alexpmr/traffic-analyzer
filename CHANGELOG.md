@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.35.0 - 2026-09-27
+
+- Torna o botão Tudo das consultas ao nó não bloqueante: todas as perguntas são disparadas na mesma rodada, com espaçamento de 700 ms entre transmissões, sem aguardar timeout da anterior.
+- Reduz o timeout interativo das consultas para 15 s e acompanha cada tarefa de forma independente.
+- Adiciona barra de progresso individual para NodeInfo, Position, Power, Traceroute, Device, Environment, Air Quality e Neighbor Info.
+- Exibe os resultados assim que cada resposta é detectada e mostra o tempo de resposta de cada consulta concluída.
+- Corrige a detecção de Telemetry para exigir o subtipo correspondente à consulta em vez de aceitar qualquer pacote TELEMETRY_APP.
+- Reordena as consultas para Informações do nó, Posição, Energia, Traceroute, Dispositivo, Ambiente, Qualidade do ar, Vizinhos e Tudo.
+- Torna o popup de informações do nó redimensionável e adiciona Expandir/Restaurar, preservando o comportamento de arraste.
+- Ao clicar no indicador de versão, força uma nova consulta ao GitHub e abre o popup com o estado atual ou com as novidades da versão disponível.
+- Mantém no popup de versão o link direto para a Release e adiciona botão Fechar.
+- Altera a verificação automática de novas versões para uma vez por hora.
+- Preserva todos os recursos da v1.34.0.
+
 ## 1.34.0 - 2026-09-26
 
 - Detecta respostas reais de NodeInfo, Position e Telemetry pelo tráfego RX observado no MeshMonitor.
