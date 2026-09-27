@@ -1,6 +1,20 @@
-# Traffic Analyzer v1.35.1
+# Traffic Analyzer v1.36.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.36.0
+
+- Substitui o popup de nó do Leaflet por uma **janela flutuante independente** sobre o mapa.
+- A janela pode ser **arrastada livremente pelo cabeçalho**, sem mover o mapa.
+- Adiciona **redimensionamento real** pelo canto inferior direito, permitindo ampliar e reduzir largura e altura.
+- Inclui controles **Reposicionar**, **Expandir/Restaurar** e **Fechar** sempre visíveis no cabeçalho.
+- O modo Expandir usa toda a área útil do mapa e o Restaurar volta ao tamanho e posição anteriores.
+- A posição e o tamanho da janela são preservados durante atualizações de topologia e enquanto chegam respostas de NodeInfo, Position, Telemetry, Neighbor Info e Traceroute.
+- O conteúdo passa a ter **rolagem interna própria**, sem limitar a janela ao comportamento do popup nativo do Leaflet.
+- Ao clicar em outro nó do mapa, a mesma janela é reutilizada e atualizada, sem depender de reabrir popup ancorado ao marcador.
+- Corrige a exibição de erro de **Neighbor Info**: respostas HTML/404 do MeshMonitor deixam de aparecer cruas e passam a ser mostradas como endpoint indisponível/não suportado.
+- Mantém as consultas assíncronas, barras de progresso e a ordem de consultas introduzidas na v1.35.1.
+- Preserva todos os demais recursos da v1.35.1.
 
 ## Novidades da v1.35.1
 
