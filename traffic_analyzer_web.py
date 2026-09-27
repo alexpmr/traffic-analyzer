@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.35.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.35.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.35.0"
+APP_VERSION = "1.35.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -4106,7 +4106,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1350';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1351';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4181,6 +4181,11 @@ function latestPackageUrl(data){
 async function handleVersionBadgeClick(){
   const badge=document.getElementById('versionBadge');
   if(badge){badge.classList.add('checking');badge.textContent=`v__APP_VERSION__ · ${tr('verificando…')}`;}
+  const summary=document.getElementById('versionModalSummary');
+  const notes=document.getElementById('versionNotes');
+  if(summary)summary.textContent=tr('Consultando a versão publicada…');
+  if(notes)notes.textContent=tr('Sem informações carregadas.');
+  document.getElementById('versionModalBackdrop').classList.add('open');
   const d=await checkVersionStatus(true);
   renderVersionStatus(d);
   openVersionModal();
