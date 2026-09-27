@@ -3320,7 +3320,7 @@ function startTrafficPolling(){ if(trafficTimer)clearInterval(trafficTimer); tra
 function toggleTrafficPause(){ trafficPaused=!trafficPaused; document.getElementById('trafficPause').textContent=trafficPaused?'Retomar':'Pausar'; document.getElementById('trafficLive').textContent=trafficPaused?'● PAUSADO':'● AO VIVO'; if(!trafficPaused)pollTraffic(); }
 
 
-let healthLoadedAt=0, anomalyLoadedAt=0, anomalyPayload=null;
+let healthLoadedAt=0, anomalyLoadedAt=0, anomalyPayload=null, accessLoadedAt=0, accessPayload=null;
 function fmtNum(v,dec=0){ const n=Number(v); return Number.isFinite(n)?n.toLocaleString(uiLocale(),{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—'; }
 function healthCard(value,label,sub=''){return `<div class="dashCard"><div class="value">${esc(value)}</div><div class="label">${esc(label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;}
 async function loadNetworkHealth(force=false){
@@ -3367,6 +3367,72 @@ async function loadAnomalies(force=false){
 document.getElementById('healthReload').addEventListener('click',()=>loadNetworkHealth(true));
 document.getElementById('anomalyReload').addEventListener('click',()=>loadAnomalies(true));
 document.getElementById('anomalySeverity').addEventListener('change',renderAnomalies);
+
+function accessClientSummary(rows,label){
+  const items=(rows||[]).slice(0,8);
+  if(!items.length)return '<div class="emptyPanel">Sem dados.</div>';
+  return '<div class="dashGrid">'+items.map(x=>healthCard(fmtNum(x.accesses),x.name,label)).join('')+'</div>';
+}
+function renderAccessStats(){
+  const b=accessPayload;if(!b)return;
+  document.getElementById('accessLocked').style.display='none';
+  document.getElementById('accessContent').style.display='';
+  document.getElementById('accessUpdated').textContent=`${tr('Atualizado ✓')} · ${new Date(b.generatedAtMs).toLocaleTimeString(uiLocale())}`;
+  const s=b.summary||{};
+  document.getElementById('accessCards').innerHTML=[
+    healthCard(fmtNum(s.today),tr('Acessos hoje')),
+    healthCard(fmtNum(s.last7d),tr('Acessos - 7 dias')),
+    healthCard(fmtNum(s.last30d),tr('Acessos - 30 dias')),
+    healthCard(fmtNum(s.uniqueIps30d),tr('IPs únicos - 30 dias')),
+    healthCard(fmtNum(s.loginSuccess30d),tr('Logins com sucesso - 30 dias')),
+    healthCard(fmtNum(s.loginFailed30d),tr('Falhas de login - 30 dias'))
+  ].join('');
+
+  const daily=b.daily||[],max=Math.max(1,...daily.map(x=>Number(x.accesses||0)));
+  document.getElementById('accessDaily').innerHTML=daily.map(x=>{
+    const pct=Math.max(2,Math.round(90*Number(x.accesses||0)/max));
+    const label=String(x.day||'').slice(5).split('-').reverse().join('/');
+    return `<div class="miniBarWrap"><div class="miniBarValue" style="--h:${pct}px">${fmtNum(x.accesses)}</div><div class="miniBar" style="height:${pct}px"></div><div class="miniBarLabel">${esc(label)}</div></div>`;
+  }).join('')||'<div class="emptyPanel">Sem dados no período.</div>';
+
+  document.getElementById('accessCountryRows').innerHTML=(b.countries||[]).map(x=>`<tr><td><b>${esc(tr(x.country||'Não informado'))}</b></td><td>${fmtNum(x.accesses)}</td><td>${fmtNum(x.unique_ips)}</td></tr>`).join('')||'<tr><td colspan="3" class="emptyPanel">Sem dados.</td></tr>';
+  document.getElementById('accessCityRows').innerHTML=(b.cities||[]).map(x=>`<tr><td><b>${esc(tr(x.city||'Não informado'))}</b></td><td>${esc(tr(x.country||'Não informado'))}</td><td>${fmtNum(x.accesses)}</td><td>${fmtNum(x.unique_ips)}</td></tr>`).join('')||'<tr><td colspan="4" class="emptyPanel">Sem dados.</td></tr>';
+  document.getElementById('accessIpRows').innerHTML=(b.ips||[]).map(x=>{
+    const where=[x.city,x.country].filter(Boolean).map(v=>tr(v)).join(' / ')||tr('Não informado');
+    return `<tr><td><code>${esc(x.ip||'—')}</code></td><td>${esc(where)}</td><td><b>${fmtNum(x.accesses)}</b></td><td>${x.first_seen?esc(new Date(Number(x.first_seen)).toLocaleString(uiLocale())):'—'}</td><td>${x.last_seen?esc(new Date(Number(x.last_seen)).toLocaleString(uiLocale())):'—'}</td><td>${esc(x.user_agent||'—')}</td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="emptyPanel">Sem dados.</td></tr>';
+
+  document.getElementById('accessClients').innerHTML=
+    '<h4>'+esc(tr('Navegador'))+'</h4>'+accessClientSummary(b.browsers,'')+
+    '<h4>Sistema operacional</h4>'+accessClientSummary(b.operatingSystems,'');
+
+  const geoText=b.geoipConfigured
+    ? 'GeoIP externo configurado no servidor.'
+    : 'Cidade/país usam cabeçalhos do proxy/CDN quando disponíveis. Sem esses cabeçalhos, IPs públicos permanecem como “Não informado”; nenhum IP é enviado a serviço externo por padrão.';
+  document.getElementById('accessNote').textContent=`Log: ${b.logFile}. Retenção: ${b.retentionDays||0} dias. ${geoText}`;
+}
+async function loadAccessStats(force=false){
+  if(!force&&accessPayload&&Date.now()-accessLoadedAt<30000){renderAccessStats();return;}
+  const days=Number(document.getElementById('accessDays')?.value||30);
+  try{
+    const r=await fetch(`/api/access-stats?days=${encodeURIComponent(days)}`,{cache:'no-store'});
+    if(r.status===401){
+      document.getElementById('accessLocked').style.display='';
+      document.getElementById('accessContent').style.display='none';
+      document.getElementById('accessUpdated').textContent='';
+      return;
+    }
+    const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
+    accessPayload=b;accessLoadedAt=Date.now();renderAccessStats();
+  }catch(e){
+    document.getElementById('accessCards').innerHTML=healthCard('Erro','Acessos',String(e.message||e));
+  }
+}
+document.getElementById('accessReload').addEventListener('click',()=>loadAccessStats(true));
+document.getElementById('accessDays').addEventListener('change',()=>loadAccessStats(true));
+document.getElementById('accessDownload').addEventListener('click',()=>{
+  window.location.href='/api/access-log';
+});
 
 async function loadNodeTrafficActivity(){
   try{
