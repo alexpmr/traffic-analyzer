@@ -2024,6 +2024,7 @@ function render(){
       if(Number(nodePopupDragState.nodeNum)!==popupNodeNum)resetNodePopupDrag(popupNodeNum);
       openNodeNum=popupNodeNum;
       setTimeout(()=>initNodePopupDrag(popupNodeNum),0);
+      setTimeout(()=>initNodePopupDrag(popupNodeNum),90);
       loadNodeDetails(n.nodeNum,true).catch(e=>{
         const el=document.getElementById(`nodeTelemetry-${Number(n.nodeNum)}`);
         if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
@@ -2036,11 +2037,14 @@ function render(){
   if(reopenNodeNum!==null && nodeMarkers.has(Number(reopenNodeNum))){
     const reopenMarker=nodeMarkers.get(Number(reopenNodeNum));
     reopenMarker.openPopup();
-    setTimeout(()=>{
+    const restorePopupPosition=()=>{
       const el=document.querySelector('.leaflet-popup .nodePopup');
       if(el)el.scrollTop=openNodePopupScrollTop||0;
       initNodePopupDrag(reopenNodeNum);
-    },0);
+    };
+    setTimeout(restorePopupPosition,0);
+    setTimeout(restorePopupPosition,90);
+    setTimeout(restorePopupPosition,260);
   }
   setTimeout(()=>{suppressNodePopupClose=false;},250);
   renderNodesTable();
