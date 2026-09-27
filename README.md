@@ -1,6 +1,19 @@
-# Traffic Analyzer v1.34.0
+# Traffic Analyzer v1.35.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.35.0
+
+- O botão **Tudo** das consultas ao nó deixa de aguardar resposta/timeout de cada pergunta antes de enviar a próxima. As solicitações são disparadas em uma única rodada, com **700 ms de espaçamento** entre transmissões para evitar rajadas desnecessárias na malha.
+- Cada consulta passa a ser acompanhada de forma **independente e assíncrona**. Uma pergunta sem resposta não bloqueia as demais e os resultados aparecem no popup à medida que chegam.
+- O timeout interativo das consultas foi reduzido para **15 s** e cada linha ganhou **barra de progresso própria**, além do estado final respondido/timeout/erro/não aplicável.
+- Respostas concluídas mostram também o **tempo de resposta**, facilitando diferenciar latência real de ausência de suporte.
+- A detecção de Telemetry passa a respeitar o **subtipo efetivamente recebido**: Device, Environment, Air Quality e Power não são mais considerados respondidos apenas porque qualquer pacote `TELEMETRY_APP` chegou.
+- A ordem das consultas no popup passa a ser **Informações do nó → Posição → Energia → Traceroute → Dispositivo → Ambiente → Qualidade do ar → Vizinhos → Tudo**.
+- O popup de informações do nó passa a ser **redimensionável**, mantém o arraste já existente e ganha botão **Expandir/Restaurar** para ocupar a área útil do mapa quando houver muito conteúdo.
+- O indicador de versão passa a fazer uma **checagem forçada ao ser clicado**. O popup mostra a versão instalada, a versão publicada e as melhorias/notas da Release, com acesso direto ao GitHub e botão **Fechar**.
+- A verificação automática de nova versão passa a ocorrer **a cada 1 hora**, além da verificação feita na abertura da interface.
+- Preserva todos os recursos da v1.34.0.
 
 ## Novidades da v1.34.0
 

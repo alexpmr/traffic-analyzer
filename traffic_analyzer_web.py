@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.34.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.35.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.34.0"
+APP_VERSION = "1.35.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -74,7 +74,7 @@ _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "
 _topology_refresh_lock = threading.Lock()
 _version_status_lock = threading.Lock()
 _version_status_cache = {"checked_at": 0.0, "data": None}
-VERSION_CHECK_TTL_SECONDS = 900
+VERSION_CHECK_TTL_SECONDS = 3600
 GITHUB_RELEASES_LATEST_URL = "https://api.github.com/repos/alexpmr/traffic-analyzer/releases/latest"
 UPDATE_SETTINGS_FILE = Path(os.getenv("UPDATE_SETTINGS_FILE", "/var/lib/traffic-analyzer/update-settings.json"))
 UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-analyzer/update-request.json"))
@@ -317,9 +317,9 @@ HTML = r'''<!doctype html>
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
   .leaflet-popup-pane{z-index:1200}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}.leaflet-popup.nodePopupFloating{z-index:1300}.leaflet-popup.nodePopupDragging{z-index:1400}.leaflet-popup.nodePopupDetached .leaflet-popup-tip-container{display:none}.leaflet-popup a.leaflet-popup-close-button{z-index:30}
   .nodePopupDragHandle{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;margin:0 0 7px;padding:3px 0 7px 0;background:#17212b;border-bottom:1px solid rgba(64,86,104,.75);cursor:grab;touch-action:none;user-select:none}.nodePopupDragHandle:active{cursor:grabbing}.nodePopupDragGlyph{flex:0 0 auto;color:#7fd0ff;font-size:16px;font-weight:900;line-height:1}.nodePopupDragText{min-width:0;flex:1}.nodePopupDragHint{flex:0 0 auto;color:#8194a5;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.nodePopupHeaderActions{display:flex;align-items:center;gap:5px;flex:0 0 auto}.nodePopupHeaderActions button{font-size:10px;padding:4px 8px;cursor:pointer}.nodePopupCloseVisible{background:#462a2e;border-color:#87515a;color:#ffd5da;font-weight:800}.nodePopupReset{background:#213744}.nodePopupStaticHandle{margin-bottom:7px}
-  .nodePopup{width:min(1120px,calc(100vw - 70px));max-width:1120px;max-height:min(80vh,760px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
-  @media(max-width:900px){.nodePopup{width:min(720px,calc(100vw - 50px));max-height:74vh}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
-  @media(max-width:600px){.nodePopup{width:76vw;min-width:0;max-width:76vw;max-height:68vh;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
+  .nodePopup{width:min(1120px,calc(100vw - 90px));max-width:calc(100vw - 28px);min-width:min(560px,calc(100vw - 28px));min-height:260px;max-height:calc(100vh - 70px);overflow:auto;resize:both;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeQueryProgress{height:4px;margin-top:4px;border-radius:999px;overflow:hidden;background:#263846}.nodeQueryProgressBar{height:100%;width:0;background:#6fc7ff;transition:width .25s linear}.nodeQueryOk .nodeQueryProgressBar{background:#58d68d}.nodeQueryTimeout .nodeQueryProgressBar{background:#f2c94c}.nodeQueryError .nodeQueryProgressBar{background:#ff6b6b}.leaflet-popup.nodePopupMaximized{left:8px!important;top:8px!important;transform:none!important;margin:0!important;width:calc(100% - 16px)!important;height:calc(100% - 16px)!important;max-width:none!important}.leaflet-popup.nodePopupMaximized .leaflet-popup-content-wrapper{width:100%;height:100%;box-sizing:border-box}.leaflet-popup.nodePopupMaximized .leaflet-popup-content{width:100%!important;height:100%;margin:0;padding:10px;box-sizing:border-box}.leaflet-popup.nodePopupMaximized .nodePopup{width:100%;height:100%;max-width:none;max-height:none;min-width:0;min-height:0;resize:none}.leaflet-popup.nodePopupMaximized .leaflet-popup-tip-container{display:none}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
+  @media(max-width:900px){.nodePopup{width:min(720px,calc(100vw - 50px));min-width:0;max-height:calc(100vh - 60px);resize:vertical}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
+  @media(max-width:600px){.nodePopup{width:calc(100vw - 44px);min-width:0;max-width:calc(100vw - 44px);min-height:220px;max-height:calc(100vh - 54px);resize:vertical;padding-right:4px}.nodeMetaGrid{grid-template-columns:1fr}.nodeMetaValue{margin-bottom:3px}.nodeQueryRow{grid-template-columns:18px minmax(90px,1fr)}.nodeQueryState{grid-column:2}}
   .warn{color:#ffcc66}
   .short-label{background:rgba(14,22,33,.88);border:1px solid #405668;color:#fff;border-radius:4px;padding:1px 4px;font-weight:700;box-shadow:none}
   .short-label:before{display:none}
@@ -439,7 +439,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div class="versionModalHead"><h2 id="versionModalTitle">Versão do Traffic Analyzer</h2><button id="versionModalClose" class="versionClose" type="button" title="Fechar">×</button></div>
     <p id="versionModalSummary" class="settingDesc">Consultando a versão publicada…</p>
     <div id="versionNotes" class="versionNotes">Sem informações carregadas.</div>
-    <div class="versionActions"><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionContinue" type="button">Continuar</button></div>
+    <div class="versionActions"><a id="versionReleaseLink" href="https://github.com/alexpmr/traffic-analyzer/releases/latest" target="_blank" rel="noopener noreferrer">Ver Release no GitHub</a><button id="versionCloseAction" type="button">Fechar</button><button id="versionContinue" type="button">Continuar</button></div>
   </div>
 </div>
 <div id="whatsNewBackdrop" class="versionModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="whatsNewTitle">
@@ -834,7 +834,7 @@ let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
 function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
 
 const I18N_PAIRS=[
-  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
+  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
   ['Filtrar:','Filter:'],['Limpar filtro','Clear filter'],['nome, ID, hardware...','name, ID, hardware...'],['VHF3 sem posição','VHF3 has no position'],['Nó sem posição conhecida; não é possível focalizá-lo no mapa.','Node has no known position; it cannot be focused on the map.'],
   ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
@@ -855,7 +855,7 @@ const I18N_PAIRS=[
   ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
   ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
   ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
-  ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
+  ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['verificando…','checking…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
   ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['círculos visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
   ['Observações:','Observations:'],['Ida:','Outbound:'],['Volta:','Return:'],['SNR médio:','Average SNR:'],['Faixa SNR:','SNR range:'],['Última observação:','Last observation:'],['canal:','channel:'],['Estado:','State:'],['Posição:','Position:'],['Último tráfego:','Last traffic:'],['Situação:','Status:'],['Public key:','Public key:'],['Short name:','Short name:'],['sim','yes'],['não','no'],
@@ -1126,6 +1126,7 @@ let openNodeNum = null;
 let suppressNodePopupClose = false;
 let openNodePopupScrollTop = 0;
 let nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
+let nodePopupExpandedNode=null;
 let nodesSortKey = 'lastInteraction';
 let nodesSortDir = 'desc';
 let nodesFilterText = '';
@@ -1492,17 +1493,17 @@ function edgeStatsForWindow(e, cutoff){
 const NODE_QUERY_DEFS=[
   {id:'nodeinfo',label:'Informações do nó'},
   {id:'position',label:'Posição'},
+  {id:'telemetry_power',label:'Métricas de energia'},
+  {id:'traceroute',label:'Traceroute'},
   {id:'telemetry_device',label:'Métricas do dispositivo'},
   {id:'telemetry_environment',label:'Métricas ambientais'},
   {id:'telemetry_airQuality',label:'Qualidade do ar'},
-  {id:'telemetry_power',label:'Métricas de energia'},
-  {id:'neighbors',label:'Informações de vizinhos'},
-  {id:'traceroute',label:'Traceroute'}
+  {id:'neighbors',label:'Informações de vizinhos'}
 ];
 const nodeQueryRuns=new Map();
-const NODE_QUERY_TIMEOUT_MS=30000;
-const NODE_QUERY_POLL_MS=2000;
-const NODE_QUERY_GUARD_MS=4000;
+const NODE_QUERY_TIMEOUT_MS=15000;
+const NODE_QUERY_POLL_MS=1000;
+const NODE_QUERY_STAGGER_MS=700;
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
@@ -1532,6 +1533,14 @@ function nodeQueryRun(nodeNum){
   }
   return nodeQueryRuns.get(key);
 }
+function nodeQueryIsTerminal(s){return Boolean(s&&['received','timeout','error','unsupported'].includes(s.state));}
+function nodeQueryProgressPct(s){
+  if(!s||s.state==='idle')return 0;
+  if(s.state==='sending')return 8;
+  if(nodeQueryIsTerminal(s))return 100;
+  if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/NODE_QUERY_TIMEOUT_MS)*100)));
+  return 0;
+}
 function nodeQueryStateHtml(nodeNum){
   const run=nodeQueryRun(nodeNum);
   return NODE_QUERY_DEFS.map(d=>{
@@ -1543,7 +1552,8 @@ function nodeQueryStateHtml(nodeNum){
     else if(s.state==='timeout'){mark='⌛';cls='nodeQueryTimeout';txt=s.message||tr('sem resposta / timeout');}
     else if(s.state==='error'){mark='✕';cls='nodeQueryError';txt=s.message||tr('erro');}
     else if(s.state==='unsupported'){mark='—';cls='';txt=s.message||tr('não suportado / não aplicável');}
-    return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(tr(d.label))}</b></div><div class="nodeQueryState">${esc(txt)}</div></div>`;
+    const pct=nodeQueryProgressPct(s);
+    return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(tr(d.label))}</b></div><div class="nodeQueryState"><div>${esc(txt)}</div><div class="nodeQueryProgress" aria-hidden="true"><div class="nodeQueryProgressBar" style="width:${pct}%"></div></div></div></div>`;
   }).join('');
 }
 function nodeMetadataHtml(base,details){
@@ -1589,7 +1599,7 @@ function nodePopupHtml(n,draggable=true){
   const coords=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(6)}, ${lon.toFixed(6)}`:null;
   const trafficAge=nodeTrafficAge(n);
   const titleBlock=draggable
-    ? `<div class="nodePopupDragHandle" data-node-drag="${Number(n.nodeNum)}" title="${esc(tr('Arraste para mover'))}"><span class="nodePopupDragGlyph" aria-hidden="true">⠿</span><div class="nodePopupDragText"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div><span class="nodePopupDragHint">${esc(tr('arraste'))}</span><div class="nodePopupHeaderActions"><button class="nodePopupReset" type="button" onclick="event.stopPropagation();resetNodePopupPosition(${Number(n.nodeNum)})">↺ ${esc(tr('Reposicionar'))}</button><button class="nodePopupCloseVisible" type="button" onclick="event.stopPropagation();closeNodePopupWindow(${Number(n.nodeNum)})">${esc(tr('Fechar'))}</button></div></div>`
+    ? `<div class="nodePopupDragHandle" data-node-drag="${Number(n.nodeNum)}" title="${esc(tr('Arraste para mover'))}"><span class="nodePopupDragGlyph" aria-hidden="true">⠿</span><div class="nodePopupDragText"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div><span class="nodePopupDragHint">${esc(tr('arraste'))}</span><div class="nodePopupHeaderActions"><button id="nodePopupExpand-${Number(n.nodeNum)}" class="nodePopupReset" type="button" onclick="event.stopPropagation();toggleNodePopupExpanded(${Number(n.nodeNum)})">⛶ ${esc(tr('Expandir'))}</button><button class="nodePopupReset" type="button" onclick="event.stopPropagation();resetNodePopupPosition(${Number(n.nodeNum)})">↺ ${esc(tr('Reposicionar'))}</button><button class="nodePopupCloseVisible" type="button" onclick="event.stopPropagation();closeNodePopupWindow(${Number(n.nodeNum)})">${esc(tr('Fechar'))}</button></div></div>`
     : `<div class="nodePopupStaticHandle"><div class="nodePopupTitle">${esc(n.name||n.nodeId)}</div><div class="nodePopupId">${esc(n.nodeId||'')}</div></div>`;
   return `<div class="nodePopup" id="nodePopup-${Number(n.nodeNum)}">
     ${titleBlock}
@@ -1611,12 +1621,12 @@ function nodePopupHtml(n,draggable=true){
       <div class="nodeQueryButtons">
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'nodeinfo')">${esc(tr('Informações do nó'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'position')">${esc(tr('Posição'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_power')">${esc(tr('Energia'))}</button>
+        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'traceroute')">Traceroute</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_device')">${esc(tr('Dispositivo'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_environment')">${esc(tr('Ambiente'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_airQuality')">${esc(tr('Qualidade do ar'))}</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'telemetry_power')">${esc(tr('Energia'))}</button>
         <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'neighbors')">${esc(tr('Vizinhos'))}</button>
-        <button type="button" onclick="sendNodeQuery(${Number(n.nodeNum)},'traceroute')">Traceroute</button>
         <button id="nodeAllBtn-${Number(n.nodeNum)}" type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">${esc(tr('Tudo'))}</button>
       </div>
       <div class="nodeQueryList" id="nodeQueries-${Number(n.nodeNum)}">${nodeQueryStateHtml(n.nodeNum)}</div>
@@ -1673,13 +1683,21 @@ function renderNodePopupData(nodeNum,details){
   if(q)q.innerHTML=nodeQueryStateHtml(nodeNum);
   const allBtn=document.getElementById(`nodeAllBtn-${Number(nodeNum)}`);
   if(allBtn){
+    const order=run.allOrder||NODE_QUERY_DEFS.map(d=>d.id);
+    run.allDone=order.filter(id=>nodeQueryIsTerminal(run.states[id])).length;
+    run.allTotal=order.length;
     allBtn.disabled=Boolean(run.allActive);
     allBtn.textContent=run.allActive?`${tr('Tudo')} ${Number(run.allDone||0)}/${Number(run.allTotal||0)}`:tr('Tudo');
   }
 }
 function telemetrySignal(details,kind){
   const rows=((details||{}).telemetry||{}).latest||[]; let max=0;
-  for(const r of rows){if(r.kind===kind){const t=Number(r.timestamp||r.createdAt||0);if(t>max)max=t;}}
+  for(const r of rows){
+    if(r.kind!==kind)continue;
+    let t=Number(r.timestamp||r.createdAt||0);
+    if(t>0&&t<10000000000)t*=1000;
+    if(t>max)max=t;
+  }
   return max||null;
 }
 function latestResponsePacketMs(details,port){
@@ -1700,18 +1718,10 @@ function nodeResponseSignal(action,details){
     if(pos>0&&pos<10000000000)pos*=1000;
     return Math.max(Number(latestResponsePacketMs(details,'POSITION_APP')||0),Number(pos||0))||null;
   }
-  if(action==='telemetry_device'){
-    return Math.max(Number(telemetrySignal(details,'device')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
-  }
-  if(action==='telemetry_environment'){
-    return Math.max(Number(telemetrySignal(details,'environment')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
-  }
-  if(action==='telemetry_airQuality'){
-    return Math.max(Number(telemetrySignal(details,'airQuality')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
-  }
-  if(action==='telemetry_power'){
-    return Math.max(Number(telemetrySignal(details,'power')||0),Number(latestResponsePacketMs(details,'TELEMETRY_APP')||0))||null;
-  }
+  if(action==='telemetry_device')return telemetrySignal(details,'device');
+  if(action==='telemetry_environment')return telemetrySignal(details,'environment');
+  if(action==='telemetry_airQuality')return telemetrySignal(details,'airQuality');
+  if(action==='telemetry_power')return telemetrySignal(details,'power');
   if(action==='neighbors')return latestResponsePacketMs(details,'NEIGHBORINFO_APP')||Number(details.neighbors?.latestTimestamp||0)||null;
   if(action==='traceroute'){
     const tr=details.traceroute;
@@ -1730,16 +1740,18 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
   if(checkResponses){
     const now=Date.now();
     for(const d of NODE_QUERY_DEFS){
-      const s=run.states[d.id];if(!s||s.state!=='waiting')continue;
+      const s=run.states[d.id];if(!s||!['waiting','timeout'].includes(s.state)||!s.sentAt)continue;
       const current=Number(nodeResponseSignal(d.id,b)||0);
       const responded=Number.isFinite(current)&&current>=Math.max(0,Number(s.sentAt||0)-1000);
-      if(responded){s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} ${new Date(current||now).toLocaleTimeString(uiLocale())}`;}
-      else if(now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){s.state='timeout';s.message=tr('sem resposta / timeout');}
+      if(responded){
+        const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
+        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}`;
+      }else if(s.state==='waiting'&&now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){s.state='timeout';s.message=tr('sem resposta / timeout');}
     }
   }
   renderNodePopupData(nodeNum,b);
   const pending=Object.values(run.states).some(s=>s.state==='waiting'||s.state==='sending');
-  if(pending)scheduleNodePolling(nodeNum);else stopNodePolling(nodeNum);
+  if(pending&&!run.allActive)scheduleNodePolling(nodeNum);else if(!pending)stopNodePolling(nodeNum);
   return b;
 }
 function stopNodePolling(nodeNum){const run=nodeQueryRun(nodeNum);if(run.pollTimer){clearTimeout(run.pollTimer);run.pollTimer=null;}}
@@ -1791,20 +1803,22 @@ async function runAllNodeQueries(nodeNum){
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const hops=Number(run.details?.node?.hopsAway);
     if(Number.isFinite(hops)&&hops>0){
-      const s=run.states.neighbors;s.state='unsupported';s.message=tr('somente nó local ou 0-hop');
+      const ns=run.states.neighbors;ns.state='unsupported';ns.message=tr('somente nó local ou 0-hop');
     }
-    const order=['nodeinfo','position','telemetry_device','telemetry_environment','telemetry_airQuality','telemetry_power'];
-    if(!(Number.isFinite(hops)&&hops>0))order.push('neighbors');
-    order.push('traceroute');
+    const order=['nodeinfo','position','telemetry_power','traceroute','telemetry_device','telemetry_environment','telemetry_airQuality','neighbors'];
+    run.allOrder=order;
     run.allTotal=order.length;
     renderNodePopupData(nodeNum,run.details);
-    for(const action of order){
-      await sendNodeQuery(nodeNum,action,true);
-      const sent=run.states[action];
-      if(sent&&['waiting','sending'].includes(sent.state))await waitNodeQueryTerminal(nodeNum,action);
-      run.allDone=(run.allDone||0)+1;
+    for(let i=0;i<order.length;i++){
+      const action=order[i];
+      if(run.states[action]?.state!=='unsupported')await sendNodeQuery(nodeNum,action,true);
       renderNodePopupData(nodeNum,run.details);
-      if(action!==order[order.length-1])await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_GUARD_MS));
+      if(i<order.length-1)await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_STAGGER_MS));
+    }
+    while(order.some(id=>['waiting','sending'].includes(run.states[id]?.state))){
+      await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_POLL_MS));
+      try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar rodada de consultas:',e);}
+      renderNodePopupData(nodeNum,run.details);
     }
   }finally{
     run.allActive=false;
@@ -1812,12 +1826,26 @@ async function runAllNodeQueries(nodeNum){
   }
 }
 
+function toggleNodePopupExpanded(nodeNum){
+  const n=Number(nodeNum);
+  nodePopupExpandedNode=Number(nodePopupExpandedNode)===n?null:n;
+  const inner=document.getElementById('nodePopup-'+n);
+  const popup=inner?.closest?.('.leaflet-popup');
+  if(!popup)return;
+  const expanded=Number(nodePopupExpandedNode)===n;
+  popup.classList.toggle('nodePopupMaximized',expanded);
+  const btn=document.getElementById('nodePopupExpand-'+n);
+  if(btn)btn.textContent=expanded?`↙ ${tr('Restaurar')}`:`⛶ ${tr('Expandir')}`;
+  if(!expanded)applyNodePopupDragOffset(n);
+}
 function resetNodePopupPosition(nodeNum){
+  nodePopupExpandedNode=null;
   resetNodePopupDrag(nodeNum);
   applyNodePopupDragOffset(nodeNum);
 }
 function closeNodePopupWindow(nodeNum){
   if(Number(nodePopupDragState.nodeNum)===Number(nodeNum))nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
+  if(Number(nodePopupExpandedNode)===Number(nodeNum))nodePopupExpandedNode=null;
   openNodeNum=null;openNodePopupScrollTop=0;
   map.closePopup();
 }
@@ -1853,6 +1881,11 @@ function applyNodePopupDragOffset(nodeNum){
   if(!popup)return;
   if(Number(nodePopupDragState.nodeNum)!==n)resetNodePopupDrag(n);
   popup.classList.add('nodePopupFloating');
+  const expanded=Number(nodePopupExpandedNode)===n;
+  popup.classList.toggle('nodePopupMaximized',expanded);
+  const expandBtn=document.getElementById('nodePopupExpand-'+n);
+  if(expandBtn)expandBtn.textContent=expanded?`↙ ${tr('Restaurar')}`:`⛶ ${tr('Expandir')}`;
+  if(expanded)return;
 
   let x=Number(nodePopupDragState.x)||0;
   let y=Number(nodePopupDragState.y)||0;
@@ -1897,6 +1930,7 @@ function initNodePopupDrag(nodeNum){
     e?.preventDefault?.();e?.stopPropagation?.();
   };
   handle.addEventListener('pointerdown',e=>{
+    if(Number(nodePopupExpandedNode)===n)return;
     if(e.pointerType==='mouse'&&e.button!==0)return;
     e.preventDefault();e.stopPropagation();
     active=true;pointerId=e.pointerId;
@@ -2021,7 +2055,7 @@ function render(){
     marker.bindPopup(nodePopupHtml(n), {maxWidth:1160,minWidth:280,autoPan:false});
     marker.on('popupopen',()=>{
       const popupNodeNum=Number(n.nodeNum);
-      if(Number(nodePopupDragState.nodeNum)!==popupNodeNum)resetNodePopupDrag(popupNodeNum);
+      if(Number(nodePopupDragState.nodeNum)!==popupNodeNum){resetNodePopupDrag(popupNodeNum);nodePopupExpandedNode=null;}
       openNodeNum=popupNodeNum;
       setTimeout(()=>initNodePopupDrag(popupNodeNum),0);
       setTimeout(()=>initNodePopupDrag(popupNodeNum),90);
@@ -2030,7 +2064,7 @@ function render(){
         if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
       });
     });
-    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};}});
+    marker.on('popupclose',()=>{if(!suppressNodePopupClose&&openNodeNum===Number(n.nodeNum)){openNodeNum=null;openNodePopupScrollTop=0;nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};nodePopupExpandedNode=null;}});
     marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
   }
 
@@ -4072,7 +4106,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1340';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1350';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4102,7 +4136,7 @@ function renderVersionStatus(data){
     badge.classList.add('error'); badge.textContent=`v${data?.localVersion||'__APP_VERSION__'} · não verificado`; badge.title='Não foi possível verificar a versão mais recente'; return;
   }
   if(data.updateAvailable){
-    badge.classList.add('update'); badge.textContent=`v${data.localVersion} → v${data.latestVersion} · BAIXAR`; badge.title=`Baixar Traffic Analyzer v${data.latestVersion}`;
+    badge.classList.add('update'); badge.textContent=`v${data.localVersion} → v${data.latestVersion} · NOVA`; badge.title=tr('Nova versão disponível - clique para ver as novidades');
   }else{
     badge.classList.add('current'); badge.textContent=`v${data.localVersion} · ATUALIZADO`; badge.title='Esta é a versão mais recente publicada';
   }
@@ -4144,25 +4178,16 @@ function latestPackageUrl(data){
   const url=String(data?.downloadUrl||'');
   return /^https:\/\/github\.com\/alexpmr\/traffic-analyzer\/releases\/download\/v[^/]+\/traffic-analyzer-(?:v[^/]+|latest)\.zip(?:\?.*)?$/i.test(url)?url:'';
 }
-function handleVersionBadgeClick(){
-  const d=versionStatusData||{};
-  if(d.updateAvailable){
-    const url=latestPackageUrl(d);
-    if(url){
-      const badge=document.getElementById('versionBadge');
-      const previous=badge.textContent;
-      badge.textContent=`v${d.latestVersion} · download iniciado`;
-      const a=document.createElement('a');
-      a.href=url;a.rel='noopener noreferrer';a.style.display='none';
-      document.body.appendChild(a);a.click();a.remove();
-      setTimeout(()=>{if(versionStatusData===d)renderVersionStatus(d);else badge.textContent=previous;},1800);
-      return;
-    }
-  }
+async function handleVersionBadgeClick(){
+  const badge=document.getElementById('versionBadge');
+  if(badge){badge.classList.add('checking');badge.textContent=`v__APP_VERSION__ · ${tr('verificando…')}`;}
+  const d=await checkVersionStatus(true);
+  renderVersionStatus(d);
   openVersionModal();
 }
 document.getElementById('versionBadge').addEventListener('click',handleVersionBadgeClick);
 document.getElementById('versionModalClose').addEventListener('click',closeVersionModal);
+document.getElementById('versionCloseAction').addEventListener('click',closeVersionModal);
 document.getElementById('versionModalBackdrop').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVersionModal();});
 document.getElementById('versionContinue').addEventListener('click',closeVersionModal);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeVersionModal();closeWhatsNew();closeAuthModal();}});
@@ -4199,7 +4224,7 @@ async function bootstrap(){
   checkVersionStatus(false);
   loadUpdateStatus();
   showWhatsNewIfNeeded();
-  setInterval(()=>checkVersionStatus(false),30*60*1000);
+  setInterval(()=>checkVersionStatus(false),60*60*1000);
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
