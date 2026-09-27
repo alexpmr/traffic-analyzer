@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.34.0 - 2026-09-26
+
+- Detecta respostas reais de NodeInfo, Position e Telemetry pelo tráfego RX observado no MeshMonitor.
+- Torna o botão Tudo sequencial, com timeout por pergunta, guarda entre transmissões, progresso e Traceroute por último.
+- Evita Neighbor Info em nós não locais/0-hop.
+- Deduplica metadados do popup pelo tipo, mantendo apenas a amostra mais recente.
+- Completa a tradução dinâmica do popup e mantém percentuais com uma casa decimal.
+- Aumenta a largura útil do popup, acrescenta Fechar/Reposicionar e preserva a posição arrastada por coordenada de tela durante refreshes.
+- Corrige a referência de distância da aba Nós para VHF3.
+- Colore o percentual da bateria em verde/amarelo/vermelho.
+- Adiciona filtro instantâneo caractere por caractere à aba Nós.
+- Ao clicar em um nó na lista, focaliza e aproxima o mapa sem abrir o popup automaticamente.
+- Adiciona a aba Acessos com estatísticas por dia, país, cidade, IP, navegador, sistema operacional e eventos de login.
+- Persiste o log bruto em access.log ao lado do traffic.db e indexa os eventos na tabela web_access.
+- Protege as estatísticas de acesso por autenticação administrativa quando habilitada.
+- Mantém GeoIP externo desabilitado por padrão; aceita cabeçalhos de proxy/CDN ou endpoint configurado explicitamente.
+- Adiciona testes de navegação da aba Acessos, autorização da API e persistência visual do popup após renderização.
+- Preserva todos os recursos da v1.33.0.
+
 ## 1.33.0 - 2026-09-26
 
 - Torna o popup de informações de nó arrastável pelo cabeçalho em mouse e touch.
