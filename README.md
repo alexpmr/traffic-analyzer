@@ -1,6 +1,29 @@
-# Traffic Analyzer v1.33.0
+# Traffic Analyzer v1.34.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.34.0
+
+- Refaz o acompanhamento das **consultas ao nó**: Node Info, Position e Telemetry passam a procurar uma resposta RX real do tipo correto no Packet Monitor do MeshMonitor, em vez de depender apenas da mudança do valor já salvo no NodeDB.
+- O botão **Tudo** passa a executar as consultas de forma realmente **sequencial**: envia uma pergunta, aguarda resposta ou timeout de 30 s, aplica uma guarda de 4 s e só então transmite a próxima. O Traceroute continua por último.
+- O botão Tudo exibe progresso `concluídas/total` durante a execução.
+- **Neighbor Info** é marcado como não aplicável e não é transmitido para nós com mais de 0 hop, evitando o HTTP 403 conhecido do MeshMonitor.
+- O check **✓ verde** só aparece após uma resposta nova observada; requisição aceita pelo servidor não é tratada como resposta.
+- A seção **Últimos metadados recebidos** passa a manter somente a amostra mais recente de cada tipo, preservando o histórico completo no MeshMonitor/banco.
+- Rótulos de consultas, estados e metadados do popup passam pelo mecanismo de idioma. Em Português, termos como Informações do nó, Posição, Métricas do dispositivo, Saltos da mensagem e SNR remoto deixam de aparecer em inglês.
+- Percentuais continuam padronizados com uma casa decimal.
+- O popup do nó fica mais largo em desktop, com limite de aproximadamente **1120 px**, botão **Fechar** destacado e botão **Reposicionar**.
+- A posição arrastada do popup passa a ser preservada por coordenada de tela, inclusive quando a topologia é regenerada e o marcador/popup precisa ser reconstruído.
+- Na aba **Nós**, a distância passa a usar explicitamente o **VHF3** como referência.
+- A bateria na lista de nós recebe cor no próprio percentual: verde ≥ 50%, amarelo de 20% a 49,9% e vermelho < 20%.
+- A aba Nós ganha filtro instantâneo caractere por caractere, pesquisando nome, short name, Node ID, hardware, role e demais campos disponíveis.
+- Clicar em um nó na lista agora apenas leva ao **Mapa**, centraliza o marcador e aplica zoom mais próximo; o popup só abre se o usuário clicar no marcador.
+- Nova aba **Acessos**, restrita ao administrador quando a autenticação está habilitada, com análise de acessos por dia, países, cidades, IPs, navegadores, sistemas operacionais, logins bem-sucedidos e falhas de login.
+- Cada abertura da interface também é gravada em **`/var/lib/traffic-analyzer/access.log`**, por padrão no mesmo diretório do `traffic.db`, em formato JSON Lines.
+- Os acessos também são indexados na tabela `web_access` do `traffic.db` para permitir estatísticas rápidas. A retenção padrão é 365 dias e o arquivo bruto gira ao atingir 20 MiB.
+- País/cidade são obtidos de cabeçalhos confiáveis de proxy/CDN, endereços locais/privados ou de um endpoint GeoIP explicitamente configurado. **Nenhum IP público é enviado a serviço externo por padrão.**
+- A aba Acessos permite baixar o `access.log` bruto.
+- Preserva todos os recursos da v1.33.0.
 
 ## Novidades da v1.33.0
 
