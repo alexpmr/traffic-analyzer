@@ -128,6 +128,8 @@ append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_PORT" "4404"
 append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_PYTHON" "$APP_DIR/.venv/bin/python"
 append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_HELPER" "$APP_DIR/meshtastic_query.py"
 append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_CONNECT_TIMEOUT" "10"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_QUERY_TIMEOUT" "30"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_QUERY_STATE_DIR" "$STATE_DIR/query-jobs"
 chmod 0600 "$MAP_ENV_FILE"
 
 # Preserva estado/topologia ja coletados, se existirem.
@@ -172,7 +174,12 @@ if [[ ! -x "$VIRTUAL_ENV_DIR/bin/python" ]]; then
   fi
 fi
 if [[ -x "$VIRTUAL_ENV_DIR/bin/python" ]]; then
-  if ! "$VIRTUAL_ENV_DIR/bin/python" -c 'import meshtastic' >/dev/null 2>&1; then
+  if ! "$VIRTUAL_ENV_DIR/bin/python" - "$MESHTASTIC_PY_VERSION" <<'PY' >/dev/null 2>&1
+import importlib.metadata, sys
+want=sys.argv[1]
+raise SystemExit(0 if importlib.metadata.version("meshtastic")==want else 1)
+PY
+  then
     echo "Instalando cliente Meshtastic ${MESHTASTIC_PY_VERSION} no ambiente do Traffic Analyzer..."
     if ! "$VIRTUAL_ENV_DIR/bin/pip" install --disable-pip-version-check --quiet "meshtastic[cli]==${MESHTASTIC_PY_VERSION}"; then
       echo "AVISO: não foi possível instalar o cliente Meshtastic. O modo auto usará fallback explícito para a API do MeshMonitor." >&2
