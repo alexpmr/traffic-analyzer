@@ -1883,16 +1883,23 @@ function nodeRoutingEvidence(action,s,details){
   }
   return null;
 }
+function routingErrorCode(value){
+  const numeric=Number(value);
+  if(Number.isFinite(numeric))return numeric;
+  const map={NONE:0,ACK:0,NO_ROUTE:1,GOT_NAK:2,TIMEOUT:3,NO_INTERFACE:4,MAX_RETRANSMIT:5,NO_CHANNEL:6,TOO_LARGE:7,NO_RESPONSE:8,DUTY_CYCLE_LIMIT:9,BAD_REQUEST:32,NOT_AUTHORIZED:33,PKI_FAILED:34,PKI_UNKNOWN_PUBKEY:35,ADMIN_BAD_SESSION_KEY:36,ADMIN_PUBLIC_KEY_UNAUTHORIZED:37,RATE_LIMIT_EXCEEDED:38,PKI_SEND_FAIL_PUBLIC_KEY:39};
+  const key=String(value||'').trim().toUpperCase();
+  return Object.prototype.hasOwnProperty.call(map,key)?map[key]:null;
+}
 function routingErrorName(code){
   const names={0:'ACK',1:'NO_ROUTE',2:'GOT_NAK',3:'TIMEOUT',4:'NO_INTERFACE',5:'MAX_RETRANSMIT',6:'NO_CHANNEL',7:'TOO_LARGE',8:'NO_RESPONSE',9:'DUTY_CYCLE_LIMIT',32:'BAD_REQUEST',33:'NOT_AUTHORIZED',34:'PKI_FAILED',35:'PKI_UNKNOWN_PUBKEY',36:'ADMIN_BAD_SESSION_KEY',37:'ADMIN_PUBLIC_KEY_UNAUTHORIZED',38:'RATE_LIMIT_EXCEEDED',39:'PKI_SEND_FAIL_PUBLIC_KEY'};
-  const n=Number(code);return Number.isFinite(n)?(names[n]||('ROUTING_'+n)):'ROUTING';
+  const n=routingErrorCode(code);return n===null?String(code||'ROUTING'):(names[n]||('ROUTING_'+n));
 }
 function nodeRoutingResultMessage(code){
-  const name=routingErrorName(code);
-  if(Number(code)===8)return `${tr('destino respondeu')}: NO_RESPONSE · ${tr('o nó recebeu a solicitação, mas não forneceu esse dado')}`;
-  if(Number(code)===1)return `${tr('destino respondeu')}: NO_ROUTE · ${tr('não foi encontrada rota até o nó')}`;
-  if(Number(code)===6)return `${tr('destino respondeu')}: NO_CHANNEL · ${tr('canal não disponível para a solicitação')}`;
-  if(Number(code)===33)return `${tr('destino respondeu')}: NOT_AUTHORIZED · ${tr('solicitação não autorizada nesse canal')}`;
+  const n=routingErrorCode(code),name=routingErrorName(code);
+  if(n===8)return `${tr('destino respondeu')}: NO_RESPONSE · ${tr('o nó recebeu a solicitação, mas não forneceu esse dado')}`;
+  if(n===1)return `${tr('destino respondeu')}: NO_ROUTE · ${tr('não foi encontrada rota até o nó')}`;
+  if(n===6)return `${tr('destino respondeu')}: NO_CHANNEL · ${tr('canal não disponível para a solicitação')}`;
+  if(n===33)return `${tr('destino respondeu')}: NOT_AUTHORIZED · ${tr('solicitação não autorizada nesse canal')}`;
   return `${tr('destino respondeu')}: ${name}`;
 }
 function nodeQueryWaitingMessage(action,s,details,now=Date.now()){
@@ -1963,6 +1970,76 @@ function nodeResponseSignal(action,details,state=null){
   }
   return null;
 }
+function virtualQueryDetail(status){
+  const bits=[];
+  if(status?.responsePort)bits.push(String(status.responsePort));
+  const ch=Number(status?.channel);
+  if(Number.isInteger(ch)&&ch>=0&&ch<=7)bits.push('canal '+ch);
+  const sn=Number(status?.rxSnr);
+  if(Number.isFinite(sn))bits.push('SNR '+sn.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})+' dB');
+  const rs=Number(status?.rxRssi);
+  if(Number.isFinite(rs))bits.push('RSSI '+Math.round(rs)+' dBm');
+  return bits.join(' · ');
+}
+async function refreshVirtualQueryState(action,s){
+  const queryId=String(s?.diagnostic?.queryId||'');
+  if(!queryId)return false;
+  try{
+    const r=await fetch(`/api/node-query-status?queryId=${encodeURIComponent(queryId)}&_=${Date.now()}`,{cache:'no-store'});
+    const b=await r.json();
+    if(r.status===401)return false;
+    if(!r.ok){s.state='error';s.message=b.message||b.error||`HTTP ${r.status}`;return true;}
+    if(b.packetId){
+      const pid=Number(b.packetId);
+      if(Number.isFinite(pid)&&pid>0){s.diagnostic.packetId=pid;s.diagnostic.correlationPacketId=pid;}
+    }
+    if(b.sentAtMs){
+      const sent=Number(b.sentAtMs);
+      if(Number.isFinite(sent)&&sent>0)s.sentAt=sent;
+    }
+    const state=String(b.state||'');
+    if(state==='queued'){
+      s.message=tr('aguardando vez no Virtual Node');
+      return true;
+    }
+    if(state==='connecting'){
+      s.message=tr('conectando ao Virtual Node');
+      return true;
+    }
+    if(state==='waiting'){
+      const pid=Number(b.packetId||s.diagnostic?.packetId||0);
+      s.message=`Virtual Node enviou${pid?' · packet '+pid:''} · ${tr('aguardando resposta correlacionada')}`;
+      return true;
+    }
+    if(state==='received'){
+      const received=Number(b.receivedAtMs||Date.now());
+      const latency=Math.max(0,(received-Number(s.sentAt||received))/1000);
+      const detail=virtualQueryDetail(b);
+      s.state='received';s.receivedAt=received;
+      s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(received).toLocaleTimeString(uiLocale())}${detail?' · '+detail:''}`;
+      return true;
+    }
+    if(state==='routing_error'){
+      s.state='error';
+      s.message=nodeRoutingResultMessage(b.routingErrorReason??b.error);
+      return true;
+    }
+    if(state==='timeout'){
+      s.state='timeout';
+      s.message=b.error||`${tr('sem resposta correlacionada')} em ${Number(s.diagnostic?.queryTimeout||30)} s`;
+      return true;
+    }
+    if(state==='error'||state==='not_found'){
+      s.state='error';s.message=b.error||b.message||tr('erro');
+      return true;
+    }
+    return true;
+  }catch(e){
+    s.message=`${tr('aguardando resposta correlacionada')} · status: ${String(e.message||e)}`;
+    return true;
+  }
+}
+
 async function loadNodeDetails(nodeNum,checkResponses=true){
   const r=await fetch(`/api/node-details?nodeNum=${encodeURIComponent(Number(nodeNum))}&_=${Date.now()}`,{cache:'no-store'});
   const b=await r.json();
@@ -1972,6 +2049,10 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
     const now=Date.now();
     for(const d of NODE_QUERY_DEFS){
       const s=run.states[d.id];if(!s||!['waiting','timeout'].includes(s.state)||!s.sentAt)continue;
+      if(s.diagnostic?.backend==='virtual-node'&&s.diagnostic?.queryId){
+        await refreshVirtualQueryState(d.id,s);
+        continue;
+      }
       const current=Number(nodeResponseSignal(d.id,b,s)||0);
       const responded=Number.isFinite(current)&&current>=Math.max(0,Number(s.sentAt||0)-1000);
       if(responded){
