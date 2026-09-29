@@ -180,11 +180,11 @@ jobs:
               assert labels==["🇧🇷 Português","🇺🇸 English"],labels
               assert d.find_element(By.ID,"uiLanguageMenu").get_attribute("class").find("open")>=0
               opts[1].click()
-              assert d.execute_script("return currentLang")==="en"
+              assert d.execute_script("return currentLang")=="en"
               assert "🇺🇸" in d.find_element(By.ID,"uiLanguageButton").text
               assert d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="map"]').text=="Map"
               d.execute_script("applyLanguage('pt-BR',true)")
-              assert d.execute_script("return currentLang")==="pt-BR"
+              assert d.execute_script("return currentLang")=="pt-BR"
 
               osm_url=d.execute_script("return baseMaps.osm.url")
               assert osm_url=="https://tile.openstreetmap.org/{z}/{x}/{y}.png",osm_url
