@@ -4806,10 +4806,30 @@ def _node_details(node_num):
                     ts *= 1000
             except Exception:
                 continue
+            metadata = item.get("metadata")
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except Exception:
+                    metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            decoded = metadata.get("decoded_payload")
+            if not isinstance(decoded, dict):
+                decoded = {}
+            request_id = (
+                metadata.get("requestId") or metadata.get("request_id")
+                or decoded.get("requestId") or decoded.get("request_id")
+            )
+            error_reason = decoded.get("errorReason")
+            if error_reason is None:
+                error_reason = decoded.get("error_reason")
             response_packets.append({
                 "port": port,
                 "timestampMs": ts,
                 "packetId": item.get("packet_id") or item.get("packetId"),
+                "requestId": request_id,
+                "routingErrorReason": error_reason if port == "ROUTING_APP" else None,
                 "channel": item.get("channel"),
                 "rssi": item.get("rssi"),
                 "snr": item.get("snr"),
@@ -4821,6 +4841,56 @@ def _node_details(node_num):
         response_packets.sort(key=lambda x: int(x.get("timestampMs") or 0), reverse=True)
     except Exception:
         response_packets = []
+
+    # Solicitações TX observadas no Packet Monitor. Isso permite acompanhar
+    # retries automáticos do MeshMonitor (especialmente Telemetry) sem
+    # presumir que a primeira tentativa falhou definitivamente.
+    request_packets = []
+    try:
+        params = urllib.parse.urlencode({
+            "limit": "250",
+            "to_node": str(n),
+            "since": str(since_ms),
+        })
+        req_body = _mm_api_get(f"/api/v1/sources/{source}/packets?{params}")
+        req_rows = req_body.get("data", []) if isinstance(req_body, dict) else []
+        allowed_request_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP"}
+        for item in req_rows:
+            if not isinstance(item, dict):
+                continue
+            port = str(item.get("portnum_name") or "")
+            if port not in allowed_request_ports:
+                continue
+            direction = str(item.get("direction") or "").lower()
+            if direction and direction != "tx":
+                continue
+            ts = item.get("timestamp") or item.get("created_at") or item.get("createdAt")
+            try:
+                ts = int(float(ts))
+                if ts < 10_000_000_000:
+                    ts *= 1000
+            except Exception:
+                continue
+            metadata = item.get("metadata")
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except Exception:
+                    metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            request_packets.append({
+                "port": port,
+                "timestampMs": ts,
+                "packetId": metadata.get("packetId") or item.get("packet_id") or item.get("packetId"),
+                "requestId": metadata.get("requestId") or metadata.get("request_id"),
+                "telemetryType": metadata.get("telemetryType"),
+                "channel": item.get("channel"),
+                "payloadPreview": item.get("payload_preview"),
+            })
+        request_packets.sort(key=lambda x: int(x.get("timestampMs") or 0))
+    except Exception:
+        request_packets = []
 
     relevant_traces = []
     try:
