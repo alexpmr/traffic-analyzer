@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.5 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.37.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.5"
+APP_VERSION = "1.37.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -359,6 +359,16 @@ HTML = r'''<!doctype html>
   .activityLeafletIcon{background:transparent!important;border:0!important}.activityPulse{position:relative;width:46px;height:46px;display:flex;align-items:center;justify-content:center;transform:translate(-1px,-1px);pointer-events:none}.activityPulse .activityCore{position:relative;z-index:3;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;border:2px solid #fff;box-shadow:0 0 12px rgba(255,255,255,.75);animation:activityBounce var(--taDur,1s) ease-out both}.activityPulse:before,.activityPulse:after{content:'';position:absolute;inset:7px;border-radius:50%;border:3px solid currentColor;opacity:.9;animation:activityRing var(--taDur,1s) ease-out both}.activityPulse:after{animation-delay:.16s}.activityPulse.origin{color:#38d6ff}.activityPulse.origin .activityCore{background:#0c6b82}.activityPulse.relay{color:#ffcf4a}.activityPulse.relay .activityCore{background:#8a6810}.activityPulse.response{color:#a970ff}.activityPulse.response .activityCore{background:#5a3482}@keyframes activityRing{0%{transform:scale(.45);opacity:.95}100%{transform:scale(1.65);opacity:0}}@keyframes activityBounce{0%{transform:scale(.7)}35%{transform:scale(1.25)}100%{transform:scale(1)}}
   .traceHud{background:rgba(14,22,33,.90);border:1px solid #405668;border-radius:8px;color:#e8edf2;padding:7px 9px;min-width:260px;max-width:410px;max-height:34vh;overflow:auto;box-shadow:0 6px 18px rgba(0,0,0,.28);pointer-events:none}.traceHud:empty{display:none}.traceHudItem{padding:5px 0;border-bottom:1px solid rgba(64,86,104,.55)}.traceHudItem:last-child{border-bottom:0}.traceHudHead{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.traceHudTotal{color:#ffd166;font-weight:700;margin-left:5px}.traceHudLeg{font-size:10px;color:#b9c7d2;margin-top:2px}.traceHudLeg.active{color:#fff;font-weight:800}.traceHudLeg .forward{color:#54e8ff}.traceHudLeg .return{color:#ff83e7}.traceHudDim{color:#8093a3}
 
+  /* Estatísticas consolidadas */
+  #viewStatistics{overflow:auto;background:#0e1621}
+  .statsShell{width:100%;box-sizing:border-box;min-height:100%}
+  .statsTopbar{position:sticky;top:0;z-index:20;background:#101b26;border-bottom:1px solid #304353;padding:10px 14px;box-shadow:0 5px 14px rgba(0,0,0,.18)}
+  .statsHeader{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.statsHeader h2{margin:0 auto 0 0;font-size:18px}
+  .statsTabs{display:flex;gap:5px;flex-wrap:wrap}.statsTab{font-weight:700;font-size:12px;padding:6px 9px}.statsTab.active{background:#e4b800;color:#101820;border-color:#ffe34d}
+  .statsPanel{display:none}.statsPanel.active{display:block}
+  .statsOverviewText{background:#17212b;border:1px solid #304353;border-left:4px solid #e4b800;border-radius:8px;padding:12px 14px;line-height:1.55;margin:10px 0 12px}
+  .statsSplit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.statsCompactTable{min-width:560px}
+  @media(max-width:900px){.statsSplit{grid-template-columns:1fr}.statsTopbar{position:static}}
   /* v1.15 - Saúde da Rede e Anomalias */
   #viewHealth,#viewAnomalies,#viewAccess{overflow:auto;background:#0e1621}
   .dashboardWrap{width:100%;box-sizing:border-box;padding:14px;max-width:1500px;margin:0 auto}
@@ -515,9 +525,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <button class="navbtn" data-view="nodes">Nós</button>
     <button class="navbtn" data-view="traffic">Tráfego</button>
     <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
-    <button class="navbtn" data-view="health">Saúde da Rede</button>
-    <button class="navbtn" data-view="anomalies">Anomalias</button>
-    <button class="navbtn" data-view="access">Acessos</button>
+    <button class="navbtn" data-view="statistics">Estatísticas</button>
     <button class="navbtn" data-view="settings">Configurações</button>
     <button class="navbtn" data-view="help">Ajuda</button>
   </div>
@@ -651,44 +659,29 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <textarea id="messageInput" rows="1" placeholder="Digite uma mensagem"></textarea><span id="messageCounter" class="msgCounter">0 B</span><span class="mentionHelp">Use @ para localizar um nó; o @ é removido antes da transmissão.</span><button id="messageSend" title="Enviar">➤</button>
   </div>
 </section>
-<section id="viewHealth" class="view">
-  <div class="dashboardWrap">
-    <div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div>
-    <div id="healthCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div>
-    <div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div>
-    <div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div>
-    <div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable" style="min-width:520px"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div>
-    <div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div>
-    <div class="methodNote">Os indicadores usam o histórico persistente do Traffic Analyzer e a topologia observada pelo MeshMonitor. O ranking de chat conta interações acumuladas registradas no canal primário. Ausência de tráfego não prova falha física; pode representar um nó silencioso, desligado ou fora do alcance da fonte.</div>
-  </div>
-</section>
-<section id="viewAnomalies" class="view">
-  <div class="dashboardWrap">
-    <div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><label class="anomalyFilter">Severidade: <select id="anomalySeverity"><option value="all" selected>Todas</option><option value="critical">Crítica</option><option value="warning">Atenção</option><option value="info">Informativa</option></select></label><button id="anomalyReload">Reanalisar</button></div>
-    <div id="anomalyCards" class="dashGrid"><div class="dashCard"><div class="label">Analisando...</div></div></div>
-    <div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div>
-    <div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas: silêncio prolongado, degradação de SNR, mudança relevante na quantidade de hops e traceroute assimétrico. Elas servem para priorizar investigação e não constituem prova isolada de defeito, indisponibilidade ou causalidade.</div></div>
-  </div>
-</section>
-<section id="viewAccess" class="view">
-  <div class="dashboardWrap">
-    <div class="dashboardToolbar">
-      <h2>Acessos</h2>
-      <span id="accessUpdated" class="settingDesc"></span>
-      <label>Período: <select id="accessDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="365">1 ano</option></select></label>
-      <button id="accessReload" type="button">Atualizar</button>
-      <button id="accessDownload" type="button">Baixar log</button>
+<section id="viewStatistics" class="view">
+  <div class="statsShell">
+    <div class="statsTopbar">
+      <div class="statsHeader">
+        <h2>Estatísticas</h2>
+        <label>Período: <select id="statsPeriod"><option value="1">1 h</option><option value="6">6 h</option><option value="24" selected>24 h</option><option value="168">7 dias</option><option value="720">30 dias</option><option value="all">Todo</option></select></label>
+        <label>Nó: <select id="statsNodeFilter"><option value="">Todos</option></select></label>
+        <button id="statsReload" type="button">Atualizar tudo</button><span id="statsUpdated" class="settingDesc"></span>
+      </div>
+      <div class="statsTabs">
+        <button class="statsTab active" data-stats-tab="overview">Visão Geral</button><button class="statsTab" data-stats-tab="network">Rede</button><button class="statsTab" data-stats-tab="rf">RF</button><button class="statsTab" data-stats-tab="routing">Routing</button><button class="statsTab" data-stats-tab="traffic">Tráfego</button><button class="statsTab" data-stats-tab="queries">Consultas</button><button class="statsTab" data-stats-tab="chat">Chat</button><button class="statsTab" data-stats-tab="energy">Energia</button><button class="statsTab" data-stats-tab="anomalies">Anomalias</button><button class="statsTab" data-stats-tab="access">Acessos</button>
+      </div>
     </div>
-    <div id="accessLocked" class="readOnlyBanner" style="display:none">🔒 Faça login como administrador para visualizar os registros de acesso.</div>
-    <div id="accessContent">
-      <div id="accessCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div>
-      <div class="dashSection"><h3>Acessos por dia</h3><div class="dashSectionBody"><div id="accessDaily" class="miniBars"></div></div></div>
-      <div class="dashSection"><h3>Países</h3><div class="dashSectionBody"><table class="dashTable" style="min-width:520px"><thead><tr><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCountryRows"></tbody></table></div></div>
-      <div class="dashSection"><h3>Cidades</h3><div class="dashSectionBody"><table class="dashTable" style="min-width:620px"><thead><tr><th>Cidade</th><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCityRows"></tbody></table></div></div>
-      <div class="dashSection"><h3>IPs</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>IP</th><th>Cidade / País</th><th>Acessos</th><th>Primeiro acesso</th><th>Último acesso</th><th>Navegador</th></tr></thead><tbody id="accessIpRows"></tbody></table></div></div>
-      <div class="dashSection"><h3>Navegadores e sistemas</h3><div id="accessClients" class="dashSectionBody"></div></div>
-      <div id="accessNote" class="methodNote"></div>
-    </div>
+    <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
+    <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
+    <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
+    <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody"></div></div></div></div>
+    <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
+    <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
+    <div id="statsPanelChat" class="statsPanel dashboardWrap"><div id="statsChatCards" class="dashGrid"></div><div class="dashSection"><h3>Nós com mais interações no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações acumuladas</th></tr></thead><tbody id="statsChatRows"></tbody></table></div></div></div>
+    <div id="statsPanelEnergy" class="statsPanel dashboardWrap"><div id="statsEnergyCards" class="dashGrid"></div><div class="dashSection"><h3>Bateria e energia dos nós</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Bateria</th><th>Tensão</th><th>Última interação</th></tr></thead><tbody id="statsEnergyRows"></tbody></table></div></div></div>
+    <div id="statsPanelAnomalies" class="statsPanel"><div id="viewAnomalies"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><label>Severidade: <select id="anomalySeverity"><option value="all" selected>Todas</option><option value="critical">Crítica</option><option value="warning">Atenção</option><option value="info">Informativa</option></select></label><button id="anomalyReload">Reanalisar</button></div><div id="anomalyCards" class="dashGrid"></div><div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div><div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas e servem para priorizar investigação; não constituem prova isolada de falha.</div></div></div></div></div>
+    <div id="statsPanelAccess" class="statsPanel"><div id="viewAccess"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Acessos</h2><span id="accessUpdated" class="settingDesc"></span><label>Período: <select id="accessDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="365">1 ano</option></select></label><button id="accessReload">Atualizar</button><button id="accessDownload">Baixar log</button></div><div id="accessLocked" class="readOnlyBanner" style="display:none">🔒 Faça login como administrador para visualizar os registros de acesso.</div><div id="accessContent"><div id="accessCards" class="dashGrid"></div><div class="dashSection"><h3>Acessos por dia</h3><div class="dashSectionBody"><div id="accessDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Países</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCountryRows"></tbody></table></div></div><div class="dashSection"><h3>Cidades</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Cidade</th><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCityRows"></tbody></table></div></div><div class="dashSection"><h3>IPs</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>IP</th><th>Cidade / País</th><th>Acessos</th><th>Primeiro acesso</th><th>Último acesso</th><th>Navegador</th></tr></thead><tbody id="accessIpRows"></tbody></table></div></div><div class="dashSection"><h3>Navegadores e sistemas</h3><div id="accessClients" class="dashSectionBody"></div></div><div id="accessNote" class="methodNote"></div></div></div></div></div>
   </div>
 </section>
 
@@ -3353,7 +3346,7 @@ setInterval(()=>{
 function setView(name){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',health:'viewHealth',anomalies:'viewAnomalies',access:'viewAccess',settings:'viewSettings',help:'viewHelp'};
+  const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',statistics:'viewStatistics',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
@@ -3361,9 +3354,7 @@ function setView(name){
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
   if(name==='settings'||name==='messages')applyAuthState();
-  if(name==='health') loadNetworkHealth();
-  if(name==='anomalies') loadAnomalies();
-  if(name==='access') loadAccessStats();
+  if(name==='statistics') loadStatistics(false);
 }
 
 function packetTypeClass(name){
@@ -3924,7 +3915,7 @@ function startTrafficPolling(){ if(trafficTimer)clearInterval(trafficTimer); tra
 function toggleTrafficPause(){ trafficPaused=!trafficPaused; document.getElementById('trafficPause').textContent=trafficPaused?'Retomar':'Pausar'; document.getElementById('trafficLive').textContent=trafficPaused?'● PAUSADO':'● AO VIVO'; if(!trafficPaused)pollTraffic(); }
 
 
-let healthLoadedAt=0, anomalyLoadedAt=0, anomalyPayload=null, accessLoadedAt=0, accessPayload=null;
+let healthLoadedAt=0, healthPayload=null, anomalyLoadedAt=0, anomalyPayload=null, accessLoadedAt=0, accessPayload=null, statisticsLoadedAt=0, statisticsPayload=null;
 function fmtNum(v,dec=0){ const n=Number(v); return Number.isFinite(n)?n.toLocaleString(uiLocale(),{minimumFractionDigits:dec,maximumFractionDigits:dec}):'—'; }
 function healthCard(value,label,sub=''){return `<div class="dashCard"><div class="value">${esc(value)}</div><div class="label">${esc(label)}</div>${sub?`<div class="sub">${esc(sub)}</div>`:''}</div>`;}
 async function loadNetworkHealth(force=false){
@@ -3933,7 +3924,7 @@ async function loadNetworkHealth(force=false){
   cards.innerHTML=healthCard('…','Calculando indicadores');
   try{
     const r=await fetch('/api/network-health',{cache:'no-store'}); if(!r.ok)throw new Error(`HTTP ${r.status}`); const b=await r.json();
-    healthLoadedAt=Date.now(); document.getElementById('healthUpdated').textContent=`atualizado ${new Date(b.generatedAtMs).toLocaleTimeString(uiLocale())}`;
+    healthLoadedAt=Date.now(); healthPayload=b; document.getElementById('healthUpdated').textContent=`atualizado ${new Date(b.generatedAtMs).toLocaleTimeString(uiLocale())}`;
     cards.innerHTML=[
       healthCard(b.nodes.active2h,'Nós ativos - 2 h',`${b.nodes.total} nós conhecidos`),
       healthCard(b.nodes.active24h,'Nós ativos - 24 h',`${b.nodes.silent24h} sem tráfego > 24 h`),
