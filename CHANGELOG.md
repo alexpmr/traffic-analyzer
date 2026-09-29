@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.37.0 - 2026-09-29
+
+- Reorganiza a navegação superior e cria a aba principal Estatísticas.
+- Move Saúde da Rede, Anomalias e Acessos para dentro de Estatísticas, preservando seus recursos.
+- Adiciona Visão Geral com KPIs e resumo textual automático do estado da rede.
+- Adiciona filtros por período e por nó para análises derivadas do histórico persistente.
+- Adiciona painéis de RF, Routing, Tráfego, Consultas, Chat e Energia.
+- Exibe relações observadas, médias de SNR/RSSI, distribuição por hops, relays mais observados e participação dos tipos de pacote.
+- Consolida TX/RX observados das consultas NodeInfo, Position, Telemetry, Traceroute e Routing.
+- Consolida bateria, tensão e alertas de bateria baixa quando esses dados existirem na topologia.
+- Mantém a distinção entre evidência lógica de tráfego e enlace RF físico.
+- Não altera o esquema do traffic.db e reutiliza as APIs de arquivo, topologia, saúde, anomalias e acessos.
+- Atualiza os testes automatizados de navegação para a nova arquitetura de Estatísticas.
+- Preserva todos os recursos da v1.36.5.
+
 ## 1.36.5 - 2026-09-29
 
 - Usa o Virtual Node do MeshMonitor como backend preferencial das consultas ativas, preservando Traceroute na API do MM.
