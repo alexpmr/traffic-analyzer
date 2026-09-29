@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.36.4"
+VERSION="1.36.5"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -61,6 +61,7 @@ install -d -m 0755 "$APP_DIR"
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR"
 install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
+install -m 0755 "$BASE_DIR/meshtastic_query.py" "$APP_DIR/meshtastic_query.py"
 install -m 0755 "$BASE_DIR/auto_update.py" "$APP_DIR/auto_update.py"
 install -m 0755 "$BASE_DIR/set_auth_password.py" "$APP_DIR/set_auth_password.py"
 install -m 0755 "$BASE_DIR/set_auth_password.py" /usr/local/sbin/traffic-analyzer-set-password
@@ -121,6 +122,14 @@ append_if_missing "$MAP_ENV_FILE" "TA_AUTH_USER" "admin"
 append_if_missing "$MAP_ENV_FILE" "TA_AUTH_PASSWORD_HASH" ""
 append_if_missing "$MAP_ENV_FILE" "TA_AUTH_SESSION_HOURS" "12"
 append_if_missing "$MAP_ENV_FILE" "TA_AUTH_SECURE_COOKIE" "auto"
+append_if_missing "$MAP_ENV_FILE" "TA_NODE_QUERY_BACKEND" "auto"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_HOST" "127.0.0.1"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_PORT" "4404"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_PYTHON" "$APP_DIR/.venv/bin/python"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_HELPER" "$APP_DIR/meshtastic_query.py"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_CONNECT_TIMEOUT" "10"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_QUERY_TIMEOUT" "30"
+append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_QUERY_STATE_DIR" "$STATE_DIR/query-jobs"
 chmod 0600 "$MAP_ENV_FILE"
 
 # Preserva estado/topologia ja coletados, se existirem.
@@ -149,6 +158,34 @@ if [[ ! -f "$UPDATE_STATUS_FILE" ]]; then
 fi
 chown "$SERVICE_USER:$SERVICE_GROUP" "$UPDATE_SETTINGS_FILE" "$UPDATE_STATUS_FILE"
 chmod 0640 "$UPDATE_SETTINGS_FILE" "$UPDATE_STATUS_FILE"
+
+# Backend de consultas ativas: usa o cliente Python oficial Meshtastic
+# em um venv somente-leitura para o serviço. Falha de instalação não derruba
+# o Traffic Analyzer: o modo auto registra a indisponibilidade e usa fallback
+# explícito para a API do MeshMonitor.
+VIRTUAL_ENV_DIR="$APP_DIR/.venv"
+MESHTASTIC_PY_VERSION="2.7.11"
+if [[ ! -x "$VIRTUAL_ENV_DIR/bin/python" ]]; then
+  if ! /usr/bin/python3 -m venv "$VIRTUAL_ENV_DIR" >/dev/null 2>&1; then
+    echo "Instalando python3-venv para habilitar consultas pelo Virtual Node..."
+    apt-get update
+    apt-get install -y python3-venv
+    /usr/bin/python3 -m venv "$VIRTUAL_ENV_DIR"
+  fi
+fi
+if [[ -x "$VIRTUAL_ENV_DIR/bin/python" ]]; then
+  if ! "$VIRTUAL_ENV_DIR/bin/python" - "$MESHTASTIC_PY_VERSION" <<'PY' >/dev/null 2>&1
+import importlib.metadata, sys
+want=sys.argv[1]
+raise SystemExit(0 if importlib.metadata.version("meshtastic")==want else 1)
+PY
+  then
+    echo "Instalando cliente Meshtastic ${MESHTASTIC_PY_VERSION} no ambiente do Traffic Analyzer..."
+    if ! "$VIRTUAL_ENV_DIR/bin/pip" install --disable-pip-version-check --quiet "meshtastic[cli]==${MESHTASTIC_PY_VERSION}"; then
+      echo "AVISO: não foi possível instalar o cliente Meshtastic. O modo auto usará fallback explícito para a API do MeshMonitor." >&2
+    fi
+  fi
+fi
 
 install -m 0644 "$BASE_DIR/traffic-analyzer.service" /etc/systemd/system/
 install -m 0644 "$BASE_DIR/traffic-analyzer.timer" /etc/systemd/system/

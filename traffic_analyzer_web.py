@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.4 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.5 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.4"
+APP_VERSION = "1.36.5"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -50,9 +50,31 @@ TOPOLOGY_FILE = Path(os.getenv(
 MM_BASE_URL = os.getenv("MM_BASE_URL", "http://127.0.0.1:3001").rstrip("/")
 MM_API_TOKEN = os.getenv("MM_API_TOKEN", "").strip()
 MM_SOURCE = os.getenv("MM_SOURCE", "default").strip() or "default"
+NODE_QUERY_BACKEND = os.getenv("TA_NODE_QUERY_BACKEND", "auto").strip().lower() or "auto"
+if NODE_QUERY_BACKEND not in {"auto", "virtual", "meshmonitor"}:
+    NODE_QUERY_BACKEND = "auto"
+VIRTUAL_NODE_HOST = os.getenv("TA_VIRTUAL_NODE_HOST", "127.0.0.1").strip() or "127.0.0.1"
+try:
+    VIRTUAL_NODE_PORT = int(os.getenv("TA_VIRTUAL_NODE_PORT", "4404"))
+except (TypeError, ValueError):
+    VIRTUAL_NODE_PORT = 4404
+VIRTUAL_NODE_PYTHON = os.getenv(
+    "TA_VIRTUAL_NODE_PYTHON",
+    str(Path(__file__).with_name(".venv") / "bin" / "python"),
+).strip()
+VIRTUAL_NODE_HELPER = Path(os.getenv(
+    "TA_VIRTUAL_NODE_HELPER",
+    str(Path(__file__).with_name("meshtastic_query.py")),
+))
+VIRTUAL_NODE_CONNECT_TIMEOUT = max(2, min(int(os.getenv("TA_VIRTUAL_NODE_CONNECT_TIMEOUT", "10")), 30))
+VIRTUAL_NODE_QUERY_TIMEOUT = max(10, min(int(os.getenv("TA_VIRTUAL_NODE_QUERY_TIMEOUT", "30")), 120))
 TRAFFIC_ARCHIVE_DB = Path(os.getenv(
     "TRAFFIC_ARCHIVE_DB",
     "/var/lib/traffic-analyzer/traffic.db",
+))
+VIRTUAL_QUERY_STATE_DIR = Path(os.getenv(
+    "TA_VIRTUAL_QUERY_STATE_DIR",
+    str(TRAFFIC_ARCHIVE_DB.parent / "query-jobs"),
 ))
 ACCESS_LOG_FILE = Path(os.getenv(
     "TA_ACCESS_LOG_FILE",
@@ -891,7 +913,7 @@ function updateLanguageMenu(){
 }
 
 const I18N_PAIRS=[
-  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['sem resposta inicial','no initial response'],['aguardando possível retry do MM','waiting for a possible MM retry'],['retry 1 do MM observado','MM retry 1 observed'],['aguardando segunda tentativa do MM','waiting for MM second attempt'],['retry 2 do MM observado','MM retry 2 observed'],['sem retry observado','no retry observed'],['janela do MM','MM window'],['sem resposta após 90 s','no response after 90 s'],['TX observado','TX observed'],['TX observados','TX observed'],['resposta tardia','late response'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
+  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas ativas usam o Virtual Node do MeshMonitor quando disponível. As respostas confirmadas atualizam este popup.','Active queries use the MeshMonitor Virtual Node when available. Confirmed responses update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['sem resposta inicial','no initial response'],['aguardando possível retry do MM','waiting for a possible MM retry'],['retry 1 do MM observado','MM retry 1 observed'],['aguardando segunda tentativa do MM','waiting for MM second attempt'],['retry 2 do MM observado','MM retry 2 observed'],['sem retry observado','no retry observed'],['janela do MM','MM window'],['sem resposta após 90 s','no response after 90 s'],['sem resposta correlacionada','no correlated response'],['aguardando resposta correlacionada','waiting for a correlated response'],['aguardando vez no Virtual Node','waiting for the Virtual Node'],['conectando ao Virtual Node','connecting to the Virtual Node'],['TX observado','TX observed'],['TX observados','TX observed'],['resposta tardia','late response'],['destino respondeu','destination replied'],['o nó recebeu a solicitação, mas não forneceu esse dado','the node received the request but did not provide this data'],['não foi encontrada rota até o nó','no route to the node was found'],['canal não disponível para a solicitação','channel unavailable for the request'],['solicitação não autorizada nesse canal','request not authorized on this channel'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
   ['Filtrar:','Filter:'],['Limpar filtro','Clear filter'],['nome, ID, hardware...','name, ID, hardware...'],['VHF3 sem posição','VHF3 has no position'],['Nó sem posição conhecida; não é possível focalizá-lo no mapa.','Node has no known position; it cannot be focused on the map.'],
   ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
@@ -1577,10 +1599,14 @@ const NODE_QUERY_DEFS=[
 const nodeQueryRuns=new Map();
 const NODE_QUERY_TIMEOUT_MS=20000;
 const NODE_QUERY_TELEMETRY_TIMEOUT_MS=90000;
+const NODE_QUERY_VIRTUAL_TIMEOUT_MS=30000;
 const NODE_QUERY_LATE_WATCH_MS=180000;
 const NODE_QUERY_POLL_MS=1000;
 const NODE_QUERY_STAGGER_MS=2000;
-function nodeQueryTimeoutMs(action){return String(action||'').startsWith('telemetry_')?NODE_QUERY_TELEMETRY_TIMEOUT_MS:NODE_QUERY_TIMEOUT_MS;}
+function nodeQueryTimeoutMs(action,state=null){
+  if(state?.diagnostic?.backend==='virtual-node')return NODE_QUERY_VIRTUAL_TIMEOUT_MS;
+  return String(action||'').startsWith('telemetry_')?NODE_QUERY_TELEMETRY_TIMEOUT_MS:NODE_QUERY_TIMEOUT_MS;
+}
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
@@ -1615,7 +1641,7 @@ function nodeQueryProgressPct(s,action){
   if(!s||s.state==='idle')return 0;
   if(s.state==='sending')return 8;
   if(nodeQueryIsTerminal(s))return 100;
-  const timeout=nodeQueryTimeoutMs(action);
+  const timeout=nodeQueryTimeoutMs(action,s);
   if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/timeout)*100)));
   return 0;
 }
@@ -1708,7 +1734,7 @@ function nodePopupHtml(n,draggable=true){
         <button id="nodeAllBtn-${Number(n.nodeNum)}" type="button" class="primary" onclick="runAllNodeQueries(${Number(n.nodeNum)})">${esc(tr('Tudo'))}</button>
       </div>
       <div class="nodeQueryList" id="nodeQueries-${Number(n.nodeNum)}">${nodeQueryStateHtml(n.nodeNum)}</div>
-      <div class="nodePopupActionsNote">${esc(tr('As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.'))}</div>
+      <div class="nodePopupActionsNote">${esc(tr('As consultas ativas usam o Virtual Node do MeshMonitor quando disponível. As respostas confirmadas atualizam este popup.'))}</div>
     </div>
     <div class="nodePopupSection">
       <div class="nodePopupSectionTitle">${esc(tr('Últimos metadados recebidos'))}</div>
@@ -1790,13 +1816,32 @@ function latestResponsePacket(details,port){
 function latestResponsePacketMs(details,port){
   return Number(latestResponsePacket(details,port)?.timestampMs||0)||null;
 }
-function nodeResponseDetail(action,details,signalMs){
-  let port=null;
-  if(action==='nodeinfo')port='NODEINFO_APP';
-  else if(action==='position')port='POSITION_APP';
-  else if(action==='neighbors')port='NEIGHBORINFO_APP';
-  else if(action.startsWith('telemetry_'))port='TELEMETRY_APP';
-  const p=port?latestResponsePacket(details,port):null;
+function nodeResponsePort(action){
+  if(action==='nodeinfo')return 'NODEINFO_APP';
+  if(action==='position')return 'POSITION_APP';
+  if(action==='neighbors')return 'NEIGHBORINFO_APP';
+  if(String(action||'').startsWith('telemetry_'))return 'TELEMETRY_APP';
+  return null;
+}
+function correlatedResponsePacket(action,details,state){
+  const packetId=Number(state?.diagnostic?.correlationPacketId||state?.diagnostic?.packetId||0);
+  const port=nodeResponsePort(action);
+  if(!packetId||!port)return null;
+  let best=null,bestTs=0;
+  for(const p of (details?.responses||[])){
+    if(String(p.port||'')!==port)continue;
+    if(Number(p.requestId||0)!==packetId)continue;
+    const ts=Number(p.timestampMs||0);
+    if(state?.sentAt&&ts<Number(state.sentAt)-1000)continue;
+    if(ts>bestTs){best=p;bestTs=ts;}
+  }
+  return best;
+}
+function nodeResponseDetail(action,details,signalMs,state=null){
+  const port=nodeResponsePort(action);
+  const p=state?.diagnostic?.backend==='virtual-node'
+    ? correlatedResponsePacket(action,details,state)
+    : (port?latestResponsePacket(details,port):null);
   if(!p)return '';
   const pts=Number(p.timestampMs||0),sig=Number(signalMs||0);
   if(sig&&pts&&Math.abs(pts-sig)>5000)return '';
@@ -1838,12 +1883,28 @@ function nodeRoutingEvidence(action,s,details){
   }
   return null;
 }
+function routingErrorCode(value){
+  const numeric=Number(value);
+  if(Number.isFinite(numeric))return numeric;
+  const map={NONE:0,ACK:0,NO_ROUTE:1,GOT_NAK:2,TIMEOUT:3,NO_INTERFACE:4,MAX_RETRANSMIT:5,NO_CHANNEL:6,TOO_LARGE:7,NO_RESPONSE:8,DUTY_CYCLE_LIMIT:9,BAD_REQUEST:32,NOT_AUTHORIZED:33,PKI_FAILED:34,PKI_UNKNOWN_PUBKEY:35,ADMIN_BAD_SESSION_KEY:36,ADMIN_PUBLIC_KEY_UNAUTHORIZED:37,RATE_LIMIT_EXCEEDED:38,PKI_SEND_FAIL_PUBLIC_KEY:39};
+  const key=String(value||'').trim().toUpperCase();
+  return Object.prototype.hasOwnProperty.call(map,key)?map[key]:null;
+}
 function routingErrorName(code){
   const names={0:'ACK',1:'NO_ROUTE',2:'GOT_NAK',3:'TIMEOUT',4:'NO_INTERFACE',5:'MAX_RETRANSMIT',6:'NO_CHANNEL',7:'TOO_LARGE',8:'NO_RESPONSE',9:'DUTY_CYCLE_LIMIT',32:'BAD_REQUEST',33:'NOT_AUTHORIZED',34:'PKI_FAILED',35:'PKI_UNKNOWN_PUBKEY',36:'ADMIN_BAD_SESSION_KEY',37:'ADMIN_PUBLIC_KEY_UNAUTHORIZED',38:'RATE_LIMIT_EXCEEDED',39:'PKI_SEND_FAIL_PUBLIC_KEY'};
-  const n=Number(code);return Number.isFinite(n)?(names[n]||('ROUTING_'+n)):'ROUTING';
+  const n=routingErrorCode(code);return n===null?String(code||'ROUTING'):(names[n]||('ROUTING_'+n));
+}
+function nodeRoutingResultMessage(code){
+  const n=routingErrorCode(code),name=routingErrorName(code);
+  if(n===8)return `${tr('destino respondeu')}: NO_RESPONSE · ${tr('o nó recebeu a solicitação, mas não forneceu esse dado')}`;
+  if(n===1)return `${tr('destino respondeu')}: NO_ROUTE · ${tr('não foi encontrada rota até o nó')}`;
+  if(n===6)return `${tr('destino respondeu')}: NO_CHANNEL · ${tr('canal não disponível para a solicitação')}`;
+  if(n===33)return `${tr('destino respondeu')}: NOT_AUTHORIZED · ${tr('solicitação não autorizada nesse canal')}`;
+  return `${tr('destino respondeu')}: ${name}`;
 }
 function nodeQueryWaitingMessage(action,s,details,now=Date.now()){
   const base=s?.acceptedMessage||tr('aguardando resposta');
+  if(s?.diagnostic?.backend==='virtual-node')return base;
   const tx=nodeRequestPackets(action,details,s?.sentAt||0);
   const latestTx=tx.length?tx[tx.length-1]:null;
   const packetInfo=latestTx?.packetId&&!/packet\s+\d+/i.test(base)?` · TX packet ${latestTx.packetId}`:'';
@@ -1864,6 +1925,9 @@ function nodeQueryTimeoutMessage(action,s,details){
   const route=nodeRoutingEvidence(action,s,details);
   let routing='';
   if(route)routing=` · ${routingErrorName(route.routingErrorReason)}`;
+  if(s?.diagnostic?.backend==='virtual-node'){
+    return `${tr('sem resposta correlacionada')} em ${Math.round(nodeQueryTimeoutMs(action,s)/1000)} s${routing}`;
+  }
   if(String(action||'').startsWith('telemetry_')){
     const tx=nodeRequestPackets(action,details,s?.sentAt||0);
     const n=tx.length;
@@ -1872,7 +1936,7 @@ function nodeQueryTimeoutMessage(action,s,details){
   }
   const tx=nodeRequestPackets(action,details,s?.sentAt||0);const last=tx.length?tx[tx.length-1]:null;
   const packet=last?.packetId?` · TX packet ${last.packetId}`:'';
-  return `${s?.acceptedMessage||'MM aceitou'}${packet} · sem RX em ${Math.round(nodeQueryTimeoutMs(action)/1000)} s${routing}`;
+  return `${s?.acceptedMessage||'MM aceitou'}${packet} · sem RX em ${Math.round(nodeQueryTimeoutMs(action,s)/1000)} s${routing}`;
 }
 function nodeQueryNeedsPolling(action,s,now=Date.now()){
   if(!s)return false;
@@ -1880,8 +1944,11 @@ function nodeQueryNeedsPolling(action,s,now=Date.now()){
   return s.state==='timeout'&&s.sentAt&&Number(now)-Number(s.sentAt)<NODE_QUERY_LATE_WATCH_MS;
 }
 
-function nodeResponseSignal(action,details){
+function nodeResponseSignal(action,details,state=null){
   if(!details)return null;
+  if(state?.diagnostic?.backend==='virtual-node'&&action!=='traceroute'){
+    return Number(correlatedResponsePacket(action,details,state)?.timestampMs||0)||null;
+  }
   const n=details.node||{};
   if(action==='nodeinfo')return latestResponsePacketMs(details,'NODEINFO_APP');
   if(action==='position'){
@@ -1903,6 +1970,76 @@ function nodeResponseSignal(action,details){
   }
   return null;
 }
+function virtualQueryDetail(status){
+  const bits=[];
+  if(status?.responsePort)bits.push(String(status.responsePort));
+  const ch=Number(status?.channel);
+  if(Number.isInteger(ch)&&ch>=0&&ch<=7)bits.push('canal '+ch);
+  const sn=Number(status?.rxSnr);
+  if(Number.isFinite(sn))bits.push('SNR '+sn.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})+' dB');
+  const rs=Number(status?.rxRssi);
+  if(Number.isFinite(rs))bits.push('RSSI '+Math.round(rs)+' dBm');
+  return bits.join(' · ');
+}
+async function refreshVirtualQueryState(action,s){
+  const queryId=String(s?.diagnostic?.queryId||'');
+  if(!queryId)return false;
+  try{
+    const r=await fetch(`/api/node-query-status?queryId=${encodeURIComponent(queryId)}&_=${Date.now()}`,{cache:'no-store'});
+    const b=await r.json();
+    if(r.status===401)return false;
+    if(!r.ok){s.state='error';s.message=b.message||b.error||`HTTP ${r.status}`;return true;}
+    if(b.packetId){
+      const pid=Number(b.packetId);
+      if(Number.isFinite(pid)&&pid>0){s.diagnostic.packetId=pid;s.diagnostic.correlationPacketId=pid;}
+    }
+    if(b.sentAtMs){
+      const sent=Number(b.sentAtMs);
+      if(Number.isFinite(sent)&&sent>0)s.sentAt=sent;
+    }
+    const state=String(b.state||'');
+    if(state==='queued'){
+      s.message=tr('aguardando vez no Virtual Node');
+      return true;
+    }
+    if(state==='connecting'){
+      s.message=tr('conectando ao Virtual Node');
+      return true;
+    }
+    if(state==='waiting'){
+      const pid=Number(b.packetId||s.diagnostic?.packetId||0);
+      s.message=`Virtual Node enviou${pid?' · packet '+pid:''} · ${tr('aguardando resposta correlacionada')}`;
+      return true;
+    }
+    if(state==='received'){
+      const received=Number(b.receivedAtMs||Date.now());
+      const latency=Math.max(0,(received-Number(s.sentAt||received))/1000);
+      const detail=virtualQueryDetail(b);
+      s.state='received';s.receivedAt=received;
+      s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(received).toLocaleTimeString(uiLocale())}${detail?' · '+detail:''}`;
+      return true;
+    }
+    if(state==='routing_error'){
+      s.state='error';
+      s.message=nodeRoutingResultMessage(b.routingErrorReason??b.error);
+      return true;
+    }
+    if(state==='timeout'){
+      s.state='timeout';
+      s.message=b.error||`${tr('sem resposta correlacionada')} em ${Number(s.diagnostic?.queryTimeout||30)} s`;
+      return true;
+    }
+    if(state==='error'||state==='not_found'){
+      s.state='error';s.message=b.error||b.message||tr('erro');
+      return true;
+    }
+    return true;
+  }catch(e){
+    s.message=`${tr('aguardando resposta correlacionada')} · status: ${String(e.message||e)}`;
+    return true;
+  }
+}
+
 async function loadNodeDetails(nodeNum,checkResponses=true){
   const r=await fetch(`/api/node-details?nodeNum=${encodeURIComponent(Number(nodeNum))}&_=${Date.now()}`,{cache:'no-store'});
   const b=await r.json();
@@ -1912,20 +2049,31 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
     const now=Date.now();
     for(const d of NODE_QUERY_DEFS){
       const s=run.states[d.id];if(!s||!['waiting','timeout'].includes(s.state)||!s.sentAt)continue;
-      const current=Number(nodeResponseSignal(d.id,b)||0);
+      if(s.diagnostic?.backend==='virtual-node'&&s.diagnostic?.queryId){
+        await refreshVirtualQueryState(d.id,s);
+        continue;
+      }
+      const current=Number(nodeResponseSignal(d.id,b,s)||0);
       const responded=Number.isFinite(current)&&current>=Math.max(0,Number(s.sentAt||0)-1000);
       if(responded){
         const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
-        const detail=nodeResponseDetail(d.id,b,current);
+        const detail=nodeResponseDetail(d.id,b,current,s);
         const wasTimeout=s.state==='timeout';
         s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${wasTimeout?' · '+tr('resposta tardia'):''}${detail?' · '+detail:''}`;
       }else if(s.state==='waiting'){
-        const timeout=nodeQueryTimeoutMs(d.id);
-        if(now-s.sentAt>=timeout){
-          s.state='timeout';
-          s.message=nodeQueryTimeoutMessage(d.id,s,b);
+        const route=nodeRoutingEvidence(d.id,s,b);
+        const routeCode=route?Number(route.routingErrorReason):null;
+        if(route&&Number.isFinite(routeCode)&&routeCode!==0){
+          s.state='error';
+          s.message=nodeRoutingResultMessage(routeCode);
         }else{
-          s.message=nodeQueryWaitingMessage(d.id,s,b,now);
+          const timeout=nodeQueryTimeoutMs(d.id,s);
+          if(now-s.sentAt>=timeout){
+            s.state='timeout';
+            s.message=nodeQueryTimeoutMessage(d.id,s,b);
+          }else{
+            s.message=nodeQueryWaitingMessage(d.id,s,b,now);
+          }
         }
       }
     }
@@ -1947,7 +2095,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const s=run.states[action];
-    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.diagnostic=null;s.message='enviando…';
+    s.baseline=nodeResponseSignal(action,run.details,s);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.diagnostic=null;s.message='enviando…';
     renderNodePopupData(nodeNum,run.details);
     const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(nodeNum),action})});
     const b=await r.json();
@@ -1968,7 +2116,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
 }
 async function waitNodeQueryTerminal(nodeNum,action){
   const run=nodeQueryRun(nodeNum);
-  const deadline=Date.now()+nodeQueryTimeoutMs(action)+2500;
+  const deadline=Date.now()+nodeQueryTimeoutMs(action,run.states[action])+2500;
   while(Date.now()<deadline){
     const s=run.states[action];
     if(!s||!['waiting','sending'].includes(s.state))return s;
@@ -1993,7 +2141,7 @@ async function runAllNodeQueries(nodeNum){
     if(Number.isFinite(hops)&&hops>0){
       const ns=run.states.neighbors;ns.state='unsupported';ns.message=tr('somente nó local ou 0-hop');
     }
-    const order=['nodeinfo','position','telemetry_power','traceroute','telemetry_device','telemetry_environment','telemetry_airQuality','neighbors'];
+    const order=['traceroute','telemetry_device','position','telemetry_power','telemetry_environment','telemetry_airQuality','neighbors','nodeinfo'];
     run.allOrder=order;
     run.allTotal=order.length;
     renderNodePopupData(nodeNum,run.details);
@@ -4408,7 +4556,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1364';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1365';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -5029,6 +5177,195 @@ def _mm_response_channel(body):
     return None
 
 
+
+_virtual_node_probe_cache = {"checked_at": 0.0, "ok": False, "error": ""}
+
+
+def _node_query_channel(node_num: int, source_id: str) -> int:
+    """Resolve the node's last known channel for Virtual Node requests."""
+    source = urllib.parse.quote(str(source_id), safe="")
+    try:
+        body = _mm_api_get(f"/api/v1/sources/{source}/nodes")
+        rows = body.get("data", []) if isinstance(body, dict) else []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            try:
+                if int(row.get("nodeNum")) != int(node_num):
+                    continue
+            except (TypeError, ValueError):
+                continue
+            try:
+                channel = int(row.get("channel"))
+                if 0 <= channel <= 7:
+                    return channel
+            except (TypeError, ValueError):
+                pass
+            break
+    except Exception:
+        pass
+    return 0
+
+
+def _virtual_node_probe(force=False):
+    now = time.time()
+    cache = _virtual_node_probe_cache
+    if not force and now - float(cache.get("checked_at") or 0) < 10:
+        return bool(cache.get("ok")), str(cache.get("error") or "")
+
+    error = ""
+    ok = True
+    if not VIRTUAL_NODE_PYTHON or not Path(VIRTUAL_NODE_PYTHON).is_file():
+        ok = False
+        error = f"Python do Virtual Node não encontrado: {VIRTUAL_NODE_PYTHON}"
+    elif not VIRTUAL_NODE_HELPER.is_file():
+        ok = False
+        error = f"Helper do Virtual Node não encontrado: {VIRTUAL_NODE_HELPER}"
+    else:
+        try:
+            check = subprocess.run(
+                [VIRTUAL_NODE_PYTHON, "-c", "import meshtastic"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=3,
+                check=False,
+            )
+            if check.returncode != 0:
+                ok = False
+                error = "Cliente Python Meshtastic indisponível no ambiente do Traffic Analyzer"
+        except Exception as exc:
+            ok = False
+            error = f"Falha ao validar cliente Meshtastic: {exc}"
+    # Não abrimos uma conexão de sondagem separada: alguns servidores de
+    # Virtual Node aceitam apenas uma sessão por vez. A conexão real é feita
+    # pelo helper e qualquer falha de TCP volta como diagnóstico explícito.
+    cache.update({"checked_at": now, "ok": ok, "error": error})
+    return ok, error
+
+
+def _virtual_query_status_path(query_id: str) -> Path:
+    query_id = str(query_id or "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{24}", query_id):
+        raise ValueError("queryId inválido")
+    return VIRTUAL_QUERY_STATE_DIR / f"{query_id}.json"
+
+
+def _virtual_query_status(query_id: str):
+    path = _virtual_query_status_path(query_id)
+    try:
+        body = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"success": False, "state": "not_found", "error": "Consulta não encontrada"}
+    except Exception as exc:
+        return {"success": False, "state": "error", "error": str(exc)}
+    return body if isinstance(body, dict) else {"success": False, "state": "error", "error": "Status inválido"}
+
+
+def _cleanup_virtual_query_statuses():
+    try:
+        VIRTUAL_QUERY_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        cutoff = time.time() - 3600
+        for path in VIRTUAL_QUERY_STATE_DIR.glob("*.json"):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink(missing_ok=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+_virtual_query_execution_lock = threading.Lock()
+
+
+def _run_virtual_query_job(cmd, status_path: Path, initial: dict):
+    # Uma única sessão ativa evita que implementações de Virtual Node que
+    # suportam apenas um cliente TCP simultâneo sofram disputa durante "Tudo".
+    with _virtual_query_execution_lock:
+        try:
+            subprocess.run(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=False,
+                timeout=VIRTUAL_NODE_QUERY_TIMEOUT + VIRTUAL_NODE_CONNECT_TIMEOUT + 20,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            payload = {
+                **initial,
+                "success": False,
+                "state": "error",
+                "error": "Helper do Virtual Node excedeu o tempo máximo de execução",
+                "completedAtMs": int(time.time() * 1000),
+            }
+            try:
+                status_path.write_text(json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8")
+            except Exception:
+                pass
+        except Exception as exc:
+            payload = {
+                **initial,
+                "success": False,
+                "state": "error",
+                "error": str(exc),
+                "completedAtMs": int(time.time() * 1000),
+            }
+            try:
+                status_path.write_text(json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8")
+            except Exception:
+                pass
+
+
+def _virtual_node_send(node_num: int, action: str, channel: int):
+    ok, error = _virtual_node_probe()
+    if not ok:
+        raise RuntimeError(error or "Virtual Node indisponível")
+
+    _cleanup_virtual_query_statuses()
+    query_id = secrets.token_hex(12)
+    status_path = _virtual_query_status_path(query_id)
+    initial = {
+        "queryId": query_id,
+        "backend": "virtual-node",
+        "action": action,
+        "destination": _node_hex_id(node_num),
+        "channel": channel,
+        "host": VIRTUAL_NODE_HOST,
+        "port": VIRTUAL_NODE_PORT,
+        "success": True,
+        "state": "queued",
+        "createdAtMs": int(time.time() * 1000),
+    }
+    status_path.write_text(json.dumps(initial, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    cmd = [
+        VIRTUAL_NODE_PYTHON,
+        str(VIRTUAL_NODE_HELPER),
+        "--host", VIRTUAL_NODE_HOST,
+        "--port", str(VIRTUAL_NODE_PORT),
+        "--dest", _node_hex_id(node_num),
+        "--channel", str(channel),
+        "--action", action,
+        "--connect-timeout", str(VIRTUAL_NODE_CONNECT_TIMEOUT),
+        "--wait-timeout", str(VIRTUAL_NODE_QUERY_TIMEOUT),
+        "--query-id", query_id,
+        "--status-file", str(status_path),
+    ]
+    threading.Thread(
+        target=_run_virtual_query_job,
+        args=(cmd, status_path, initial),
+        daemon=True,
+        name=f"ta-query-{query_id[:8]}",
+    ).start()
+
+    return {
+        **initial,
+        "statusFile": str(status_path),
+        "waitTimeout": VIRTUAL_NODE_QUERY_TIMEOUT,
+    }
+
+
 def _request_node_query(node_num, action):
     n = _node_num(node_num)
     action = str(action or "").strip()
@@ -5038,10 +5375,67 @@ def _request_node_query(node_num, action):
     requested_at_ms = int(time.time() * 1000)
     endpoint = None
     channel = None
+    fallback_reason = ""
 
-    # MeshMonitor 4.16.x: NodeInfo/Position/NeighborInfo/Telemetry use the
-    # source-aware main request API. Traceroute stays on the v1 action path,
-    # which already resolves the shared/broadcast channel correctly.
+    allowed_actions = {
+        "nodeinfo", "position", "traceroute", "neighbors",
+        "telemetry_device", "telemetry_environment",
+        "telemetry_airQuality", "telemetry_power",
+    }
+    if action not in allowed_actions:
+        raise ValueError("Consulta de nó inválida")
+
+    # Traceroute permanece na API do MeshMonitor: esse caminho já foi
+    # comprovado na rede real. As demais consultas ativas preferem o Virtual
+    # Node e usam o mesmo formato do cliente oficial Meshtastic (wantResponse
+    # sem request_id pré-preenchido). A resposta é correlacionada depois pelo
+    # packet.id original.
+    if action != "traceroute" and NODE_QUERY_BACKEND in {"auto", "virtual"}:
+        channel = _node_query_channel(n, source_id)
+        try:
+            virtual = _virtual_node_send(n, action, channel)
+            packet_id = virtual.get("packetId")
+            try:
+                packet_id = int(packet_id) if packet_id is not None else None
+            except (TypeError, ValueError):
+                packet_id = None
+            query_id = str(virtual.get("queryId") or "")
+            accepted_parts = ["Virtual Node iniciado", f"canal {channel}"]
+            if packet_id:
+                accepted_parts.append(f"packet {packet_id}")
+            if query_id:
+                accepted_parts.append(f"consulta {query_id[:8]}")
+            accepted_message = " · ".join(accepted_parts) + " · aguardando resposta correlacionada"
+            return {
+                "success": True,
+                "action": action,
+                "nodeNum": n,
+                "requestedAtMs": requested_at_ms,
+                "acceptedAtMs": int(time.time() * 1000),
+                "acceptedMessage": accepted_message,
+                "diagnostic": {
+                    "backend": "virtual-node",
+                    "sourceId": source_id,
+                    "endpoint": f"tcp://{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT}",
+                    "channel": channel,
+                    "packetId": packet_id,
+                    "requestId": None,
+                    "correlationPacketId": packet_id,
+                    "queryId": query_id,
+                    "virtualNodeHost": VIRTUAL_NODE_HOST,
+                    "virtualNodePort": VIRTUAL_NODE_PORT,
+                    "queryTimeout": VIRTUAL_NODE_QUERY_TIMEOUT,
+                },
+                "virtualNode": virtual,
+            }
+        except Exception as exc:
+            if NODE_QUERY_BACKEND == "virtual":
+                raise
+            fallback_reason = str(exc)
+
+    # Fallback compatível com instalações que ainda não tenham o helper/Virtual
+    # Node disponível. O fallback é sempre exposto no diagnóstico; nunca é
+    # tratado silenciosamente como se fosse o backend preferencial.
     if action == "nodeinfo":
         endpoint = "/api/nodeinfo/request"
         body = _mm_api_post(endpoint, {
@@ -5086,8 +5480,6 @@ def _request_node_query(node_num, action):
     if isinstance(body, dict) and body.get("success") is False:
         raise RuntimeError(str(body.get("message") or body.get("error") or "MeshMonitor recusou a consulta"))
 
-    # Main API responses may expose packetId/requestId at top level, while the
-    # v1 traceroute response puts details in data.
     packet_id = None
     request_id = None
     if isinstance(body, dict):
@@ -5102,6 +5494,8 @@ def _request_node_query(node_num, action):
             channel = _mm_response_channel(body)
 
     accepted_parts = ["MM aceitou"]
+    if fallback_reason:
+        accepted_parts.insert(0, "Virtual Node indisponível; fallback MM API")
     if channel is not None:
         accepted_parts.append(f"canal {channel}")
     if packet_id is not None:
@@ -5117,22 +5511,21 @@ def _request_node_query(node_num, action):
         "success": True,
         "action": action,
         "nodeNum": n,
-        # Important: this is captured BEFORE the MM API call. Very close nodes
-        # can reply before the HTTP request itself returns.
         "requestedAtMs": requested_at_ms,
         "acceptedAtMs": int(time.time() * 1000),
         "acceptedMessage": accepted_message,
         "diagnostic": {
+            "backend": "meshmonitor-api",
             "sourceId": source_id,
             "endpoint": endpoint,
             "channel": channel,
             "packetId": packet_id,
             "requestId": request_id,
             "meshMonitorMessage": mm_message,
+            "virtualFallbackReason": fallback_reason or None,
         },
         "meshMonitor": body,
     }
-
 
 
 
@@ -6771,6 +7164,33 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "error": "bad_node", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "error": "node_details_unavailable", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/node-query-status":
+            if AUTH_ENABLED and not _auth_session(self):
+                self._send(401, "application/json; charset=utf-8", json.dumps({
+                    "success": False,
+                    "error": "authentication_required",
+                    "message": "Autenticação administrativa necessária.",
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                query_id = (query.get("queryId") or [None])[0]
+                body = _virtual_query_status(query_id)
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({
+                    "success": False,
+                    "state": "error",
+                    "error": "bad_query",
+                    "message": str(e),
+                }, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({
+                    "success": False,
+                    "state": "error",
+                    "message": str(e),
+                }, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/packets":
             try:

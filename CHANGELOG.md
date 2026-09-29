@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.36.5 - 2026-09-29
+
+- Usa o Virtual Node do MeshMonitor como backend preferencial das consultas ativas, preservando Traceroute na API do MM.
+- Envia requests com o formato do cliente oficial Meshtastic, sem request_id pré-preenchido e sem wantAck forçado.
+- Correlaciona respostas por `RX decoded.request_id == TX packet.id`.
+- Deixa de tratar telemetria periódica não correlacionada como resposta da consulta.
+- Interpreta `ROUTING_APP` correlacionado e mostra `NO_RESPONSE`, `NO_ROUTE`, `NO_CHANNEL`, `NOT_AUTHORIZED` e demais códigos reais.
+- Define 30 s de timeout para consultas enviadas pelo Virtual Node.
+- Adiciona `meshtastic_query.py` e venv dedicado com `meshtastic[cli] 2.7.11`.
+- Adiciona configuração de backend/host/porta do Virtual Node e fallback explícito no modo auto.
+- Preserva todos os recursos da v1.36.4.
+
 ## 1.36.4 - 2026-09-29
 
 - Eleva o timeout efetivo de Telemetry para 90 s, preservando 20 s nas demais consultas.

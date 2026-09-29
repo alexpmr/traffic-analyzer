@@ -1,6 +1,20 @@
-# Traffic Analyzer v1.36.4
+# Traffic Analyzer v1.36.5
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.36.5
+
+- Muda o backend preferencial das **consultas ativas** para o **Virtual Node do MeshMonitor** em `127.0.0.1:4404`, usando o cliente Python oficial Meshtastic.
+- Mantém **mapa, histórico, nós, mensagens, estatísticas e Packet Monitor** lendo pela API do MeshMonitor; o **Traceroute** continua usando a API atual do MM, que já funciona corretamente.
+- NodeInfo, Position, Device Metrics, Environment, Air Quality, Power e Neighbor Info passam a ser enviados no formato oficial: `wantResponse=true`, sem preencher `request_id` na requisição e sem `wantAck` forçado.
+- Cada consulta retorna o `packet.id` original e só considera uma resposta confirmada quando o pacote RX traz `decoded.request_id == packet.id`.
+- Telemetria periódica espontânea recebida depois do clique deixa de ser confundida com resposta à consulta.
+- Respostas `ROUTING_APP` correlacionadas passam a encerrar a consulta imediatamente com o motivo real, incluindo `NO_RESPONSE`, `NO_ROUTE`, `NO_CHANNEL` e `NOT_AUTHORIZED`.
+- No backend Virtual Node, o timeout padrão é **30 s**; o acompanhamento tardio continua disponível.
+- Adiciona o helper `meshtastic_query.py` e instala o cliente `meshtastic[cli] 2.7.11` em um venv próprio em `/opt/traffic-analyzer/.venv`.
+- O modo padrão `TA_NODE_QUERY_BACKEND=auto` prefere o Virtual Node. Se o helper não estiver disponível, usa fallback explícito para a API do MeshMonitor e informa isso no status.
+- Novas opções: `TA_VIRTUAL_NODE_HOST`, `TA_VIRTUAL_NODE_PORT`, `TA_VIRTUAL_NODE_PYTHON`, `TA_VIRTUAL_NODE_HELPER` e `TA_VIRTUAL_NODE_CONNECT_TIMEOUT`.
+- Preserva todos os recursos da v1.36.4.
 
 ## Novidades da v1.36.4
 
