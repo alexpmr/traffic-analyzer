@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validar Python
-        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py meshtastic_query.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
 
       - name: Validar classificação RF e MQTT por hop
         run: |
@@ -99,6 +99,34 @@ jobs:
           assert calls[1][1]["replyId"]==456
           assert "emoji" not in calls[1][1]
           assert compat["reactionMode"]=="compat_reply"
+          PY
+
+      - name: Validar backend de consultas Virtual Node
+        run: |
+          python - <<'PY'
+          import traffic_analyzer_web as ta
+
+          ta.NODE_QUERY_BACKEND="auto"
+          ta._resolved_mm_source_id=lambda: "source-test"
+          ta._node_query_channel=lambda node_num, source_id: 0
+          ta._virtual_node_send=lambda node_num, action, channel: {
+              "success": True,
+              "backend": "virtual-node",
+              "packetId": 123456789,
+              "channel": channel,
+          }
+
+          result=ta._request_node_query(0x383bfc3f,"telemetry_device")
+          assert result["success"] is True,result
+          assert result["diagnostic"]["backend"]=="virtual-node",result
+          assert result["diagnostic"]["packetId"]==123456789,result
+          assert result["diagnostic"]["correlationPacketId"]==123456789,result
+          assert result["diagnostic"]["channel"]==0,result
+          assert "Virtual Node aceitou" in result["acceptedMessage"],result
+
+          result=ta._request_node_query(0x383bfc3f,"position")
+          assert result["diagnostic"]["backend"]=="virtual-node",result
+          assert result["diagnostic"]["packetId"]==123456789,result
           PY
 
       - name: Validar autenticação administrativa
