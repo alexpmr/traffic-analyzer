@@ -67,9 +67,14 @@ VIRTUAL_NODE_HELPER = Path(os.getenv(
     str(Path(__file__).with_name("meshtastic_query.py")),
 ))
 VIRTUAL_NODE_CONNECT_TIMEOUT = max(2, min(int(os.getenv("TA_VIRTUAL_NODE_CONNECT_TIMEOUT", "10")), 30))
+VIRTUAL_NODE_QUERY_TIMEOUT = max(10, min(int(os.getenv("TA_VIRTUAL_NODE_QUERY_TIMEOUT", "30")), 120))
 TRAFFIC_ARCHIVE_DB = Path(os.getenv(
     "TRAFFIC_ARCHIVE_DB",
     "/var/lib/traffic-analyzer/traffic.db",
+))
+VIRTUAL_QUERY_STATE_DIR = Path(os.getenv(
+    "TA_VIRTUAL_QUERY_STATE_DIR",
+    str(TRAFFIC_ARCHIVE_DB.parent / "query-jobs"),
 ))
 ACCESS_LOG_FILE = Path(os.getenv(
     "TA_ACCESS_LOG_FILE",
@@ -5142,10 +5147,69 @@ def _virtual_node_probe(force=False):
     return ok, error
 
 
+def _virtual_query_status_path(query_id: str) -> Path:
+    query_id = str(query_id or "").strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{24}", query_id):
+        raise ValueError("queryId inválido")
+    return VIRTUAL_QUERY_STATE_DIR / f"{query_id}.json"
+
+
+def _virtual_query_status(query_id: str):
+    path = _virtual_query_status_path(query_id)
+    try:
+        body = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {"success": False, "state": "not_found", "error": "Consulta não encontrada"}
+    except Exception as exc:
+        return {"success": False, "state": "error", "error": str(exc)}
+    return body if isinstance(body, dict) else {"success": False, "state": "error", "error": "Status inválido"}
+
+
+def _cleanup_virtual_query_statuses():
+    try:
+        VIRTUAL_QUERY_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        cutoff = time.time() - 3600
+        for path in VIRTUAL_QUERY_STATE_DIR.glob("*.json"):
+            try:
+                if path.stat().st_mtime < cutoff:
+                    path.unlink(missing_ok=True)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _reap_virtual_query_process(proc):
+    try:
+        proc.wait(timeout=VIRTUAL_NODE_QUERY_TIMEOUT + VIRTUAL_NODE_CONNECT_TIMEOUT + 20)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
 def _virtual_node_send(node_num: int, action: str, channel: int):
     ok, error = _virtual_node_probe()
     if not ok:
         raise RuntimeError(error or "Virtual Node indisponível")
+
+    _cleanup_virtual_query_statuses()
+    query_id = secrets.token_hex(12)
+    status_path = _virtual_query_status_path(query_id)
+    initial = {
+        "queryId": query_id,
+        "backend": "virtual-node",
+        "action": action,
+        "destination": _node_hex_id(node_num),
+        "channel": channel,
+        "host": VIRTUAL_NODE_HOST,
+        "port": VIRTUAL_NODE_PORT,
+        "success": True,
+        "state": "queued",
+        "createdAtMs": int(time.time() * 1000),
+    }
+    status_path.write_text(json.dumps(initial, ensure_ascii=False) + "\n", encoding="utf-8")
 
     cmd = [
         VIRTUAL_NODE_PYTHON,
@@ -5156,51 +5220,35 @@ def _virtual_node_send(node_num: int, action: str, channel: int):
         "--channel", str(channel),
         "--action", action,
         "--connect-timeout", str(VIRTUAL_NODE_CONNECT_TIMEOUT),
+        "--wait-timeout", str(VIRTUAL_NODE_QUERY_TIMEOUT),
+        "--query-id", query_id,
+        "--status-file", str(status_path),
     ]
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
-            text=True,
-            timeout=VIRTUAL_NODE_CONNECT_TIMEOUT + 8,
-            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=False,
+            start_new_session=True,
         )
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(
-            f"Virtual Node não confirmou o envio em {VIRTUAL_NODE_CONNECT_TIMEOUT + 8} s"
-        ) from exc
+    except Exception:
+        status_path.unlink(missing_ok=True)
+        raise
 
-    payload = None
-    for line in reversed((proc.stdout or "").splitlines()):
-        line = line.strip()
-        if not line.startswith("{"):
-            continue
-        try:
-            candidate = json.loads(line)
-        except Exception:
-            continue
-        if isinstance(candidate, dict):
-            payload = candidate
-            break
+    threading.Thread(
+        target=_reap_virtual_query_process,
+        args=(proc,),
+        daemon=True,
+        name=f"ta-query-{query_id[:8]}",
+    ).start()
 
-    if not isinstance(payload, dict):
-        detail = (proc.stderr or proc.stdout or "").strip()
-        if len(detail) > 500:
-            detail = detail[-500:]
-        raise RuntimeError(detail or f"Virtual Node encerrou com código {proc.returncode}")
-
-    if proc.returncode != 0 or payload.get("success") is False:
-        raise RuntimeError(str(payload.get("error") or "Falha ao enviar pelo Virtual Node"))
-
-    packet_id = payload.get("packetId")
-    try:
-        packet_id = int(packet_id)
-    except (TypeError, ValueError):
-        packet_id = 0
-    if packet_id <= 0:
-        raise RuntimeError("Virtual Node não retornou packet.id válido")
-
-    return payload
+    return {
+        **initial,
+        "pid": proc.pid,
+        "statusFile": str(status_path),
+        "waitTimeout": VIRTUAL_NODE_QUERY_TIMEOUT,
+    }
 
 
 def _request_node_query(node_num, action):
