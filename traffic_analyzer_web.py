@@ -1844,9 +1844,11 @@ function routingErrorName(code){
 }
 function nodeQueryWaitingMessage(action,s,details,now=Date.now()){
   const base=s?.acceptedMessage||tr('aguardando resposta');
-  if(!String(action||'').startsWith('telemetry_'))return base;
-  const elapsed=Math.max(0,Number(now)-Number(s?.sentAt||now));
   const tx=nodeRequestPackets(action,details,s?.sentAt||0);
+  const latestTx=tx.length?tx[tx.length-1]:null;
+  const packetInfo=latestTx?.packetId&&!/packet\s+\d+/i.test(base)?` · TX packet ${latestTx.packetId}`:'';
+  if(!String(action||'').startsWith('telemetry_'))return base+packetInfo;
+  const elapsed=Math.max(0,Number(now)-Number(s?.sentAt||now));
   const n=tx.length;
   const txInfo=n?` · ${n} ${tr(n===1?'TX observado':'TX observados')}`:'';
   if(elapsed<20000)return base+txInfo;
@@ -1868,7 +1870,9 @@ function nodeQueryTimeoutMessage(action,s,details){
     const txInfo=n?` · ${n} ${tr(n===1?'TX observado':'TX observados')}`:'';
     return `${tr('sem resposta após 90 s')}${txInfo}${routing}`;
   }
-  return `${s?.acceptedMessage||'MM aceitou'} · sem RX em ${Math.round(nodeQueryTimeoutMs(action)/1000)} s${routing}`;
+  const tx=nodeRequestPackets(action,details,s?.sentAt||0);const last=tx.length?tx[tx.length-1]:null;
+  const packet=last?.packetId?` · TX packet ${last.packetId}`:'';
+  return `${s?.acceptedMessage||'MM aceitou'}${packet} · sem RX em ${Math.round(nodeQueryTimeoutMs(action)/1000)} s${routing}`;
 }
 function nodeQueryNeedsPolling(action,s,now=Date.now()){
   if(!s)return false;
