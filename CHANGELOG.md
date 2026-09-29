@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.36.4 - 2026-09-29
+
+- Eleva o timeout efetivo de Telemetry para 90 s, preservando 20 s nas demais consultas.
+- Mostra fases intermediárias de recuperação em vez de classificar Telemetry como falha aos 20 s.
+- Coleta os TX destinados ao nó no Packet Monitor e conta retries reais por tipo de Telemetry.
+- Mantém o botão Tudo acompanhando as consultas até o encerramento individual de cada janela.
+- Continua observando timeouts por até 3 minutos e converte respostas tardias para respondido automaticamente.
+- Inclui ROUTING_APP nas evidências e só associa ACK/NAK quando existe requestId correlacionável ao packetId do TX.
+- Preserva portnum, canal, SNR e RSSI nas respostas confirmadas.
+- Usa o source concreto para detalhes, telemetria, pacotes e Neighbor Info.
+- Preserva todos os recursos da v1.36.3.
+
 ## 1.36.3 - 2026-09-28
 
 - Substitui o seletor nativo de idioma por menu visual com bandeira, nome do idioma e seta.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.36.3
+Traffic Analyzer v1.36.4
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -748,7 +748,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.36.3",
+        "version": "1.36.4",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
         "localNodeNum": local_node_num,
@@ -925,7 +925,7 @@ def run_discovery(nodes, traceroutes, now_ms, state):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Traffic Analyzer v1.36.3")
+    p = argparse.ArgumentParser(description="Traffic Analyzer v1.36.4")
     p.add_argument(
         "--topology-only",
         action="store_true",

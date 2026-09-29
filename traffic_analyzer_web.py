@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.3 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.4 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.3"
+APP_VERSION = "1.36.4"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -891,7 +891,7 @@ function updateLanguageMenu(){
 }
 
 const I18N_PAIRS=[
-  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
+  ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['sem resposta inicial','no initial response'],['aguardando possível retry do MM','waiting for a possible MM retry'],['retry 1 do MM observado','MM retry 1 observed'],['aguardando segunda tentativa do MM','waiting for MM second attempt'],['retry 2 do MM observado','MM retry 2 observed'],['sem retry observado','no retry observed'],['janela do MM','MM window'],['sem resposta após 90 s','no response after 90 s'],['TX observado','TX observed'],['TX observados','TX observed'],['resposta tardia','late response'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
   ['Filtrar:','Filter:'],['Limpar filtro','Clear filter'],['nome, ID, hardware...','name, ID, hardware...'],['VHF3 sem posição','VHF3 has no position'],['Nó sem posição conhecida; não é possível focalizá-lo no mapa.','Node has no known position; it cannot be focused on the map.'],
   ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
@@ -1576,8 +1576,11 @@ const NODE_QUERY_DEFS=[
 ];
 const nodeQueryRuns=new Map();
 const NODE_QUERY_TIMEOUT_MS=20000;
+const NODE_QUERY_TELEMETRY_TIMEOUT_MS=90000;
+const NODE_QUERY_LATE_WATCH_MS=180000;
 const NODE_QUERY_POLL_MS=1000;
 const NODE_QUERY_STAGGER_MS=2000;
+function nodeQueryTimeoutMs(action){return String(action||'').startsWith('telemetry_')?NODE_QUERY_TELEMETRY_TIMEOUT_MS:NODE_QUERY_TIMEOUT_MS;}
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
@@ -1602,17 +1605,18 @@ function nodeBoolLine(label,value){
 function nodeQueryRun(nodeNum){
   const key=Number(nodeNum);
   if(!nodeQueryRuns.has(key)){
-    const states={}; NODE_QUERY_DEFS.forEach(d=>states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''});
+    const states={}; NODE_QUERY_DEFS.forEach(d=>states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:'',acceptedMessage:'',diagnostic:null});
     nodeQueryRuns.set(key,{states,details:null,pollTimer:null});
   }
   return nodeQueryRuns.get(key);
 }
 function nodeQueryIsTerminal(s){return Boolean(s&&['received','timeout','error','unsupported'].includes(s.state));}
-function nodeQueryProgressPct(s){
+function nodeQueryProgressPct(s,action){
   if(!s||s.state==='idle')return 0;
   if(s.state==='sending')return 8;
   if(nodeQueryIsTerminal(s))return 100;
-  if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/NODE_QUERY_TIMEOUT_MS)*100)));
+  const timeout=nodeQueryTimeoutMs(action);
+  if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/timeout)*100)));
   return 0;
 }
 function nodeQueryStateHtml(nodeNum){
@@ -1626,7 +1630,7 @@ function nodeQueryStateHtml(nodeNum){
     else if(s.state==='timeout'){mark='⌛';cls='nodeQueryTimeout';txt=s.message||tr('sem resposta / timeout');}
     else if(s.state==='error'){mark='✕';cls='nodeQueryError';txt=s.message||tr('erro');}
     else if(s.state==='unsupported'){mark='—';cls='';txt=s.message||tr('não suportado / não aplicável');}
-    const pct=nodeQueryProgressPct(s);
+    const pct=nodeQueryProgressPct(s,d.id);
     return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(tr(d.label))}</b></div><div class="nodeQueryState"><div>${esc(txt)}</div><div class="nodeQueryProgress" aria-hidden="true"><div class="nodeQueryProgressBar" style="width:${pct}%"></div></div></div></div>`;
   }).join('');
 }
@@ -1805,6 +1809,77 @@ function nodeResponseDetail(action,details,signalMs){
   if(Number.isFinite(rs))bits.push('RSSI '+Math.round(rs)+' dBm');
   return bits.join(' · ');
 }
+function nodeRequestPackets(action,details,sentAt=0){
+  let port=null,telemetryType=null;
+  if(action==='nodeinfo')port='NODEINFO_APP';
+  else if(action==='position')port='POSITION_APP';
+  else if(action==='neighbors')port='NEIGHBORINFO_APP';
+  else if(action.startsWith('telemetry_')){port='TELEMETRY_APP';telemetryType=action.split('_',2)[1];}
+  if(!port)return [];
+  return (details?.requests||[]).filter(p=>{
+    if(String(p.port||'')!==port)return false;
+    const ts=Number(p.timestampMs||0);
+    if(sentAt&&ts<Number(sentAt)-1000)return false;
+    if(telemetryType&&String(p.telemetryType||'device')!==telemetryType)return false;
+    return true;
+  }).sort((a,b)=>Number(a.timestampMs||0)-Number(b.timestampMs||0));
+}
+function nodeRoutingEvidence(action,s,details){
+  const txIds=new Set(nodeRequestPackets(action,details,s?.sentAt||0).map(p=>Number(p.packetId||0)).filter(Boolean));
+  if(s?.diagnostic?.packetId)txIds.add(Number(s.diagnostic.packetId));
+  if(!txIds.size)return null;
+  for(const p of (details?.responses||[])){
+    if(String(p.port||'')!=='ROUTING_APP')continue;
+    const ts=Number(p.timestampMs||0);
+    if(ts<Number(s?.sentAt||0)-1000)continue;
+    const rid=Number(p.requestId||0);
+    if(!rid||!txIds.has(rid))continue;
+    return p;
+  }
+  return null;
+}
+function routingErrorName(code){
+  const names={0:'ACK',1:'NO_ROUTE',2:'GOT_NAK',3:'TIMEOUT',4:'NO_INTERFACE',5:'MAX_RETRANSMIT',6:'NO_CHANNEL',7:'TOO_LARGE',8:'NO_RESPONSE',9:'DUTY_CYCLE_LIMIT',32:'BAD_REQUEST',33:'NOT_AUTHORIZED',34:'PKI_FAILED',35:'PKI_UNKNOWN_PUBKEY',36:'ADMIN_BAD_SESSION_KEY',37:'ADMIN_PUBLIC_KEY_UNAUTHORIZED',38:'RATE_LIMIT_EXCEEDED',39:'PKI_SEND_FAIL_PUBLIC_KEY'};
+  const n=Number(code);return Number.isFinite(n)?(names[n]||('ROUTING_'+n)):'ROUTING';
+}
+function nodeQueryWaitingMessage(action,s,details,now=Date.now()){
+  const base=s?.acceptedMessage||tr('aguardando resposta');
+  const tx=nodeRequestPackets(action,details,s?.sentAt||0);
+  const latestTx=tx.length?tx[tx.length-1]:null;
+  const packetInfo=latestTx?.packetId&&!/packet\s+\d+/i.test(base)?` · TX packet ${latestTx.packetId}`:'';
+  if(!String(action||'').startsWith('telemetry_'))return base+packetInfo;
+  const elapsed=Math.max(0,Number(now)-Number(s?.sentAt||now));
+  const n=tx.length;
+  const txInfo=n?` · ${n} ${tr(n===1?'TX observado':'TX observados')}`:'';
+  if(elapsed<20000)return base+txInfo;
+  if(elapsed<45000){
+    return n>=2?`${tr('retry 1 do MM observado')}${txInfo} · ${tr('aguardando resposta')}`:`${tr('sem resposta inicial')} · ${tr('aguardando possível retry do MM')}${txInfo}`;
+  }
+  if(elapsed<75000){
+    return n>=2?`${tr('retry 1 do MM observado')}${txInfo} · ${tr('aguardando segunda tentativa do MM')}`:`${tr('sem retry observado')} · ${tr('aguardando resposta')} (${tr('janela do MM')})`;
+  }
+  return n>=3?`${tr('retry 2 do MM observado')}${txInfo} · ${tr('aguardando resposta')}`:n>=2?`${tr('retry 1 do MM observado')}${txInfo} · ${tr('aguardando resposta')}`:`${tr('sem retry observado')} · ${tr('aguardando resposta')} (${tr('janela do MM')})`;
+}
+function nodeQueryTimeoutMessage(action,s,details){
+  const route=nodeRoutingEvidence(action,s,details);
+  let routing='';
+  if(route)routing=` · ${routingErrorName(route.routingErrorReason)}`;
+  if(String(action||'').startsWith('telemetry_')){
+    const tx=nodeRequestPackets(action,details,s?.sentAt||0);
+    const n=tx.length;
+    const txInfo=n?` · ${n} ${tr(n===1?'TX observado':'TX observados')}`:'';
+    return `${tr('sem resposta após 90 s')}${txInfo}${routing}`;
+  }
+  const tx=nodeRequestPackets(action,details,s?.sentAt||0);const last=tx.length?tx[tx.length-1]:null;
+  const packet=last?.packetId?` · TX packet ${last.packetId}`:'';
+  return `${s?.acceptedMessage||'MM aceitou'}${packet} · sem RX em ${Math.round(nodeQueryTimeoutMs(action)/1000)} s${routing}`;
+}
+function nodeQueryNeedsPolling(action,s,now=Date.now()){
+  if(!s)return false;
+  if(['waiting','sending'].includes(s.state))return true;
+  return s.state==='timeout'&&s.sentAt&&Number(now)-Number(s.sentAt)<NODE_QUERY_LATE_WATCH_MS;
+}
+
 function nodeResponseSignal(action,details){
   if(!details)return null;
   const n=details.node||{};
@@ -1842,22 +1917,28 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
       if(responded){
         const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
         const detail=nodeResponseDetail(d.id,b,current);
-        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${detail?' · '+detail:''}`;
-      }else if(s.state==='waiting'&&now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){
-        s.state='timeout';
-        s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');
+        const wasTimeout=s.state==='timeout';
+        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${wasTimeout?' · '+tr('resposta tardia'):''}${detail?' · '+detail:''}`;
+      }else if(s.state==='waiting'){
+        const timeout=nodeQueryTimeoutMs(d.id);
+        if(now-s.sentAt>=timeout){
+          s.state='timeout';
+          s.message=nodeQueryTimeoutMessage(d.id,s,b);
+        }else{
+          s.message=nodeQueryWaitingMessage(d.id,s,b,now);
+        }
       }
     }
   }
   renderNodePopupData(nodeNum,b);
-  const pending=Object.values(run.states).some(s=>s.state==='waiting'||s.state==='sending');
-  if(pending&&!run.allActive)scheduleNodePolling(nodeNum);else if(!pending)stopNodePolling(nodeNum);
+  const shouldPoll=NODE_QUERY_DEFS.some(d=>nodeQueryNeedsPolling(d.id,run.states[d.id]));
+  if(shouldPoll&&!run.allActive)scheduleNodePolling(nodeNum);else if(!shouldPoll)stopNodePolling(nodeNum);
   return b;
 }
 function stopNodePolling(nodeNum){const run=nodeQueryRun(nodeNum);if(run.pollTimer){clearTimeout(run.pollTimer);run.pollTimer=null;}}
 function scheduleNodePolling(nodeNum){
   const run=nodeQueryRun(nodeNum);if(run.pollTimer)return;
-  run.pollTimer=setTimeout(async()=>{run.pollTimer=null;try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar respostas do nó:',e);if(Object.values(run.states).some(s=>s.state==='waiting'))scheduleNodePolling(nodeNum);}},NODE_QUERY_POLL_MS);
+  run.pollTimer=setTimeout(async()=>{run.pollTimer=null;try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar respostas do nó:',e);if(NODE_QUERY_DEFS.some(d=>nodeQueryNeedsPolling(d.id,run.states[d.id])))scheduleNodePolling(nodeNum);}},NODE_QUERY_POLL_MS);
 }
 async function sendNodeQuery(nodeNum,action,fromAll=false){
   const def=NODE_QUERY_DEFS.find(x=>x.id===action);if(!def)return;
@@ -1866,7 +1947,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const s=run.states[action];
-    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.message='enviando…';
+    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.diagnostic=null;s.message='enviando…';
     renderNodePopupData(nodeNum,run.details);
     const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(nodeNum),action})});
     const b=await r.json();
@@ -1877,7 +1958,8 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
       s.state='waiting';
       s.sentAt=Number(b.requestedAtMs||Date.now());
       s.acceptedMessage=String(b.acceptedMessage||'').trim();
-      s.message=s.acceptedMessage||tr('aguardando resposta');
+      s.diagnostic=b.diagnostic||null;
+      s.message=nodeQueryWaitingMessage(action,s,run.details,Date.now());
       if(!fromAll)scheduleNodePolling(nodeNum);
     }
   }catch(e){const s=run.states[action];s.state='error';s.message=String(e.message||e);}
@@ -1886,7 +1968,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
 }
 async function waitNodeQueryTerminal(nodeNum,action){
   const run=nodeQueryRun(nodeNum);
-  const deadline=Date.now()+NODE_QUERY_TIMEOUT_MS+2500;
+  const deadline=Date.now()+nodeQueryTimeoutMs(action)+2500;
   while(Date.now()<deadline){
     const s=run.states[action];
     if(!s||!['waiting','sending'].includes(s.state))return s;
@@ -1896,7 +1978,7 @@ async function waitNodeQueryTerminal(nodeNum,action){
     await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_POLL_MS));
   }
   const s=run.states[action];
-  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');renderNodePopupData(nodeNum,run.details);}
+  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=nodeQueryTimeoutMessage(action,s,run.details);renderNodePopupData(nodeNum,run.details);}
   return s;
 }
 async function runAllNodeQueries(nodeNum){
@@ -1904,7 +1986,7 @@ async function runAllNodeQueries(nodeNum){
   const run=nodeQueryRun(nodeNum);
   if(run.allActive)return;
   run.allActive=true;run.allDone=0;
-  NODE_QUERY_DEFS.forEach(d=>{run.states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''};});
+  NODE_QUERY_DEFS.forEach(d=>{run.states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:'',acceptedMessage:'',diagnostic:null};});
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const hops=Number(run.details?.node?.hopsAway);
@@ -1929,6 +2011,7 @@ async function runAllNodeQueries(nodeNum){
   }finally{
     run.allActive=false;
     renderNodePopupData(nodeNum,run.details);
+    if(NODE_QUERY_DEFS.some(d=>nodeQueryNeedsPolling(d.id,run.states[d.id])))scheduleNodePolling(nodeNum);
   }
 }
 
@@ -4325,7 +4408,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1363';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1364';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4652,7 +4735,8 @@ def _telemetry_kind(type_name) -> str:
 
 def _node_details(node_num):
     n = _node_num(node_num)
-    source = urllib.parse.quote(MM_SOURCE, safe="")
+    source_id = _resolved_mm_source_id()
+    source = urllib.parse.quote(source_id, safe="")
     nodes_body = _mm_api_get(f"/api/v1/sources/{source}/nodes")
     rows = nodes_body.get("data", []) if isinstance(nodes_body, dict) else []
     row = None
@@ -4709,7 +4793,7 @@ def _node_details(node_num):
         })
         pkt_body = _mm_api_get(f"/api/v1/sources/{source}/packets?{params}")
         pkt_rows = pkt_body.get("data", []) if isinstance(pkt_body, dict) else []
-        allowed_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP"}
+        allowed_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP", "ROUTING_APP"}
         for item in pkt_rows:
             if not isinstance(item, dict):
                 continue
@@ -4726,10 +4810,30 @@ def _node_details(node_num):
                     ts *= 1000
             except Exception:
                 continue
+            metadata = item.get("metadata")
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except Exception:
+                    metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            decoded = metadata.get("decoded_payload")
+            if not isinstance(decoded, dict):
+                decoded = {}
+            request_id = (
+                metadata.get("requestId") or metadata.get("request_id")
+                or decoded.get("requestId") or decoded.get("request_id")
+            )
+            error_reason = decoded.get("errorReason")
+            if error_reason is None:
+                error_reason = decoded.get("error_reason")
             response_packets.append({
                 "port": port,
                 "timestampMs": ts,
                 "packetId": item.get("packet_id") or item.get("packetId"),
+                "requestId": request_id,
+                "routingErrorReason": error_reason if port == "ROUTING_APP" else None,
                 "channel": item.get("channel"),
                 "rssi": item.get("rssi"),
                 "snr": item.get("snr"),
@@ -4741,6 +4845,56 @@ def _node_details(node_num):
         response_packets.sort(key=lambda x: int(x.get("timestampMs") or 0), reverse=True)
     except Exception:
         response_packets = []
+
+    # Solicitações TX observadas no Packet Monitor. Isso permite acompanhar
+    # retries automáticos do MeshMonitor (especialmente Telemetry) sem
+    # presumir que a primeira tentativa falhou definitivamente.
+    request_packets = []
+    try:
+        params = urllib.parse.urlencode({
+            "limit": "250",
+            "to_node": str(n),
+            "since": str(since_ms),
+        })
+        req_body = _mm_api_get(f"/api/v1/sources/{source}/packets?{params}")
+        req_rows = req_body.get("data", []) if isinstance(req_body, dict) else []
+        allowed_request_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP"}
+        for item in req_rows:
+            if not isinstance(item, dict):
+                continue
+            port = str(item.get("portnum_name") or "")
+            if port not in allowed_request_ports:
+                continue
+            direction = str(item.get("direction") or "").lower()
+            if direction and direction != "tx":
+                continue
+            ts = item.get("timestamp") or item.get("created_at") or item.get("createdAt")
+            try:
+                ts = int(float(ts))
+                if ts < 10_000_000_000:
+                    ts *= 1000
+            except Exception:
+                continue
+            metadata = item.get("metadata")
+            if isinstance(metadata, str):
+                try:
+                    metadata = json.loads(metadata)
+                except Exception:
+                    metadata = {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            request_packets.append({
+                "port": port,
+                "timestampMs": ts,
+                "packetId": metadata.get("packetId") or item.get("packet_id") or item.get("packetId"),
+                "requestId": metadata.get("requestId") or metadata.get("request_id"),
+                "telemetryType": metadata.get("telemetryType"),
+                "channel": item.get("channel"),
+                "payloadPreview": item.get("payload_preview"),
+            })
+        request_packets.sort(key=lambda x: int(x.get("timestampMs") or 0))
+    except Exception:
+        request_packets = []
 
     relevant_traces = []
     try:
@@ -4771,7 +4925,7 @@ def _node_details(node_num):
 
     neighbors = {"available": True, "data": [], "latestTimestamp": None}
     try:
-        q = urllib.parse.urlencode({"sourceId": MM_SOURCE})
+        q = urllib.parse.urlencode({"sourceId": source_id})
         nb_body = _mm_api_get(f"/api/neighborinfo/{n}?{q}")
         nb_rows = nb_body if isinstance(nb_body, list) else (nb_body.get("data", []) if isinstance(nb_body, dict) else [])
         clean_nb = []
@@ -4806,7 +4960,8 @@ def _node_details(node_num):
         "nodeNum": n,
         "node": node,
         "telemetry": {"latest": telemetry_rows[:80]},
-        "responses": response_packets[:80],
+        "responses": response_packets[:120],
+        "requests": request_packets[:120],
         "traceroute": relevant_traces[0] if relevant_traces else None,
         "neighbors": neighbors,
         "readAtMs": int(time.time() * 1000),

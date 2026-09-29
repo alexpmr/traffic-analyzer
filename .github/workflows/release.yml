@@ -186,6 +186,21 @@ jobs:
               d.execute_script("applyLanguage('pt-BR',true)")
               assert d.execute_script("return currentLang")=="pt-BR"
 
+              assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device')")==90000
+              assert d.execute_script("return nodeQueryTimeoutMs('position')")==20000
+              retry_status=d.execute_script("""
+                const now=Date.now();
+                const state={sentAt:now-35000,acceptedMessage:'MM aceitou'};
+                const details={requests:[
+                  {port:'TELEMETRY_APP',timestampMs:now-34000,telemetryType:'device',packetId:101},
+                  {port:'TELEMETRY_APP',timestampMs:now-2000,telemetryType:'device',packetId:102}
+                ]};
+                return nodeQueryWaitingMessage('telemetry_device',state,details,now);
+              """)
+              assert "retry 1" in retry_status.lower(),retry_status
+              assert d.execute_script("return nodeQueryNeedsPolling('telemetry_device',{state:'timeout',sentAt:Date.now()-120000})") is True
+              assert d.execute_script("return nodeQueryNeedsPolling('telemetry_device',{state:'timeout',sentAt:Date.now()-200000})") is False
+
               osm_url=d.execute_script("return baseMaps.osm.url")
               assert osm_url=="https://tile.openstreetmap.org/{z}/{x}/{y}.png",osm_url
               fallback=d.execute_script("""
