@@ -4731,7 +4731,8 @@ def _telemetry_kind(type_name) -> str:
 
 def _node_details(node_num):
     n = _node_num(node_num)
-    source = urllib.parse.quote(MM_SOURCE, safe="")
+    source_id = _resolved_mm_source_id()
+    source = urllib.parse.quote(source_id, safe="")
     nodes_body = _mm_api_get(f"/api/v1/sources/{source}/nodes")
     rows = nodes_body.get("data", []) if isinstance(nodes_body, dict) else []
     row = None
@@ -4788,7 +4789,7 @@ def _node_details(node_num):
         })
         pkt_body = _mm_api_get(f"/api/v1/sources/{source}/packets?{params}")
         pkt_rows = pkt_body.get("data", []) if isinstance(pkt_body, dict) else []
-        allowed_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP"}
+        allowed_ports = {"NODEINFO_APP", "POSITION_APP", "TELEMETRY_APP", "NEIGHBORINFO_APP", "ROUTING_APP"}
         for item in pkt_rows:
             if not isinstance(item, dict):
                 continue
@@ -4850,7 +4851,7 @@ def _node_details(node_num):
 
     neighbors = {"available": True, "data": [], "latestTimestamp": None}
     try:
-        q = urllib.parse.urlencode({"sourceId": MM_SOURCE})
+        q = urllib.parse.urlencode({"sourceId": source_id})
         nb_body = _mm_api_get(f"/api/neighborinfo/{n}?{q}")
         nb_rows = nb_body if isinstance(nb_body, list) else (nb_body.get("data", []) if isinstance(nb_body, dict) else [])
         clean_nb = []
