@@ -5221,6 +5221,21 @@ def _virtual_node_probe(force=False):
     elif not VIRTUAL_NODE_HELPER.is_file():
         ok = False
         error = f"Helper do Virtual Node não encontrado: {VIRTUAL_NODE_HELPER}"
+    else:
+        try:
+            check = subprocess.run(
+                [VIRTUAL_NODE_PYTHON, "-c", "import meshtastic"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=3,
+                check=False,
+            )
+            if check.returncode != 0:
+                ok = False
+                error = "Cliente Python Meshtastic indisponível no ambiente do Traffic Analyzer"
+        except Exception as exc:
+            ok = False
+            error = f"Falha ao validar cliente Meshtastic: {exc}"
     # Não abrimos uma conexão de sondagem separada: alguns servidores de
     # Virtual Node aceitam apenas uma sessão por vez. A conexão real é feita
     # pelo helper e qualquer falha de TCP volta como diagnóstico explícito.
