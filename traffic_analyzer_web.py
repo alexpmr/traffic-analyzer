@@ -5279,11 +5279,18 @@ def _request_node_query(node_num, action):
         channel = _node_query_channel(n, source_id)
         try:
             virtual = _virtual_node_send(n, action, channel)
-            packet_id = int(virtual.get("packetId") or 0)
-            accepted_message = (
-                f"Virtual Node aceitou · canal {channel} · packet {packet_id} "
-                "· aguardando resposta correlacionada"
-            )
+            packet_id = virtual.get("packetId")
+            try:
+                packet_id = int(packet_id) if packet_id is not None else None
+            except (TypeError, ValueError):
+                packet_id = None
+            query_id = str(virtual.get("queryId") or "")
+            accepted_parts = ["Virtual Node iniciado", f"canal {channel}"]
+            if packet_id:
+                accepted_parts.append(f"packet {packet_id}")
+            if query_id:
+                accepted_parts.append(f"consulta {query_id[:8]}")
+            accepted_message = " · ".join(accepted_parts) + " · aguardando resposta correlacionada"
             return {
                 "success": True,
                 "action": action,
@@ -5299,8 +5306,10 @@ def _request_node_query(node_num, action):
                     "packetId": packet_id,
                     "requestId": None,
                     "correlationPacketId": packet_id,
+                    "queryId": query_id,
                     "virtualNodeHost": VIRTUAL_NODE_HOST,
                     "virtualNodePort": VIRTUAL_NODE_PORT,
+                    "queryTimeout": VIRTUAL_NODE_QUERY_TIMEOUT,
                 },
                 "virtualNode": virtual,
             }
