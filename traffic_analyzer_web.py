@@ -2141,7 +2141,7 @@ async function runAllNodeQueries(nodeNum){
     if(Number.isFinite(hops)&&hops>0){
       const ns=run.states.neighbors;ns.state='unsupported';ns.message=tr('somente nó local ou 0-hop');
     }
-    const order=['nodeinfo','position','telemetry_power','traceroute','telemetry_device','telemetry_environment','telemetry_airQuality','neighbors'];
+    const order=['traceroute','telemetry_device','position','telemetry_power','telemetry_environment','telemetry_airQuality','neighbors','nodeinfo'];
     run.allOrder=order;
     run.allTotal=order.length;
     renderNodePopupData(nodeNum,run.details);
