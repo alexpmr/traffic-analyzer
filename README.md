@@ -1,6 +1,16 @@
-# Traffic Analyzer v1.37.0
+# Traffic Analyzer v1.37.1
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Correção da v1.37.1
+
+- Corrige o indicador de versão que podia exibir **ATUALIZADO** por até 1 hora após a publicação de uma nova release.
+- A consulta inicial ao GitHub agora é forçada ao abrir a interface.
+- O cache interno da versão publicada foi reduzido de 1 hora para 5 minutos.
+- A verificação periódica passa a ocorrer a cada 5 minutos.
+- As requisições à API do GitHub usam cabeçalhos de não-cache para evitar resposta intermediária desatualizada.
+- Clicar no indicador continua forçando uma verificação imediata.
+- Preserva todos os recursos da v1.37.0.
 
 ## Novidades da v1.37.0
 
