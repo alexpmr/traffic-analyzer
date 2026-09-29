@@ -5136,13 +5136,33 @@ def _resolved_mm_source_id():
         try:
             body = _mm_api_get("/api/v1/sources")
             rows = body.get("data", []) if isinstance(body, dict) else []
-            primary = next(
-                (row for row in rows if isinstance(row, dict) and row.get("isPrimary") and row.get("id")),
+            rows = [row for row in rows if isinstance(row, dict) and row.get("id")]
+
+            # MeshMonitor 4.16.2 refuses TX/device actions from MQTT and
+            # MeshCore sources with SOURCE_NOT_MESHTASTIC. Mirror the
+            # MeshMonitor frontend resolver: when "default" is requested,
+            # prefer the enabled Meshtastic TCP source instead of blindly
+            # taking the oldest/primary row.
+            meshtastic_rows = [
+                row for row in rows
+                if str(row.get("type") or "") == "meshtastic_tcp"
+            ]
+            primary_meshtastic = next(
+                (row for row in meshtastic_rows if row.get("isPrimary")),
                 None,
             )
-            if primary:
-                resolved = str(primary.get("id"))
-            elif rows and isinstance(rows[0], dict) and rows[0].get("id"):
+            primary_any = next(
+                (row for row in rows if row.get("isPrimary")),
+                None,
+            )
+
+            if primary_meshtastic:
+                resolved = str(primary_meshtastic.get("id"))
+            elif meshtastic_rows:
+                resolved = str(meshtastic_rows[0].get("id"))
+            elif primary_any:
+                resolved = str(primary_any.get("id"))
+            elif rows:
                 resolved = str(rows[0].get("id"))
         except Exception:
             resolved = configured
