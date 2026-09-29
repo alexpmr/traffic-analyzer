@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.37.1 - 2026-09-29
+
+- Corrige falso status ATUALIZADO causado pelo cache de versão de 1 hora.
+- Força uma consulta nova ao abrir a interface.
+- Reduz o TTL interno da versão publicada para 5 minutos.
+- Altera a verificação periódica para 5 minutos.
+- Envia Cache-Control no-cache e Pragma no-cache ao consultar a Latest Release.
+- Preserva todos os recursos da v1.37.0.
+
 ## 1.37.0 - 2026-09-29
 
 - Reorganiza a navegação superior e cria a aba principal Estatísticas.
