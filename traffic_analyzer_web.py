@@ -1913,22 +1913,28 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
       if(responded){
         const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
         const detail=nodeResponseDetail(d.id,b,current);
-        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${detail?' · '+detail:''}`;
-      }else if(s.state==='waiting'&&now-s.sentAt>=NODE_QUERY_TIMEOUT_MS){
-        s.state='timeout';
-        s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');
+        const wasTimeout=s.state==='timeout';
+        s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${wasTimeout?' · '+tr('resposta tardia'):''}${detail?' · '+detail:''}`;
+      }else if(s.state==='waiting'){
+        const timeout=nodeQueryTimeoutMs(d.id);
+        if(now-s.sentAt>=timeout){
+          s.state='timeout';
+          s.message=nodeQueryTimeoutMessage(d.id,s,b);
+        }else{
+          s.message=nodeQueryWaitingMessage(d.id,s,b,now);
+        }
       }
     }
   }
   renderNodePopupData(nodeNum,b);
-  const pending=Object.values(run.states).some(s=>s.state==='waiting'||s.state==='sending');
-  if(pending&&!run.allActive)scheduleNodePolling(nodeNum);else if(!pending)stopNodePolling(nodeNum);
+  const shouldPoll=NODE_QUERY_DEFS.some(d=>nodeQueryNeedsPolling(d.id,run.states[d.id]));
+  if(shouldPoll&&!run.allActive)scheduleNodePolling(nodeNum);else if(!shouldPoll)stopNodePolling(nodeNum);
   return b;
 }
 function stopNodePolling(nodeNum){const run=nodeQueryRun(nodeNum);if(run.pollTimer){clearTimeout(run.pollTimer);run.pollTimer=null;}}
 function scheduleNodePolling(nodeNum){
   const run=nodeQueryRun(nodeNum);if(run.pollTimer)return;
-  run.pollTimer=setTimeout(async()=>{run.pollTimer=null;try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar respostas do nó:',e);if(Object.values(run.states).some(s=>s.state==='waiting'))scheduleNodePolling(nodeNum);}},NODE_QUERY_POLL_MS);
+  run.pollTimer=setTimeout(async()=>{run.pollTimer=null;try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar respostas do nó:',e);if(NODE_QUERY_DEFS.some(d=>nodeQueryNeedsPolling(d.id,run.states[d.id])))scheduleNodePolling(nodeNum);}},NODE_QUERY_POLL_MS);
 }
 async function sendNodeQuery(nodeNum,action,fromAll=false){
   const def=NODE_QUERY_DEFS.find(x=>x.id===action);if(!def)return;
@@ -1937,7 +1943,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const s=run.states[action];
-    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.message='enviando…';
+    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.diagnostic=null;s.message='enviando…';
     renderNodePopupData(nodeNum,run.details);
     const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(nodeNum),action})});
     const b=await r.json();
@@ -1948,7 +1954,8 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
       s.state='waiting';
       s.sentAt=Number(b.requestedAtMs||Date.now());
       s.acceptedMessage=String(b.acceptedMessage||'').trim();
-      s.message=s.acceptedMessage||tr('aguardando resposta');
+      s.diagnostic=b.diagnostic||null;
+      s.message=nodeQueryWaitingMessage(action,s,run.details,Date.now());
       if(!fromAll)scheduleNodePolling(nodeNum);
     }
   }catch(e){const s=run.states[action];s.state='error';s.message=String(e.message||e);}
@@ -1957,7 +1964,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
 }
 async function waitNodeQueryTerminal(nodeNum,action){
   const run=nodeQueryRun(nodeNum);
-  const deadline=Date.now()+NODE_QUERY_TIMEOUT_MS+2500;
+  const deadline=Date.now()+nodeQueryTimeoutMs(action)+2500;
   while(Date.now()<deadline){
     const s=run.states[action];
     if(!s||!['waiting','sending'].includes(s.state))return s;
@@ -1967,7 +1974,7 @@ async function waitNodeQueryTerminal(nodeNum,action){
     await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_POLL_MS));
   }
   const s=run.states[action];
-  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=s.acceptedMessage?`${s.acceptedMessage} · sem RX em ${Math.round(NODE_QUERY_TIMEOUT_MS/1000)} s`:tr('sem resposta / timeout');renderNodePopupData(nodeNum,run.details);}
+  if(s&&['waiting','sending'].includes(s.state)){s.state='timeout';s.message=nodeQueryTimeoutMessage(action,s,run.details);renderNodePopupData(nodeNum,run.details);}
   return s;
 }
 async function runAllNodeQueries(nodeNum){
@@ -1975,7 +1982,7 @@ async function runAllNodeQueries(nodeNum){
   const run=nodeQueryRun(nodeNum);
   if(run.allActive)return;
   run.allActive=true;run.allDone=0;
-  NODE_QUERY_DEFS.forEach(d=>{run.states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''};});
+  NODE_QUERY_DEFS.forEach(d=>{run.states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:'',acceptedMessage:'',diagnostic:null};});
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const hops=Number(run.details?.node?.hopsAway);
@@ -2000,6 +2007,7 @@ async function runAllNodeQueries(nodeNum){
   }finally{
     run.allActive=false;
     renderNodePopupData(nodeNum,run.details);
+    if(NODE_QUERY_DEFS.some(d=>nodeQueryNeedsPolling(d.id,run.states[d.id])))scheduleNodePolling(nodeNum);
   }
 }
 
