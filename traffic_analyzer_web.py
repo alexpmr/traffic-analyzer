@@ -1595,10 +1595,14 @@ const NODE_QUERY_DEFS=[
 const nodeQueryRuns=new Map();
 const NODE_QUERY_TIMEOUT_MS=20000;
 const NODE_QUERY_TELEMETRY_TIMEOUT_MS=90000;
+const NODE_QUERY_VIRTUAL_TIMEOUT_MS=30000;
 const NODE_QUERY_LATE_WATCH_MS=180000;
 const NODE_QUERY_POLL_MS=1000;
 const NODE_QUERY_STAGGER_MS=2000;
-function nodeQueryTimeoutMs(action){return String(action||'').startsWith('telemetry_')?NODE_QUERY_TELEMETRY_TIMEOUT_MS:NODE_QUERY_TIMEOUT_MS;}
+function nodeQueryTimeoutMs(action,state=null){
+  if(state?.diagnostic?.backend==='virtual-node')return NODE_QUERY_VIRTUAL_TIMEOUT_MS;
+  return String(action||'').startsWith('telemetry_')?NODE_QUERY_TELEMETRY_TIMEOUT_MS:NODE_QUERY_TIMEOUT_MS;
+}
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
@@ -1633,7 +1637,7 @@ function nodeQueryProgressPct(s,action){
   if(!s||s.state==='idle')return 0;
   if(s.state==='sending')return 8;
   if(nodeQueryIsTerminal(s))return 100;
-  const timeout=nodeQueryTimeoutMs(action);
+  const timeout=nodeQueryTimeoutMs(action,s);
   if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/timeout)*100)));
   return 0;
 }
@@ -1808,13 +1812,32 @@ function latestResponsePacket(details,port){
 function latestResponsePacketMs(details,port){
   return Number(latestResponsePacket(details,port)?.timestampMs||0)||null;
 }
-function nodeResponseDetail(action,details,signalMs){
-  let port=null;
-  if(action==='nodeinfo')port='NODEINFO_APP';
-  else if(action==='position')port='POSITION_APP';
-  else if(action==='neighbors')port='NEIGHBORINFO_APP';
-  else if(action.startsWith('telemetry_'))port='TELEMETRY_APP';
-  const p=port?latestResponsePacket(details,port):null;
+function nodeResponsePort(action){
+  if(action==='nodeinfo')return 'NODEINFO_APP';
+  if(action==='position')return 'POSITION_APP';
+  if(action==='neighbors')return 'NEIGHBORINFO_APP';
+  if(String(action||'').startsWith('telemetry_'))return 'TELEMETRY_APP';
+  return null;
+}
+function correlatedResponsePacket(action,details,state){
+  const packetId=Number(state?.diagnostic?.correlationPacketId||state?.diagnostic?.packetId||0);
+  const port=nodeResponsePort(action);
+  if(!packetId||!port)return null;
+  let best=null,bestTs=0;
+  for(const p of (details?.responses||[])){
+    if(String(p.port||'')!==port)continue;
+    if(Number(p.requestId||0)!==packetId)continue;
+    const ts=Number(p.timestampMs||0);
+    if(state?.sentAt&&ts<Number(state.sentAt)-1000)continue;
+    if(ts>bestTs){best=p;bestTs=ts;}
+  }
+  return best;
+}
+function nodeResponseDetail(action,details,signalMs,state=null){
+  const port=nodeResponsePort(action);
+  const p=state?.diagnostic?.backend==='virtual-node'
+    ? correlatedResponsePacket(action,details,state)
+    : (port?latestResponsePacket(details,port):null);
   if(!p)return '';
   const pts=Number(p.timestampMs||0),sig=Number(signalMs||0);
   if(sig&&pts&&Math.abs(pts-sig)>5000)return '';
@@ -1862,6 +1885,7 @@ function routingErrorName(code){
 }
 function nodeQueryWaitingMessage(action,s,details,now=Date.now()){
   const base=s?.acceptedMessage||tr('aguardando resposta');
+  if(s?.diagnostic?.backend==='virtual-node')return base;
   const tx=nodeRequestPackets(action,details,s?.sentAt||0);
   const latestTx=tx.length?tx[tx.length-1]:null;
   const packetInfo=latestTx?.packetId&&!/packet\s+\d+/i.test(base)?` · TX packet ${latestTx.packetId}`:'';
@@ -1882,6 +1906,9 @@ function nodeQueryTimeoutMessage(action,s,details){
   const route=nodeRoutingEvidence(action,s,details);
   let routing='';
   if(route)routing=` · ${routingErrorName(route.routingErrorReason)}`;
+  if(s?.diagnostic?.backend==='virtual-node'){
+    return `${tr('sem resposta correlacionada')} em ${Math.round(nodeQueryTimeoutMs(action,s)/1000)} s${routing}`;
+  }
   if(String(action||'').startsWith('telemetry_')){
     const tx=nodeRequestPackets(action,details,s?.sentAt||0);
     const n=tx.length;
@@ -1890,7 +1917,7 @@ function nodeQueryTimeoutMessage(action,s,details){
   }
   const tx=nodeRequestPackets(action,details,s?.sentAt||0);const last=tx.length?tx[tx.length-1]:null;
   const packet=last?.packetId?` · TX packet ${last.packetId}`:'';
-  return `${s?.acceptedMessage||'MM aceitou'}${packet} · sem RX em ${Math.round(nodeQueryTimeoutMs(action)/1000)} s${routing}`;
+  return `${s?.acceptedMessage||'MM aceitou'}${packet} · sem RX em ${Math.round(nodeQueryTimeoutMs(action,s)/1000)} s${routing}`;
 }
 function nodeQueryNeedsPolling(action,s,now=Date.now()){
   if(!s)return false;
@@ -1898,8 +1925,11 @@ function nodeQueryNeedsPolling(action,s,now=Date.now()){
   return s.state==='timeout'&&s.sentAt&&Number(now)-Number(s.sentAt)<NODE_QUERY_LATE_WATCH_MS;
 }
 
-function nodeResponseSignal(action,details){
+function nodeResponseSignal(action,details,state=null){
   if(!details)return null;
+  if(state?.diagnostic?.backend==='virtual-node'&&action!=='traceroute'){
+    return Number(correlatedResponsePacket(action,details,state)?.timestampMs||0)||null;
+  }
   const n=details.node||{};
   if(action==='nodeinfo')return latestResponsePacketMs(details,'NODEINFO_APP');
   if(action==='position'){
@@ -1930,20 +1960,27 @@ async function loadNodeDetails(nodeNum,checkResponses=true){
     const now=Date.now();
     for(const d of NODE_QUERY_DEFS){
       const s=run.states[d.id];if(!s||!['waiting','timeout'].includes(s.state)||!s.sentAt)continue;
-      const current=Number(nodeResponseSignal(d.id,b)||0);
+      const current=Number(nodeResponseSignal(d.id,b,s)||0);
       const responded=Number.isFinite(current)&&current>=Math.max(0,Number(s.sentAt||0)-1000);
       if(responded){
         const latency=Math.max(0,(Number(current||now)-Number(s.sentAt||now))/1000);
-        const detail=nodeResponseDetail(d.id,b,current);
+        const detail=nodeResponseDetail(d.id,b,current,s);
         const wasTimeout=s.state==='timeout';
         s.state='received';s.receivedAt=current||now;s.message=`${tr('respondido')} em ${latency.toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} s · ${new Date(current||now).toLocaleTimeString(uiLocale())}${wasTimeout?' · '+tr('resposta tardia'):''}${detail?' · '+detail:''}`;
       }else if(s.state==='waiting'){
-        const timeout=nodeQueryTimeoutMs(d.id);
-        if(now-s.sentAt>=timeout){
-          s.state='timeout';
-          s.message=nodeQueryTimeoutMessage(d.id,s,b);
+        const route=nodeRoutingEvidence(d.id,s,b);
+        const routeCode=route?Number(route.routingErrorReason):null;
+        if(route&&Number.isFinite(routeCode)&&routeCode!==0){
+          s.state='error';
+          s.message=nodeRoutingResultMessage(routeCode);
         }else{
-          s.message=nodeQueryWaitingMessage(d.id,s,b,now);
+          const timeout=nodeQueryTimeoutMs(d.id,s);
+          if(now-s.sentAt>=timeout){
+            s.state='timeout';
+            s.message=nodeQueryTimeoutMessage(d.id,s,b);
+          }else{
+            s.message=nodeQueryWaitingMessage(d.id,s,b,now);
+          }
         }
       }
     }
@@ -1965,7 +2002,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
   try{
     if(!run.details)await loadNodeDetails(nodeNum,false);
     const s=run.states[action];
-    s.baseline=nodeResponseSignal(action,run.details);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.diagnostic=null;s.message='enviando…';
+    s.baseline=nodeResponseSignal(action,run.details,s);s.state='sending';s.sentAt=Date.now();s.receivedAt=0;s.acceptedMessage='';s.diagnostic=null;s.message='enviando…';
     renderNodePopupData(nodeNum,run.details);
     const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(nodeNum),action})});
     const b=await r.json();
@@ -1986,7 +2023,7 @@ async function sendNodeQuery(nodeNum,action,fromAll=false){
 }
 async function waitNodeQueryTerminal(nodeNum,action){
   const run=nodeQueryRun(nodeNum);
-  const deadline=Date.now()+nodeQueryTimeoutMs(action)+2500;
+  const deadline=Date.now()+nodeQueryTimeoutMs(action,run.states[action])+2500;
   while(Date.now()<deadline){
     const s=run.states[action];
     if(!s||!['waiting','sending'].includes(s.state))return s;
