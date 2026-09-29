@@ -176,7 +176,7 @@ jobs:
               assert "🇧🇷" in button.text and "Português" in button.text,button.text
               button.click()
               opts=d.find_elements(By.CSS_SELECTOR,".languageOption[data-language]")
-              labels=[o.text.replace("✓","").strip() for o in opts]
+              labels=[" ".join((o.get_attribute("textContent") or "").replace("✓","").split()) for o in opts]
               assert labels==["🇧🇷 Português","🇺🇸 English"],labels
               assert d.find_element(By.ID,"uiLanguageMenu").get_attribute("class").find("open")>=0
               opts[1].click()
