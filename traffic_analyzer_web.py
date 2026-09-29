@@ -5173,10 +5173,58 @@ def _request_node_query(node_num, action):
     requested_at_ms = int(time.time() * 1000)
     endpoint = None
     channel = None
+    fallback_reason = ""
 
-    # MeshMonitor 4.16.x: NodeInfo/Position/NeighborInfo/Telemetry use the
-    # source-aware main request API. Traceroute stays on the v1 action path,
-    # which already resolves the shared/broadcast channel correctly.
+    allowed_actions = {
+        "nodeinfo", "position", "traceroute", "neighbors",
+        "telemetry_device", "telemetry_environment",
+        "telemetry_airQuality", "telemetry_power",
+    }
+    if action not in allowed_actions:
+        raise ValueError("Consulta de nó inválida")
+
+    # Traceroute permanece na API do MeshMonitor: esse caminho já foi
+    # comprovado na rede real. As demais consultas ativas preferem o Virtual
+    # Node e usam o mesmo formato do cliente oficial Meshtastic (wantResponse
+    # sem request_id pré-preenchido). A resposta é correlacionada depois pelo
+    # packet.id original.
+    if action != "traceroute" and NODE_QUERY_BACKEND in {"auto", "virtual"}:
+        channel = _node_query_channel(n, source_id)
+        try:
+            virtual = _virtual_node_send(n, action, channel)
+            packet_id = int(virtual.get("packetId") or 0)
+            accepted_message = (
+                f"Virtual Node aceitou · canal {channel} · packet {packet_id} "
+                "· aguardando resposta correlacionada"
+            )
+            return {
+                "success": True,
+                "action": action,
+                "nodeNum": n,
+                "requestedAtMs": requested_at_ms,
+                "acceptedAtMs": int(time.time() * 1000),
+                "acceptedMessage": accepted_message,
+                "diagnostic": {
+                    "backend": "virtual-node",
+                    "sourceId": source_id,
+                    "endpoint": f"tcp://{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT}",
+                    "channel": channel,
+                    "packetId": packet_id,
+                    "requestId": None,
+                    "correlationPacketId": packet_id,
+                    "virtualNodeHost": VIRTUAL_NODE_HOST,
+                    "virtualNodePort": VIRTUAL_NODE_PORT,
+                },
+                "virtualNode": virtual,
+            }
+        except Exception as exc:
+            if NODE_QUERY_BACKEND == "virtual":
+                raise
+            fallback_reason = str(exc)
+
+    # Fallback compatível com instalações que ainda não tenham o helper/Virtual
+    # Node disponível. O fallback é sempre exposto no diagnóstico; nunca é
+    # tratado silenciosamente como se fosse o backend preferencial.
     if action == "nodeinfo":
         endpoint = "/api/nodeinfo/request"
         body = _mm_api_post(endpoint, {
@@ -5221,8 +5269,6 @@ def _request_node_query(node_num, action):
     if isinstance(body, dict) and body.get("success") is False:
         raise RuntimeError(str(body.get("message") or body.get("error") or "MeshMonitor recusou a consulta"))
 
-    # Main API responses may expose packetId/requestId at top level, while the
-    # v1 traceroute response puts details in data.
     packet_id = None
     request_id = None
     if isinstance(body, dict):
@@ -5237,6 +5283,8 @@ def _request_node_query(node_num, action):
             channel = _mm_response_channel(body)
 
     accepted_parts = ["MM aceitou"]
+    if fallback_reason:
+        accepted_parts.insert(0, "Virtual Node indisponível; fallback MM API")
     if channel is not None:
         accepted_parts.append(f"canal {channel}")
     if packet_id is not None:
@@ -5252,22 +5300,21 @@ def _request_node_query(node_num, action):
         "success": True,
         "action": action,
         "nodeNum": n,
-        # Important: this is captured BEFORE the MM API call. Very close nodes
-        # can reply before the HTTP request itself returns.
         "requestedAtMs": requested_at_ms,
         "acceptedAtMs": int(time.time() * 1000),
         "acceptedMessage": accepted_message,
         "diagnostic": {
+            "backend": "meshmonitor-api",
             "sourceId": source_id,
             "endpoint": endpoint,
             "channel": channel,
             "packetId": packet_id,
             "requestId": request_id,
             "meshMonitorMessage": mm_message,
+            "virtualFallbackReason": fallback_reason or None,
         },
         "meshMonitor": body,
     }
-
 
 
 
