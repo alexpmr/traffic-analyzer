@@ -122,7 +122,7 @@ jobs:
           assert result["diagnostic"]["packetId"]==123456789,result
           assert result["diagnostic"]["correlationPacketId"]==123456789,result
           assert result["diagnostic"]["channel"]==0,result
-          assert "Virtual Node aceitou" in result["acceptedMessage"],result
+          assert "Virtual Node iniciado" in result["acceptedMessage"],result
 
           result=ta._request_node_query(0x383bfc3f,"position")
           assert result["diagnostic"]["backend"]=="virtual-node",result
