@@ -1809,6 +1809,73 @@ function nodeResponseDetail(action,details,signalMs){
   if(Number.isFinite(rs))bits.push('RSSI '+Math.round(rs)+' dBm');
   return bits.join(' · ');
 }
+function nodeRequestPackets(action,details,sentAt=0){
+  let port=null,telemetryType=null;
+  if(action==='nodeinfo')port='NODEINFO_APP';
+  else if(action==='position')port='POSITION_APP';
+  else if(action==='neighbors')port='NEIGHBORINFO_APP';
+  else if(action.startsWith('telemetry_')){port='TELEMETRY_APP';telemetryType=action.split('_',2)[1];}
+  if(!port)return [];
+  return (details?.requests||[]).filter(p=>{
+    if(String(p.port||'')!==port)return false;
+    const ts=Number(p.timestampMs||0);
+    if(sentAt&&ts<Number(sentAt)-1000)return false;
+    if(telemetryType&&String(p.telemetryType||'device')!==telemetryType)return false;
+    return true;
+  }).sort((a,b)=>Number(a.timestampMs||0)-Number(b.timestampMs||0));
+}
+function nodeRoutingEvidence(action,s,details){
+  const txIds=new Set(nodeRequestPackets(action,details,s?.sentAt||0).map(p=>Number(p.packetId||0)).filter(Boolean));
+  if(s?.diagnostic?.packetId)txIds.add(Number(s.diagnostic.packetId));
+  if(!txIds.size)return null;
+  for(const p of (details?.responses||[])){
+    if(String(p.port||'')!=='ROUTING_APP')continue;
+    const ts=Number(p.timestampMs||0);
+    if(ts<Number(s?.sentAt||0)-1000)continue;
+    const rid=Number(p.requestId||0);
+    if(!rid||!txIds.has(rid))continue;
+    return p;
+  }
+  return null;
+}
+function routingErrorName(code){
+  const names={0:'ACK',1:'NO_ROUTE',2:'GOT_NAK',3:'TIMEOUT',4:'NO_INTERFACE',5:'MAX_RETRANSMIT',6:'NO_CHANNEL',7:'TOO_LARGE',8:'NO_RESPONSE',9:'DUTY_CYCLE_LIMIT',32:'BAD_REQUEST',33:'NOT_AUTHORIZED',34:'PKI_FAILED',35:'PKI_UNKNOWN_PUBKEY',36:'ADMIN_BAD_SESSION_KEY',37:'ADMIN_PUBLIC_KEY_UNAUTHORIZED',38:'RATE_LIMIT_EXCEEDED',39:'PKI_SEND_FAIL_PUBLIC_KEY'};
+  const n=Number(code);return Number.isFinite(n)?(names[n]||('ROUTING_'+n)):'ROUTING';
+}
+function nodeQueryWaitingMessage(action,s,details,now=Date.now()){
+  const base=s?.acceptedMessage||tr('aguardando resposta');
+  if(!String(action||'').startsWith('telemetry_'))return base;
+  const elapsed=Math.max(0,Number(now)-Number(s?.sentAt||now));
+  const tx=nodeRequestPackets(action,details,s?.sentAt||0);
+  const n=tx.length;
+  const txInfo=n?` · ${n} ${tr(n===1?'TX observado':'TX observados')}`:'';
+  if(elapsed<20000)return base+txInfo;
+  if(elapsed<45000){
+    return n>=2?`${tr('retry 1 do MM observado')}${txInfo} · ${tr('aguardando resposta')}`:`${tr('sem resposta inicial')} · ${tr('aguardando possível retry do MM')}${txInfo}`;
+  }
+  if(elapsed<75000){
+    return n>=2?`${tr('retry 1 do MM observado')}${txInfo} · ${tr('aguardando segunda tentativa do MM')}`:`${tr('sem retry observado')} · ${tr('aguardando resposta')} (${tr('janela do MM')})`;
+  }
+  return n>=3?`${tr('retry 2 do MM observado')}${txInfo} · ${tr('aguardando resposta')}`:n>=2?`${tr('retry 1 do MM observado')}${txInfo} · ${tr('aguardando resposta')}`:`${tr('sem retry observado')} · ${tr('aguardando resposta')} (${tr('janela do MM')})`;
+}
+function nodeQueryTimeoutMessage(action,s,details){
+  const route=nodeRoutingEvidence(action,s,details);
+  let routing='';
+  if(route)routing=` · ${routingErrorName(route.routingErrorReason)}`;
+  if(String(action||'').startsWith('telemetry_')){
+    const tx=nodeRequestPackets(action,details,s?.sentAt||0);
+    const n=tx.length;
+    const txInfo=n?` · ${n} ${tr(n===1?'TX observado':'TX observados')}`:'';
+    return `${tr('sem resposta após 90 s')}${txInfo}${routing}`;
+  }
+  return `${s?.acceptedMessage||'MM aceitou'} · sem RX em ${Math.round(nodeQueryTimeoutMs(action)/1000)} s${routing}`;
+}
+function nodeQueryNeedsPolling(action,s,now=Date.now()){
+  if(!s)return false;
+  if(['waiting','sending'].includes(s.state))return true;
+  return s.state==='timeout'&&s.sentAt&&Number(now)-Number(s.sentAt)<NODE_QUERY_LATE_WATCH_MS;
+}
+
 function nodeResponseSignal(action,details){
   if(!details)return null;
   const n=details.node||{};
