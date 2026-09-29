@@ -3942,6 +3942,172 @@ async function loadNetworkHealth(force=false){
     document.getElementById('healthSilentRows').innerHTML=(b.attentionNodes||[]).map(n=>`<tr><td><b>${esc(n.name||n.nodeId)}</b><br><span class="settingDesc">${esc(n.nodeId||'')}</span></td><td>${n.lastSeen?new Date(n.lastSeen).toLocaleString(uiLocale()):'—'}</td><td>${esc(n.lastSeen?humanAge(n.lastSeen):'sem registro')}</td><td>${fmtNum(n.packets7d)}</td><td>${n.avgSnr7d==null?'—':`${fmtNum(n.avgSnr7d,1)} dB`}</td></tr>`).join('')||'<tr><td colspan="5" class="emptyPanel">Nenhum nó requer atenção pelo critério atual.</td></tr>';
   }catch(e){cards.innerHTML=healthCard('Erro','Não foi possível calcular',String(e));}
 }
+
+function statisticsSinceMs(){
+  const raw=document.getElementById('statsPeriod')?.value||'24';
+  if(raw==='all') return null;
+  const h=Number(raw); return Number.isFinite(h)?Date.now()-h*3600000:null;
+}
+function statisticsQuery(){
+  const q=new URLSearchParams(), since=statisticsSinceMs(), node=document.getElementById('statsNodeFilter')?.value||'';
+  if(since) q.set('since',String(Math.floor(since)));
+  if(node) q.set('node',node);
+  return q.toString() ? '&'+q.toString() : '';
+}
+function statsPct(n,d){return d ? fmtNum(100*Number(n||0)/Number(d),1)+'%' : '—';}
+function statsAvg(arr){const a=(arr||[]).map(Number).filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
+function statsNodeName(num,id){
+  const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(num)||String(x.nodeId||'')===String(id||''));
+  return n?.name||n?.longName||n?.shortName||id||(num==null?'—':String(num));
+}
+function statsSimpleTable(rows,cols){
+  if(!rows?.length) return '<div class="emptyPanel">Sem dados no período.</div>';
+  let out='<table class="dashTable statsCompactTable"><thead><tr>';
+  for(const col of cols) out+='<th>'+esc(col[0])+'</th>';
+  out+='</tr></thead><tbody>';
+  for(const row of rows){out+='<tr>';for(const col of cols)out+='<td>'+col[1](row)+'</td>';out+='</tr>';}
+  return out+'</tbody></table>';
+}
+function statsPopulateNodeFilter(){
+  const el=document.getElementById('statsNodeFilter'); if(!el)return;
+  const keep=el.value;
+  const rows=[...(topology?.nodes||[])].sort((a,b)=>String(a.name||a.longName||a.nodeId||'').localeCompare(String(b.name||b.longName||b.nodeId||''),uiLocale()));
+  let html='<option value="">Todos</option>';
+  for(const n of rows){
+    const value=String(n.nodeId||n.nodeNum||''), label=n.name||n.longName||n.shortName||n.nodeId||String(n.nodeNum);
+    html+='<option value="'+esc(value)+'">'+esc(label)+'</option>';
+  }
+  el.innerHTML=html;
+  if([...el.options].some(o=>o.value===keep)) el.value=keep;
+}
+function renderStatistics(){
+  const p=statisticsPayload;if(!p)return;
+  const s=p.stats||{}, nodes=p.nodes||[], links=p.links||[], packets=p.packets||[];
+  const totalKnown=(topology?.nodes||[]).length, activeNodes=nodes.length;
+  const snr=packets.map(x=>x.snr), rssi=packets.map(x=>x.rssi);
+  const avgSnr=statsAvg(snr), avgRssi=statsAvg(rssi);
+  const msgCount=packets.filter(x=>x.portnum_name==='TEXT_MESSAGE_APP').length;
+  const traceCount=packets.filter(x=>x.portnum_name==='TRACEROUTE_APP').length;
+  const telemetryCount=packets.filter(x=>x.portnum_name==='TELEMETRY_APP').length;
+  const anomalySummary=anomalyPayload?.summary||{};
+  document.getElementById('statsOverviewCards').innerHTML=[
+    healthCard(fmtNum(activeNodes),'Nós ativos no período',fmtNum(totalKnown)+' conhecidos'),
+    healthCard(fmtNum(s.total),'Pacotes',fmtNum(s.rx)+' RX · '+fmtNum(s.tx)+' TX'),
+    healthCard(fmtNum(msgCount),'Mensagens','tráfego observado'),
+    healthCard(fmtNum(traceCount),'Traceroutes','pacotes observados'),
+    healthCard(fmtNum(links.length),'Relações observadas','origem → destino'),
+    healthCard(avgSnr==null?'—':fmtNum(avgSnr,1)+' dB','SNR médio'),
+    healthCard(avgRssi==null?'—':fmtNum(avgRssi,0)+' dBm','RSSI médio'),
+    healthCard(fmtNum(anomalySummary.total||0),'Anomalias',fmtNum(anomalySummary.critical||0)+' críticas')
+  ].join('');
+  const busiest=nodes[0];
+  const summary=[];
+  summary.push(fmtNum(activeNodes)+' nós originaram tráfego no período selecionado, de '+fmtNum(totalKnown)+' nós conhecidos.');
+  summary.push('Foram registrados '+fmtNum(s.total)+' pacotes ('+fmtNum(s.rx)+' RX e '+fmtNum(s.tx)+' TX), incluindo '+fmtNum(msgCount)+' mensagens, '+fmtNum(traceCount)+' traceroutes e '+fmtNum(telemetryCount)+' pacotes de telemetria.');
+  if(busiest) summary.push(statsNodeName(busiest.nodeNum,busiest.nodeId)+' foi o nó mais ativo, com '+fmtNum(busiest.packets)+' pacotes.');
+  summary.push(anomalySummary.total ? 'A análise atual registra '+fmtNum(anomalySummary.total)+' anomalias, sendo '+fmtNum(anomalySummary.critical||0)+' críticas.' : 'Nenhuma anomalia está registrada pelos critérios atuais.');
+  document.getElementById('statsOverviewText').textContent=summary.join(' ');
+  document.getElementById('statsOverviewTypes').innerHTML=statsSimpleTable((s.byType||[]).slice(0,10),[
+    ['Tipo',x=>esc(packetTypeLabel(x.type))],['Pacotes',x=>'<b>'+fmtNum(x.count)+'</b>'],['%',x=>statsPct(x.count,s.total)]
+  ]);
+  document.getElementById('statsOverviewNodes').innerHTML=statsSimpleTable(nodes.slice(0,10),[
+    ['Nó',x=>'<b>'+esc(statsNodeName(x.nodeNum,x.nodeId))+'</b>'],['Pacotes',x=>fmtNum(x.packets)],['SNR',x=>x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB']
+  ]);
+
+  document.getElementById('statsRfCards').innerHTML=[
+    healthCard(fmtNum(links.length),'Pares observados'),
+    healthCard(avgSnr==null?'—':fmtNum(avgSnr,1)+' dB','SNR médio'),
+    healthCard(avgRssi==null?'—':fmtNum(avgRssi,0)+' dBm','RSSI médio'),
+    healthCard(fmtNum(links.filter(x=>Number(x.packets||0)>=10).length),'Enlaces recorrentes','10+ pacotes')
+  ].join('');
+  document.getElementById('statsRfRows').innerHTML=links.slice(0,40).map(x=>
+    '<tr><td><b>'+esc(statsNodeName(x.fromNode,x.fromNodeId))+'</b></td><td>'+esc(statsNodeName(x.toNode,x.toNodeId))+'</td><td>'+fmtNum(x.packets)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.avgRssi==null?'—':fmtNum(x.avgRssi,0)+' dBm')+'</td><td>'+(x.lastSeen?esc(humanAge(Number(x.lastSeen))):'—')+'</td></tr>'
+  ).join('')||'<tr><td colspan="6" class="emptyPanel">Sem enlaces no período.</td></tr>';
+
+  const hops=new Map(), relay=new Map();
+  for(const x of packets){
+    const hs=Number(x.hop_start),hl=Number(x.hop_limit);
+    if(Number.isFinite(hs)&&Number.isFinite(hl)){const h=Math.max(0,hs-hl);hops.set(h,(hops.get(h)||0)+1);}
+    if(x.relay_node!==null&&x.relay_node!==undefined&&x.relay_node!==''){const k=String(x.relay_node);relay.set(k,(relay.get(k)||0)+1);}
+  }
+  const hopRows=[...hops.entries()].sort((a,b)=>a[0]-b[0]).map(x=>({h:x[0],n:x[1]}));
+  const relayRows=[...relay.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>({relay:x[0],n:x[1]}));
+  document.getElementById('statsRoutingCards').innerHTML=[
+    healthCard(fmtNum(traceCount),'Traceroutes observados'),
+    healthCard(fmtNum(healthPayload?.traceroutes?.roundTrip||0),'Ida e volta'),
+    healthCard(healthPayload?.traceroutes?.medianHops==null?'—':fmtNum(healthPayload.traceroutes.medianHops,1),'Mediana de hops'),
+    healthCard(fmtNum(relay.size),'Relays observados')
+  ].join('');
+  document.getElementById('statsHopDistribution').innerHTML=statsSimpleTable(hopRows,[['Hops',x=>'<b>'+fmtNum(x.h)+'</b>'],['Pacotes',x=>fmtNum(x.n)],['%',x=>statsPct(x.n,packets.length)]]);
+  document.getElementById('statsRelayRows').innerHTML=statsSimpleTable(relayRows,[['Relay',x=>'<code>'+esc(x.relay)+'</code>'],['Ocorrências',x=>'<b>'+fmtNum(x.n)+'</b>']]);
+
+  document.getElementById('statsTrafficCards').innerHTML=[
+    healthCard(fmtNum(s.total),'Pacotes'),healthCard(fmtNum(s.rx),'RX'),healthCard(fmtNum(s.tx),'TX'),healthCard(fmtNum(s.originNodes),'Nós originadores')
+  ].join('');
+  document.getElementById('statsTrafficTypeRows').innerHTML=(s.byType||[]).map(x=>'<tr><td><b>'+esc(packetTypeLabel(x.type))+'</b></td><td>'+fmtNum(x.count)+'</td><td>'+statsPct(x.count,s.total)+'</td></tr>').join('')||'<tr><td colspan="3" class="emptyPanel">Sem tráfego.</td></tr>';
+
+  const qtypes=['NODEINFO_APP','POSITION_APP','TELEMETRY_APP','TRACEROUTE_APP','ROUTING_APP'];
+  const qrows=qtypes.map(type=>{const a=packets.filter(x=>x.portnum_name===type);return {type:type,tx:a.filter(x=>String(x.direction).toLowerCase()==='tx').length,rx:a.filter(x=>String(x.direction).toLowerCase()==='rx').length,total:a.length};});
+  document.getElementById('statsQueryCards').innerHTML=[
+    healthCard(fmtNum(qrows.reduce((a,x)=>a+x.tx,0)),'Consultas/TX observados'),
+    healthCard(fmtNum(qrows.reduce((a,x)=>a+x.rx,0)),'Respostas/RX observadas'),
+    healthCard(fmtNum(qrows.find(x=>x.type==='TRACEROUTE_APP')?.total||0),'Traceroute'),
+    healthCard(fmtNum(qrows.find(x=>x.type==='TELEMETRY_APP')?.total||0),'Telemetria')
+  ].join('');
+  document.getElementById('statsQueryRows').innerHTML=qrows.map(x=>'<tr><td><b>'+esc(packetTypeLabel(x.type))+'</b></td><td>'+fmtNum(x.tx)+'</td><td>'+fmtNum(x.rx)+'</td><td>'+fmtNum(x.total)+'</td></tr>').join('');
+
+  const chatRows=healthPayload?.chatInteractions||[];
+  document.getElementById('statsChatCards').innerHTML=[healthCard(fmtNum(msgCount),'Mensagens no período'),healthCard(fmtNum(chatRows.length),'Nós com interação acumulada')].join('');
+  document.getElementById('statsChatRows').innerHTML=chatRows.map(x=>'<tr><td><b>'+esc(x.name||x.nodeId||'Nó desconhecido')+'</b>'+(x.nodeId?'<br><span class="settingDesc">'+esc(x.nodeId)+'</span>':'')+'</td><td>'+fmtNum(x.interactions)+'</td></tr>').join('')||'<tr><td colspan="2" class="emptyPanel">Sem interações registradas.</td></tr>';
+
+  const energy=(topology?.nodes||[]).map(n=>{
+    const batt=Number(n.batteryLevel??n.battery_level??n.battery),volt=Number(n.voltage);
+    return {n:n,batt:Number.isFinite(batt)?batt:null,volt:Number.isFinite(volt)?volt:null,last:Number(nodeTrafficLastSeen.get(Number(n.nodeNum))||0)};
+  }).filter(x=>x.batt!==null||x.volt!==null).sort((a,b)=>(a.batt??999)-(b.batt??999));
+  const low=energy.filter(x=>x.batt!==null&&x.batt<20),critical=energy.filter(x=>x.batt!==null&&x.batt<10),batteryVals=energy.map(x=>x.batt).filter(x=>x!==null);
+  document.getElementById('statsEnergyCards').innerHTML=[
+    healthCard(fmtNum(energy.length),'Nós com energia'),healthCard(fmtNum(low.length),'Bateria < 20%'),healthCard(fmtNum(critical.length),'Bateria < 10%'),
+    healthCard(batteryVals.length?fmtNum(statsAvg(batteryVals),0)+'%':'—','Bateria média')
+  ].join('');
+  document.getElementById('statsEnergyRows').innerHTML=energy.map(x=>'<tr><td><b>'+esc(x.n.name||x.n.longName||x.n.nodeId||String(x.n.nodeNum))+'</b></td><td>'+(x.batt==null?'—':fmtNum(x.batt,0)+'%')+'</td><td>'+(x.volt==null?'—':fmtNum(x.volt,2)+' V')+'</td><td>'+(x.last?esc(humanAge(x.last)):'—')+'</td></tr>').join('')||'<tr><td colspan="4" class="emptyPanel">Nenhuma telemetria de energia disponível.</td></tr>';
+}
+async function loadStatistics(force=false){
+  statsPopulateNodeFilter();
+  if(!force&&statisticsPayload&&Date.now()-statisticsLoadedAt<30000){renderStatistics();return;}
+  document.getElementById('statsUpdated').textContent='atualizando...';
+  try{
+    const q=statisticsQuery();
+    await Promise.all([loadNetworkHealth(force),loadAnomalies(force)]);
+    const rs=await Promise.all([
+      fetch('/api/archive/stats?x=1'+q,{cache:'no-store'}),
+      fetch('/api/archive/nodes?x=1'+q,{cache:'no-store'}),
+      fetch('/api/archive/links?x=1'+q,{cache:'no-store'}),
+      fetch('/api/archive/packets?limit=5000'+q,{cache:'no-store'})
+    ]);
+    for(const r of rs) if(!r.ok) throw new Error('HTTP '+r.status);
+    const body=await Promise.all(rs.map(r=>r.json()));
+    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[]};
+    statisticsLoadedAt=Date.now();renderStatistics();
+    document.getElementById('statsUpdated').textContent='atualizado '+new Date().toLocaleTimeString(uiLocale());
+  }catch(e){
+    document.getElementById('statsOverviewText').textContent='Erro ao carregar estatísticas: '+String(e.message||e);
+    document.getElementById('statsUpdated').textContent='erro';
+  }
+}
+function setStatisticsTab(name){
+  document.querySelectorAll('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===name));
+  document.querySelectorAll('.statsPanel').forEach(p=>p.classList.remove('active'));
+  const id='statsPanel'+name.charAt(0).toUpperCase()+name.slice(1);
+  document.getElementById(id)?.classList.add('active');
+  if(name==='network')loadNetworkHealth(false);
+  if(name==='anomalies')loadAnomalies(false);
+  if(name==='access')loadAccessStats(false);
+}
+document.querySelectorAll('.statsTab').forEach(b=>b.addEventListener('click',()=>setStatisticsTab(b.dataset.statsTab)));
+document.getElementById('statsReload').addEventListener('click',()=>loadStatistics(true));
+document.getElementById('statsPeriod').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);});
+document.getElementById('statsNodeFilter').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);});
+
 function sevLabel(s){if(currentLang==='en')return s==='critical'?'Critical':s==='warning'?'Warning':s==='info'?'Informational':'OK';return s==='critical'?'Crítica':s==='warning'?'Atenção':s==='info'?'Informativa':'OK';}
 function renderAnomalies(){
   if(!anomalyPayload)return;
