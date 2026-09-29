@@ -1605,17 +1605,18 @@ function nodeBoolLine(label,value){
 function nodeQueryRun(nodeNum){
   const key=Number(nodeNum);
   if(!nodeQueryRuns.has(key)){
-    const states={}; NODE_QUERY_DEFS.forEach(d=>states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:''});
+    const states={}; NODE_QUERY_DEFS.forEach(d=>states[d.id]={state:'idle',baseline:null,sentAt:0,receivedAt:0,message:'',acceptedMessage:'',diagnostic:null});
     nodeQueryRuns.set(key,{states,details:null,pollTimer:null});
   }
   return nodeQueryRuns.get(key);
 }
 function nodeQueryIsTerminal(s){return Boolean(s&&['received','timeout','error','unsupported'].includes(s.state));}
-function nodeQueryProgressPct(s){
+function nodeQueryProgressPct(s,action){
   if(!s||s.state==='idle')return 0;
   if(s.state==='sending')return 8;
   if(nodeQueryIsTerminal(s))return 100;
-  if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/NODE_QUERY_TIMEOUT_MS)*100)));
+  const timeout=nodeQueryTimeoutMs(action);
+  if(s.state==='waiting'&&s.sentAt)return Math.max(10,Math.min(96,Math.round(((Date.now()-Number(s.sentAt))/timeout)*100)));
   return 0;
 }
 function nodeQueryStateHtml(nodeNum){
@@ -1629,7 +1630,7 @@ function nodeQueryStateHtml(nodeNum){
     else if(s.state==='timeout'){mark='⌛';cls='nodeQueryTimeout';txt=s.message||tr('sem resposta / timeout');}
     else if(s.state==='error'){mark='✕';cls='nodeQueryError';txt=s.message||tr('erro');}
     else if(s.state==='unsupported'){mark='—';cls='';txt=s.message||tr('não suportado / não aplicável');}
-    const pct=nodeQueryProgressPct(s);
+    const pct=nodeQueryProgressPct(s,d.id);
     return `<div class="nodeQueryRow ${cls}"><div class="nodeQueryMark">${mark}</div><div><b>${esc(tr(d.label))}</b></div><div class="nodeQueryState"><div>${esc(txt)}</div><div class="nodeQueryProgress" aria-hidden="true"><div class="nodeQueryProgressBar" style="width:${pct}%"></div></div></div></div>`;
   }).join('');
 }
