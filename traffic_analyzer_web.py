@@ -11,7 +11,6 @@ import json
 import os
 import re
 import secrets
-import socket
 import sqlite3
 import statistics
 import subprocess
@@ -5136,14 +5135,9 @@ def _virtual_node_probe(force=False):
     elif not VIRTUAL_NODE_HELPER.is_file():
         ok = False
         error = f"Helper do Virtual Node não encontrado: {VIRTUAL_NODE_HELPER}"
-    else:
-        try:
-            with socket.create_connection((VIRTUAL_NODE_HOST, VIRTUAL_NODE_PORT), timeout=1.5):
-                pass
-        except Exception as exc:
-            ok = False
-            error = f"Virtual Node {VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT} indisponível: {exc}"
-
+    # Não abrimos uma conexão de sondagem separada: alguns servidores de
+    # Virtual Node aceitam apenas uma sessão por vez. A conexão real é feita
+    # pelo helper e qualquer falha de TCP volta como diagnóstico explícito.
     cache.update({"checked_at": now, "ok": ok, "error": error})
     return ok, error
 
