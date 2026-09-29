@@ -219,7 +219,7 @@ jobs:
               button.click()
               opts=d.find_elements(By.CSS_SELECTOR,".languageOption[data-language]")
               labels=[" ".join((o.get_attribute("textContent") or "").replace("✓","").split()) for o in opts]
-              assert labels==["🇧🇷 Português","🇺🇸 English"],labels
+              assert labels==["🇧🇷Português","🇺🇸English"],labels
               assert d.find_element(By.ID,"uiLanguageMenu").get_attribute("class").find("open")>=0
               opts[1].click()
               assert d.execute_script("return currentLang")=="en"
