@@ -7069,6 +7069,33 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "error": "node_details_unavailable", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
+        if path == "/api/node-query-status":
+            if AUTH_ENABLED and not _auth_session(self):
+                self._send(401, "application/json; charset=utf-8", json.dumps({
+                    "success": False,
+                    "error": "authentication_required",
+                    "message": "Autenticação administrativa necessária.",
+                }, ensure_ascii=False).encode("utf-8"))
+                return
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                query_id = (query.get("queryId") or [None])[0]
+                body = _virtual_query_status(query_id)
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({
+                    "success": False,
+                    "state": "error",
+                    "error": "bad_query",
+                    "message": str(e),
+                }, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({
+                    "success": False,
+                    "state": "error",
+                    "message": str(e),
+                }, ensure_ascii=False).encode("utf-8"))
+            return
         if path == "/api/packets":
             try:
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
