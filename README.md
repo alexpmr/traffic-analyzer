@@ -1,6 +1,17 @@
-# Traffic Analyzer v1.36.2
+# Traffic Analyzer v1.36.3
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.36.3
+
+- Substitui o seletor nativo de idioma por um **menu compacto com bandeiras**, seguindo o padrão visual solicitado.
+- O botão superior mostra o idioma ativo com **bandeira, nome e seta de expansão**.
+- O menu destaca visualmente o idioma selecionado e mantém **Português** e **English** como os idiomas atualmente suportados.
+- Mantém a preferência de idioma salva no navegador e aplica a troca imediatamente, sem recarregar a página.
+- Adiciona navegação por teclado, `aria-expanded`, `role=listbox`, `aria-selected` e foco visível para acessibilidade.
+- Ajusta o seletor para os temas claro e escuro.
+- Atualiza os smoke tests para validar abertura do menu, seleção de idioma, tradução da navegação e persistência do estado.
+- Preserva todos os recursos e correções da v1.36.2.
 
 ## Novidades da v1.36.2
 

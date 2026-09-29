@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.2 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.3 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.2"
+APP_VERSION = "1.36.3"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -414,9 +414,9 @@ HTML = r'''<!doctype html>
 body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#aebbc5;color:#17212b}body[data-theme="light"] .mentionItem{border-color:#dce3e8}body[data-theme="light"] .mentionItem:hover,body[data-theme="light"] .mentionItem.active{background:#e7f1f7}body[data-theme="light"] .mentionShort{color:#8a6b00}body[data-theme="light"] .mentionId{color:#6f808c}body[data-theme="light"] .chatMention{color:#087c9d}
 
   /* v1.22 - internacionalização e ajuda */
-  .languageControl{display:flex;align-items:center;font-size:11px;color:#cbd6df;white-space:nowrap}.languageControl select{font-size:11px;padding:4px 24px 4px 7px;min-width:128px;cursor:pointer}.languageControl span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .languageControl{position:relative;display:flex;align-items:center;white-space:nowrap}.languageButton{display:flex;align-items:center;gap:7px;min-width:118px;padding:5px 9px;border-radius:8px;border:1px solid #2f83b7;background:#12283a;color:#f2f7fb;font-size:11px;font-weight:800;cursor:pointer;line-height:1.15}.languageButton:hover,.languageButton:focus-visible{background:#19364d;border-color:#49a6dd;outline:none}.languageFlag{display:inline-flex;align-items:center;justify-content:center;font-size:15px;line-height:1;width:19px}.languageName{flex:1;text-align:left}.languageCaret{font-size:9px;color:#a9bed0;margin-left:2px}.languageMenu{position:absolute;top:calc(100% + 5px);left:0;z-index:5200;display:none;min-width:148px;padding:5px;background:#111a24;border:1px solid #304353;border-radius:8px;box-shadow:0 12px 28px rgba(0,0,0,.48)}.languageMenu.open{display:grid;gap:2px}.languageOption{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:transparent;color:#dbe6ee;font-size:11px;font-weight:700;text-align:left;cursor:pointer}.languageOption:hover,.languageOption:focus-visible{background:#263b4d;outline:none}.languageOption.selected{background:#20384c;color:#fff}.languageOption .languageCheck{margin-left:auto;opacity:0;font-size:10px}.languageOption.selected .languageCheck{opacity:1}.languageSr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   #viewHelp{overflow:auto}.helpCard{max-width:1100px;margin:18px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:22px;width:calc(100% - 36px);box-sizing:border-box;line-height:1.5}.helpCard h2{margin:0 0 8px}.helpCard h3{margin:22px 0 7px;color:#e9d46d}.helpCard h4{margin:15px 0 5px;color:#9fc6e4}.helpCard p,.helpCard li{font-size:13px}.helpCard ul{padding-left:22px}.helpCard code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:4px;padding:1px 4px}.helpCode{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101820;border:1px solid #304353;border-radius:7px;padding:10px 12px;font-size:12px;overflow:auto}.helpCallout{background:#132a38;border-left:4px solid #3a8fbd;border-radius:6px;padding:10px 12px;margin:10px 0;font-size:12px}.helpWarn{background:#382d13;border-left-color:#d6a700}.helpGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 18px}.helpMini{background:#111a24;border:1px solid #293744;border-radius:8px;padding:11px}.helpMini b{display:block;margin-bottom:4px}.i18nNoTranslate{unicode-bidi:plaintext}
-  body[data-theme="light"] .languageControl{color:#344654}body[data-theme="light"] .helpCard{background:#fff;border-color:#cbd5dd;color:#18232d}body[data-theme="light"] .helpCard h3{color:#7a6500}body[data-theme="light"] .helpCard h4{color:#245f7c}body[data-theme="light"] .helpMini{background:#f5f7f9;border-color:#dce3e8}body[data-theme="light"] .helpCode,body[data-theme="light"] .helpCard code{background:#f5f7f9;border-color:#cbd5dd;color:#17212b}body[data-theme="light"] .helpCallout{background:#e8f3f8}body[data-theme="light"] .helpWarn{background:#fff6d9}
+  body[data-theme="light"] .languageButton{background:#fff;color:#17212b;border-color:#8fb6cf}body[data-theme="light"] .languageButton:hover,body[data-theme="light"] .languageButton:focus-visible{background:#edf6fb;border-color:#4a9dcc}body[data-theme="light"] .languageMenu{background:#fff;border-color:#aebbc5;box-shadow:0 12px 28px rgba(30,50,65,.22)}body[data-theme="light"] .languageOption{color:#263746}body[data-theme="light"] .languageOption:hover,body[data-theme="light"] .languageOption:focus-visible{background:#e7f1f7}body[data-theme="light"] .languageOption.selected{background:#dbeaf4;color:#17212b}body[data-theme="light"] .helpCard{background:#fff;border-color:#cbd5dd;color:#18232d}body[data-theme="light"] .helpCard h3{color:#7a6500}body[data-theme="light"] .helpCard h4{color:#245f7c}body[data-theme="light"] .helpMini{background:#f5f7f9;border-color:#dce3e8}body[data-theme="light"] .helpCode,body[data-theme="light"] .helpCard code{background:#f5f7f9;border-color:#cbd5dd;color:#17212b}body[data-theme="light"] .helpCallout{background:#e8f3f8}body[data-theme="light"] .helpWarn{background:#fff6d9}
   @media(max-width:780px){.helpGrid{grid-template-columns:1fr}.helpCard{width:calc(100% - 20px);margin:10px auto;padding:15px}}
 
   /* v1.23 - conforto visual, filtros e atualização automática */
@@ -474,7 +474,18 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
 <div id="app">
 <header>
   <h1>__DISPLAY_TITLE__</h1>
-  <label class="languageControl"><span>Idioma:</span><select id="uiLanguage" aria-label="Idioma da interface"><option value="pt-BR" selected>🇧🇷 Português</option><option value="en">🇺🇸 English</option></select></label>
+  <div class="languageControl i18nNoTranslate" id="languageControl">
+    <span class="languageSr">Idioma da interface</span>
+    <button id="uiLanguageButton" class="languageButton" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="Idioma da interface" title="Idioma da interface">
+      <span id="uiLanguageFlag" class="languageFlag" aria-hidden="true">🇧🇷</span>
+      <span id="uiLanguageName" class="languageName">Português</span>
+      <span class="languageCaret" aria-hidden="true">▾</span>
+    </button>
+    <div id="uiLanguageMenu" class="languageMenu" role="listbox" aria-label="Idioma da interface">
+      <button class="languageOption selected" type="button" role="option" aria-selected="true" data-language="pt-BR"><span class="languageFlag" aria-hidden="true">🇧🇷</span><span>Português</span><span class="languageCheck" aria-hidden="true">✓</span></button>
+      <button class="languageOption" type="button" role="option" aria-selected="false" data-language="en"><span class="languageFlag" aria-hidden="true">🇺🇸</span><span>English</span><span class="languageCheck" aria-hidden="true">✓</span></button>
+    </div>
+  </div>
   <button id="versionBadge" class="versionBadge checking" type="button" title="Verificar versão">v__APP_VERSION__ · verificando…</button>
   <div class="authControls"><span id="authStateBadge" class="authBadge">Verificando acesso…</span><button id="authAction" class="authAction" type="button">Entrar</button></div>
   <div id="nav">
@@ -852,8 +863,32 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 <script>
 const LANGUAGE_KEY='trafficAnalyzerLanguageV122';
-let currentLang=localStorage.getItem(LANGUAGE_KEY)==='en'?'en':'pt-BR';
-function uiLocale(){return currentLang==='en'?'en-US':'pt-BR';}
+const SUPPORTED_LANGUAGES={
+  'pt-BR':{flag:'🇧🇷',name:'Português',locale:'pt-BR'},
+  'en':{flag:'🇺🇸',name:'English',locale:'en-US'}
+};
+let currentLang=SUPPORTED_LANGUAGES[localStorage.getItem(LANGUAGE_KEY)]?localStorage.getItem(LANGUAGE_KEY):'pt-BR';
+function uiLocale(){return SUPPORTED_LANGUAGES[currentLang]?.locale||'pt-BR';}
+function closeLanguageMenu(){
+  const menu=document.getElementById('uiLanguageMenu'),btn=document.getElementById('uiLanguageButton');
+  menu?.classList.remove('open');btn?.setAttribute('aria-expanded','false');
+}
+function updateLanguageMenu(){
+  const meta=SUPPORTED_LANGUAGES[currentLang]||SUPPORTED_LANGUAGES['pt-BR'];
+  const flag=document.getElementById('uiLanguageFlag'),name=document.getElementById('uiLanguageName');
+  if(flag)flag.textContent=meta.flag;if(name)name.textContent=meta.name;
+  document.querySelectorAll('.languageOption[data-language]').forEach(opt=>{
+    const selected=opt.dataset.language===currentLang;
+    opt.classList.toggle('selected',selected);opt.setAttribute('aria-selected',selected?'true':'false');
+  });
+  const btn=document.getElementById('uiLanguageButton');
+  if(btn){
+    const label=currentLang==='en'?'Interface language':'Idioma da interface';
+    btn.setAttribute('aria-label',label);btn.setAttribute('title',label);
+  }
+  const menu=document.getElementById('uiLanguageMenu');
+  if(menu)menu.setAttribute('aria-label',currentLang==='en'?'Interface language':'Idioma da interface');
+}
 
 const I18N_PAIRS=[
   ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas são enviadas pelo MeshMonitor. As respostas recebidas ficam disponíveis no MM e atualizam este popup.','Queries are sent through MeshMonitor. Received responses remain available in MM and update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
@@ -1095,16 +1130,32 @@ cat /opt/traffic-analyzer/VERSION</div>
   }
 }
 function applyLanguage(lang,persist=true){
-  currentLang=lang==='en'?'en':'pt-BR';
+  currentLang=SUPPORTED_LANGUAGES[lang]?lang:'pt-BR';
   if(persist)localStorage.setItem(LANGUAGE_KEY,currentLang);
-  const sel=document.getElementById('uiLanguage');if(sel)sel.value=currentLang;
   document.documentElement.lang=currentLang==='en'?'en':'pt-BR';
+  updateLanguageMenu();
   renderHelp();
   i18nBusy=true;try{translateUiTree(document.body);document.title=translateUiString(document.title,currentLang);}finally{i18nBusy=false;}
   if(typeof updatePlaybackStatusIdle==='function')updatePlaybackStatusIdle();
 }
 
-document.getElementById('uiLanguage').addEventListener('change',e=>applyLanguage(e.target.value,true));
+document.getElementById('uiLanguageButton').addEventListener('click',e=>{
+  e.stopPropagation();
+  const menu=document.getElementById('uiLanguageMenu'),btn=document.getElementById('uiLanguageButton');
+  const opening=!menu.classList.contains('open');
+  menu.classList.toggle('open',opening);btn.setAttribute('aria-expanded',opening?'true':'false');
+  if(opening)setTimeout(()=>menu.querySelector('.languageOption.selected')?.focus(),0);
+});
+document.querySelectorAll('.languageOption[data-language]').forEach(opt=>opt.addEventListener('click',e=>{
+  e.stopPropagation();applyLanguage(opt.dataset.language,true);closeLanguageMenu();document.getElementById('uiLanguageButton')?.focus();
+}));
+document.getElementById('uiLanguageMenu').addEventListener('keydown',e=>{
+  const opts=[...document.querySelectorAll('.languageOption[data-language]')],idx=opts.indexOf(document.activeElement);
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();const delta=e.key==='ArrowDown'?1:-1;opts[(idx+delta+opts.length)%opts.length]?.focus();
+  }else if(e.key==='Escape'){e.preventDefault();closeLanguageMenu();document.getElementById('uiLanguageButton')?.focus();}
+});
+document.addEventListener('click',e=>{if(!document.getElementById('languageControl')?.contains(e.target))closeLanguageMenu();});
 
 const map = L.map('map', {preferCanvas:true, zoomSnap:0.05, zoomDelta:0.25}).setView([-15.8,-47.9], 9);
 
@@ -4274,7 +4325,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1362';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1363';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
