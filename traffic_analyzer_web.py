@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.36.4 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.36.5 para MeshMonitor."""
 
 import base64
 import csv
@@ -11,6 +11,7 @@ import json
 import os
 import re
 import secrets
+import socket
 import sqlite3
 import statistics
 import subprocess
@@ -27,7 +28,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.36.4"
+APP_VERSION = "1.36.5"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -50,6 +51,23 @@ TOPOLOGY_FILE = Path(os.getenv(
 MM_BASE_URL = os.getenv("MM_BASE_URL", "http://127.0.0.1:3001").rstrip("/")
 MM_API_TOKEN = os.getenv("MM_API_TOKEN", "").strip()
 MM_SOURCE = os.getenv("MM_SOURCE", "default").strip() or "default"
+NODE_QUERY_BACKEND = os.getenv("TA_NODE_QUERY_BACKEND", "auto").strip().lower() or "auto"
+if NODE_QUERY_BACKEND not in {"auto", "virtual", "meshmonitor"}:
+    NODE_QUERY_BACKEND = "auto"
+VIRTUAL_NODE_HOST = os.getenv("TA_VIRTUAL_NODE_HOST", "127.0.0.1").strip() or "127.0.0.1"
+try:
+    VIRTUAL_NODE_PORT = int(os.getenv("TA_VIRTUAL_NODE_PORT", "4404"))
+except (TypeError, ValueError):
+    VIRTUAL_NODE_PORT = 4404
+VIRTUAL_NODE_PYTHON = os.getenv(
+    "TA_VIRTUAL_NODE_PYTHON",
+    str(Path(__file__).with_name(".venv") / "bin" / "python"),
+).strip()
+VIRTUAL_NODE_HELPER = Path(os.getenv(
+    "TA_VIRTUAL_NODE_HELPER",
+    str(Path(__file__).with_name("meshtastic_query.py")),
+))
+VIRTUAL_NODE_CONNECT_TIMEOUT = max(2, min(int(os.getenv("TA_VIRTUAL_NODE_CONNECT_TIMEOUT", "10")), 30))
 TRAFFIC_ARCHIVE_DB = Path(os.getenv(
     "TRAFFIC_ARCHIVE_DB",
     "/var/lib/traffic-analyzer/traffic.db",
@@ -4408,7 +4426,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1364';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1365';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
