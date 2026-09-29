@@ -217,6 +217,20 @@ jobs:
 
               assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device')")==90000
               assert d.execute_script("return nodeQueryTimeoutMs('position')")==20000
+              assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device',{diagnostic:{backend:'virtual-node'}})")==30000
+              correlated=d.execute_script("""
+                const now=Date.now();
+                const state={sentAt:now-5000,diagnostic:{backend:'virtual-node',packetId:123,correlationPacketId:123}};
+                const details={responses:[
+                  {port:'TELEMETRY_APP',requestId:999,timestampMs:now-3000},
+                  {port:'TELEMETRY_APP',requestId:123,timestampMs:now-1000,channel:0,snr:6.5,rssi:-40}
+                ]};
+                return {signal:nodeResponseSignal('telemetry_device',details,state),detail:nodeResponseDetail('telemetry_device',details,now-1000,state)};
+              """)
+              assert correlated["signal"]>0,correlated
+              assert "TELEMETRY_APP" in correlated["detail"],correlated
+              noresp=d.execute_script("return nodeRoutingResultMessage(8)")
+              assert "NO_RESPONSE" in noresp,noresp
               retry_status=d.execute_script("""
                 const now=Date.now();
                 const state={sentAt:now-35000,acceptedMessage:'MM aceitou'};
