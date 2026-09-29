@@ -5179,14 +5179,46 @@ def _cleanup_virtual_query_statuses():
         pass
 
 
-def _reap_virtual_query_process(proc):
-    try:
-        proc.wait(timeout=VIRTUAL_NODE_QUERY_TIMEOUT + VIRTUAL_NODE_CONNECT_TIMEOUT + 20)
-    except Exception:
+_virtual_query_execution_lock = threading.Lock()
+
+
+def _run_virtual_query_job(cmd, status_path: Path, initial: dict):
+    # Uma única sessão ativa evita que implementações de Virtual Node que
+    # suportam apenas um cliente TCP simultâneo sofram disputa durante "Tudo".
+    with _virtual_query_execution_lock:
         try:
-            proc.kill()
-        except Exception:
-            pass
+            subprocess.run(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=False,
+                timeout=VIRTUAL_NODE_QUERY_TIMEOUT + VIRTUAL_NODE_CONNECT_TIMEOUT + 20,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            payload = {
+                **initial,
+                "success": False,
+                "state": "error",
+                "error": "Helper do Virtual Node excedeu o tempo máximo de execução",
+                "completedAtMs": int(time.time() * 1000),
+            }
+            try:
+                status_path.write_text(json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8")
+            except Exception:
+                pass
+        except Exception as exc:
+            payload = {
+                **initial,
+                "success": False,
+                "state": "error",
+                "error": str(exc),
+                "completedAtMs": int(time.time() * 1000),
+            }
+            try:
+                status_path.write_text(json.dumps(payload, ensure_ascii=False) + "\n", encoding="utf-8")
+            except Exception:
+                pass
 
 
 def _virtual_node_send(node_num: int, action: str, channel: int):
@@ -5224,28 +5256,15 @@ def _virtual_node_send(node_num: int, action: str, channel: int):
         "--query-id", query_id,
         "--status-file", str(status_path),
     ]
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            text=False,
-            start_new_session=True,
-        )
-    except Exception:
-        status_path.unlink(missing_ok=True)
-        raise
-
     threading.Thread(
-        target=_reap_virtual_query_process,
-        args=(proc,),
+        target=_run_virtual_query_job,
+        args=(cmd, status_path, initial),
         daemon=True,
         name=f"ta-query-{query_id[:8]}",
     ).start()
 
     return {
         **initial,
-        "pid": proc.pid,
         "statusFile": str(status_path),
         "waitTimeout": VIRTUAL_NODE_QUERY_TIMEOUT,
     }
