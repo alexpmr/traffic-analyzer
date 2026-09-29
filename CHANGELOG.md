@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.36.3 - 2026-09-28
+
+- Substitui o seletor nativo de idioma por menu visual com bandeira, nome do idioma e seta.
+- Destaca o idioma ativo no menu e mantém Português e English como idiomas suportados nesta versão.
+- Mantém a escolha salva no navegador e aplica a tradução imediatamente sem recarregar a página.
+- Adiciona navegação por teclado e atributos de acessibilidade ao seletor.
+- Ajusta o componente aos temas claro e escuro.
+- Atualiza os testes de interface para validar o novo seletor e a troca Português ↔ English.
+- Preserva todas as funcionalidades da v1.36.2.
+
 ## 1.36.2 - 2026-09-27
 
 - Remove o canal 0 fixo das consultas NodeInfo e Position; o MeshMonitor volta a resolver o canal correto do nó.
