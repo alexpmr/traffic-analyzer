@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.37.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.37.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.37.0"
+APP_VERSION = "1.37.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -96,7 +96,7 @@ _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "
 _topology_refresh_lock = threading.Lock()
 _version_status_lock = threading.Lock()
 _version_status_cache = {"checked_at": 0.0, "data": None}
-VERSION_CHECK_TTL_SECONDS = 3600
+VERSION_CHECK_TTL_SECONDS = 300
 GITHUB_RELEASES_LATEST_URL = "https://api.github.com/repos/alexpmr/traffic-analyzer/releases/latest"
 UPDATE_SETTINGS_FILE = Path(os.getenv("UPDATE_SETTINGS_FILE", "/var/lib/traffic-analyzer/update-settings.json"))
 UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-analyzer/update-request.json"))
@@ -4713,7 +4713,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1365';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1371';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -4833,10 +4833,10 @@ async function bootstrap(){
   applyLanguage(currentLang,false);
   initI18nObserver();
   loadAuthStatus(false);
-  checkVersionStatus(false);
+  checkVersionStatus(true);
   loadUpdateStatus();
   showWhatsNewIfNeeded();
-  setInterval(()=>checkVersionStatus(false),60*60*1000);
+  setInterval(()=>checkVersionStatus(false),5*60*1000);
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
@@ -7119,6 +7119,8 @@ def _version_status(force: bool = False):
                 "Accept": "application/vnd.github+json",
                 "User-Agent": f"Traffic-Analyzer/{APP_VERSION}",
                 "X-GitHub-Api-Version": "2022-11-28",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
             },
         )
         try:
