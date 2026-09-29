@@ -5047,6 +5047,123 @@ def _mm_response_channel(body):
     return None
 
 
+
+_virtual_node_probe_cache = {"checked_at": 0.0, "ok": False, "error": ""}
+
+
+def _node_query_channel(node_num: int, source_id: str) -> int:
+    """Resolve the node's last known channel for Virtual Node requests."""
+    source = urllib.parse.quote(str(source_id), safe="")
+    try:
+        body = _mm_api_get(f"/api/v1/sources/{source}/nodes")
+        rows = body.get("data", []) if isinstance(body, dict) else []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            try:
+                if int(row.get("nodeNum")) != int(node_num):
+                    continue
+            except (TypeError, ValueError):
+                continue
+            try:
+                channel = int(row.get("channel"))
+                if 0 <= channel <= 7:
+                    return channel
+            except (TypeError, ValueError):
+                pass
+            break
+    except Exception:
+        pass
+    return 0
+
+
+def _virtual_node_probe(force=False):
+    now = time.time()
+    cache = _virtual_node_probe_cache
+    if not force and now - float(cache.get("checked_at") or 0) < 10:
+        return bool(cache.get("ok")), str(cache.get("error") or "")
+
+    error = ""
+    ok = True
+    if not VIRTUAL_NODE_PYTHON or not Path(VIRTUAL_NODE_PYTHON).is_file():
+        ok = False
+        error = f"Python do Virtual Node não encontrado: {VIRTUAL_NODE_PYTHON}"
+    elif not VIRTUAL_NODE_HELPER.is_file():
+        ok = False
+        error = f"Helper do Virtual Node não encontrado: {VIRTUAL_NODE_HELPER}"
+    else:
+        try:
+            with socket.create_connection((VIRTUAL_NODE_HOST, VIRTUAL_NODE_PORT), timeout=1.5):
+                pass
+        except Exception as exc:
+            ok = False
+            error = f"Virtual Node {VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT} indisponível: {exc}"
+
+    cache.update({"checked_at": now, "ok": ok, "error": error})
+    return ok, error
+
+
+def _virtual_node_send(node_num: int, action: str, channel: int):
+    ok, error = _virtual_node_probe()
+    if not ok:
+        raise RuntimeError(error or "Virtual Node indisponível")
+
+    cmd = [
+        VIRTUAL_NODE_PYTHON,
+        str(VIRTUAL_NODE_HELPER),
+        "--host", VIRTUAL_NODE_HOST,
+        "--port", str(VIRTUAL_NODE_PORT),
+        "--dest", _node_hex_id(node_num),
+        "--channel", str(channel),
+        "--action", action,
+        "--connect-timeout", str(VIRTUAL_NODE_CONNECT_TIMEOUT),
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=VIRTUAL_NODE_CONNECT_TIMEOUT + 8,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Virtual Node não confirmou o envio em {VIRTUAL_NODE_CONNECT_TIMEOUT + 8} s"
+        ) from exc
+
+    payload = None
+    for line in reversed((proc.stdout or "").splitlines()):
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            candidate = json.loads(line)
+        except Exception:
+            continue
+        if isinstance(candidate, dict):
+            payload = candidate
+            break
+
+    if not isinstance(payload, dict):
+        detail = (proc.stderr or proc.stdout or "").strip()
+        if len(detail) > 500:
+            detail = detail[-500:]
+        raise RuntimeError(detail or f"Virtual Node encerrou com código {proc.returncode}")
+
+    if proc.returncode != 0 or payload.get("success") is False:
+        raise RuntimeError(str(payload.get("error") or "Falha ao enviar pelo Virtual Node"))
+
+    packet_id = payload.get("packetId")
+    try:
+        packet_id = int(packet_id)
+    except (TypeError, ValueError):
+        packet_id = 0
+    if packet_id <= 0:
+        raise RuntimeError("Virtual Node não retornou packet.id válido")
+
+    return payload
+
+
 def _request_node_query(node_num, action):
     n = _node_num(node_num)
     action = str(action or "").strip()
