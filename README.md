@@ -1,6 +1,22 @@
-# Traffic Analyzer v1.36.5
+# Traffic Analyzer v1.37.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.37.0
+
+- Consolida **Saúde da Rede**, **Anomalias** e **Acessos** em uma nova aba principal **Estatísticas**, reduzindo a quantidade de abas no cabeçalho sem remover funcionalidades.
+- Adiciona navegação interna por **Visão Geral, Rede, RF, Routing, Tráfego, Consultas, Chat, Energia, Anomalias e Acessos**.
+- A **Visão Geral** apresenta KPIs do período, nós ativos, volume RX/TX, mensagens, traceroutes, relações observadas, médias de SNR/RSSI e anomalias, além de um resumo textual automático do estado da rede.
+- Adiciona filtro global de período (**1 h, 6 h, 24 h, 7 dias, 30 dias ou todo o histórico**) e filtro por nó para os painéis derivados do arquivo persistente.
+- O painel **RF** mostra relações origem-destino mais ativas, SNR/RSSI médios e recorrência observada, sem confundir relação lógica com adjacência RF comprovada.
+- O painel **Routing** adiciona distribuição por hops e ranking de relays observados, complementando os indicadores de traceroute já existentes.
+- O painel **Tráfego** resume RX, TX, nós originadores e participação por tipo de pacote.
+- O painel **Consultas** separa TX e RX observados de NodeInfo, Position, Telemetry, Traceroute e Routing; ACK, resposta efetiva, timeout e indisponibilidade continuam tratados separadamente no diagnóstico do nó.
+- O painel **Chat** reutiliza o ranking acumulado de interações do canal primário e acrescenta o volume de mensagens do período selecionado.
+- O painel **Energia** consolida bateria, tensão, nós abaixo de 20%, nós abaixo de 10% e bateria média quando a telemetria estiver disponível.
+- Os painéis usam o histórico SQLite, a topologia e as APIs já existentes; **não há migração de banco de dados** nesta versão.
+- Atualiza os smoke tests de navegador e da release para validar a nova navegação e todas as subabas de Estatísticas.
+- Preserva todos os recursos da v1.36.5.
 
 ## Novidades da v1.36.5
 
