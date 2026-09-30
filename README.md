@@ -1,6 +1,18 @@
-# Traffic Analyzer v1.37.1
+# Traffic Analyzer v1.38.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.38.0
+
+- **RF × MQTT/não-RF:** um enlace só é confirmado como RF quando o hop possui evidência física válida de sinal, atualmente **SNR válido**. Na ausência dessa evidência, a observação é classificada como MQTT/não-RF.
+- A nova regra corrige falsos enlaces RF causados por traceroutes recebidos pelo MeshMonitor por RF, mas cujos hops intermediários não possuem evidência RF própria.
+- Enlaces mistos continuam preservando separadamente a quantidade de observações RF e MQTT/não-RF no período selecionado.
+- O popup do enlace passa a mostrar a **distância em linha reta entre as duas estações**, em quilômetros, quando ambas possuem posição válida.
+- Na aba **Nós**, clicar em um nó abre uma visualização ampla com as mesmas informações e consultas disponíveis no mapa, sem obrigar a troca para a aba Mapa.
+- Na aba **Mensagens**, o nome do nó remetente passa a ser clicável e abre a mesma visualização de informações do nó.
+- Amplia o modal de detalhes de nós para melhor aproveitamento da tela.
+- Adiciona testes de regressão para impedir que um hop sem SNR válido volte a ser classificado como RF apenas por causa do transporte do traceroute.
+- Preserva todos os recursos da v1.37.1.
 
 ## Correção da v1.37.1
 
