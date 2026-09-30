@@ -1020,7 +1020,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
-  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1028,6 +1028,7 @@ const I18N_EN_PT=new Map(I18N_PAIRS.map(([pt,en])=>[en,pt]));
 function translateDynamic(text,target){
   let s=String(text??'');
   if(target==='en'){
+    s=s.replace(/^Ligado · ≥ (.+)$/,'On · ≥ $1');
     s=s.replace(/^Histórico pausado · posição (\d+)\/(\d+)$/,'History paused · position $1/$2');
     s=s.replace(/^Histórico: (\d+) traceroutes animáveis · posição (\d+)\/(\d+)$/,'History: $1 animatable traceroutes · position $2/$3');
     s=s.replace(/^Histórico concluído · (\d+) traceroutes reproduzidos$/,'History complete · $1 traceroutes played');
@@ -1070,6 +1071,7 @@ function translateDynamic(text,target){
     s=s.replace(/^Rota observada por traceroute próximo \((\d+)s\) · não prova que o NodeInfo usou exatamente os mesmos relays$/,'Route observed by a nearby traceroute ($1s) · this does not prove NodeInfo used exactly the same relays');
     s=s.replace(/^por Alex, PT2VHF$/,'by Alex, PT2VHF').replace(/ - por Alex, PT2VHF$/,' - by Alex, PT2VHF');
   }else{
+    s=s.replace(/^On · ≥ (.+)$/,'Ligado · ≥ $1');
     s=s.replace(/^History paused · position (\d+)\/(\d+)$/,'Histórico pausado · posição $1/$2');
     s=s.replace(/^History: (\d+) animatable traceroutes · position (\d+)\/(\d+)$/,'Histórico: $1 traceroutes animáveis · posição $2/$3');
     s=s.replace(/^History complete · (\d+) traceroutes played$/,'Histórico concluído · $1 traceroutes reproduzidos');
