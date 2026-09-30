@@ -318,6 +318,17 @@ jobs:
               # Visitante pode personalizar somente a própria interface.
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
               assert d.find_element(By.ID,"mapType").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"mapToolbarType").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"weatherRadarEnabled").is_selected()
+              d.execute_script("arguments[0].value='satellite';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"mapToolbarType"))
+              time.sleep(.1)
+              assert d.find_element(By.ID,"mapType").get_attribute("value")=="satellite"
+              assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).mapType")=="satellite"
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"weatherRadarEnabled"))
+              time.sleep(.1)
+              assert not d.find_element(By.ID,"weatherRadarEnabled").is_selected()
+              assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).weatherRadarEnabled") is False
+              d.execute_script("arguments[0].click()",d.find_element(By.ID,"weatherRadarEnabled"))
               assert d.find_element(By.ID,"rfLineColor").get_attribute("disabled") is None
               assert d.find_element(By.ID,"rfLineWidth").get_attribute("disabled") is None
               assert d.find_element(By.ID,"mqttLineColor").get_attribute("disabled") is None
@@ -383,6 +394,8 @@ jobs:
               assert saved.get("defaults",{}).get("rfLineColor")=="#ffff00",saved
               assert saved.get("defaults",{}).get("mqttLineColor")=="#ff8c42",saved
               assert saved.get("defaults",{}).get("rfLineWidth")==3 and saved.get("defaults",{}).get("mqttLineWidth")==3,saved
+              assert saved.get("defaults",{}).get("weatherRadarEnabled") is True,saved
+              assert saved.get("defaults",{}).get("mapType")=="satellite",saved
               for view in ["nodes","traffic","messages","statistics","settings","help","map"]:
                   d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,f'.navbtn[data-view="{view}"]'))
                   time.sleep(.1)
