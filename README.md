@@ -1,6 +1,32 @@
-# Traffic Analyzer v1.39.0
+# Traffic Analyzer v1.40.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.40.0
+
+- Amplia **Mapa → Camadas** com **Cobertura RF, Relevo sombreado, Raios, Alertas meteorológicos e Nuvens**, além do Radar já existente.
+- **Cobertura RF** usa exclusivamente posições já arquivadas pelo Traffic Analyzer que possuam SNR e/ou RSSI, sem transmitir pacotes extras. O período acompanha o filtro do mapa.
+- A cobertura RF colore cada recepção pela qualidade observada e mostra nó, SNR, RSSI e horário no clique.
+- **Relevo sombreado** usa o serviço World Hillshade da Esri como overlay independente, com transparência para manter nós e enlaces visíveis.
+- **Alertas meteorológicos** consultam o feed público do INMET e desenham os polígonos CAP quando fornecidos, com evento, severidade, validade e descrição no popup.
+- **Raios** usa integração opcional com Lightning API, limitada à área atualmente visível do mapa e aos últimos 60 minutos. A chave fica somente no servidor em `TA_LIGHTNING_API_KEY`.
+- **Nuvens** usa integração opcional com Rainbow Weather Tiles. A chave fica somente no servidor em `TA_RAINBOW_API_TOKEN`, e os tiles são servidos por proxy para não expor o token ao navegador.
+- Radar continua **ligado por padrão**. As cinco novas camadas iniciam desligadas.
+- O estado de todas as camadas é salvo nas preferências locais e pode fazer parte do padrão global do administrador.
+- Falhas de um provedor externo não derrubam o mapa nem a topologia; o menu mostra o estado individual da camada.
+- Preserva todos os recursos da v1.39.0.
+
+### Provedores opcionais das novas camadas
+
+No arquivo `/etc/traffic-analyzer-map.env`:
+
+```bash
+TA_RAINBOW_API_TOKEN=
+TA_LIGHTNING_API_KEY=
+TA_INMET_ALERTS_URL=https://apiprevmet3.inmet.gov.br/avisos/ativos
+```
+
+**Cobertura RF** e **Relevo sombreado** não exigem chave. **Alertas INMET** usam o feed público configurado acima. **Raios** e **Nuvens** ficam disponíveis assim que as respectivas chaves forem configuradas e o serviço web reiniciado.
 
 ## Novidades da v1.39.0
 

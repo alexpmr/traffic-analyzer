@@ -202,6 +202,36 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
+      - name: Validar camadas v1.40.0
+        shell: bash
+        run: |
+          grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
+          grep -Fq 'id="hillshadeEnabled"' traffic_analyzer_web.py
+          grep -Fq 'id="lightningEnabled"' traffic_analyzer_web.py
+          grep -Fq 'id="alertsEnabled"' traffic_analyzer_web.py
+          grep -Fq 'id="cloudsEnabled"' traffic_analyzer_web.py
+          grep -Fq '/api/layers/rf-coverage' traffic_analyzer_web.py
+          grep -Fq '/api/layers/weather-alerts' traffic_analyzer_web.py
+          grep -Fq '/api/layers/lightning' traffic_analyzer_web.py
+          grep -Fq '/api/layers/clouds/meta' traffic_analyzer_web.py
+          grep -Fq 'World_Hillshade/MapServer/tile' traffic_analyzer_web.py
+          grep -Fq 'TA_RAINBOW_API_TOKEN' traffic-analyzer-map.env.example
+          grep -Fq 'TA_LIGHTNING_API_KEY' traffic-analyzer-map.env.example
+          python - <<'PY'
+          import traffic_analyzer_web as ta
+          prefs=ta._sanitize_ui_defaults({
+              "weatherRadarEnabled": True,
+              "rfCoverageEnabled": True,
+              "hillshadeEnabled": True,
+              "lightningEnabled": True,
+              "alertsEnabled": True,
+              "cloudsEnabled": True,
+          })
+          for key in ("weatherRadarEnabled","rfCoverageEnabled","hillshadeEnabled","lightningEnabled","alertsEnabled","cloudsEnabled"):
+              assert prefs.get(key) is True,(key,prefs)
+          assert prefs.get("defaultsVersion")==400,prefs
+          PY
+
       - name: Validar arquivos da infraestrutura de update
         run: |
           test -s traffic-analyzer-auto-update.service
