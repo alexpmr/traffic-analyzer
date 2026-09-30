@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.39.0"
+VERSION="1.40.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -130,6 +130,9 @@ append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_HELPER" "$APP_DIR/meshtastic_
 append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_CONNECT_TIMEOUT" "10"
 append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_NODE_QUERY_TIMEOUT" "30"
 append_if_missing "$MAP_ENV_FILE" "TA_VIRTUAL_QUERY_STATE_DIR" "$STATE_DIR/query-jobs"
+append_if_missing "$MAP_ENV_FILE" "TA_RAINBOW_API_TOKEN" ""
+append_if_missing "$MAP_ENV_FILE" "TA_LIGHTNING_API_KEY" ""
+append_if_missing "$MAP_ENV_FILE" "TA_INMET_ALERTS_URL" "https://apiprevmet3.inmet.gov.br/avisos/ativos"
 chmod 0600 "$MAP_ENV_FILE"
 
 # Preserva estado/topologia ja coletados, se existirem.
