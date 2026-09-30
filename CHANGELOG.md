@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.41.0 - 2026-09-30
+
+- Adiciona a camada analítica **Elevação mínima**, independente do Relevo sombreado.
+- Usa Terrain Tiles globais em formato Terrarium, disponibilizados pelo Registry of Open Data on AWS, como DEM real de elevação.
+- Adiciona controle deslizante **vertical** diretamente no mapa para ajustar a cota mínima em tempo real.
+- Mostra somente o terreno com altitude **maior ou igual** à cota selecionada; áreas abaixo do limite ficam transparentes.
+- Usa faixa de -500 m a 9.000 m, passo de 50 m no slider e campo numérico para ajuste fino.
+- Adiciona controle de opacidade da camada e mantém nós, enlaces, animações e demais overlays acima da elevação.
+- Persiste ativação, cota mínima e opacidade no navegador e no padrão global dos visitantes.
+- Faz o backend atuar como proxy dos tiles DEM, evitando dependência de CORS e mantendo a fonte externa desacoplada da interface.
+- Preserva todos os recursos da v1.40.0.
+
 ## 1.40.0 - 2026-09-30
 
 - Adiciona camada Cobertura RF baseada nas posições arquivadas que possuem evidência de SNR/RSSI, sem tráfego adicional na malha.

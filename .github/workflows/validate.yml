@@ -202,19 +202,26 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar camadas v1.40.0
+      - name: Validar camadas v1.41.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="hillshadeEnabled"' traffic_analyzer_web.py
+          grep -Fq 'id="elevationEnabled"' traffic_analyzer_web.py
+          grep -Fq 'id="elevationThresholdSlider"' traffic_analyzer_web.py
+          grep -Fq 'id="elevationThresholdNumber"' traffic_analyzer_web.py
+          grep -Fq 'id="elevationOpacity"' traffic_analyzer_web.py
           grep -Fq 'id="lightningEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="alertsEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="cloudsEnabled"' traffic_analyzer_web.py
           grep -Fq '/api/layers/rf-coverage' traffic_analyzer_web.py
+          grep -Fq '/api/layers/elevation/tile/' traffic_analyzer_web.py
           grep -Fq '/api/layers/weather-alerts' traffic_analyzer_web.py
           grep -Fq '/api/layers/lightning' traffic_analyzer_web.py
           grep -Fq '/api/layers/clouds/meta' traffic_analyzer_web.py
           grep -Fq 'World_Hillshade/MapServer/tile' traffic_analyzer_web.py
+          grep -Fq 'elevation-tiles-prod/terrarium' traffic_analyzer_web.py
+          grep -Fq 'TA_ELEVATION_TILE_BASE_URL' traffic-analyzer-map.env.example
           grep -Fq 'TA_RAINBOW_API_TOKEN' traffic-analyzer-map.env.example
           grep -Fq 'TA_LIGHTNING_API_KEY' traffic-analyzer-map.env.example
           python - <<'PY'
@@ -223,13 +230,18 @@ jobs:
               "weatherRadarEnabled": True,
               "rfCoverageEnabled": True,
               "hillshadeEnabled": True,
+              "elevationEnabled": True,
+              "elevationThreshold": 1000,
+              "elevationOpacity": 55,
               "lightningEnabled": True,
               "alertsEnabled": True,
               "cloudsEnabled": True,
           })
-          for key in ("weatherRadarEnabled","rfCoverageEnabled","hillshadeEnabled","lightningEnabled","alertsEnabled","cloudsEnabled"):
+          for key in ("weatherRadarEnabled","rfCoverageEnabled","hillshadeEnabled","elevationEnabled","lightningEnabled","alertsEnabled","cloudsEnabled"):
               assert prefs.get(key) is True,(key,prefs)
-          assert prefs.get("defaultsVersion")==400,prefs
+          assert prefs.get("elevationThreshold")==1000,prefs
+          assert prefs.get("elevationOpacity")==55,prefs
+          assert prefs.get("defaultsVersion")==410,prefs
           PY
 
       - name: Validar arquivos da infraestrutura de update
