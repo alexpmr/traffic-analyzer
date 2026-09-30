@@ -1,6 +1,15 @@
-# Traffic Analyzer v1.40.0
+# Traffic Analyzer v1.41.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.41.0
+
+- Nova camada **Elevação mínima** baseada em DEM real.
+- Um **slider vertical** no mapa ajusta a cota mínima em tempo real: somente terrenos com altitude igual ou superior ao valor selecionado permanecem destacados.
+- Faixa de ajuste de **-500 m a 9.000 m**, com passo de 50 m e campo numérico para ajuste fino.
+- A camada possui **opacidade independente** e preserva nós, enlaces, animações e demais overlays acima dela.
+- A ativação, altitude mínima e opacidade ficam salvas nas preferências locais e podem compor o padrão global definido pelo administrador.
+- Os tiles de elevação são obtidos pelo backend a partir do dataset global Terrain Tiles em formato Terrarium.
 
 ## Novidades da v1.40.0
 
