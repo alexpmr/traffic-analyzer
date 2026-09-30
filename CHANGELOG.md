@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.40.0 - 2026-09-30
+
+- Adiciona camada Cobertura RF baseada nas posições arquivadas que possuem evidência de SNR/RSSI, sem tráfego adicional na malha.
+- Faz a Cobertura RF acompanhar o período selecionado no mapa e exibir detalhes da recepção no clique.
+- Adiciona overlay de Relevo sombreado usando Esri World Hillshade.
+- Adiciona camada de Alertas meteorológicos com leitura do feed público CAP/RSS/JSON do INMET e desenho dos polígonos informados.
+- Adiciona camada de Raios por integração opcional com Lightning API, consultada apenas para o viewport visível e últimos 60 minutos.
+- Adiciona camada de Nuvens por integração opcional com Rainbow Weather Tiles, com proxy no backend para proteger o token.
+- Persiste o estado das novas camadas no navegador e no padrão global do administrador.
+- Mantém o Radar meteorológico ligado por padrão; novas camadas iniciam desligadas.
+- Isola falhas dos provedores externos e mostra status individual no menu Camadas.
+- Preserva todos os recursos da v1.39.0.
+
 ## 1.39.0 - 2026-09-30
 
 - Adiciona seletor de mapa-base à barra principal do mapa, junto de Enquadrar e Atualizar.
