@@ -1,6 +1,19 @@
-# Traffic Analyzer v1.38.0
+# Traffic Analyzer v1.39.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.39.0
+
+- Adiciona um seletor **Mapa** diretamente na barra do mapa, ao lado de **Enquadrar** e **Atualizar**.
+- Permite trocar imediatamente entre **OSM/Ruas, Topográfico, Claro, Escuro e Satélite** sem abrir Configurações.
+- Mantém o seletor da barra sincronizado com **Configurações → Mapa e topologia**.
+- Adiciona o menu expansível **Camadas** na barra do mapa.
+- Inclui a camada **Radar meteorológico**, ligada por padrão.
+- O radar usa o quadro de precipitação mais recente disponibilizado pelo RainViewer e é atualizado automaticamente a cada 5 minutos.
+- O radar funciona como sobreposição independente do mapa-base e pode ser ligado/desligado a qualquer momento.
+- A escolha do mapa-base e o estado da camada de radar são persistidos nas preferências visuais do navegador e podem fazer parte do padrão global salvo pelo administrador.
+- Se o radar estiver temporariamente indisponível, o mapa e a topologia continuam funcionando normalmente e o menu informa a indisponibilidade da camada.
+- Preserva todos os recursos da v1.38.0.
 
 ## Novidades da v1.38.0
 
