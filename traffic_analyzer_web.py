@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.38.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.39.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.38.0"
+APP_VERSION = "1.39.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -332,6 +332,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane{pointer-events:none}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -551,7 +552,25 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     </select>
   </label>
   <span id="playStatus">Histórico pronto.</span>
-  <div class="mapActions"><button id="fit">Enquadrar</button><button id="reload">Atualizar</button></div>
+  <div class="mapActions">
+    <label>Mapa:
+      <select id="mapToolbarType" title="Escolher mapa-base">
+        <option value="osm">OSM / Ruas</option>
+        <option value="topo">Topográfico</option>
+        <option value="light">Claro</option>
+        <option value="dark">Escuro</option>
+        <option value="satellite">Satélite</option>
+      </select>
+    </label>
+    <details id="mapLayersMenu" class="mapLayersMenu">
+      <summary>Camadas</summary>
+      <div class="mapLayersPanel">
+        <label><input id="weatherRadarEnabled" type="checkbox" checked> Radar meteorológico</label>
+        <div id="weatherRadarStatus" class="layerStatus">Ligado</div>
+      </div>
+    </details>
+    <button id="fit">Enquadrar</button><button id="reload">Atualizar</button>
+  </div>
 </div>
 <div id="map"></div>
 <div id="nodeWindow" class="nodeWindow" role="dialog" aria-label="Informações do nó">
@@ -714,6 +733,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
       <div class="settingRow">
         <label>Mapa base: <select id="mapType"><option value="osm" selected>Ruas (OSM)</option><option value="topo">Topográfico</option><option value="light">Claro</option><option value="dark">Escuro</option><option value="satellite">Satélite</option></select></label>
+        <div class="settingDesc">Também pode ser alterado diretamente na barra do mapa. A camada de radar é controlada pelo menu Camadas e fica ligada por padrão.</div>
       </div>
       <div class="settingRow">
         <label>Brilho: <input id="mapBrightness" type="range" min="30" max="150" step="5" value="100" style="width:150px;vertical-align:middle"> <span id="mapBrightnessValue">100%</span></label>
@@ -983,6 +1003,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1200,6 +1221,15 @@ const baseMaps = {
 let baseLayer = null;
 let baseMapTileErrors = 0;
 let baseMapFallbackActive = false;
+let weatherRadarLayer = null;
+let weatherRadarRefreshTimer = null;
+let weatherRadarLastFrame = null;
+const WEATHER_RADAR_REFRESH_MS = 300000;
+if(!map.getPane('weatherRadarPane')){
+  const pane=map.createPane('weatherRadarPane');
+  pane.classList.add('leaflet-weather-radar-pane');
+  pane.style.zIndex='250';
+}
 const lineLayer = L.layerGroup().addTo(map);
 const nodeLayer = L.layerGroup().addTo(map);
 const animationLayer = L.layerGroup().addTo(map);
@@ -1262,11 +1292,12 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 290,
+    defaultsVersion: 390,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
     mapType: document.getElementById('mapType').value,
+    weatherRadarEnabled: document.getElementById('weatherRadarEnabled')?.checked !== false,
     brightness: Number(document.getElementById('mapBrightness').value || 100),
     rfLineColor: document.getElementById('rfLineColor').value || '#ffff00',
     rfLineWidth: Number(document.getElementById('rfLineWidth').value || 3),
@@ -1340,6 +1371,11 @@ function restoreAdminDefaults(){
 }
 function setBaseMap(type,{allowFallback=true}={}){
   const cfg=baseMaps[type]||baseMaps.osm;
+  const normalized=baseMaps[type]?type:'osm';
+  const settingsSelect=document.getElementById('mapType');
+  const toolbarSelect=document.getElementById('mapToolbarType');
+  if(settingsSelect)settingsSelect.value=normalized;
+  if(toolbarSelect)toolbarSelect.value=normalized;
   if(baseLayer)map.removeLayer(baseLayer);
   baseMapTileErrors=0;
   baseMapFallbackActive=false;
@@ -1350,14 +1386,63 @@ function setBaseMap(type,{allowFallback=true}={}){
     if(type==='osm'&&allowFallback&&baseMapTileErrors>=4&&!baseMapFallbackActive){
       baseMapFallbackActive=true;
       const select=document.getElementById('mapType');
+      const toolbar=document.getElementById('mapToolbarType');
       if(select)select.value='light';
-      flowToast('<b>Mapa OSM indisponível</b><div class="flowNote">O Traffic Analyzer mudou temporariamente para o mapa Claro (CARTO). Você pode trocar o mapa-base em Configurações.</div>',true);
+      if(toolbar)toolbar.value='light';
+      flowToast('<b>Mapa OSM indisponível</b><div class="flowNote">O Traffic Analyzer mudou temporariamente para o mapa Claro (CARTO). Você pode trocar o mapa-base diretamente na barra do mapa ou em Configurações.</div>',true);
       setBaseMap('light',{allowFallback:false});
     }
   });
   baseLayer.bringToBack();
   applyBrightness();
   renderLegend();
+}
+function weatherRadarStatus(text,error=false){
+  const el=document.getElementById('weatherRadarStatus');if(!el)return;
+  el.textContent=text;el.style.color=error?'#ff9b91':'';
+}
+function removeWeatherRadarLayer(){
+  if(weatherRadarLayer){try{map.removeLayer(weatherRadarLayer);}catch{} weatherRadarLayer=null;}
+}
+async function refreshWeatherRadar(){
+  const enabled=document.getElementById('weatherRadarEnabled')?.checked !== false;
+  if(!enabled){removeWeatherRadarLayer();weatherRadarStatus('Desligado');return;}
+  weatherRadarStatus('Atualizando radar…');
+  try{
+    const r=await fetch('https://api.rainviewer.com/public/weather-maps.json',{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const frames=Array.isArray(data?.radar?.past)?data.radar.past:[];
+    const frame=frames.length?frames[frames.length-1]:null;
+    if(!frame?.path)throw new Error('sem quadro de radar');
+    const host=String(data?.host||'https://tilecache.rainviewer.com').replace(/\/$/,'');
+    const key=host+frame.path;
+    if(key!==weatherRadarLastFrame||!weatherRadarLayer){
+      removeWeatherRadarLayer();
+      weatherRadarLayer=L.tileLayer(host+frame.path+'/256/{z}/{x}/{y}/2/1_1.png',{
+        pane:'weatherRadarPane',opacity:.58,maxZoom:19,maxNativeZoom:7,
+        attribution:'Radar © RainViewer'
+      }).addTo(map);
+      weatherRadarLastFrame=key;
+    }
+    weatherRadarStatus('Ligado · radar atualizado');
+  }catch(e){
+    removeWeatherRadarLayer();
+    weatherRadarStatus('Radar indisponível: '+String(e?.message||e),true);
+  }
+}
+function setWeatherRadarEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('weatherRadarEnabled');
+  if(cb)cb.checked=Boolean(enabled);
+  if(weatherRadarRefreshTimer){clearInterval(weatherRadarRefreshTimer);weatherRadarRefreshTimer=null;}
+  if(enabled){
+    refreshWeatherRadar();
+    weatherRadarRefreshTimer=setInterval(refreshWeatherRadar,WEATHER_RADAR_REFRESH_MS);
+  }else{
+    removeWeatherRadarLayer();
+    weatherRadarStatus('Desligado');
+  }
+  if(persist)savePrefs();
 }
 function applyBrightness(){
   const value = Math.max(30, Math.min(150, Number(document.getElementById('mapBrightness').value || 100)));
@@ -1401,7 +1486,7 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 290){
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 390){
     if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
     const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
     const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
@@ -1410,7 +1495,7 @@ function initVisualPrefs(){
     if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
     if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
     delete localPrefs.lineColor; delete localPrefs.lineWidth;
-    localPrefs.defaultsVersion = 290;
+    localPrefs.defaultsVersion = 390;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -1419,6 +1504,10 @@ function initVisualPrefs(){
   if(Number.isFinite(Number(prefs.minObs)) && Number(prefs.minObs)>=1) document.getElementById('minObs').value = String(Math.floor(Number(prefs.minObs)));
   document.getElementById('onlyIdentified').checked = Boolean(prefs.onlyIdentified);
   if(baseMaps[prefs.mapType]) document.getElementById('mapType').value = prefs.mapType;
+  const toolbarMap=document.getElementById('mapToolbarType');
+  if(toolbarMap)toolbarMap.value=document.getElementById('mapType').value;
+  const radarToggle=document.getElementById('weatherRadarEnabled');
+  if(radarToggle)radarToggle.checked=(typeof prefs.weatherRadarEnabled==='boolean')?prefs.weatherRadarEnabled:true;
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
   const rfColor=prefs.rfLineColor || prefs.lineColor;
   const rfWidth=prefs.rfLineWidth ?? prefs.lineWidth;
@@ -1464,6 +1553,7 @@ function initVisualPrefs(){
   document.getElementById('soundMinIntervalValue').textContent = `${document.getElementById('soundMinInterval').value} ms`;
   setBaseMap(document.getElementById('mapType').value);
   applyBrightness();
+  setWeatherRadarEnabled(document.getElementById('weatherRadarEnabled')?.checked !== false,{persist:false});
 }
 
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4338,6 +4428,8 @@ for(const id of ['ageHours','minObs','onlyIdentified']) document.getElementById(
 document.getElementById('showShortNames').addEventListener('change', () => { savePrefs(); render(); });
 for(const id of ['showLines','showNodes','showHeatmap']) document.getElementById(id).addEventListener('change', () => { savePrefs(); render(); });
 document.getElementById('mapType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
+document.getElementById('mapToolbarType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
+document.getElementById('weatherRadarEnabled').addEventListener('change',ev=>setWeatherRadarEnabled(ev.target.checked));
 document.getElementById('mapBrightness').addEventListener('input', () => { applyBrightness(); savePrefs(); });
 for(const id of ['rfLineColor','mqttLineColor']) document.getElementById(id).addEventListener('input', () => { savePrefs(); render(); renderLegend(); });
 document.getElementById('rfLineWidth').addEventListener('input',()=>{document.getElementById('rfLineWidthValue').textContent=`${document.getElementById('rfLineWidth').value} px`;savePrefs();render();renderLegend();});
@@ -4731,7 +4823,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1380';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1390';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -6917,7 +7009,7 @@ UI_DEFAULT_BOOLEAN_KEYS = {
     "soundEnabled", "soundRoutingEnabled", "soundMessagesEnabled", "soundAlertsEnabled",
     "soundStereoEnabled", "activityAnimationEnabled", "activityOriginEnabled",
     "activityRelayEnabled", "autoZoomTraceroute", "nodeInfoFlowEnabled",
-    "messageBold", "messageItalic", "messageUnderline",
+    "messageBold", "messageItalic", "messageUnderline", "weatherRadarEnabled",
 }
 
 
@@ -6973,7 +7065,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 290
+    out["defaultsVersion"] = 390
     return out
 
 
