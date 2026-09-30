@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.39.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.40.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.39.0"
+APP_VERSION = "1.40.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -103,6 +103,9 @@ UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-an
 UPDATE_STATUS_FILE = Path(os.getenv("UPDATE_STATUS_FILE", "/var/lib/traffic-analyzer/update-status.json"))
 LAST_INSTALL_FILE = Path(os.getenv("LAST_INSTALL_FILE", "/var/lib/traffic-analyzer/last-install.json"))
 UI_DEFAULTS_FILE = Path(os.getenv("UI_DEFAULTS_FILE", "/var/lib/traffic-analyzer/ui-defaults.json"))
+RAINBOW_API_TOKEN = str(os.getenv("TA_RAINBOW_API_TOKEN", "")).strip()
+LIGHTNING_API_KEY = str(os.getenv("TA_LIGHTNING_API_KEY", "")).strip()
+INMET_ALERTS_URL = str(os.getenv("TA_INMET_ALERTS_URL", "https://apiprevmet3.inmet.gov.br/avisos/ativos")).strip()
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
 
 AUTH_ENABLED = str(os.getenv("TA_AUTH_ENABLED", "false")).strip().lower() in {"1", "true", "yes", "on"}
@@ -332,7 +335,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane{pointer-events:none}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -567,6 +570,16 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       <div class="mapLayersPanel">
         <label><input id="weatherRadarEnabled" type="checkbox" checked> Radar meteorológico</label>
         <div id="weatherRadarStatus" class="layerStatus">Ligado</div>
+        <label><input id="rfCoverageEnabled" type="checkbox"> Cobertura RF</label>
+        <div id="rfCoverageStatus" class="layerStatus">Desligado</div>
+        <label><input id="hillshadeEnabled" type="checkbox"> Relevo sombreado</label>
+        <div id="hillshadeStatus" class="layerStatus">Desligado</div>
+        <label><input id="lightningEnabled" type="checkbox"> Raios</label>
+        <div id="lightningStatus" class="layerStatus">Desligado</div>
+        <label><input id="alertsEnabled" type="checkbox"> Alertas meteorológicos</label>
+        <div id="alertsStatus" class="layerStatus">Desligado</div>
+        <label><input id="cloudsEnabled" type="checkbox"> Nuvens</label>
+        <div id="cloudsStatus" class="layerStatus">Desligado</div>
       </div>
     </details>
     <button id="fit">Enquadrar</button><button id="reload">Atualizar</button>
@@ -1003,7 +1016,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
-  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Ligado · radar atualizado','On · radar updated'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1224,11 +1237,20 @@ let baseMapFallbackActive = false;
 let weatherRadarLayer = null;
 let weatherRadarRefreshTimer = null;
 let weatherRadarLastFrame = null;
+let rfCoverageLayer = L.layerGroup();
+let hillshadeLayer = null;
+let lightningLayer = L.layerGroup();
+let weatherAlertsLayer = L.layerGroup();
+let cloudsLayer = null;
+let lightningRefreshTimer = null;
+let alertsRefreshTimer = null;
+let cloudsRefreshTimer = null;
 const WEATHER_RADAR_REFRESH_MS = 300000;
-if(!map.getPane('weatherRadarPane')){
-  const pane=map.createPane('weatherRadarPane');
-  pane.classList.add('leaflet-weather-radar-pane');
-  pane.style.zIndex='250';
+const WEATHER_LAYER_REFRESH_MS = 600000;
+for(const [paneName,z,cls] of [['weatherRadarPane',250,'leaflet-weather-radar-pane'],['hillshadePane',210,'leaflet-hillshade-pane'],['cloudsPane',230,'leaflet-clouds-pane']]){
+  if(!map.getPane(paneName)){
+    const pane=map.createPane(paneName); pane.classList.add(cls); pane.style.zIndex=String(z);
+  }
 }
 const lineLayer = L.layerGroup().addTo(map);
 const nodeLayer = L.layerGroup().addTo(map);
@@ -1292,12 +1314,17 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 390,
+    defaultsVersion: 400,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
     mapType: document.getElementById('mapType').value,
     weatherRadarEnabled: document.getElementById('weatherRadarEnabled')?.checked !== false,
+    rfCoverageEnabled: Boolean(document.getElementById('rfCoverageEnabled')?.checked),
+    hillshadeEnabled: Boolean(document.getElementById('hillshadeEnabled')?.checked),
+    lightningEnabled: Boolean(document.getElementById('lightningEnabled')?.checked),
+    alertsEnabled: Boolean(document.getElementById('alertsEnabled')?.checked),
+    cloudsEnabled: Boolean(document.getElementById('cloudsEnabled')?.checked),
     brightness: Number(document.getElementById('mapBrightness').value || 100),
     rfLineColor: document.getElementById('rfLineColor').value || '#ffff00',
     rfLineWidth: Number(document.getElementById('rfLineWidth').value || 3),
@@ -1444,6 +1471,119 @@ function setWeatherRadarEnabled(enabled,{persist=true}={}){
   }
   if(persist)savePrefs();
 }
+function setLayerStatus(id,text,error=false){
+  const el=document.getElementById(id); if(!el)return;
+  el.textContent=text; el.style.color=error?'#ff9b91':'';
+}
+function selectedCoverageHours(){
+  const v=String(document.getElementById('ageHours')?.value||'24');
+  if(v==='all')return 720;
+  const n=Number(v); return Number.isFinite(n)?Math.max(1,Math.min(720,n)):24;
+}
+function rfCoverageStyle(snrValue,rssiValue){
+  const s=Number(snrValue),r=Number(rssiValue);
+  if(Number.isFinite(s)) return s>=8?'#32cd32':s>=2?'#d7d33f':s>=-5?'#ff9e2f':'#e34a33';
+  if(Number.isFinite(r)) return r>=-80?'#32cd32':r>=-100?'#d7d33f':r>=-115?'#ff9e2f':'#e34a33';
+  return '#7f8c8d';
+}
+async function refreshRfCoverage(){
+  if(!document.getElementById('rfCoverageEnabled')?.checked){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Desligado');return;}
+  setLayerStatus('rfCoverageStatus','Carregando cobertura…');
+  try{
+    const r=await fetch('/api/layers/rf-coverage?hours='+encodeURIComponent(selectedCoverageHours()),{cache:'no-store'});
+    const b=await r.json(); if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    rfCoverageLayer.clearLayers();
+    for(const p of (b.points||[])){
+      const circle=L.circleMarker([Number(p.lat),Number(p.lon)],{radius:5,weight:1,color:rfCoverageStyle(p.snr,p.rssi),fillColor:rfCoverageStyle(p.snr,p.rssi),fillOpacity:.55,opacity:.85,className:'rfCoveragePoint'});
+      circle.bindPopup('<b>'+esc(p.name||p.nodeId||'Nó')+'</b><br>Recepção RF registrada<br>SNR: '+snr(p.snr)+'<br>RSSI: '+(p.rssi==null?'—':esc(p.rssi)+' dBm')+'<br>'+dt(p.timestampMs));
+      rfCoverageLayer.addLayer(circle);
+    }
+    if(!map.hasLayer(rfCoverageLayer))rfCoverageLayer.addTo(map);
+    setLayerStatus('rfCoverageStatus',`Ligado · ${(b.points||[]).length} pontos RF`);
+  }catch(e){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Cobertura indisponível: '+String(e?.message||e),true);}
+}
+function setRfCoverageEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('rfCoverageEnabled');if(cb)cb.checked=Boolean(enabled);
+  if(enabled)refreshRfCoverage();else{rfCoverageLayer.clearLayers();if(map.hasLayer(rfCoverageLayer))map.removeLayer(rfCoverageLayer);setLayerStatus('rfCoverageStatus','Desligado');}
+  if(persist)savePrefs();
+}
+function setHillshadeEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('hillshadeEnabled');if(cb)cb.checked=Boolean(enabled);
+  if(enabled){
+    if(!hillshadeLayer)hillshadeLayer=L.tileLayer('https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',{pane:'hillshadePane',opacity:.42,maxZoom:16,attribution:'Hillshade © Esri'});
+    hillshadeLayer.addTo(map);setLayerStatus('hillshadeStatus','Ligado');
+  }else{if(hillshadeLayer&&map.hasLayer(hillshadeLayer))map.removeLayer(hillshadeLayer);setLayerStatus('hillshadeStatus','Desligado');}
+  if(persist)savePrefs();
+}
+async function refreshLightning(){
+  if(!document.getElementById('lightningEnabled')?.checked){lightningLayer.clearLayers();setLayerStatus('lightningStatus','Desligado');return;}
+  const bnd=map.getBounds();setLayerStatus('lightningStatus','Atualizando raios…');
+  try{
+    const q=new URLSearchParams({south:bnd.getSouth(),west:bnd.getWest(),north:bnd.getNorth(),east:bnd.getEast(),minutes:'60'});
+    const r=await fetch('/api/layers/lightning?'+q.toString(),{cache:'no-store'});const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    lightningLayer.clearLayers();
+    for(const x of (b.flashes||[])){
+      if(!Number.isFinite(Number(x.lat))||!Number.isFinite(Number(x.lon)))continue;
+      const age=Math.max(0,Number(x.ageMinutes||0));
+      const radius=age<=15?6:age<=30?5:4;
+      L.circleMarker([Number(x.lat),Number(x.lon)],{radius,weight:1,color:'#ffea00',fillColor:'#ffea00',fillOpacity:age<=15?.9:.55,opacity:.9})
+        .bindTooltip(`Raio · há ${Math.round(age)} min`).addTo(lightningLayer);
+    }
+    if(!map.hasLayer(lightningLayer))lightningLayer.addTo(map);
+    setLayerStatus('lightningStatus',`Ligado · ${(b.flashes||[]).length} raios / 60 min`);
+  }catch(e){lightningLayer.clearLayers();setLayerStatus('lightningStatus','Raios indisponíveis: '+String(e?.message||e),true);}
+}
+function setLightningEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('lightningEnabled');if(cb)cb.checked=Boolean(enabled);
+  if(lightningRefreshTimer){clearInterval(lightningRefreshTimer);lightningRefreshTimer=null;}
+  if(enabled){refreshLightning();lightningRefreshTimer=setInterval(refreshLightning,120000);}else{lightningLayer.clearLayers();if(map.hasLayer(lightningLayer))map.removeLayer(lightningLayer);setLayerStatus('lightningStatus','Desligado');}
+  if(persist)savePrefs();
+}
+async function refreshWeatherAlerts(){
+  if(!document.getElementById('alertsEnabled')?.checked){weatherAlertsLayer.clearLayers();setLayerStatus('alertsStatus','Desligado');return;}
+  setLayerStatus('alertsStatus','Atualizando alertas…');
+  try{
+    const r=await fetch('/api/layers/weather-alerts',{cache:'no-store'});const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    weatherAlertsLayer.clearLayers();
+    const sevColor={Extreme:'#b00020',Severe:'#e85d04',Moderate:'#f6bd00',Minor:'#4d9de0'};
+    for(const a of (b.alerts||[])){
+      const color=sevColor[a.severity]||'#f6bd00';
+      for(const poly of (a.polygons||[])){
+        if(!Array.isArray(poly)||poly.length<3)continue;
+        const layer=L.polygon(poly.map(p=>[Number(p[0]),Number(p[1])]),{color,weight:2,fillColor:color,fillOpacity:.18});
+        layer.bindPopup('<div class="weatherAlertPopup"><b>'+esc(a.event||'Alerta meteorológico')+'</b><br>'+esc(a.severity||'')+(a.headline?'<br>'+esc(a.headline):'')+(a.expires?'<br>Até: '+esc(a.expires):'')+(a.description?'<br><br>'+esc(a.description):'')+'<br><small>Fonte: INMET</small></div>');
+        weatherAlertsLayer.addLayer(layer);
+      }
+    }
+    if(!map.hasLayer(weatherAlertsLayer))weatherAlertsLayer.addTo(map);
+    setLayerStatus('alertsStatus',`Ligado · ${(b.alerts||[]).length} alertas INMET`);
+  }catch(e){weatherAlertsLayer.clearLayers();setLayerStatus('alertsStatus','Alertas indisponíveis: '+String(e?.message||e),true);}
+}
+function setAlertsEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('alertsEnabled');if(cb)cb.checked=Boolean(enabled);
+  if(alertsRefreshTimer){clearInterval(alertsRefreshTimer);alertsRefreshTimer=null;}
+  if(enabled){refreshWeatherAlerts();alertsRefreshTimer=setInterval(refreshWeatherAlerts,WEATHER_LAYER_REFRESH_MS);}else{weatherAlertsLayer.clearLayers();if(map.hasLayer(weatherAlertsLayer))map.removeLayer(weatherAlertsLayer);setLayerStatus('alertsStatus','Desligado');}
+  if(persist)savePrefs();
+}
+async function refreshClouds(){
+  if(!document.getElementById('cloudsEnabled')?.checked){if(cloudsLayer&&map.hasLayer(cloudsLayer))map.removeLayer(cloudsLayer);setLayerStatus('cloudsStatus','Desligado');return;}
+  setLayerStatus('cloudsStatus','Atualizando nuvens…');
+  try{
+    const r=await fetch('/api/layers/clouds/meta',{cache:'no-store'});const b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    if(cloudsLayer&&map.hasLayer(cloudsLayer))map.removeLayer(cloudsLayer);
+    cloudsLayer=L.tileLayer('/api/layers/clouds/tile/'+encodeURIComponent(b.snapshot)+'/{z}/{x}/{y}',{pane:'cloudsPane',opacity:.48,minZoom:0,maxZoom:12,maxNativeZoom:7,attribution:'Clouds © Rainbow Weather'});
+    cloudsLayer.addTo(map);setLayerStatus('cloudsStatus','Ligado · nuvens atuais');
+  }catch(e){if(cloudsLayer&&map.hasLayer(cloudsLayer))map.removeLayer(cloudsLayer);setLayerStatus('cloudsStatus','Nuvens indisponíveis: '+String(e?.message||e),true);}
+}
+function setCloudsEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('cloudsEnabled');if(cb)cb.checked=Boolean(enabled);
+  if(cloudsRefreshTimer){clearInterval(cloudsRefreshTimer);cloudsRefreshTimer=null;}
+  if(enabled){refreshClouds();cloudsRefreshTimer=setInterval(refreshClouds,WEATHER_LAYER_REFRESH_MS);}else{if(cloudsLayer&&map.hasLayer(cloudsLayer))map.removeLayer(cloudsLayer);setLayerStatus('cloudsStatus','Desligado');}
+  if(persist)savePrefs();
+}
 function applyBrightness(){
   const value = Math.max(30, Math.min(150, Number(document.getElementById('mapBrightness').value || 100)));
   document.getElementById('mapBrightnessValue').textContent = `${value}%`;
@@ -1486,7 +1626,7 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 390){
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 400){
     if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
     const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
     const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
@@ -1495,7 +1635,7 @@ function initVisualPrefs(){
     if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
     if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
     delete localPrefs.lineColor; delete localPrefs.lineWidth;
-    localPrefs.defaultsVersion = 390;
+    localPrefs.defaultsVersion = 400;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -1506,8 +1646,10 @@ function initVisualPrefs(){
   if(baseMaps[prefs.mapType]) document.getElementById('mapType').value = prefs.mapType;
   const toolbarMap=document.getElementById('mapToolbarType');
   if(toolbarMap)toolbarMap.value=document.getElementById('mapType').value;
-  const radarToggle=document.getElementById('weatherRadarEnabled');
-  if(radarToggle)radarToggle.checked=(typeof prefs.weatherRadarEnabled==='boolean')?prefs.weatherRadarEnabled:true;
+  const layerDefaults={weatherRadarEnabled:true,rfCoverageEnabled:false,hillshadeEnabled:false,lightningEnabled:false,alertsEnabled:false,cloudsEnabled:false};
+  for(const [id,def] of Object.entries(layerDefaults)){
+    const el=document.getElementById(id); if(el)el.checked=(typeof prefs[id]==='boolean')?prefs[id]:def;
+  }
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
   const rfColor=prefs.rfLineColor || prefs.lineColor;
   const rfWidth=prefs.rfLineWidth ?? prefs.lineWidth;
@@ -1554,6 +1696,11 @@ function initVisualPrefs(){
   setBaseMap(document.getElementById('mapType').value);
   applyBrightness();
   setWeatherRadarEnabled(document.getElementById('weatherRadarEnabled')?.checked !== false,{persist:false});
+  setRfCoverageEnabled(Boolean(document.getElementById('rfCoverageEnabled')?.checked),{persist:false});
+  setHillshadeEnabled(Boolean(document.getElementById('hillshadeEnabled')?.checked),{persist:false});
+  setLightningEnabled(Boolean(document.getElementById('lightningEnabled')?.checked),{persist:false});
+  setAlertsEnabled(Boolean(document.getElementById('alertsEnabled')?.checked),{persist:false});
+  setCloudsEnabled(Boolean(document.getElementById('cloudsEnabled')?.checked),{persist:false});
 }
 
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4424,12 +4571,18 @@ async function fitMapTight(){
   }
 }
 
-for(const id of ['ageHours','minObs','onlyIdentified']) document.getElementById(id).addEventListener('change', () => { historyIndex=0; savePrefs(); render(); });
+for(const id of ['ageHours','minObs','onlyIdentified']) document.getElementById(id).addEventListener('change', () => { historyIndex=0; savePrefs(); render(); if(id==='ageHours'&&document.getElementById('rfCoverageEnabled')?.checked)refreshRfCoverage(); });
 document.getElementById('showShortNames').addEventListener('change', () => { savePrefs(); render(); });
 for(const id of ['showLines','showNodes','showHeatmap']) document.getElementById(id).addEventListener('change', () => { savePrefs(); render(); });
 document.getElementById('mapType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
 document.getElementById('mapToolbarType').addEventListener('change', (ev) => { setBaseMap(ev.target.value); savePrefs(); });
 document.getElementById('weatherRadarEnabled').addEventListener('change',ev=>setWeatherRadarEnabled(ev.target.checked));
+document.getElementById('rfCoverageEnabled').addEventListener('change',ev=>setRfCoverageEnabled(ev.target.checked));
+document.getElementById('hillshadeEnabled').addEventListener('change',ev=>setHillshadeEnabled(ev.target.checked));
+document.getElementById('lightningEnabled').addEventListener('change',ev=>setLightningEnabled(ev.target.checked));
+document.getElementById('alertsEnabled').addEventListener('change',ev=>setAlertsEnabled(ev.target.checked));
+document.getElementById('cloudsEnabled').addEventListener('change',ev=>setCloudsEnabled(ev.target.checked));
+map.on('moveend',()=>{if(document.getElementById('lightningEnabled')?.checked)refreshLightning();});
 document.getElementById('mapBrightness').addEventListener('input', () => { applyBrightness(); savePrefs(); });
 for(const id of ['rfLineColor','mqttLineColor']) document.getElementById(id).addEventListener('input', () => { savePrefs(); render(); renderLegend(); });
 document.getElementById('rfLineWidth').addEventListener('input',()=>{document.getElementById('rfLineWidthValue').textContent=`${document.getElementById('rfLineWidth').value} px`;savePrefs();render();renderLegend();});
@@ -4823,7 +4976,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1390';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1400';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -6989,6 +7142,138 @@ def _tracklog_query(hours: int = 24):
     return {"success":True,"hours":hours,"generatedAtMs":int(time.time()*1000),"trackCount":len(tracks),"pointCount":total_points,"tracks":tracks}
 
 
+def _coverage_rf_query(hours: int = 24):
+    hours = max(1, min(int(hours or 24), 24 * 30))
+    cutoff = int(time.time() * 1000) - hours * 3600 * 1000
+    with _archive_connect() as conn:
+        rows = conn.execute("""
+          SELECT node_num,node_id,node_name,timestamp,latitude,longitude,snr,rssi
+          FROM positions
+          WHERE source_id=? AND timestamp>=? AND (snr IS NOT NULL OR rssi IS NOT NULL)
+          ORDER BY timestamp DESC
+          LIMIT 12000
+        """, (MM_SOURCE, cutoff)).fetchall()
+    points=[]
+    for row in rows:
+        try:
+            lat=float(row["latitude"]); lon=float(row["longitude"])
+        except Exception:
+            continue
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+        points.append({
+            "nodeNum": int(row["node_num"]), "nodeId": row["node_id"], "name": row["node_name"],
+            "timestampMs": int(row["timestamp"]), "lat": lat, "lon": lon,
+            "snr": row["snr"], "rssi": row["rssi"],
+        })
+    # Amostragem espacial/temporal simples para manter o navegador leve.
+    if len(points) > 5000:
+        step=max(1, len(points)//5000); points=points[::step][:5000]
+    return {"success": True, "hours": hours, "count": len(points), "points": points}
+
+
+def _http_json(url: str, headers=None, timeout=15):
+    req=urllib.request.Request(url, headers={"Accept":"application/json", "User-Agent":f"TrafficAnalyzer/{APP_VERSION}", **(headers or {})})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _clouds_meta():
+    if not RAINBOW_API_TOKEN:
+        raise RuntimeError("TA_RAINBOW_API_TOKEN não configurado")
+    token=urllib.parse.quote(RAINBOW_API_TOKEN, safe="")
+    body=_http_json(f"https://api.rainbow.ai/tiles/v1/snapshot?layer=clouds&token={token}")
+    snapshot=int(body.get("snapshot") or 0)
+    if snapshot <= 0:
+        raise RuntimeError("snapshot de nuvens indisponível")
+    return {"success": True, "snapshot": snapshot}
+
+
+def _cloud_tile(snapshot: int, z: int, x: int, y: int):
+    if not RAINBOW_API_TOKEN:
+        raise RuntimeError("TA_RAINBOW_API_TOKEN não configurado")
+    token=urllib.parse.quote(RAINBOW_API_TOKEN, safe="")
+    url=f"https://api.rainbow.ai/tiles/v1/clouds/{int(snapshot)}/{int(z)}/{int(x)}/{int(y)}?token={token}"
+    req=urllib.request.Request(url, headers={"Accept":"image/png","User-Agent":f"TrafficAnalyzer/{APP_VERSION}"})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return resp.read()
+
+
+def _lightning_query(south, west, north, east, minutes=60):
+    if not LIGHTNING_API_KEY:
+        raise RuntimeError("TA_LIGHTNING_API_KEY não configurado")
+    params=urllib.parse.urlencode({
+        "since_minutes": max(5,min(int(minutes or 60),120)),
+        "min_lat": float(south), "max_lat": float(north),
+        "min_lon": float(west), "max_lon": float(east),
+    })
+    body=_http_json("https://api.lightningapi.dev/v1/flashes?"+params, headers={"X-API-Key": LIGHTNING_API_KEY})
+    rows=body.get("flashes") if isinstance(body,dict) else body
+    rows=rows if isinstance(rows,list) else []
+    now=time.time(); out=[]
+    for row in rows[:3000]:
+        if not isinstance(row,dict): continue
+        lat=row.get("latitude",row.get("lat")); lon=row.get("longitude",row.get("lon"))
+        try: lat=float(lat); lon=float(lon)
+        except Exception: continue
+        ts=row.get("timestamp",row.get("time",row.get("timestamp_ms")))
+        try:
+            t=float(ts or 0); t=t/1000.0 if t>10_000_000_000 else t
+        except Exception: t=now
+        out.append({"lat":lat,"lon":lon,"ageMinutes":max(0,(now-t)/60.0),"timestampMs":int(t*1000)})
+    return {"success":True,"count":len(out),"flashes":out}
+
+
+def _cap_text(el, tag):
+    for child in el.iter():
+        if str(child.tag).split("}")[-1] == tag:
+            return (child.text or "").strip()
+    return ""
+
+
+def _weather_alerts_inmet():
+    if not INMET_ALERTS_URL:
+        raise RuntimeError("TA_INMET_ALERTS_URL não configurado")
+    req=urllib.request.Request(INMET_ALERTS_URL, headers={"Accept":"application/xml, text/xml, application/json","User-Agent":f"TrafficAnalyzer/{APP_VERSION}"})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        raw=resp.read()
+        ctype=str(resp.headers.get("Content-Type") or "").lower()
+    alerts=[]
+    if "json" in ctype or raw.lstrip().startswith((b"{",b"[")):
+        data=json.loads(raw.decode("utf-8"))
+        rows=data.get("avisos",data.get("alerts",data)) if isinstance(data,dict) else data
+        for row in (rows if isinstance(rows,list) else []):
+            if not isinstance(row,dict): continue
+            polygons=[]
+            poly=row.get("polygon") or row.get("poligono")
+            if isinstance(poly,str):
+                pts=[]
+                for pair in re.split(r"\s+",poly.strip()):
+                    try:
+                        lat,lon=pair.split(",",1); pts.append([float(lat),float(lon)])
+                    except Exception: pass
+                if len(pts)>=3: polygons.append(pts)
+            alerts.append({"event":row.get("evento") or row.get("event"),"severity":row.get("severidade") or row.get("severity"),"headline":row.get("headline") or row.get("titulo"),"description":row.get("descricao") or row.get("description"),"expires":row.get("fim") or row.get("expires"),"polygons":polygons})
+    else:
+        import xml.etree.ElementTree as ET
+        root=ET.fromstring(raw)
+        candidates=[x for x in root.iter() if str(x.tag).split("}")[-1]=="alert"]
+        if not candidates and str(root.tag).split("}")[-1]=="alert": candidates=[root]
+        for alert in candidates:
+            info=next((x for x in alert.iter() if str(x.tag).split("}")[-1]=="info"), alert)
+            polygons=[]
+            for area in [x for x in info.iter() if str(x.tag).split("}")[-1]=="area"]:
+                for pol in [x for x in area.iter() if str(x.tag).split("}")[-1]=="polygon"]:
+                    pts=[]
+                    for pair in re.split(r"\s+",(pol.text or "").strip()):
+                        try:
+                            lat,lon=pair.split(",",1); pts.append([float(lat),float(lon)])
+                        except Exception: pass
+                    if len(pts)>=3: polygons.append(pts)
+            alerts.append({"event":_cap_text(info,"event"),"severity":_cap_text(info,"severity"),"headline":_cap_text(info,"headline"),"description":_cap_text(info,"description"),"expires":_cap_text(info,"expires"),"polygons":polygons})
+    return {"success":True,"source":"INMET","count":len(alerts),"alerts":alerts}
+
+
 def _read_json_file(path: Path, default):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -7010,6 +7295,7 @@ UI_DEFAULT_BOOLEAN_KEYS = {
     "soundStereoEnabled", "activityAnimationEnabled", "activityOriginEnabled",
     "activityRelayEnabled", "autoZoomTraceroute", "nodeInfoFlowEnabled",
     "messageBold", "messageItalic", "messageUnderline", "weatherRadarEnabled",
+    "rfCoverageEnabled", "hillshadeEnabled", "lightningEnabled", "alertsEnabled", "cloudsEnabled",
 }
 
 
@@ -7065,7 +7351,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 390
+    out["defaultsVersion"] = 400
     return out
 
 
@@ -7341,6 +7627,48 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/auth/status":
             self._send(200, "application/json; charset=utf-8", json.dumps(_auth_status(self), ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/layers/rf-coverage":
+            try:
+                query=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                hours=int((query.get("hours") or ["24"])[0])
+                body=_coverage_rf_query(hours)
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/layers/clouds/meta":
+            try:
+                body=_clouds_meta()
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(503,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path.startswith("/api/layers/clouds/tile/"):
+            try:
+                parts=path.strip("/").split("/")
+                snapshot,z,x,y=map(int,parts[-4:])
+                raw=_cloud_tile(snapshot,z,x,y)
+                self._send(200,"image/png",raw)
+            except Exception as e:
+                self._send(502,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/layers/lightning":
+            try:
+                query=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                vals={k:float((query.get(k) or ["0"])[0]) for k in ("south","west","north","east")}
+                minutes=int((query.get("minutes") or ["60"])[0])
+                body=_lightning_query(vals["south"],vals["west"],vals["north"],vals["east"],minutes)
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(503,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/layers/weather-alerts":
+            try:
+                body=_weather_alerts_inmet()
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(503,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/ui-defaults":
             try:
