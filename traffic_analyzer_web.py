@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.40.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.41.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.40.0"
+APP_VERSION = "1.41.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -106,6 +106,7 @@ UI_DEFAULTS_FILE = Path(os.getenv("UI_DEFAULTS_FILE", "/var/lib/traffic-analyzer
 RAINBOW_API_TOKEN = str(os.getenv("TA_RAINBOW_API_TOKEN", "")).strip()
 LIGHTNING_API_KEY = str(os.getenv("TA_LIGHTNING_API_KEY", "")).strip()
 INMET_ALERTS_URL = str(os.getenv("TA_INMET_ALERTS_URL", "https://apiprevmet3.inmet.gov.br/avisos/ativos")).strip()
+ELEVATION_TILE_BASE_URL = str(os.getenv("TA_ELEVATION_TILE_BASE_URL", "https://s3.amazonaws.com/elevation-tiles-prod/terrarium")).strip().rstrip("/")
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
 
 AUTH_ENABLED = str(os.getenv("TA_AUTH_ENABLED", "false")).strip().lower() in {"1", "true", "yes", "on"}
@@ -335,7 +336,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:210px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:135px}}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -574,6 +575,9 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <div id="rfCoverageStatus" class="layerStatus">Desligado</div>
         <label><input id="hillshadeEnabled" type="checkbox"> Relevo sombreado</label>
         <div id="hillshadeStatus" class="layerStatus">Desligado</div>
+        <label><input id="elevationEnabled" type="checkbox"> Elevação mínima</label>
+        <div id="elevationStatus" class="layerStatus">Desligado</div>
+        <label class="layerSubControl">Opacidade <input id="elevationOpacity" type="range" min="10" max="100" step="5" value="55"> <span id="elevationOpacityValue">55%</span></label>
         <label><input id="lightningEnabled" type="checkbox"> Raios</label>
         <div id="lightningStatus" class="layerStatus">Desligado</div>
         <label><input id="alertsEnabled" type="checkbox"> Alertas meteorológicos</label>
@@ -1016,7 +1020,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
-  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1239,6 +1243,11 @@ let weatherRadarRefreshTimer = null;
 let weatherRadarLastFrame = null;
 let rfCoverageLayer = L.layerGroup();
 let hillshadeLayer = null;
+let elevationLayer = null;
+let elevationControl = null;
+let elevationRedrawRaf = null;
+let elevationThresholdMeters = 1000;
+let elevationOpacity = 0.55;
 let lightningLayer = L.layerGroup();
 let weatherAlertsLayer = L.layerGroup();
 let cloudsLayer = null;
@@ -1247,7 +1256,7 @@ let alertsRefreshTimer = null;
 let cloudsRefreshTimer = null;
 const WEATHER_RADAR_REFRESH_MS = 300000;
 const WEATHER_LAYER_REFRESH_MS = 600000;
-for(const [paneName,z,cls] of [['weatherRadarPane',250,'leaflet-weather-radar-pane'],['hillshadePane',210,'leaflet-hillshade-pane'],['cloudsPane',230,'leaflet-clouds-pane']]){
+for(const [paneName,z,cls] of [['weatherRadarPane',250,'leaflet-weather-radar-pane'],['hillshadePane',210,'leaflet-hillshade-pane'],['elevationPane',220,'leaflet-elevation-pane'],['cloudsPane',230,'leaflet-clouds-pane']]){
   if(!map.getPane(paneName)){
     const pane=map.createPane(paneName); pane.classList.add(cls); pane.style.zIndex=String(z);
   }
@@ -1314,7 +1323,7 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 400,
+    defaultsVersion: 410,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
@@ -1322,6 +1331,9 @@ function collectPrefs(){
     weatherRadarEnabled: document.getElementById('weatherRadarEnabled')?.checked !== false,
     rfCoverageEnabled: Boolean(document.getElementById('rfCoverageEnabled')?.checked),
     hillshadeEnabled: Boolean(document.getElementById('hillshadeEnabled')?.checked),
+    elevationEnabled: Boolean(document.getElementById('elevationEnabled')?.checked),
+    elevationThreshold: Math.round(Number(elevationThresholdMeters || 1000)),
+    elevationOpacity: Math.round(Number(elevationOpacity || .55) * 100),
     lightningEnabled: Boolean(document.getElementById('lightningEnabled')?.checked),
     alertsEnabled: Boolean(document.getElementById('alertsEnabled')?.checked),
     cloudsEnabled: Boolean(document.getElementById('cloudsEnabled')?.checked),
@@ -1515,6 +1527,131 @@ function setHillshadeEnabled(enabled,{persist=true}={}){
   }else{if(hillshadeLayer&&map.hasLayer(hillshadeLayer))map.removeLayer(hillshadeLayer);setLayerStatus('hillshadeStatus','Desligado');}
   if(persist)savePrefs();
 }
+function elevationMetersText(value){
+  return Math.round(Number(value)||0).toLocaleString(uiLocale())+' m';
+}
+function elevationStatusText(){
+  return 'Ligado · ≥ '+elevationMetersText(elevationThresholdMeters);
+}
+function renderElevationTile(canvas){
+  const raw=canvas?._taElevationRaw;if(!raw)return;
+  const ctx=canvas.getContext('2d'),out=ctx.createImageData(256,256),dst=out.data;
+  const threshold=Number(elevationThresholdMeters)||0;
+  const alpha=Math.max(0,Math.min(255,Math.round(elevationOpacity*255)));
+  for(let i=0;i<raw.length;i+=4){
+    const h=(raw[i]*256+raw[i+1]+raw[i+2]/256)-32768;
+    if(h>=threshold){
+      const rise=Math.max(0,Math.min(1,(h-threshold)/2500));
+      dst[i]=Math.round(224+22*rise);
+      dst[i+1]=Math.round(172-55*rise);
+      dst[i+2]=Math.round(62-25*rise);
+      dst[i+3]=alpha;
+    }
+  }
+  ctx.putImageData(out,0,0);
+}
+function redrawElevationTiles(){
+  if(elevationRedrawRaf)cancelAnimationFrame(elevationRedrawRaf);
+  elevationRedrawRaf=requestAnimationFrame(()=>{
+    elevationRedrawRaf=null;
+    if(!elevationLayer)return;
+    const tiles=elevationLayer._tiles||{};
+    for(const entry of Object.values(tiles)){const canvas=entry?.el;if(canvas?._taElevationRaw)renderElevationTile(canvas);}
+    setLayerStatus('elevationStatus',elevationStatusText());
+  });
+}
+function syncElevationControls(){
+  const slider=document.getElementById('elevationThresholdSlider');
+  const number=document.getElementById('elevationThresholdNumber');
+  const value=document.getElementById('elevationThresholdValue');
+  const opacity=document.getElementById('elevationOpacity');
+  const opacityValue=document.getElementById('elevationOpacityValue');
+  if(slider)slider.value=String(Math.round(elevationThresholdMeters));
+  if(number)number.value=String(Math.round(elevationThresholdMeters));
+  if(value)value.textContent=elevationMetersText(elevationThresholdMeters);
+  if(opacity)opacity.value=String(Math.round(elevationOpacity*100));
+  if(opacityValue)opacityValue.textContent=Math.round(elevationOpacity*100)+'%';
+}
+function setElevationThreshold(value,{persist=false}={}){
+  const n=Number(value);if(!Number.isFinite(n))return;
+  elevationThresholdMeters=Math.max(-500,Math.min(9000,Math.round(n)));
+  syncElevationControls();redrawElevationTiles();
+  if(persist)savePrefs();
+}
+function setElevationOpacity(value,{persist=false}={}){
+  const n=Number(value);if(!Number.isFinite(n))return;
+  elevationOpacity=Math.max(.10,Math.min(1,n>1?n/100:n));
+  syncElevationControls();redrawElevationTiles();
+  if(persist)savePrefs();
+}
+function decodeElevationBlob(blob){
+  if(typeof createImageBitmap==='function')return createImageBitmap(blob);
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(blob),img=new Image();
+    img.onload=()=>{URL.revokeObjectURL(url);resolve(img);};
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('imagem DEM inválida'));};
+    img.src=url;
+  });
+}
+const ElevationGridLayer=L.GridLayer.extend({
+  createTile(coords,done){
+    const canvas=L.DomUtil.create('canvas','leaflet-tile');
+    canvas.width=256;canvas.height=256;canvas.setAttribute('aria-hidden','true');
+    fetch('/api/layers/elevation/tile/'+coords.z+'/'+coords.x+'/'+coords.y,{cache:'force-cache'})
+      .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.blob();})
+      .then(blob=>decodeElevationBlob(blob))
+      .then(bitmap=>{
+        const ctx=canvas.getContext('2d',{willReadFrequently:true});
+        ctx.clearRect(0,0,256,256);ctx.drawImage(bitmap,0,0,256,256);
+        if(bitmap?.close)bitmap.close();
+        const src=ctx.getImageData(0,0,256,256);
+        canvas._taElevationRaw=new Uint8ClampedArray(src.data);
+        renderElevationTile(canvas);done(null,canvas);
+      })
+      .catch(err=>{canvas._taElevationError=String(err?.message||err);done(null,canvas);});
+    return canvas;
+  }
+});
+function ensureElevationLayer(){
+  if(!elevationLayer)elevationLayer=new ElevationGridLayer({
+    pane:'elevationPane',tileSize:256,minZoom:0,maxZoom:19,maxNativeZoom:15,
+    attribution:'Elevation © Mapzen / AWS Open Data'
+  });
+  return elevationLayer;
+}
+function initElevationControl(){
+  if(elevationControl)return;
+  const Control=L.Control.extend({
+    options:{position:'topright'},
+    onAdd(){
+      const box=L.DomUtil.create('div','elevationThresholdControl');
+      box.id='elevationThresholdControl';
+      box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div class="elevationScaleLabel">9.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="-500" max="9000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">-500 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="-500" max="9000" step="10" value="1000" aria-label="Altitude mínima em metros"></div><div class="elevationThresholdUnit">metros ou mais</div>';
+      L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
+      const slider=box.querySelector('#elevationThresholdSlider'),number=box.querySelector('#elevationThresholdNumber');
+      slider.addEventListener('input',()=>setElevationThreshold(slider.value));
+      slider.addEventListener('change',()=>setElevationThreshold(slider.value,{persist:true}));
+      number.addEventListener('input',()=>{if(number.value!=='')setElevationThreshold(number.value);});
+      number.addEventListener('change',()=>setElevationThreshold(number.value,{persist:true}));
+      return box;
+    }
+  });
+  elevationControl=new Control();elevationControl.addTo(map);syncElevationControls();
+}
+function setElevationEnabled(enabled,{persist=true}={}){
+  const cb=document.getElementById('elevationEnabled');if(cb)cb.checked=Boolean(enabled);
+  initElevationControl();
+  document.getElementById('elevationThresholdControl')?.classList.toggle('active',Boolean(enabled));
+  const opacity=document.getElementById('elevationOpacity');if(opacity)opacity.disabled=!enabled;
+  if(enabled){
+    const layer=ensureElevationLayer();if(!map.hasLayer(layer))layer.addTo(map);
+    setLayerStatus('elevationStatus',elevationStatusText());
+  }else{
+    if(elevationLayer&&map.hasLayer(elevationLayer))map.removeLayer(elevationLayer);
+    setLayerStatus('elevationStatus','Desligado');
+  }
+  if(persist)savePrefs();
+}
 async function refreshLightning(){
   if(!document.getElementById('lightningEnabled')?.checked){lightningLayer.clearLayers();setLayerStatus('lightningStatus','Desligado');return;}
   const bnd=map.getBounds();setLayerStatus('lightningStatus','Atualizando raios…');
@@ -1626,7 +1763,7 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 400){
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 410){
     if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
     const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
     const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
@@ -1635,7 +1772,7 @@ function initVisualPrefs(){
     if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
     if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
     delete localPrefs.lineColor; delete localPrefs.lineWidth;
-    localPrefs.defaultsVersion = 400;
+    localPrefs.defaultsVersion = 410;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -1646,11 +1783,13 @@ function initVisualPrefs(){
   if(baseMaps[prefs.mapType]) document.getElementById('mapType').value = prefs.mapType;
   const toolbarMap=document.getElementById('mapToolbarType');
   if(toolbarMap)toolbarMap.value=document.getElementById('mapType').value;
-  const layerDefaults={weatherRadarEnabled:true,rfCoverageEnabled:false,hillshadeEnabled:false,lightningEnabled:false,alertsEnabled:false,cloudsEnabled:false};
+  const layerDefaults={weatherRadarEnabled:true,rfCoverageEnabled:false,hillshadeEnabled:false,elevationEnabled:false,lightningEnabled:false,alertsEnabled:false,cloudsEnabled:false};
   for(const [id,def] of Object.entries(layerDefaults)){
     const el=document.getElementById(id); if(el)el.checked=(typeof prefs[id]==='boolean')?prefs[id]:def;
   }
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
+  elevationThresholdMeters=Number.isFinite(Number(prefs.elevationThreshold))?Math.max(-500,Math.min(9000,Math.round(Number(prefs.elevationThreshold)))):1000;
+  elevationOpacity=Number.isFinite(Number(prefs.elevationOpacity))?Math.max(.10,Math.min(1,Number(prefs.elevationOpacity)/100)):.55;
   const rfColor=prefs.rfLineColor || prefs.lineColor;
   const rfWidth=prefs.rfLineWidth ?? prefs.lineWidth;
   if(/^#[0-9a-fA-F]{6}$/.test(rfColor || '')) document.getElementById('rfLineColor').value = rfColor;
@@ -1698,6 +1837,9 @@ function initVisualPrefs(){
   setWeatherRadarEnabled(document.getElementById('weatherRadarEnabled')?.checked !== false,{persist:false});
   setRfCoverageEnabled(Boolean(document.getElementById('rfCoverageEnabled')?.checked),{persist:false});
   setHillshadeEnabled(Boolean(document.getElementById('hillshadeEnabled')?.checked),{persist:false});
+  initElevationControl();
+  syncElevationControls();
+  setElevationEnabled(Boolean(document.getElementById('elevationEnabled')?.checked),{persist:false});
   setLightningEnabled(Boolean(document.getElementById('lightningEnabled')?.checked),{persist:false});
   setAlertsEnabled(Boolean(document.getElementById('alertsEnabled')?.checked),{persist:false});
   setCloudsEnabled(Boolean(document.getElementById('cloudsEnabled')?.checked),{persist:false});
@@ -4579,6 +4721,9 @@ document.getElementById('mapToolbarType').addEventListener('change', (ev) => { s
 document.getElementById('weatherRadarEnabled').addEventListener('change',ev=>setWeatherRadarEnabled(ev.target.checked));
 document.getElementById('rfCoverageEnabled').addEventListener('change',ev=>setRfCoverageEnabled(ev.target.checked));
 document.getElementById('hillshadeEnabled').addEventListener('change',ev=>setHillshadeEnabled(ev.target.checked));
+document.getElementById('elevationEnabled').addEventListener('change',ev=>setElevationEnabled(ev.target.checked));
+document.getElementById('elevationOpacity').addEventListener('input',ev=>setElevationOpacity(ev.target.value));
+document.getElementById('elevationOpacity').addEventListener('change',ev=>setElevationOpacity(ev.target.value,{persist:true}));
 document.getElementById('lightningEnabled').addEventListener('change',ev=>setLightningEnabled(ev.target.checked));
 document.getElementById('alertsEnabled').addEventListener('change',ev=>setAlertsEnabled(ev.target.checked));
 document.getElementById('cloudsEnabled').addEventListener('change',ev=>setCloudsEnabled(ev.target.checked));
@@ -7199,6 +7344,24 @@ def _cloud_tile(snapshot: int, z: int, x: int, y: int):
         return resp.read()
 
 
+def _elevation_tile(z: int, x: int, y: int):
+    z=int(z);x=int(x);y=int(y)
+    if z < 0 or z > 15:
+        raise ValueError("zoom de elevação fora do intervalo suportado")
+    limit=1 << z
+    x=x % limit
+    if y < 0 or y >= limit:
+        raise ValueError("tile de elevação fora dos limites")
+    url=f"{ELEVATION_TILE_BASE_URL}/{z}/{x}/{y}.png"
+    req=urllib.request.Request(url, headers={"Accept":"image/png","User-Agent":f"TrafficAnalyzer/{APP_VERSION}"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        raw=resp.read(2_000_000)
+        ctype=str(resp.headers.get("Content-Type") or "").lower()
+    if len(raw) < 8 or raw[:8] != b"\x89PNG\r\n\x1a\n":
+        raise RuntimeError(f"tile DEM inválido ({ctype or 'sem Content-Type'})")
+    return raw
+
+
 def _lightning_query(south, west, north, east, minutes=60):
     if not LIGHTNING_API_KEY:
         raise RuntimeError("TA_LIGHTNING_API_KEY não configurado")
@@ -7295,7 +7458,7 @@ UI_DEFAULT_BOOLEAN_KEYS = {
     "soundStereoEnabled", "activityAnimationEnabled", "activityOriginEnabled",
     "activityRelayEnabled", "autoZoomTraceroute", "nodeInfoFlowEnabled",
     "messageBold", "messageItalic", "messageUnderline", "weatherRadarEnabled",
-    "rfCoverageEnabled", "hillshadeEnabled", "lightningEnabled", "alertsEnabled", "cloudsEnabled",
+    "rfCoverageEnabled", "hillshadeEnabled", "elevationEnabled", "lightningEnabled", "alertsEnabled", "cloudsEnabled",
 }
 
 
@@ -7320,6 +7483,18 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         v = int(raw.get("brightness"))
         if 30 <= v <= 150:
             out["brightness"] = v
+    except (TypeError, ValueError):
+        pass
+    try:
+        v = int(raw.get("elevationThreshold"))
+        if -500 <= v <= 9000:
+            out["elevationThreshold"] = v
+    except (TypeError, ValueError):
+        pass
+    try:
+        v = int(raw.get("elevationOpacity"))
+        if 10 <= v <= 100:
+            out["elevationOpacity"] = v
     except (TypeError, ValueError):
         pass
     for key in ("rfLineColor", "mqttLineColor", "lineColor"):
@@ -7351,7 +7526,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 400
+    out["defaultsVersion"] = 410
     return out
 
 
@@ -7649,6 +7824,15 @@ class Handler(BaseHTTPRequestHandler):
                 parts=path.strip("/").split("/")
                 snapshot,z,x,y=map(int,parts[-4:])
                 raw=_cloud_tile(snapshot,z,x,y)
+                self._send(200,"image/png",raw)
+            except Exception as e:
+                self._send(502,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path.startswith("/api/layers/elevation/tile/"):
+            try:
+                parts=path.strip("/").split("/")
+                z,x,y=map(int,parts[-3:])
+                raw=_elevation_tile(z,x,y)
                 self._send(200,"image/png",raw)
             except Exception as e:
                 self._send(502,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
