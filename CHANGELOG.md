@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.39.0 - 2026-09-30
+
+- Adiciona seletor de mapa-base à barra principal do mapa, junto de Enquadrar e Atualizar.
+- Oferece OSM/Ruas, Topográfico, Claro, Escuro e Satélite com troca imediata.
+- Mantém sincronização bidirecional entre o seletor rápido e Configurações.
+- Adiciona menu Camadas preparado para novas sobreposições.
+- Adiciona Radar meteorológico como primeira camada, ligado por padrão.
+- Usa o quadro de precipitação mais recente do RainViewer e atualiza a camada a cada 5 minutos.
+- Persiste mapa-base e estado da camada de radar nas preferências locais e no padrão global do administrador.
+- Trata indisponibilidade do radar sem afetar a topologia ou o mapa-base.
+- Preserva todos os recursos da v1.38.0.
+
 ## 1.38.0 - 2026-09-30
 
 - Confirma enlaces RF somente quando o hop possui evidência física válida de sinal, atualmente SNR válido.
