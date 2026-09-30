@@ -387,10 +387,17 @@ def traceroute_record_transport(tr):
 
 
 def link_transport_class(tr, link):
-    """Segue a semântica do MeshMonitor: sentinel por hop vence o transporte do registro."""
-    if link.get("snr_unknown"):
-        return "mqtt"
-    return traceroute_record_transport(tr)
+    """Classifica RF apenas quando o próprio hop traz evidência física válida.
+
+    O transporte do registro de traceroute (por exemplo, ter chegado ao
+    MeshMonitor por RF) não prova que cada adjacência observada naquele path
+    aconteceu por RF. Para evitar falsos enlaces RF, um hop só é confirmado
+    como RF quando possui SNR decodificado válido. Sem essa evidência, ele é
+    tratado como MQTT/não-RF para visualização.
+    """
+    if link.get("snr_db") is not None:
+        return "rf"
+    return "mqtt"
 
 
 def build_leg_links(start_num, raw_intermediate, end_num, snr_raw, leg):
@@ -748,7 +755,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.36.5",
+        "version": "1.38.0",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
         "localNodeNum": local_node_num,
@@ -771,7 +778,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
         "disclaimer": (
             "As linhas representam adjacências observadas nos traceroutes carregados e filtrados na interface. "
             "Linha contínua indica ao menos uma observação RF no período; tracejado indica apenas MQTT/não-RF. "
-            "O sentinel de SNR desconhecido é tratado como MQTT/não-RF por compatibilidade com a semântica do MeshMonitor. "
+            "Somente hops com SNR válido são confirmados como RF; sem evidência de sinal o trecho é tratado como MQTT/não-RF. "
             "Não são enlaces permanentes nem prova de conectividade bidirecional atual."
         ),
     }
