@@ -57,6 +57,22 @@ jobs:
           assert bv["transportClass"]=="rf",bv
           assert ab["events"][0]["transport"]=="mqtt",ab
           assert bv["events"][0]["transport"]=="rf",bv
+
+          # Regressão v1.38.0: transporte do traceroute não é prova de RF por hop.
+          # Sem SNR válido, o enlace deve permanecer MQTT/não-RF.
+          no_signal=[{
+            "id":2,"packetId":124,"fromNodeNum":10,"toNodeNum":20,
+            "fromNodeId":"!0000000a","toNodeId":"!00000014",
+            "route":"[]","snrTowards":"[]","routeBack":None,"snrBack":None,
+            "channel":0,"timestamp":1700000001000,"createdAt":1700000001000,
+            "transportMechanism":1,"viaMqtt":False,
+          }]
+          no_signal_top=ta.build_topology(nodes,no_signal,1700000001000)
+          no_signal_edge=no_signal_top["edges"][0]
+          assert no_signal_edge["rfObservations"]==0,no_signal_edge
+          assert no_signal_edge["mqttObservations"]==1,no_signal_edge
+          assert no_signal_edge["transportClass"]=="mqtt",no_signal_edge
+          assert no_signal_edge["events"][0]["transport"]=="mqtt",no_signal_edge
           PY
 
       - name: Validar scripts shell

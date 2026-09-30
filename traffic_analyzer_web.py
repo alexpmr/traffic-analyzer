@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.37.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.38.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.37.1"
+APP_VERSION = "1.38.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -379,7 +379,7 @@ HTML = r'''<!doctype html>
   .dashCard .value{font-size:27px;font-weight:800;line-height:1.05;margin:4px 0}.dashCard .label{font-size:12px;color:#aebbc7}.dashCard .sub{font-size:11px;color:#8194a5;margin-top:5px}
   .dashSection{background:#111a24;border:1px solid #293744;border-radius:9px;margin:10px 0;overflow:hidden}.dashSection h3{font-size:14px;margin:0;padding:10px 12px;background:#17212b;border-bottom:1px solid #293744}.dashSectionBody{padding:10px 12px;overflow:auto}
   .dashTable{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}.dashTable th{position:sticky;top:0;background:#17212b;color:#cbd6df;text-align:left;padding:8px;border-bottom:1px solid #405668}.dashTable td{padding:8px;border-bottom:1px solid #22313f}.dashTable tr:last-child td{border-bottom:0}
-  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesFilter{display:flex;align-items:center;gap:4px}.nodesFilter input{width:220px;max-width:36vw}.nodesFilterClear{padding:4px 8px}.batteryGood{color:#78e7a6;font-weight:800}.batteryWarn{color:#ffd36b;font-weight:800}.batteryBad{color:#ff8d83;font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeDetailsModal{width:min(900px,96vw);max-height:88vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
+  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesFilter{display:flex;align-items:center;gap:4px}.nodesFilter input{width:220px;max-width:36vw}.nodesFilterClear{padding:4px 8px}.batteryGood{color:#78e7a6;font-weight:800}.batteryWarn{color:#ffd36b;font-weight:800}.batteryBad{color:#ff8d83;font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeDetailsModal{width:min(1180px,96vw);max-height:92vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
   @media(max-width:800px){.nodesWrap{padding:8px}.nodesTableWrap{max-height:calc(100vh - 135px)}}
   .miniBars{display:flex;align-items:flex-end;gap:7px;height:130px;padding:8px 4px 22px}.miniBarWrap{flex:1;min-width:42px;text-align:center;position:relative;height:100%}.miniBar{position:absolute;bottom:19px;left:12%;right:12%;background:#3a8fbd;border-radius:4px 4px 0 0;min-height:2px}.miniBarLabel{position:absolute;bottom:0;left:0;right:0;font-size:10px;color:#91a4b3}.miniBarValue{position:absolute;bottom:calc(var(--h) + 23px);left:0;right:0;font-size:10px;color:#dbe6ee}
   .severity{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800}.sev-critical{background:#6e2020;color:#ffb2b2}.sev-warning{background:#6a4a13;color:#ffd98a}.sev-info{background:#174f64;color:#9ce8ff}.sev-ok{background:#174f37;color:#9df2bc}
@@ -396,7 +396,7 @@ HTML = r'''<!doctype html>
   #messageList{flex:1;overflow:auto;padding:12px 14px;box-sizing:border-box;background:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96));scroll-behavior:smooth}
   .msgDay{text-align:center;margin:12px 0}.msgDay span{background:#182229;color:#b8c7d1;padding:5px 10px;border-radius:8px;font-size:11px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
   .msgRow{display:flex;margin:4px 0}.msgRow.mine{justify-content:flex-end}.msgBubble{max-width:min(92%,1200px);min-width:120px;border-radius:9px;padding:6px 8px 5px;box-shadow:0 1px 2px rgba(0,0,0,.28);overflow-wrap:anywhere;position:relative}.msgRow.theirs .msgBubble{background:#202c33;border-top-left-radius:2px}.msgRow.mine .msgBubble{background:#005c4b;border-top-right-radius:2px}
-  .msgSender{font-size:calc(var(--message-font-size,13px) - 2px);color:#70cfff;font-weight:800;margin-bottom:2px}.msgText{white-space:pre-wrap;font-size:var(--message-font-size,13px);line-height:1.35;padding-right:58px}.msgMeta{font-size:calc(var(--message-font-size,13px) - 3px);color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
+  .msgSender{font-size:calc(var(--message-font-size,13px) - 2px);color:#70cfff;font-weight:800;margin-bottom:2px}.msgSenderNode{appearance:none;border:0;background:transparent;padding:0;color:inherit;font:inherit;font-weight:800;cursor:pointer;text-align:left}.msgSenderNode:hover{text-decoration:underline}.msgText{white-space:pre-wrap;font-size:var(--message-font-size,13px);line-height:1.35;padding-right:58px}.msgMeta{font-size:calc(var(--message-font-size,13px) - 3px);color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
   .msgNewMark{display:inline-block;background:#1f6f8b;color:white;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:5px}
   #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:8px 12px;background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font-family:inherit;font-size:var(--message-font-size,13px);line-height:1.25;background:#2a3942;color:#fff;caret-color:#fff}#messageInput::placeholder{color:#9fb0bf;opacity:1}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;color:#fff;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
   #messagesNav.unread{animation:messagesUnread 1.15s ease-in-out infinite;border-color:#53bdeb;box-shadow:0 0 0 1px rgba(83,189,235,.25)}@keyframes messagesUnread{0%,100%{background:#233443;color:#edf3f8}50%{background:#0b6f81;color:#fff}}
@@ -722,13 +722,13 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <b>Enlaces RF confirmados</b><br>
         <label>Cor: <input id="rfLineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
         <label>Espessura: <input id="rfLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="rfLineWidthValue">3 px</span></label>
-        <div class="settingDesc">Linha contínua. Se o mesmo enlace tiver observações RF e MQTT/não-RF no período, prevalece a linha contínua por existir evidência RF.</div>
+        <div class="settingDesc">Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.</div>
       </div>
       <div class="settingRow">
         <b>Enlaces MQTT / não-RF</b><br>
         <label>Cor: <input id="mqttLineColor" type="color" value="#ff8c42" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
         <label>Espessura: <input id="mqttLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="mqttLineWidthValue">3 px</span></label>
-        <div class="settingDesc">Linha tracejada quando o enlace não possui nenhuma observação RF no período selecionado. Inclui MQTT explícito e hops com SNR desconhecido tratados como não-RF.</div>
+        <div class="settingDesc">Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.</div>
         <button id="lineStyleReset" type="button" style="margin-top:7px">Restaurar cores e espessuras</button>
       </div>
       <div class="settingRow">
@@ -978,11 +978,11 @@ const I18N_PAIRS=[
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
   ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
-  ['Linha contínua. Se o mesmo enlace tiver observações RF e MQTT/não-RF no período, prevalece a linha contínua por existir evidência RF.','Solid line. If the same link has RF and MQTT/non-RF observations in the period, the solid line prevails because RF evidence exists.'],
-  ['Linha tracejada quando o enlace não possui nenhuma observação RF no período selecionado. Inclui MQTT explícito e hops com SNR desconhecido tratados como não-RF.','Dashed line when the link has no RF observation in the selected period. Includes explicit MQTT and hops with unknown SNR treated as non-RF.'],
+  ['Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.','Solid line only when the hop has physical RF evidence, currently a valid SNR. Mixed RF and MQTT/non-RF observations remain solid and the popup shows the composition.'],
+  ['Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.','Dashed line when there is no physical RF evidence for the hop. Without a valid SNR, the observation is treated as MQTT/non-RF even if the traceroute record reached MeshMonitor over RF.'],
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
-  ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (exibido como RF)','Mixed RF + MQTT/non-RF (shown as RF)'],
+  ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1540,36 +1540,37 @@ function edgeStatsForWindow(e, cutoff){
   if(!events){
     if(cutoff !== null && (e.lastSeenMs || 0) < cutoff) return null;
     const observations=Number(e.observations || 0);
-    let rf=Number(e.rfObservations || 0);
-    const mqtt=Number(e.mqttObservations || 0);
-    let nonRf=Number(e.nonRfObservations || mqtt);
-    if(rf+nonRf===0 && observations>0) rf=observations; // topologias antigas = RF por compatibilidade
+    const aggregateSnr=[e.avgSnr,e.minSnr,e.maxSnr].find(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
+    const hasRfEvidence=aggregateSnr!==undefined;
+    const rf=hasRfEvidence?Math.max(1,Number(e.rfObservations||observations||0)):0;
+    const mqtt=hasRfEvidence?Math.max(0,observations-rf):observations;
+    const nonRf=mqtt;
     return {
       observations,
       forward:Number(e.forwardObservations || 0),
       back:Number(e.returnObservations || 0),
-      rf, mqtt, nonRf, otherNonRf:Math.max(0,nonRf-mqtt),
+      rf, mqtt, nonRf, otherNonRf:0,
       mixed:rf>0&&nonRf>0,
-      displayTransport:rf>0?'rf':(nonRf>0?'mqtt':'rf'),
+      displayTransport:rf>0?'rf':'mqtt',
       avgSnr:e.avgSnr, minSnr:e.minSnr, maxSnr:e.maxSnr,
       lastSeenMs:e.lastSeenMs, latestTraceId:e.latestTraceId, latestChannel:e.latestChannel
     };
   }
   const active = cutoff === null ? events : events.filter(x => Number(x.timestampMs || 0) >= cutoff);
   if(!active.length) return null;
-  const snrs = active.map(x => x.snr).filter(x => x !== null && x !== undefined && Number.isFinite(Number(x))).map(Number);
+  const hasRfEvidence=x=>x?.snr!==null&&x?.snr!==undefined&&Number.isFinite(Number(x.snr));
+  const snrs = active.filter(hasRfEvidence).map(x=>Number(x.snr));
   const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
-  const rf=active.filter(x => !x.transport || x.transport === 'rf').length;
-  const mqtt=active.filter(x => x.transport === 'mqtt').length;
-  const otherNonRf=active.filter(x => x.transport === 'non-rf').length;
-  const nonRf=mqtt+otherNonRf;
+  const rf=active.filter(hasRfEvidence).length;
+  const mqtt=active.length-rf;
+  const nonRf=mqtt;
   return {
     observations:active.length,
     forward:active.filter(x => x.leg === 'forward').length,
     back:active.filter(x => x.leg === 'return').length,
-    rf, mqtt, nonRf, otherNonRf,
+    rf, mqtt, nonRf, otherNonRf:0,
     mixed:rf>0&&nonRf>0,
-    displayTransport:rf>0?'rf':(nonRf>0?'mqtt':'rf'),
+    displayTransport:rf>0?'rf':'mqtt',
     avgSnr:snrs.length ? snrs.reduce((a,b)=>a+b,0)/snrs.length : null,
     minSnr:snrs.length ? Math.min(...snrs) : null,
     maxSnr:snrs.length ? Math.max(...snrs) : null,
@@ -2455,13 +2456,22 @@ function render(){
       const style={weight:lineWidth,opacity:.82,color:lineColor};
       if(mqttOnly) style.dashArray='10 8';
       const line = L.polyline(e.geometry, style);
-      const classLabel=stats.mixed?'Misto RF + MQTT/não-RF (exibido como RF)':(mqttOnly?'MQTT / não-RF':'RF confirmado');
+      const classLabel=stats.mixed?'Misto RF + MQTT/não-RF (há evidência RF)':(mqttOnly?'MQTT / não-RF':'RF confirmado');
+      let distanceLabel='Distância indisponível';
+      if(Array.isArray(e.geometry)&&e.geometry.length>=2){
+        const p1=e.geometry[0],p2=e.geometry[e.geometry.length-1];
+        if(Array.isArray(p1)&&Array.isArray(p2)&&[p1[0],p1[1],p2[0],p2[1]].every(v=>Number.isFinite(Number(v)))){
+          const meters=map.distance(L.latLng(Number(p1[0]),Number(p1[1])),L.latLng(Number(p2[0]),Number(p2[1])));
+          if(Number.isFinite(meters))distanceLabel=`Distância: <b>${(meters/1000).toLocaleString(uiLocale(),{minimumFractionDigits:1,maximumFractionDigits:1})} km</b>`;
+        }
+      }
       line.bindPopup(
         `<b>${esc(e.aName)} ↔ ${esc(e.bName)}</b><br>`+
         `${esc(e.aId)} ↔ ${esc(e.bId)}<br>`+
+        `${distanceLabel}<br>`+
         `Classificação: <b>${esc(classLabel)}</b><br>`+
         `Observações: <b>${stats.observations}</b> · RF: <b>${stats.rf}</b> · MQTT/não-RF: <b>${stats.nonRf}</b><br>`+
-        (stats.otherNonRf?`MQTT inferido/explícito: ${stats.mqtt} · outros não-RF: ${stats.otherNonRf}<br>`:'')+
+        `Critério RF: SNR válido observado no hop<br>`+
         `Ida: ${stats.forward} | Volta: ${stats.back}<br>`+
         `SNR médio RF conhecido: ${snr(stats.avgSnr)}<br>`+
         `Faixa SNR: ${snr(stats.minSnr)} a ${snr(stats.maxSnr)}<br>`+
@@ -3293,28 +3303,30 @@ function renderNodesTable(){
   renderNodesSortIndicators();
 }
 function closeNodeDetailsModal(){
+  if(Number.isFinite(Number(nodeDetailsModalNodeNum)))stopNodePolling(Number(nodeDetailsModalNodeNum));
+  nodeDetailsModalNodeNum=null;
   document.getElementById('nodeDetailsBackdrop')?.classList.remove('open');
 }
-function openNodeFromList(nodeNum){
+let nodeDetailsModalNodeNum=null;
+function openNodeDetailsModal(nodeNum){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
-  const marker=nodeMarkers.get(Number(nodeNum));
-  if(!marker){
-    document.getElementById('nodesSummary').textContent=tr('Nó sem posição conhecida; não é possível focalizá-lo no mapa.');
-    return;
-  }
-  closeNodeDetailsModal();
+  closeNodeWindow();
   map.closePopup();
-  openNodeNum=null;
-  openNodePopupScrollTop=0;
-  nodePopupDragState={nodeNum:null,x:0,y:0,left:null,top:null};
-  setView('map');
-  setTimeout(()=>{
-    const latlng=marker.getLatLng();
-    if(!latlng)return;
-    const targetZoom=Math.min(map.getMaxZoom(),Math.max(Number(map.getZoom()||0),15));
-    map.setView(latlng,targetZoom,{animate:true});
-  },60);
+  nodeDetailsModalNodeNum=Number(nodeNum);
+  const body=document.getElementById('nodeDetailsModalBody');
+  if(body){
+    body.innerHTML=nodePopupHtml(n,false);
+    body.scrollTop=0;
+    const run=nodeQueryRun(nodeNum);
+    if(run.details)renderNodePopupData(nodeNum,run.details);
+  }
+  document.getElementById('nodeDetailsBackdrop')?.classList.add('open');
+  loadNodeDetails(nodeNum,true).catch(e=>{
+    const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
+    if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
+  });
 }
+function openNodeFromList(nodeNum){openNodeDetailsModal(nodeNum);}
 document.getElementById('nodesFilter').addEventListener('input',e=>{nodesFilterText=String(e.target.value||'');renderNodesTable();});
 document.getElementById('nodesFilterClear').addEventListener('click',()=>{const el=document.getElementById('nodesFilter');el.value='';nodesFilterText='';el.focus();renderNodesTable();});
 document.getElementById('nodesColumnsButton').addEventListener('click',e=>{
@@ -4492,6 +4504,7 @@ function replyQuoteHtml(m){
   return `<div class="msgReplyQuote"><b>${esc(who)}</b><span>${renderChatText(excerpt)}</span></div>`;
 }
 function bindMessageActions(){
+  document.querySelectorAll('[data-message-node]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openNodeDetailsModal(Number(btn.dataset.messageNode));}));
   document.querySelectorAll('[data-replymsg]').forEach(btn=>btn.addEventListener('click',()=>beginReply(btn.dataset.replymsg)));
   document.querySelectorAll('[data-reacttoggle]').forEach(btn=>btn.addEventListener('click',()=>{
     const picker=document.querySelector(`[data-reactpicker="${CSS.escape(btn.dataset.reacttoggle)}"]`);
@@ -4514,7 +4527,12 @@ function renderMessages(options={}){
     const mid=String(m.id||messageKey(m)),pid=messagePacketId(m);
     const actions=authCanWrite()?`<div class="msgActions"><button type="button" data-replymsg="${esc(mid)}" title="${tr('Responder')}">↩ ${tr('Responder')}</button>${!m.mine&&pid?`<button type="button" data-reacttoggle="${esc(mid)}" title="${tr('Reagir')}">☺ ${tr('Reagir')}</button>`:''}</div>`:'';
     const picker=authCanWrite()&&!m.mine&&pid?`<div class="reactionPickerInline" data-reactpicker="${esc(mid)}">${QUICK_REACTIONS.map(e=>`<button type="button" data-reaction-msg="${esc(mid)}" data-emoji="${esc(e)}">${esc(e)}</button>`).join('')}</div>`:'';
-    html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(mid)}"><div class="msgBubble">${!m.mine?`<div class="msgSender">${esc(m.fromName||m.fromNodeId||'Nó')} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`:''}${replyQuoteHtml(m)}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div>${reactionHtml(pid,groups)}${actions}${picker}</div></div>`;
+    const senderNum=Number(m.fromNodeNum);
+    const senderName=esc(m.fromName||m.fromNodeId||'Nó');
+    const senderHtml=!m.mine?(Number.isFinite(senderNum)&&senderNum>0
+      ?`<div class="msgSender"><button type="button" class="msgSenderNode" data-message-node="${senderNum}" title="${esc(tr('Abrir informações do nó'))}">${senderName}</button> ${unread?'<span class="msgNewMark">nova</span>':''}</div>`
+      :`<div class="msgSender">${senderName} ${unread?'<span class="msgNewMark">nova</span>':''}</div>`):'';
+    html+=`<div class="msgRow ${m.mine?'mine':'theirs'}" data-mid="${esc(mid)}"><div class="msgBubble">${senderHtml}${replyQuoteHtml(m)}<div class="msgText">${renderChatText(m.text||'')}</div><div class="msgMeta">${new Date(ms).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}${m.mine?`<span class="msgStatus ${dv.cls}" title="${esc(dv.tip)}">${dv.icon}</span>`:`<span class="msgTransport">${transport}</span>`}</div>${reactionHtml(pid,groups)}${actions}${picker}</div></div>`;
   }
   el.innerHTML=html;bindMessageActions();
   if(preserveOffset){
@@ -4713,7 +4731,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1371';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1380';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;

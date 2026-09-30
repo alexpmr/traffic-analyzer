@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.38.0 - 2026-09-30
+
+- Confirma enlaces RF somente quando o hop possui evidência física válida de sinal, atualmente SNR válido.
+- Classifica como MQTT/não-RF as observações sem SNR válido, mesmo quando o registro de traceroute chegou ao MeshMonitor por RF.
+- Mantém contadores independentes de observações RF e MQTT/não-RF para enlaces mistos.
+- Adiciona distância em linha reta, em quilômetros, ao popup de cada enlace quando ambas as estações possuem posição válida.
+- Faz a aba Nós abrir uma visualização ampla das informações e consultas do nó, reutilizando a mesma estrutura de dados do mapa.
+- Torna o nome do remetente na aba Mensagens clicável para abrir as informações do nó.
+- Amplia o modal de detalhes do nó.
+- Atualiza testes automatizados de classificação RF/MQTT para cobrir hop sem evidência de sinal.
+- Preserva todos os recursos da v1.37.1.
+
 ## 1.37.1 - 2026-09-29
 
 - Corrige falso status ATUALIZADO causado pelo cache de versão de 1 hora.
