@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.42.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.43.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.42.1"
+APP_VERSION = "1.43.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -575,7 +575,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <div id="rfCoverageStatus" class="layerStatus">Desligado</div>
         <label><input id="hillshadeEnabled" type="checkbox"> Relevo sombreado</label>
         <div id="hillshadeStatus" class="layerStatus">Desligado</div>
-        <label><input id="elevationEnabled" type="checkbox"> Elevação mínima</label>
+        <label><input id="elevationEnabled" type="checkbox"> Relevo com corte</label>
         <div id="elevationStatus" class="layerStatus">Desligado</div>
         <label class="layerSubControl">Opacidade <input id="elevationOpacity" type="range" min="10" max="100" step="5" value="55"> <span id="elevationOpacityValue">55%</span></label>
         <label><input id="lightningEnabled" type="checkbox"> Raios</label>
@@ -756,8 +756,8 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <label>Brilho: <input id="mapBrightness" type="range" min="30" max="150" step="5" value="100" style="width:150px;vertical-align:middle"> <span id="mapBrightnessValue">100%</span></label>
       </div>
       <div class="settingRow">
-        <label>Limite superior da Elevação mínima: <input id="elevationSliderMax" type="number" min="100" max="9000" step="100" value="3000" style="width:86px"> m</label>
-        <div class="settingDesc">Define o valor máximo do slider vertical de Elevação mínima. Padrão: 3.000 m.</div>
+        <label>Máximo do slider de corte do relevo: <input id="elevationSliderMax" type="number" min="100" max="9000" step="100" value="3000" style="width:86px"> m</label>
+        <div class="settingDesc">Define o topo da escala do slider vertical da camada Relevo com corte. Padrão: 3.000 m.</div>
       </div>
       <div class="settingRow">
         <b>Enlaces RF confirmados</b><br>
@@ -1024,7 +1024,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
-  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Limite superior da Elevação mínima:','Elevation minimum upper limit:'],['Define o valor máximo do slider vertical de Elevação mínima. Padrão: 3.000 m.','Sets the maximum value of the Elevation minimum vertical slider. Default: 3,000 m.'],['máx. do slider (m)','slider max (m)'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Máximo do slider de corte do relevo:','Relief cutoff slider maximum:'],['Define o topo da escala do slider vertical da camada Relevo com corte. Padrão: 3.000 m.','Sets the top of the vertical slider scale for the Relief cutoff layer. Default: 3,000 m.'],['máx. do slider (m)','slider max (m)'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Relevo com corte','Relief cutoff'],['Corte do relevo','Relief cutoff'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1642,7 +1642,7 @@ function initElevationControl(){
   if(elevationControl)return;
   const box=L.DomUtil.create('div','elevationThresholdControl',map.getContainer());
   box.id='elevationThresholdControl';
-  box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div id="elevationScaleMax" class="elevationScaleLabel">3.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="3000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="100" max="9000" step="100" value="3000" aria-label="Limite máximo do slider em metros"></div><div class="elevationThresholdUnit">máx. do slider (m)</div>';
+  box.innerHTML='<div class="elevationThresholdTitle">Corte do relevo</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div id="elevationScaleMax" class="elevationScaleLabel">3.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="3000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="100" max="9000" step="100" value="3000" aria-label="Limite máximo do slider em metros"></div><div class="elevationThresholdUnit">máx. do slider (m)</div>';
   L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
   const slider=box.querySelector('#elevationThresholdSlider'),number=box.querySelector('#elevationThresholdNumber');
   slider.addEventListener('input',()=>setElevationThreshold(slider.value));
