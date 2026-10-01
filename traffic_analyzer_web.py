@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.42.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.42.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.42.0"
+APP_VERSION = "1.42.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -336,7 +336,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:260px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:170px}}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:390px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:255px}}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -1024,7 +1024,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
-  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Limite superior da Elevação mínima:','Elevation minimum upper limit:'],['Define o valor máximo do slider vertical de Elevação mínima. Padrão: 3.000 m.','Sets the maximum value of the Elevation minimum vertical slider. Default: 3,000 m.'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Limite superior da Elevação mínima:','Elevation minimum upper limit:'],['Define o valor máximo do slider vertical de Elevação mínima. Padrão: 3.000 m.','Sets the maximum value of the Elevation minimum vertical slider. Default: 3,000 m.'],['máx. do slider (m)','slider max (m)'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1577,7 +1577,7 @@ function syncElevationControls(){
   const opacity=document.getElementById('elevationOpacity');
   const opacityValue=document.getElementById('elevationOpacityValue');
   if(slider){slider.max=String(Math.round(elevationSliderMaxMeters));slider.value=String(Math.round(elevationThresholdMeters));}
-  if(number){number.max=String(Math.round(elevationSliderMaxMeters));number.value=String(Math.round(elevationThresholdMeters));}
+  if(number){number.min='100';number.max='9000';number.value=String(Math.round(elevationSliderMaxMeters));}
   if(value)value.textContent=elevationMetersText(elevationThresholdMeters);
   if(maxLabel)maxLabel.textContent=elevationMetersText(elevationSliderMaxMeters);
   if(maxSetting)maxSetting.value=String(Math.round(elevationSliderMaxMeters));
@@ -1642,13 +1642,13 @@ function initElevationControl(){
   if(elevationControl)return;
   const box=L.DomUtil.create('div','elevationThresholdControl',map.getContainer());
   box.id='elevationThresholdControl';
-  box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div id="elevationScaleMax" class="elevationScaleLabel">3.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="3000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="0" max="3000" step="10" value="1000" aria-label="Altitude mínima em metros"></div><div class="elevationThresholdUnit">metros ou mais</div>';
+  box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div id="elevationScaleMax" class="elevationScaleLabel">3.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="3000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="100" max="9000" step="100" value="3000" aria-label="Limite máximo do slider em metros"></div><div class="elevationThresholdUnit">máx. do slider (m)</div>';
   L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
   const slider=box.querySelector('#elevationThresholdSlider'),number=box.querySelector('#elevationThresholdNumber');
   slider.addEventListener('input',()=>setElevationThreshold(slider.value));
   slider.addEventListener('change',()=>setElevationThreshold(slider.value,{persist:true}));
-  number.addEventListener('input',()=>{if(number.value!=='')setElevationThreshold(number.value);});
-  number.addEventListener('change',()=>setElevationThreshold(number.value,{persist:true}));
+  number.addEventListener('input',()=>{if(number.value!=='')setElevationSliderMax(number.value);});
+  number.addEventListener('change',()=>setElevationSliderMax(number.value,{persist:true}));
   elevationControl=box;
   syncElevationControls();
 }
@@ -5139,7 +5139,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1420';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1421';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;

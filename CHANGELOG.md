@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.42.1 - 2026-10-01
+
+- Faz o campo numérico inferior do controle de Elevação mínima definir o limite máximo do slider.
+- Mantém o limite máximo padrão em 3.000 m e faixa configurável de 100 a 9.000 m.
+- Sincroniza o campo inferior com a configuração de limite superior existente.
+- Mantém o valor da cota mínima controlado pelo slider e exibido no topo.
+- Ajusta automaticamente a cota quando o novo máximo for inferior ao valor atual.
+- Aumenta a altura do slider vertical em 50%, de 260 px para 390 px.
+- Em telas de menor altura, aumenta de 170 px para 255 px.
+- Preserva todos os recursos da v1.42.0.
+
 ## 1.42.0 - 2026-09-30
 
 - Adiciona configuração do limite superior do slider da camada Elevação mínima.
