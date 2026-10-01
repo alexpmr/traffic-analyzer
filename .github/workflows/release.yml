@@ -399,7 +399,8 @@ jobs:
               assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="2000"
               assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="2000"
               assert d.execute_script("return elevationThresholdMeters")==2000
-              assert "2.000" in d.find_element(By.ID,"elevationScaleMax").text
+              max_label=d.find_element(By.ID,"elevationScaleMax").text.replace(".","").replace(",","")
+              assert "2000" in max_label,max_label
               d.execute_script("setElevationSliderMax(3000,{persist:false})")
               d.execute_script("setElevationEnabled(true,{persist:false})")
               assert "active" in elev.get_attribute("class"),elev.get_attribute("class")
