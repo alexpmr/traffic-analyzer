@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.41.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.42.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.41.1"
+APP_VERSION = "1.42.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -336,7 +336,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:210px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:135px}}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:260px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:170px}}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -756,6 +756,10 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <label>Brilho: <input id="mapBrightness" type="range" min="30" max="150" step="5" value="100" style="width:150px;vertical-align:middle"> <span id="mapBrightnessValue">100%</span></label>
       </div>
       <div class="settingRow">
+        <label>Limite superior da Elevação mínima: <input id="elevationSliderMax" type="number" min="100" max="9000" step="100" value="3000" style="width:86px"> m</label>
+        <div class="settingDesc">Define o valor máximo do slider vertical de Elevação mínima. Padrão: 3.000 m.</div>
+      </div>
+      <div class="settingRow">
         <b>Enlaces RF confirmados</b><br>
         <label>Cor: <input id="rfLineColor" type="color" value="#ffff00" style="width:48px;height:30px;padding:2px;vertical-align:middle"></label><br>
         <label>Espessura: <input id="rfLineWidth" type="range" min="1" max="8" step="1" value="3" style="width:150px;vertical-align:middle"> <span id="rfLineWidthValue">3 px</span></label>
@@ -1020,7 +1024,7 @@ const I18N_PAIRS=[
   ['Restaurar cores e espessuras','Restore colors and thicknesses'],['Tipo de enlace','Link type'],['RF confirmado','Confirmed RF'],['MQTT / não-RF','MQTT / non-RF'],
   ['Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.','A mixed link stays solid when there is at least one RF observation in the selected period.'],
   ['Classificação:','Classification:'],['Misto RF + MQTT/não-RF (há evidência RF)','Mixed RF + MQTT/non-RF (RF evidence present)'],['Distância indisponível','Distance unavailable'],['Critério RF: SNR válido observado no hop','RF criterion: valid SNR observed on the hop'],
-  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
+  ['Mapa:','Map:'],['Camadas','Layers'],['Radar meteorológico','Weather radar'],['Limite superior da Elevação mínima:','Elevation minimum upper limit:'],['Define o valor máximo do slider vertical de Elevação mínima. Padrão: 3.000 m.','Sets the maximum value of the Elevation minimum vertical slider. Default: 3,000 m.'],['Cobertura RF','RF coverage'],['Relevo sombreado','Hillshade'],['Elevação mínima','Minimum elevation'],['Opacidade','Opacity'],['Cota mínima','Minimum elevation'],['Altitude mínima','Minimum altitude'],['Altitude mínima exibida','Minimum displayed altitude'],['Altitude mínima em metros','Minimum altitude in meters'],['metros ou mais','meters or higher'],['Terreno ≥','Terrain ≥'],['Dados de elevação','Elevation data'],['Raios','Lightning'],['Alertas meteorológicos','Weather alerts'],['Nuvens','Clouds'],['Ligado','On'],['Desligado','Off'],['Atualizando radar…','Updating radar…'],['Carregando cobertura…','Loading coverage…'],['Atualizando raios…','Updating lightning…'],['Atualizando alertas…','Updating alerts…'],['Atualizando nuvens…','Updating clouds…'],['Ligado · radar atualizado','On · radar updated'],
   ['SNR médio RF conhecido:','Known RF average SNR:'],['MQTT inferido/explícito:','Inferred/explicit MQTT:'],['outros não-RF:','other non-RF:'],
 ];
 const I18N_PT_EN=new Map(I18N_PAIRS);
@@ -1249,6 +1253,7 @@ let elevationLayer = null;
 let elevationControl = null;
 let elevationRedrawRaf = null;
 let elevationThresholdMeters = 1000;
+let elevationSliderMaxMeters = 3000;
 let elevationOpacity = 0.55;
 let lightningLayer = L.layerGroup();
 let weatherAlertsLayer = L.layerGroup();
@@ -1325,7 +1330,7 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 411,
+    defaultsVersion: 420,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
@@ -1335,6 +1340,7 @@ function collectPrefs(){
     hillshadeEnabled: Boolean(document.getElementById('hillshadeEnabled')?.checked),
     elevationEnabled: Boolean(document.getElementById('elevationEnabled')?.checked),
     elevationThreshold: Math.round(Number(elevationThresholdMeters || 1000)),
+    elevationSliderMax: Math.round(Number(elevationSliderMaxMeters || 3000)),
     elevationOpacity: Math.round(Number(elevationOpacity || .55) * 100),
     lightningEnabled: Boolean(document.getElementById('lightningEnabled')?.checked),
     alertsEnabled: Boolean(document.getElementById('alertsEnabled')?.checked),
@@ -1566,17 +1572,28 @@ function syncElevationControls(){
   const slider=document.getElementById('elevationThresholdSlider');
   const number=document.getElementById('elevationThresholdNumber');
   const value=document.getElementById('elevationThresholdValue');
+  const maxLabel=document.getElementById('elevationScaleMax');
+  const maxSetting=document.getElementById('elevationSliderMax');
   const opacity=document.getElementById('elevationOpacity');
   const opacityValue=document.getElementById('elevationOpacityValue');
-  if(slider)slider.value=String(Math.round(elevationThresholdMeters));
-  if(number)number.value=String(Math.round(elevationThresholdMeters));
+  if(slider){slider.max=String(Math.round(elevationSliderMaxMeters));slider.value=String(Math.round(elevationThresholdMeters));}
+  if(number){number.max=String(Math.round(elevationSliderMaxMeters));number.value=String(Math.round(elevationThresholdMeters));}
   if(value)value.textContent=elevationMetersText(elevationThresholdMeters);
+  if(maxLabel)maxLabel.textContent=elevationMetersText(elevationSliderMaxMeters);
+  if(maxSetting)maxSetting.value=String(Math.round(elevationSliderMaxMeters));
   if(opacity)opacity.value=String(Math.round(elevationOpacity*100));
   if(opacityValue)opacityValue.textContent=Math.round(elevationOpacity*100)+'%';
 }
 function setElevationThreshold(value,{persist=false}={}){
   const n=Number(value);if(!Number.isFinite(n))return;
-  elevationThresholdMeters=Math.max(0,Math.min(4000,Math.round(n)));
+  elevationThresholdMeters=Math.max(0,Math.min(elevationSliderMaxMeters,Math.round(n)));
+  syncElevationControls();redrawElevationTiles();
+  if(persist)savePrefs();
+}
+function setElevationSliderMax(value,{persist=false}={}){
+  const n=Number(value);if(!Number.isFinite(n))return;
+  elevationSliderMaxMeters=Math.max(100,Math.min(9000,Math.round(n)));
+  if(elevationThresholdMeters>elevationSliderMaxMeters)elevationThresholdMeters=elevationSliderMaxMeters;
   syncElevationControls();redrawElevationTiles();
   if(persist)savePrefs();
 }
@@ -1625,7 +1642,7 @@ function initElevationControl(){
   if(elevationControl)return;
   const box=L.DomUtil.create('div','elevationThresholdControl',map.getContainer());
   box.id='elevationThresholdControl';
-  box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div class="elevationScaleLabel">4.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="4000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="0" max="4000" step="10" value="1000" aria-label="Altitude mínima em metros"></div><div class="elevationThresholdUnit">metros ou mais</div>';
+  box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div id="elevationScaleMax" class="elevationScaleLabel">3.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="3000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="0" max="3000" step="10" value="1000" aria-label="Altitude mínima em metros"></div><div class="elevationThresholdUnit">metros ou mais</div>';
   L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
   const slider=box.querySelector('#elevationThresholdSlider'),number=box.querySelector('#elevationThresholdNumber');
   slider.addEventListener('input',()=>setElevationThreshold(slider.value));
@@ -1760,7 +1777,7 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 411){
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 420){
     if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
     const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
     const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
@@ -1769,7 +1786,7 @@ function initVisualPrefs(){
     if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
     if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
     delete localPrefs.lineColor; delete localPrefs.lineWidth;
-    localPrefs.defaultsVersion = 411;
+    localPrefs.defaultsVersion = 420;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -1785,7 +1802,9 @@ function initVisualPrefs(){
     const el=document.getElementById(id); if(el)el.checked=(typeof prefs[id]==='boolean')?prefs[id]:def;
   }
   if(Number.isFinite(Number(prefs.brightness))) document.getElementById('mapBrightness').value = String(prefs.brightness);
-  elevationThresholdMeters=Number.isFinite(Number(prefs.elevationThreshold))?Math.max(-500,Math.min(9000,Math.round(Number(prefs.elevationThreshold)))):1000;
+  elevationSliderMaxMeters=Number.isFinite(Number(prefs.elevationSliderMax))?Math.max(100,Math.min(9000,Math.round(Number(prefs.elevationSliderMax)))):3000;
+  elevationThresholdMeters=Number.isFinite(Number(prefs.elevationThreshold))?Math.max(0,Math.min(elevationSliderMaxMeters,Math.round(Number(prefs.elevationThreshold)))):1000;
+  document.getElementById('elevationSliderMax').value=String(elevationSliderMaxMeters);
   elevationOpacity=Number.isFinite(Number(prefs.elevationOpacity))?Math.max(.10,Math.min(1,Number(prefs.elevationOpacity)/100)):.55;
   const rfColor=prefs.rfLineColor || prefs.lineColor;
   const rfWidth=prefs.rfLineWidth ?? prefs.lineWidth;
@@ -4719,6 +4738,8 @@ document.getElementById('weatherRadarEnabled').addEventListener('change',ev=>set
 document.getElementById('rfCoverageEnabled').addEventListener('change',ev=>setRfCoverageEnabled(ev.target.checked));
 document.getElementById('hillshadeEnabled').addEventListener('change',ev=>setHillshadeEnabled(ev.target.checked));
 document.getElementById('elevationEnabled').addEventListener('change',ev=>setElevationEnabled(ev.target.checked));
+document.getElementById('elevationSliderMax').addEventListener('input',ev=>{if(ev.target.value!=='')setElevationSliderMax(ev.target.value);});
+document.getElementById('elevationSliderMax').addEventListener('change',ev=>setElevationSliderMax(ev.target.value,{persist:true}));
 document.getElementById('elevationOpacity').addEventListener('input',ev=>setElevationOpacity(ev.target.value));
 document.getElementById('elevationOpacity').addEventListener('change',ev=>setElevationOpacity(ev.target.value,{persist:true}));
 document.getElementById('lightningEnabled').addEventListener('change',ev=>setLightningEnabled(ev.target.checked));
@@ -5118,7 +5139,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1411';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1420';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -7484,8 +7505,14 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     try:
         v = int(raw.get("elevationThreshold"))
-        if 0 <= v <= 4000:
+        if 0 <= v <= 9000:
             out["elevationThreshold"] = v
+    except (TypeError, ValueError):
+        pass
+    try:
+        v = int(raw.get("elevationSliderMax"))
+        if 100 <= v <= 9000:
+            out["elevationSliderMax"] = v
     except (TypeError, ValueError):
         pass
     try:
@@ -7523,7 +7550,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 411
+    out["defaultsVersion"] = 420
     return out
 
 
