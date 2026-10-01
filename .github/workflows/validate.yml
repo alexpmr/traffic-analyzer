@@ -202,7 +202,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar camadas v1.41.0
+      - name: Validar camadas v1.41.1
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -210,6 +210,9 @@ jobs:
           grep -Fq 'id="elevationEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdSlider"' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdNumber"' traffic_analyzer_web.py
+          grep -Fq 'type="range" min="0" max="4000" step="50"' traffic_analyzer_web.py
+          grep -Fq 'type="number" min="0" max="4000" step="10"' traffic_analyzer_web.py
+          grep -Fq '4.000 m' traffic_analyzer_web.py
           grep -Fq 'id="elevationOpacity"' traffic_analyzer_web.py
           grep -Fq 'id="lightningEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="alertsEnabled"' traffic_analyzer_web.py
@@ -240,8 +243,12 @@ jobs:
           for key in ("weatherRadarEnabled","rfCoverageEnabled","hillshadeEnabled","elevationEnabled","lightningEnabled","alertsEnabled","cloudsEnabled"):
               assert prefs.get(key) is True,(key,prefs)
           assert prefs.get("elevationThreshold")==1000,prefs
+          assert "elevationThreshold" not in ta._sanitize_ui_defaults({"elevationThreshold": -1})
+          assert "elevationThreshold" not in ta._sanitize_ui_defaults({"elevationThreshold": 4001})
+          assert ta._sanitize_ui_defaults({"elevationThreshold": 0}).get("elevationThreshold")==0
+          assert ta._sanitize_ui_defaults({"elevationThreshold": 4000}).get("elevationThreshold")==4000
           assert prefs.get("elevationOpacity")==55,prefs
-          assert prefs.get("defaultsVersion")==410,prefs
+          assert prefs.get("defaultsVersion")==411,prefs
           PY
 
       - name: Validar arquivos da infraestrutura de update
@@ -411,6 +418,23 @@ jobs:
               assert not d.find_element(By.ID,"weatherRadarEnabled").is_selected()
               assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).weatherRadarEnabled") is False
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"weatherRadarEnabled"))
+              # v1.41.1: o controle vertical só aparece com Elevação mínima ligada.
+              d.execute_script("setView('map')")
+              time.sleep(.1)
+              d.execute_script("initElevationControl()")
+              elev=d.find_element(By.ID,"elevationThresholdControl")
+              assert "active" not in elev.get_attribute("class"),elev.get_attribute("class")
+              assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("min")=="0"
+              assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="4000"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("min")=="0"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="4000"
+              d.execute_script("setElevationEnabled(true,{persist:false})")
+              assert "active" in elev.get_attribute("class"),elev.get_attribute("class")
+              pos=d.execute_script("const r=document.getElementById('elevationThresholdControl').getBoundingClientRect(),m=document.getElementById('map').getBoundingClientRect();return {right:m.right-r.right,delta:(r.top+r.height/2)-(m.top+m.height/2)};")
+              assert abs(pos["right"]-12)<6,pos
+              assert abs(pos["delta"])<12,pos
+              d.execute_script("setElevationEnabled(false,{persist:false})")
+              assert "active" not in elev.get_attribute("class"),elev.get_attribute("class")
               assert d.find_element(By.ID,"rfLineColor").get_attribute("disabled") is None
               assert d.find_element(By.ID,"rfLineWidth").get_attribute("disabled") is None
               assert d.find_element(By.ID,"mqttLineColor").get_attribute("disabled") is None
