@@ -177,7 +177,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar camadas v1.42.0
+      - name: Validar camadas v1.42.1
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -186,10 +186,11 @@ jobs:
           grep -Fq 'id="elevationThresholdSlider"' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdNumber"' traffic_analyzer_web.py
           grep -Fq 'type="range" min="0" max="3000" step="50"' traffic_analyzer_web.py
-          grep -Fq 'type="number" min="0" max="3000" step="10"' traffic_analyzer_web.py
+          grep -Fq 'type="number" min="100" max="9000" step="100"' traffic_analyzer_web.py
           grep -Fq '3.000 m' traffic_analyzer_web.py
           grep -Fq 'id="elevationSliderMax"' traffic_analyzer_web.py
-          grep -Fq 'height:260px' traffic_analyzer_web.py
+          grep -Fq 'height:390px' traffic_analyzer_web.py
+          grep -Fq '@media(max-height:700px){.elevationVerticalRange{height:255px}}' traffic_analyzer_web.py
           grep -Fq 'id="elevationOpacity"' traffic_analyzer_web.py
           grep -Fq 'id="lightningEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="alertsEnabled"' traffic_analyzer_web.py
@@ -392,15 +393,20 @@ jobs:
               assert "active" not in elev.get_attribute("class"),elev.get_attribute("class")
               assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("min")=="0"
               assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="3000"
-              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("min")=="0"
-              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="3000"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("min")=="100"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="9000"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("value")=="3000"
               assert d.find_element(By.ID,"elevationSliderMax").get_attribute("value")=="3000"
               d.execute_script("setElevationThreshold(2800,{persist:false});setElevationSliderMax(2000,{persist:false})")
               assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="2000"
-              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="2000"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("value")=="2000"
               assert d.execute_script("return elevationThresholdMeters")==2000
               max_label=d.execute_script("return document.getElementById('elevationScaleMax').textContent").replace(".","").replace(",","")
               assert "2000" in max_label,max_label
+              d.execute_script("setElevationSliderMax(3000,{persist:false})")
+              d.execute_script("const n=document.getElementById('elevationThresholdNumber');n.value='3500';n.dispatchEvent(new Event('change',{bubbles:true}))")
+              assert d.execute_script("return elevationSliderMaxMeters")==3500
+              assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="3500"
               d.execute_script("setElevationSliderMax(3000,{persist:false})")
               d.execute_script("setElevationEnabled(true,{persist:false})")
               assert "active" in elev.get_attribute("class"),elev.get_attribute("class")
