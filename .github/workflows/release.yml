@@ -177,7 +177,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar camadas v1.41.1
+      - name: Validar camadas v1.42.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -185,9 +185,11 @@ jobs:
           grep -Fq 'id="elevationEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdSlider"' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdNumber"' traffic_analyzer_web.py
-          grep -Fq 'type="range" min="0" max="4000" step="50"' traffic_analyzer_web.py
-          grep -Fq 'type="number" min="0" max="4000" step="10"' traffic_analyzer_web.py
-          grep -Fq '4.000 m' traffic_analyzer_web.py
+          grep -Fq 'type="range" min="0" max="3000" step="50"' traffic_analyzer_web.py
+          grep -Fq 'type="number" min="0" max="3000" step="10"' traffic_analyzer_web.py
+          grep -Fq '3.000 m' traffic_analyzer_web.py
+          grep -Fq 'id="elevationSliderMax"' traffic_analyzer_web.py
+          grep -Fq 'height:260px' traffic_analyzer_web.py
           grep -Fq 'id="elevationOpacity"' traffic_analyzer_web.py
           grep -Fq 'id="lightningEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="alertsEnabled"' traffic_analyzer_web.py
@@ -208,6 +210,7 @@ jobs:
               "hillshadeEnabled": True,
               "elevationEnabled": True,
               "elevationThreshold": 1000,
+              "elevationSliderMax": 3000,
               "elevationOpacity": 55,
               "lightningEnabled": True,
               "alertsEnabled": True,
@@ -217,11 +220,16 @@ jobs:
               assert prefs.get(key) is True,(key,prefs)
           assert prefs.get("elevationThreshold")==1000,prefs
           assert "elevationThreshold" not in ta._sanitize_ui_defaults({"elevationThreshold": -1})
-          assert "elevationThreshold" not in ta._sanitize_ui_defaults({"elevationThreshold": 4001})
+          assert "elevationThreshold" not in ta._sanitize_ui_defaults({"elevationThreshold": 9001})
           assert ta._sanitize_ui_defaults({"elevationThreshold": 0}).get("elevationThreshold")==0
-          assert ta._sanitize_ui_defaults({"elevationThreshold": 4000}).get("elevationThreshold")==4000
+          assert ta._sanitize_ui_defaults({"elevationThreshold": 9000}).get("elevationThreshold")==9000
+          assert prefs.get("elevationSliderMax")==3000,prefs
+          assert "elevationSliderMax" not in ta._sanitize_ui_defaults({"elevationSliderMax": 99})
+          assert "elevationSliderMax" not in ta._sanitize_ui_defaults({"elevationSliderMax": 9001})
+          assert ta._sanitize_ui_defaults({"elevationSliderMax": 100}).get("elevationSliderMax")==100
+          assert ta._sanitize_ui_defaults({"elevationSliderMax": 9000}).get("elevationSliderMax")==9000
           assert prefs.get("elevationOpacity")==55,prefs
-          assert prefs.get("defaultsVersion")==411,prefs
+          assert prefs.get("defaultsVersion")==420,prefs
           PY
 
       - name: Smoke test real da interface
@@ -376,16 +384,23 @@ jobs:
               assert not d.find_element(By.ID,"weatherRadarEnabled").is_selected()
               assert d.execute_script("return JSON.parse(localStorage.getItem(PREF_KEY)).weatherRadarEnabled") is False
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"weatherRadarEnabled"))
-              # v1.41.1: o controle vertical só aparece com Elevação mínima ligada.
+              # v1.42.0: controle vertical dinâmico, padrão 3000 m, só com Elevação mínima ligada.
               d.execute_script("setView('map')")
               time.sleep(.1)
               d.execute_script("initElevationControl()")
               elev=d.find_element(By.ID,"elevationThresholdControl")
               assert "active" not in elev.get_attribute("class"),elev.get_attribute("class")
               assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("min")=="0"
-              assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="4000"
+              assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="3000"
               assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("min")=="0"
-              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="4000"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="3000"
+              assert d.find_element(By.ID,"elevationSliderMax").get_attribute("value")=="3000"
+              d.execute_script("setElevationThreshold(2800,{persist:false});setElevationSliderMax(2000,{persist:false})")
+              assert d.find_element(By.ID,"elevationThresholdSlider").get_attribute("max")=="2000"
+              assert d.find_element(By.ID,"elevationThresholdNumber").get_attribute("max")=="2000"
+              assert d.execute_script("return elevationThresholdMeters")==2000
+              assert "2.000" in d.find_element(By.ID,"elevationScaleMax").text
+              d.execute_script("setElevationSliderMax(3000,{persist:false})")
               d.execute_script("setElevationEnabled(true,{persist:false})")
               assert "active" in elev.get_attribute("class"),elev.get_attribute("class")
               pos=d.execute_script("const r=document.getElementById('elevationThresholdControl').getBoundingClientRect(),m=document.getElementById('map').getBoundingClientRect();return {right:m.right-r.right,delta:(r.top+r.height/2)-(m.top+m.height/2)};")
