@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.41.1 - 2026-09-30
+
+- Limita o slider vertical da camada Elevação mínima à faixa de 0 a 4.000 m.
+- Atualiza as marcações visuais da escala para 4.000 m no topo e 0 m na base.
+- Aplica o mesmo limite ao campo numérico de ajuste da cota.
+- Reposiciona o controle para o lado direito, centralizado verticalmente no mapa.
+- Garante que o controle apareça somente com Elevação mínima ligada.
+- Mantém Relevo sombreado independente do controle de cota.
+- Persiste a cota selecionada para restauração ao reativar a camada.
+- Preserva todos os recursos da v1.41.0.
+
 ## 1.41.0 - 2026-09-30
 
 - Adiciona a camada analítica **Elevação mínima**, independente do Relevo sombreado.
