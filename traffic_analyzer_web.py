@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.41.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.41.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.41.0"
+APP_VERSION = "1.41.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -336,7 +336,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:210px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:135px}}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:210px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:135px}}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -1325,7 +1325,7 @@ function loadPrefs(){
 }
 function collectPrefs(){
   return {
-    defaultsVersion: 410,
+    defaultsVersion: 411,
     ageHours: document.getElementById('ageHours').value,
     minObs: Number(document.getElementById('minObs').value || 1),
     onlyIdentified: document.getElementById('onlyIdentified').checked,
@@ -1576,7 +1576,7 @@ function syncElevationControls(){
 }
 function setElevationThreshold(value,{persist=false}={}){
   const n=Number(value);if(!Number.isFinite(n))return;
-  elevationThresholdMeters=Math.max(-500,Math.min(9000,Math.round(n)));
+  elevationThresholdMeters=Math.max(0,Math.min(4000,Math.round(n)));
   syncElevationControls();redrawElevationTiles();
   if(persist)savePrefs();
 }
@@ -1623,22 +1623,17 @@ function ensureElevationLayer(){
 }
 function initElevationControl(){
   if(elevationControl)return;
-  const Control=L.Control.extend({
-    options:{position:'topright'},
-    onAdd(){
-      const box=L.DomUtil.create('div','elevationThresholdControl');
-      box.id='elevationThresholdControl';
-      box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div class="elevationScaleLabel">9.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="-500" max="9000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">-500 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="-500" max="9000" step="10" value="1000" aria-label="Altitude mínima em metros"></div><div class="elevationThresholdUnit">metros ou mais</div>';
-      L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
-      const slider=box.querySelector('#elevationThresholdSlider'),number=box.querySelector('#elevationThresholdNumber');
-      slider.addEventListener('input',()=>setElevationThreshold(slider.value));
-      slider.addEventListener('change',()=>setElevationThreshold(slider.value,{persist:true}));
-      number.addEventListener('input',()=>{if(number.value!=='')setElevationThreshold(number.value);});
-      number.addEventListener('change',()=>setElevationThreshold(number.value,{persist:true}));
-      return box;
-    }
-  });
-  elevationControl=new Control();elevationControl.addTo(map);syncElevationControls();
+  const box=L.DomUtil.create('div','elevationThresholdControl',map.getContainer());
+  box.id='elevationThresholdControl';
+  box.innerHTML='<div class="elevationThresholdTitle">Cota mínima</div><div id="elevationThresholdValue" class="elevationThresholdValue">1.000 m</div><div class="elevationScaleLabel">4.000 m</div><input id="elevationThresholdSlider" class="elevationVerticalRange" type="range" min="0" max="4000" step="50" value="1000" aria-label="Altitude mínima exibida"><div class="elevationScaleLabel">0 m</div><div class="elevationControlRow"><input id="elevationThresholdNumber" class="elevationThresholdNumber" type="number" min="0" max="4000" step="10" value="1000" aria-label="Altitude mínima em metros"></div><div class="elevationThresholdUnit">metros ou mais</div>';
+  L.DomEvent.disableClickPropagation(box);L.DomEvent.disableScrollPropagation(box);
+  const slider=box.querySelector('#elevationThresholdSlider'),number=box.querySelector('#elevationThresholdNumber');
+  slider.addEventListener('input',()=>setElevationThreshold(slider.value));
+  slider.addEventListener('change',()=>setElevationThreshold(slider.value,{persist:true}));
+  number.addEventListener('input',()=>{if(number.value!=='')setElevationThreshold(number.value);});
+  number.addEventListener('change',()=>setElevationThreshold(number.value,{persist:true}));
+  elevationControl=box;
+  syncElevationControls();
 }
 function setElevationEnabled(enabled,{persist=true}={}){
   const cb=document.getElementById('elevationEnabled');if(cb)cb.checked=Boolean(enabled);
@@ -1765,7 +1760,7 @@ function initVisualPrefs(){
   // Migra somente preferências locais antigas. Navegadores novos não gravam
   // automaticamente o padrão global no localStorage, permitindo que mudanças
   // futuras do administrador cheguem a quem ainda não criou um override local.
-  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 410){
+  if(Object.keys(localPrefs).length && Number(localPrefs.defaultsVersion || 0) < 411){
     if(Number(localPrefs.defaultsVersion || 0) < 140) localPrefs.mapType = 'osm';
     const legacyColor=/^#[0-9a-fA-F]{6}$/.test(localPrefs.lineColor||'') ? localPrefs.lineColor : '#ffff00';
     const legacyWidth=Number.isFinite(Number(localPrefs.lineWidth)) ? Math.max(1,Math.min(8,Number(localPrefs.lineWidth))) : 3;
@@ -1774,7 +1769,7 @@ function initVisualPrefs(){
     if(!localPrefs.mqttLineColor) localPrefs.mqttLineColor='#ff8c42';
     if(!localPrefs.mqttLineWidth) localPrefs.mqttLineWidth=3;
     delete localPrefs.lineColor; delete localPrefs.lineWidth;
-    localPrefs.defaultsVersion = 410;
+    localPrefs.defaultsVersion = 411;
     localStorage.setItem(PREF_KEY, JSON.stringify(localPrefs));
   }
   const prefs = {...serverUiDefaults,...localPrefs};
@@ -5123,7 +5118,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1400';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1411';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -7489,7 +7484,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     try:
         v = int(raw.get("elevationThreshold"))
-        if -500 <= v <= 9000:
+        if 0 <= v <= 4000:
             out["elevationThreshold"] = v
     except (TypeError, ValueError):
         pass
@@ -7528,7 +7523,7 @@ def _sanitize_ui_defaults(raw: dict) -> dict:
         pass
     if raw.get("uiTheme") in {"dark", "light"}:
         out["uiTheme"] = raw["uiTheme"]
-    out["defaultsVersion"] = 410
+    out["defaultsVersion"] = 411
     return out
 
 
