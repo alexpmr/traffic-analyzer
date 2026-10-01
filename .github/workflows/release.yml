@@ -177,12 +177,14 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar camadas v1.42.1
+      - name: Validar camadas v1.43.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="hillshadeEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="elevationEnabled"' traffic_analyzer_web.py
+          grep -Fq 'Relevo com corte' traffic_analyzer_web.py
+          grep -Fq 'Corte do relevo' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdSlider"' traffic_analyzer_web.py
           grep -Fq 'id="elevationThresholdNumber"' traffic_analyzer_web.py
           grep -Fq 'type="range" min="0" max="3000" step="50"' traffic_analyzer_web.py

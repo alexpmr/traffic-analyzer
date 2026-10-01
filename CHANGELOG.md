@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.43.0 - 2026-09-30
+
+- Publica uma versão completa consolidando todos os recursos atuais do Traffic Analyzer.
+- Renomeia a camada analítica de elevação para **Relevo com corte**, deixando explícita sua função no menu Camadas.
+- Mantém o **slider vertical de corte** diretamente sobre o mapa para filtrar, em tempo real, somente o terreno igual ou acima da cota selecionada.
+- Renomeia o título do controle para **Corte do relevo** e mantém a cota atual visível no topo.
+- Mantém o limite máximo padrão do slider em **3.000 m**, configurável entre **100 e 9.000 m** pelo campo inferior ou em Configurações.
+- Mantém o slider com **390 px** de altura em telas normais e **255 px** em telas menores.
+- Mantém o ajuste de opacidade da camada, persistência local e padrão global do administrador.
+- Preserva **Relevo sombreado** como camada independente, além de radar, cobertura RF, raios, alertas, nuvens, topologia, animações, mensagens, estatísticas e consultas aos nós.
+- Preserva compatibilidade das preferências existentes: os identificadores internos da antiga Elevação mínima não mudam.
+- Preserva todos os recursos da v1.42.1.
+
 ## 1.42.1 - 2026-10-01
 
 - Faz o campo numérico inferior do controle de Elevação mínima definir o limite máximo do slider.
