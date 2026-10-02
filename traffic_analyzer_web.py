@@ -1013,7 +1013,7 @@ const I18N_PAIRS=[
   ['Severidade:','Severity:'],['Todas','All'],['Sistema','System'],['Monoespaçada','Monospace'],['Fonte:','Font:'],['Negrito','Bold'],['Itálico','Italic'],['Sublinhado','Underline'],
   ['Altura da linha:','Line height:'],['Espaço entre mensagens:','Space between messages:'],['Formatação somente visual. Nenhum marcador de estilo é enviado pela malha.','Visual formatting only. No style marker is transmitted over the mesh.'],
   ['Espessura das linhas:','Line thickness:'],['Ajusta apenas a visualização dos enlaces; não altera a topologia nem os cálculos.','Only changes link rendering; it does not change topology or calculations.'],['Restaurar padrão','Restore default'],
-  ['Atualizações','Updates'],['Atualizar automaticamente ao detectar nova versão estável','Automatically update when a new stable version is detected'],['A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.','The application only creates a request. A dedicated systemd service performs the update as root without granting generic privileges to the web process.'],
+  ['Atualizações','Updates'],['Checar nova versão a cada','Check for a new version every'],['minutos','minutes'],['Atualizar automaticamente ao detectar nova versão estável','Automatically update when a new stable version is detected'],['A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.','The application only creates a request. A dedicated systemd service performs the update as root without granting generic privileges to the web process.'],
   ['Rollback automático se a nova versão não ficar saudável','Automatic rollback if the new version does not become healthy'],['Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.','On failure, restores the application and systemd units saved before the update.'],['Atualizar agora','Update now'],['Instala somente a Latest Release estável publicada no repositório oficial.','Installs only the stable Latest Release published in the official repository.'],['Carregando status de atualização...','Loading update status...'],
   ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
@@ -1537,24 +1537,29 @@ function rfCoverageStyle(snrValue,rssiValue){
   return '#7f8c8d';
 }
 async function refreshRfCoverage(){
-  if(!document.getElementById('rfCoverageEnabled')?.checked){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Desligado');return;}
+  if(!document.getElementById('rfCoverageEnabled')?.checked){if(rfCoverageLayer&&map.hasLayer(rfCoverageLayer))map.removeLayer(rfCoverageLayer);rfCoverageLayer=null;setLayerStatus('rfCoverageStatus','Desligado');return;}
   setLayerStatus('rfCoverageStatus','Carregando cobertura…');
   try{
     const r=await fetch('/api/layers/rf-coverage?hours='+encodeURIComponent(selectedCoverageHours()),{cache:'no-store'});
     const b=await r.json(); if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
-    rfCoverageLayer.clearLayers();
-    for(const p of (b.points||[])){
-      const circle=L.circleMarker([Number(p.lat),Number(p.lon)],{radius:5,weight:1,color:rfCoverageStyle(p.snr,p.rssi),fillColor:rfCoverageStyle(p.snr,p.rssi),fillOpacity:.55,opacity:.85,className:'rfCoveragePoint'});
-      circle.bindPopup('<b>'+esc(p.name||p.nodeId||'Nó')+'</b><br>Recepção RF registrada<br>SNR: '+snr(p.snr)+'<br>RSSI: '+(p.rssi==null?'—':esc(p.rssi)+' dBm')+'<br>'+dt(p.timestampMs));
-      rfCoverageLayer.addLayer(circle);
-    }
-    if(!map.hasLayer(rfCoverageLayer))rfCoverageLayer.addTo(map);
-    setLayerStatus('rfCoverageStatus',`Ligado · ${(b.points||[]).length} pontos RF`);
-  }catch(e){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Cobertura indisponível: '+String(e?.message||e),true);}
+    if(rfCoverageLayer&&map.hasLayer(rfCoverageLayer))map.removeLayer(rfCoverageLayer);
+    const rows=(b.points||[]).filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon)));
+    const weights=rows.map(p=>{
+      const s=Number(p.snr),rssi=Number(p.rssi);
+      let q=.35;
+      if(Number.isFinite(s))q=Math.max(.12,Math.min(1,(s+20)/35));
+      else if(Number.isFinite(rssi))q=Math.max(.12,Math.min(1,(rssi+130)/60));
+      return [Number(p.lat),Number(p.lon),q];
+    });
+    if(typeof L.heatLayer==='function'&&weights.length){
+      rfCoverageLayer=L.heatLayer(weights,{radius:26,blur:22,maxZoom:15,minOpacity:.20,gradient:{0.12:'#2b83ba',0.35:'#66c2a5',0.55:'#fee08b',0.78:'#f46d43',1:'#d73027'}}).addTo(map);
+    }else rfCoverageLayer=L.layerGroup().addTo(map);
+    setLayerStatus('rfCoverageStatus','Ligado · '+rows.length+' recepções compondo o mapa de calor');
+  }catch(e){if(rfCoverageLayer&&map.hasLayer(rfCoverageLayer))map.removeLayer(rfCoverageLayer);rfCoverageLayer=null;setLayerStatus('rfCoverageStatus','Cobertura indisponível: '+String(e?.message||e),true);}
 }
 function setRfCoverageEnabled(enabled,{persist=true}={}){
   const cb=document.getElementById('rfCoverageEnabled');if(cb)cb.checked=Boolean(enabled);
-  if(enabled)refreshRfCoverage();else{rfCoverageLayer.clearLayers();if(map.hasLayer(rfCoverageLayer))map.removeLayer(rfCoverageLayer);setLayerStatus('rfCoverageStatus','Desligado');}
+  if(enabled)refreshRfCoverage();else{if(rfCoverageLayer&&map.hasLayer(rfCoverageLayer))map.removeLayer(rfCoverageLayer);rfCoverageLayer=null;setLayerStatus('rfCoverageStatus','Desligado');}
   if(persist)savePrefs();
 }
 function setHillshadeEnabled(enabled,{persist=true}={}){
@@ -5167,6 +5172,12 @@ for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMesht
   document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
 }
 document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
+let versionCheckTimer=null;
+function scheduleVersionChecks(minutes){
+  const m=Math.max(5,Math.min(1440,Number(minutes)||15));
+  if(versionCheckTimer)clearInterval(versionCheckTimer);
+  versionCheckTimer=setInterval(()=>checkVersionStatus(false),m*60*1000);
+}
 let updateRuntimeData=null;
 function updateStateLabel(state){
   const labels={idle:'—',pending:'Pendente',running:'Atualizando',success:'Concluída',failed:'Falhou',rolled_back:'Rollback executado',no_change:'Concluída'};
@@ -5178,6 +5189,9 @@ function renderUpdateStatus(data){
   const settings=data?.settings||{};
   document.getElementById('autoUpdateEnabled').checked=Boolean(settings.enabled);
   document.getElementById('rollbackEnabled').checked=settings.rollbackEnabled!==false;
+  const checkField=document.getElementById('versionCheckMinutes');
+  if(checkField)checkField.value=String(Number(settings.versionCheckMinutes)||15);
+  scheduleVersionChecks(Number(settings.versionCheckMinutes)||15);
   const state=String(data?.state||'idle');
   const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
   const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
@@ -5196,7 +5210,7 @@ async function loadUpdateStatus(){
 }
 async function saveUpdateSettings(){
   if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
-  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked};
+  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked,versionCheckMinutes:Number(document.getElementById('versionCheckMinutes').value||15)};
   const r=await authFetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
 }
@@ -5212,6 +5226,7 @@ async function triggerUpdateNow(){
 }
 document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
+document.getElementById('versionCheckMinutes').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
 const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1450';
@@ -5338,7 +5353,7 @@ async function bootstrap(){
   loadUpdateStatus();
   loadAutoNoticeStatus();
   showWhatsNewIfNeeded();
-  setInterval(()=>checkVersionStatus(false),5*60*1000);
+  scheduleVersionChecks(15);
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
@@ -7896,17 +7911,27 @@ def _save_ui_defaults(payload: dict) -> dict:
 
 
 def _update_settings():
-    raw = _read_json_file(UPDATE_SETTINGS_FILE, {"enabled": False, "rollbackEnabled": True})
+    raw = _read_json_file(UPDATE_SETTINGS_FILE, {"enabled": False, "rollbackEnabled": True, "versionCheckMinutes": 15})
+    try:
+        minutes = max(5, min(1440, int(raw.get("versionCheckMinutes", 15))))
+    except Exception:
+        minutes = 15
     return {
         "enabled": bool(raw.get("enabled", False)),
         "rollbackEnabled": bool(raw.get("rollbackEnabled", True)),
+        "versionCheckMinutes": minutes,
     }
 
 
 def _save_update_settings(payload: dict):
+    try:
+        minutes = max(5, min(1440, int(payload.get("versionCheckMinutes", 15))))
+    except Exception:
+        minutes = 15
     data = {
         "enabled": bool(payload.get("enabled", False)),
         "rollbackEnabled": bool(payload.get("rollbackEnabled", True)),
+        "versionCheckMinutes": minutes,
         "updatedAtMs": int(time.time() * 1000),
     }
     _write_json_file(UPDATE_SETTINGS_FILE, data)
