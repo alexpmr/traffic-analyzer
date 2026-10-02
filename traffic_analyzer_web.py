@@ -7814,6 +7814,103 @@ def _weather_alerts_inmet():
     return {"success":True,"source":"INMET","count":len(alerts),"alerts":alerts}
 
 
+
+_AIS_IMAGE_CACHE = {}
+
+def _deep_find(obj, names):
+    wanted={str(x).lower() for x in names}
+    if isinstance(obj,dict):
+        for k,v in obj.items():
+            if str(k).lower() in wanted and v not in (None,""):
+                return v
+        for v in obj.values():
+            got=_deep_find(v,names)
+            if got not in (None,""):
+                return got
+    elif isinstance(obj,list):
+        for v in obj:
+            got=_deep_find(v,names)
+            if got not in (None,""):
+                return got
+    return None
+
+
+def _ais_objects_query(hours=24):
+    cutoff=int(time.time()*1000)-max(1,min(int(hours or 24),168))*3600*1000
+    with _archive_connect() as conn:
+        rows=conn.execute("SELECT timestamp,metadata FROM packets WHERE timestamp>=? AND metadata IS NOT NULL AND lower(metadata) LIKE '%mmsi%' ORDER BY timestamp DESC LIMIT 5000",(cutoff,)).fetchall()
+    aliases={
+        "mmsi":["mmsi"],"name":["shipname","ship_name","vesselname","vessel_name","name"],"callsign":["callsign","call_sign"],
+        "shipType":["shiptype","ship_type","vesseltype","vessel_type"],"navigationStatus":["navigationstatus","navstatus","nav_status"],
+        "sog":["sog","speedoverground","speed_over_ground"],"cog":["cog","courseoverground","course_over_ground"],"heading":["heading","trueheading","true_heading"],
+        "destination":["destination"],"eta":["eta"],"draft":["draft","draught"],"model":["model","classname","class_name"],
+        "lat":["lat","latitude"],"lon":["lon","lng","longitude"]
+    }
+    out={}
+    for row in rows:
+        try:
+            meta=json.loads(row["metadata"]) if isinstance(row["metadata"],str) else row["metadata"]
+        except Exception:
+            continue
+        mmsi=_deep_find(meta,aliases["mmsi"])
+        if mmsi in (None,""):
+            continue
+        key=str(mmsi)
+        if key in out:
+            continue
+        item={"mmsi":mmsi,"timestampMs":int(row["timestamp"]),"source":"MeshMonitor/AIS"}
+        for dst,names in aliases.items():
+            if dst=="mmsi":
+                continue
+            v=_deep_find(meta,names)
+            if v not in (None,""):
+                item[dst]=v
+        try:
+            lat=float(item.get("lat")); lon=float(item.get("lon"))
+            if not(-90<=lat<=90 and -180<=lon<=180):
+                continue
+            item["lat"]=lat; item["lon"]=lon
+        except Exception:
+            continue
+        out[key]=item
+    return {"success":True,"count":len(out),"data":list(out.values())}
+
+
+def _ais_image_lookup(name="",mmsi="",model="",ship_type=""):
+    cache_key="|".join([str(name),str(mmsi),str(model),str(ship_type)]).lower()
+    cached=_AIS_IMAGE_CACHE.get(cache_key)
+    if cached and time.time()-float(cached.get("_ts") or 0)<86400:
+        return {k:v for k,v in cached.items() if k!="_ts"}
+    result={"success":True,"imageUrl":"","label":"","svg":""}
+    terms=[x for x in [str(name).strip(),str(mmsi).strip()] if x]
+    if terms:
+        try:
+            params=urllib.parse.urlencode({
+                "action":"query","generator":"search","gsrsearch":" ".join(terms),"gsrnamespace":6,"gsrlimit":5,
+                "prop":"imageinfo","iiprop":"url","iiurlwidth":480,"format":"json","origin":"*"
+            })
+            data=_http_json("https://commons.wikimedia.org/w/api.php?"+params)
+            pages=((data.get("query") or {}).get("pages") or {}) if isinstance(data,dict) else {}
+            for page in pages.values():
+                info=((page.get("imageinfo") or [{}])[0]) if isinstance(page,dict) else {}
+                url=info.get("thumburl") or info.get("url")
+                if url:
+                    result={"success":True,"imageUrl":url,"label":"Foto pública da embarcação · Wikimedia Commons","svg":""}
+                    break
+        except Exception:
+            pass
+    if not result["imageUrl"]:
+        label="Imagem ilustrativa"
+        if model:
+            label="Imagem ilustrativa do modelo/classe "+str(model)
+        elif ship_type:
+            label="Imagem ilustrativa do tipo de embarcação"
+        svg='<svg viewBox="0 0 480 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:150px;background:#0f1821;border-radius:8px"><path d="M55 115h350l-42 35H95z" fill="#78909c"/><path d="M170 65h145v50H170z" fill="#cfd8dc"/><path d="M225 35h35v30h-35z" fill="#90a4ae"/><circle cx="115" cy="137" r="4" fill="#263238"/><circle cx="345" cy="137" r="4" fill="#263238"/></svg>'
+        result={"success":True,"imageUrl":"","label":label,"svg":svg}
+    _AIS_IMAGE_CACHE[cache_key]={**result,"_ts":time.time()}
+    return result
+
+
 def _read_json_file(path: Path, default):
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -8195,6 +8292,24 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/auth/status":
             self._send(200, "application/json; charset=utf-8", json.dumps(_auth_status(self), ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/ais/objects":
+            try:
+                query=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                hours=int((query.get("hours") or ["24"])[0])
+                body=_ais_objects_query(hours)
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/ais/image":
+            try:
+                query=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                get=lambda k:(query.get(k) or [""])[0]
+                body=_ais_image_lookup(get("name"),get("mmsi"),get("model"),get("type"))
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/layers/rf-coverage":
             try:
