@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.44.0 - 2026-10-02
+
+- Adiciona worker de avisos automáticos no canal primário.
+- Monitora alertas oficiais do INMET aplicáveis a Brasília/DF e envia apenas novos alertas ou atualizações relevantes.
+- Usa texto/área do aviso e fallback geométrico por polígono para identificar avisos que atingem o Distrito Federal.
+- Evita flood na primeira execução, registrando como conhecidos os alertas já ativos e as versões Meshtastic já publicadas.
+- Monitora Releases oficiais do firmware Meshtastic e diferencia versões estáveis de prereleases/alpha/beta/RC/preview/nightly/dev.
+- Permite habilitar/desabilitar separadamente avisos do INMET, versões estáveis e versões instáveis.
+- Adiciona ação administrativa Verificar agora.
+- Registra tentativas de envio na tabela automatic_notices do traffic.db.
+- Limita o texto automático a aproximadamente 600 bytes antes do envio.
+- Intervalo padrão de verificação de 600 segundos, configurável por variável de ambiente.
+- Preserva todos os recursos da v1.43.0.
+
 ## 1.43.0 - 2026-09-30
 
 - Publica uma versão completa consolidando todos os recursos atuais do Traffic Analyzer.

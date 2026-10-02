@@ -1,6 +1,21 @@
-# Traffic Analyzer v1.43.0
+# Traffic Analyzer v1.44.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.44.0
+
+- Adiciona **avisos automáticos no canal primário** da malha, com configuração administrativa separada.
+- **INMET / Brasília-DF:** monitora os avisos meteorológicos oficiais e transmite apenas alertas novos ou atualizados que atinjam Brasília/DF.
+- A detecção usa texto/área do aviso e, quando necessário, a geometria do polígono CAP para verificar interseção com o Distrito Federal.
+- Na primeira inicialização, os alertas já ativos são apenas registrados como conhecidos, evitando flood de mensagens antigas.
+- **Meshtastic:** monitora as Releases oficiais do firmware e anuncia novas versões **estáveis** e **instáveis** no canal primário.
+- Prereleases e tags alpha/beta/RC/preview/nightly/dev são classificadas como instáveis.
+- A primeira consulta do Meshtastic apenas registra as versões atuais; somente publicações posteriores são anunciadas.
+- Cada envio é resumido para até aproximadamente **600 bytes** e reutiliza a integração existente com o MeshMonitor.
+- Registra em `traffic.db` cada tentativa de aviso automático, com fonte, ID externo, tipo, horário, mensagem, resultado e detalhe técnico.
+- Adiciona em **Configurações** controles separados para INMET, Meshtastic estável e Meshtastic instável, além de **Verificar agora**.
+- Intervalo padrão de consulta: **10 minutos**.
+- Preserva todos os recursos da v1.43.0.
 
 ## Versão completa v1.43.0
 

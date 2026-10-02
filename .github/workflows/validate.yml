@@ -202,7 +202,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar camadas v1.43.0
+      - name: Validar camadas e avisos v1.44.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -230,6 +230,13 @@ jobs:
           grep -Fq 'World_Hillshade/MapServer/tile' traffic_analyzer_web.py
           grep -Fq 'elevation-tiles-prod/terrarium' traffic_analyzer_web.py
           grep -Fq 'TA_ELEVATION_TILE_BASE_URL' traffic-analyzer-map.env.example
+          grep -Fq 'id="autoNoticeInmet"' traffic_analyzer_web.py
+          grep -Fq 'id="autoNoticeMeshtasticStable"' traffic_analyzer_web.py
+          grep -Fq 'id="autoNoticeMeshtasticUnstable"' traffic_analyzer_web.py
+          grep -Fq '/api/automatic-notices' traffic_analyzer_web.py
+          grep -Fq 'automatic_notices' traffic_analyzer_web.py
+          grep -Fq 'meshtastic/firmware/releases' traffic_analyzer_web.py
+          grep -Fq 'TA_NOTICE_POLL_SECONDS' traffic-analyzer-map.env.example
           grep -Fq 'TA_RAINBOW_API_TOKEN' traffic-analyzer-map.env.example
           grep -Fq 'TA_LIGHTNING_API_KEY' traffic-analyzer-map.env.example
           python - <<'PY'
@@ -260,6 +267,12 @@ jobs:
           assert ta._sanitize_ui_defaults({"elevationSliderMax": 9000}).get("elevationSliderMax")==9000
           assert prefs.get("elevationOpacity")==55,prefs
           assert prefs.get("defaultsVersion")==420,prefs
+          assert ta._notice_brasilia_alert({"description":"Aviso para o Distrito Federal","polygons":[]}) is True
+          assert ta._notice_brasilia_alert({"description":"Aviso para Manaus","polygons":[]}) is False
+          assert ta._notice_brasilia_alert({"description":"","polygons":[[[-15.8,-47.9],[-15.7,-47.8],[-15.9,-47.7]]]}) is True
+          assert ta._meshtastic_release_kind({"tag_name":"v2.8.0","prerelease":False})=="stable"
+          assert ta._meshtastic_release_kind({"tag_name":"v2.9.0-beta.1","prerelease":True})=="unstable"
+          assert len(ta._truncate_utf8("á"*500,600).encode("utf-8"))<=600
           PY
 
       - name: Validar arquivos da infraestrutura de update
@@ -331,6 +344,10 @@ jobs:
               assert d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="map"]').text=="Map"
               d.execute_script("applyLanguage('pt-BR',true)")
               assert d.execute_script("return currentLang")=="pt-BR"
+              assert d.find_element(By.ID,"autoNoticeInmet").is_selected()
+              assert d.find_element(By.ID,"autoNoticeMeshtasticStable").is_selected()
+              assert d.find_element(By.ID,"autoNoticeMeshtasticUnstable").is_selected()
+              assert d.find_element(By.ID,"autoNoticeCheckNow").get_attribute("type")=="button"
 
               assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device')")==90000
               assert d.execute_script("return nodeQueryTimeoutMs('position')")==20000
