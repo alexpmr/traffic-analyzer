@@ -347,7 +347,7 @@ jobs:
               assert d.find_element(By.ID,"autoNoticeInmet").is_selected()
               assert d.find_element(By.ID,"autoNoticeMeshtasticStable").is_selected()
               assert d.find_element(By.ID,"autoNoticeMeshtasticUnstable").is_selected()
-              assert d.find_element(By.ID,"autoNoticeCheckNow").is_displayed()
+              assert d.find_element(By.ID,"autoNoticeCheckNow").get_attribute("type")=="button"
 
               assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device')")==90000
               assert d.execute_script("return nodeQueryTimeoutMs('position')")==20000
