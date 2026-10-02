@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.43.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.44.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.43.0"
+APP_VERSION = "1.44.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -106,6 +106,13 @@ UI_DEFAULTS_FILE = Path(os.getenv("UI_DEFAULTS_FILE", "/var/lib/traffic-analyzer
 RAINBOW_API_TOKEN = str(os.getenv("TA_RAINBOW_API_TOKEN", "")).strip()
 LIGHTNING_API_KEY = str(os.getenv("TA_LIGHTNING_API_KEY", "")).strip()
 INMET_ALERTS_URL = str(os.getenv("TA_INMET_ALERTS_URL", "https://apiprevmet3.inmet.gov.br/avisos/ativos")).strip()
+NOTICE_SETTINGS_FILE = Path(os.getenv("TA_NOTICE_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automatic-notices-settings.json")))
+NOTICE_STATE_FILE = Path(os.getenv("TA_NOTICE_STATE_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automatic-notices-state.json")))
+NOTICE_POLL_SECONDS = max(300, min(int(os.getenv("TA_NOTICE_POLL_SECONDS", "600")), 86400))
+MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20")).strip()
+_notice_stop = threading.Event()
+_notice_wakeup = threading.Event()
+_notice_lock = threading.Lock()
 ELEVATION_TILE_BASE_URL = str(os.getenv("TA_ELEVATION_TILE_BASE_URL", "https://s3.amazonaws.com/elevation-tiles-prod/terrarium")).strip().rstrip("/")
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
 
@@ -872,6 +879,25 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
           <div id="visitorDefaultsStatus" class="settingDesc">Carregando padrão global...</div>
         </div>
       </div>
+    </div>
+
+    <div class="adminOnlySection">
+    <h3>Avisos automáticos no canal primário <span class="adminOnlyBadge">Administrador</span></h3>
+    <div class="settingsGrid">
+      <div class="settingRow">
+        <label><input id="autoNoticeInmet" type="checkbox" checked data-admin-only> Alertas do INMET para Brasília/DF</label>
+        <div class="settingDesc">Envia no canal primário apenas alertas novos ou atualizados que atinjam Brasília/DF. Alertas já existentes na primeira inicialização são apenas registrados para evitar flood.</div>
+      </div>
+      <div class="settingRow">
+        <label><input id="autoNoticeMeshtasticStable" type="checkbox" checked data-admin-only> Nova versão estável do Meshtastic</label><br>
+        <label><input id="autoNoticeMeshtasticUnstable" type="checkbox" checked data-admin-only> Nova versão instável do Meshtastic</label>
+        <div class="settingDesc">Monitora as Releases oficiais do firmware Meshtastic e diferencia versões estáveis de prereleases/alpha/beta/RC.</div>
+      </div>
+      <div class="settingRow">
+        <button id="autoNoticeCheckNow" type="button" data-admin-only>Verificar agora</button>
+        <div id="autoNoticeStatus" class="settingDesc">Carregando estado dos avisos automáticos...</div>
+      </div>
+    </div>
     </div>
 
     <div class="adminOnlySection">
@@ -5139,7 +5165,7 @@ document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1421';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1440';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
