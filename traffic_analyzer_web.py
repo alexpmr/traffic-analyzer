@@ -8145,6 +8145,13 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send(503,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
+        if path == "/api/automatic-notices":
+            try:
+                body={"success":True,"settings":_automatic_notice_settings(),"state":_automatic_notice_state()}
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
         if path == "/api/ui-defaults":
             try:
                 body = {"success": True, **_ui_defaults_record()}
@@ -8462,6 +8469,27 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "error": "refresh_failed", "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
+        if path == "/api/automatic-notices":
+            try:
+                length=int(self.headers.get("Content-Length","0") or 0)
+                if length<=0 or length>4096: raise ValueError("Corpo da requisição inválido")
+                payload=json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload,dict): raise ValueError("Corpo da requisição inválido")
+                settings=_save_automatic_notice_settings(payload)
+                body={"success":True,"settings":settings,"state":_automatic_notice_state()}
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/automatic-notices/check":
+            try:
+                body=_run_automatic_notice_check(force=True)
+                self._send(200 if body.get("success") else 207,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
         if path == "/api/update/settings":
             try:
                 length = int(self.headers.get("Content-Length", "0") or 0)
@@ -8527,6 +8555,8 @@ def main():
     _access_init()
     archive_thread = threading.Thread(target=_archive_worker, name="traffic-archive", daemon=True)
     archive_thread.start()
+    notice_thread = threading.Thread(target=_automatic_notice_worker, name="automatic-notices", daemon=True)
+    notice_thread.start()
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
     print(f"Traffic Analyzer v{APP_VERSION} ouvindo em http://{BIND}:{PORT}/", flush=True)
     print(f"Topologia: {TOPOLOGY_FILE}", flush=True)
@@ -8538,6 +8568,8 @@ def main():
         pass
     finally:
         _archive_stop.set()
+        _notice_stop.set()
+        _notice_wakeup.set()
         httpd.server_close()
 
 
