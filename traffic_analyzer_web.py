@@ -349,7 +349,7 @@ HTML = r'''<!doctype html>
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
   .identified{background:#39a96b}.stub{background:#e0a13a}.routeonly{background:#d85b5b}
   .trafficFresh{background:#2ecc71}.trafficWarm{background:#f39c12}.trafficOld{background:#e74c3c}.trafficUnknown{background:#7f8c8d}
-  .leaflet-popup-pane{z-index:1200}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}.leaflet-popup.nodePopupFloating{z-index:1300}.leaflet-popup.nodePopupDragging{z-index:1400}.leaflet-popup.nodePopupDetached .leaflet-popup-tip-container{display:none}.leaflet-popup a.leaflet-popup-close-button{z-index:30}
+  .aisPopup{min-width:300px;max-width:420px}.aisTitle{font-size:15px;font-weight:800;margin-bottom:6px}.aisGrid{display:grid;grid-template-columns:auto 1fr;gap:4px 10px}.aisGrid b{color:#aebbc7}.aisImage{width:100%;max-height:220px;object-fit:cover;border-radius:8px;margin:0 0 8px;background:#0f1821}.aisImageNote{font-size:10px;color:#9fb0be;margin-top:-5px;margin-bottom:8px}.leaflet-popup-pane{z-index:1200}.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#17212b;color:#e8edf2}.leaflet-popup.nodePopupFloating{z-index:1300}.leaflet-popup.nodePopupDragging{z-index:1400}.leaflet-popup.nodePopupDetached .leaflet-popup-tip-container{display:none}.leaflet-popup a.leaflet-popup-close-button{z-index:30}
   .nodePopupDragHandle{position:sticky;top:0;z-index:8;display:flex;align-items:center;gap:9px;margin:0 0 7px;padding:3px 0 7px 0;background:#17212b;border-bottom:1px solid rgba(64,86,104,.75);cursor:grab;touch-action:none;user-select:none}.nodePopupDragHandle:active{cursor:grabbing}.nodePopupDragGlyph{flex:0 0 auto;color:#7fd0ff;font-size:16px;font-weight:900;line-height:1}.nodePopupDragText{min-width:0;flex:1}.nodePopupDragHint{flex:0 0 auto;color:#8194a5;font-size:9px;text-transform:uppercase;letter-spacing:.04em}.nodePopupHeaderActions{display:flex;align-items:center;gap:5px;flex:0 0 auto}.nodePopupHeaderActions button{font-size:10px;padding:4px 8px;cursor:pointer}.nodePopupCloseVisible{background:#462a2e;border-color:#87515a;color:#ffd5da;font-weight:800}.nodePopupReset{background:#213744}.nodePopupStaticHandle{margin-bottom:7px}
   .nodePopup{width:min(1120px,calc(100vw - 90px));max-width:calc(100vw - 28px);min-width:min(560px,calc(100vw - 28px));min-height:260px;max-height:calc(100vh - 70px);overflow:auto;resize:both;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:7px;box-sizing:border-box;font-size:12px;line-height:1.35}.nodePopupTitle{font-size:15px;font-weight:800;margin-bottom:2px}.nodePopupId{color:#9fb0be;margin-bottom:8px}.nodePopupSection{border-top:1px solid #304353;margin-top:9px;padding-top:8px}.nodePopupSectionTitle{font-weight:800;color:#e9d46d;margin-bottom:6px}.nodeMetaGrid{display:grid;grid-template-columns:minmax(115px,.72fr) minmax(135px,1fr) minmax(115px,.72fr) minmax(135px,1fr);gap:4px 10px}.nodeMetaLabel{color:#aebbc7}.nodeMetaValue{overflow-wrap:anywhere;min-width:0}.nodeMetaPresent{color:#8de4ad}.nodeMetaMissing{color:#ffcc66}.nodeMetaNA{color:#8194a5}.nodeQueryButtons{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.nodeQueryButtons button{font-size:11px;padding:4px 7px}.nodeQueryButtons button.primary{background:#234d63;border-color:#4c7e96;font-weight:800}.nodeQueryList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 12px}.nodeQueryRow{display:grid;grid-template-columns:18px minmax(105px,.8fr) minmax(0,1.2fr);gap:5px;align-items:start;padding:3px 0;border-bottom:1px solid rgba(64,86,104,.28)}.nodeQueryRow:last-child{border-bottom:0}.nodeQueryMark{font-weight:900}.nodeQueryState{color:#9fb0be;overflow-wrap:anywhere}.nodeQueryOk .nodeQueryMark,.nodeQueryOk .nodeQueryState{color:#8de4ad}.nodeQueryWait .nodeQueryMark{color:#6fc7ff}.nodeQueryError .nodeQueryMark,.nodeQueryError .nodeQueryState{color:#ff8b8b}.nodeQueryTimeout .nodeQueryMark,.nodeQueryTimeout .nodeQueryState{color:#ffcc66}.nodeQueryProgress{height:4px;margin-top:4px;border-radius:999px;overflow:hidden;background:#263846}.nodeQueryProgressBar{height:100%;width:0;background:#6fc7ff;transition:width .25s linear}.nodeQueryOk .nodeQueryProgressBar{background:#58d68d}.nodeQueryTimeout .nodeQueryProgressBar{background:#f2c94c}.nodeQueryError .nodeQueryProgressBar{background:#ff6b6b}.leaflet-popup.nodePopupMaximized{left:8px!important;top:8px!important;transform:none!important;margin:0!important;width:calc(100% - 16px)!important;height:calc(100% - 16px)!important;max-width:none!important}.leaflet-popup.nodePopupMaximized .leaflet-popup-content-wrapper{width:100%;height:100%;box-sizing:border-box}.leaflet-popup.nodePopupMaximized .leaflet-popup-content{width:100%!important;height:100%;margin:0;padding:10px;box-sizing:border-box}.leaflet-popup.nodePopupMaximized .nodePopup{width:100%;height:100%;max-width:none;max-height:none;min-width:0;min-height:0;resize:none}.leaflet-popup.nodePopupMaximized .leaflet-popup-tip-container{display:none}.nodeTelemetryRows{max-height:160px;overflow:auto;margin-top:5px;padding-right:3px;columns:2;column-gap:18px}.nodeTelemetryRows>div{break-inside:avoid;margin-bottom:3px}.nodeSmall{font-size:10px;color:#8194a5}.nodePopupActionsNote{font-size:10px;color:#8194a5;margin-top:5px}
   @media(max-width:900px){.nodePopup{width:min(720px,calc(100vw - 50px));min-width:0;max-height:calc(100vh - 60px);resize:vertical}.nodeMetaGrid{grid-template-columns:minmax(125px,42%) minmax(0,1fr)}.nodeQueryList{grid-template-columns:1fr}.nodeTelemetryRows{columns:1}}
@@ -1303,6 +1303,8 @@ const nodeLayer = L.layerGroup().addTo(map);
 const animationLayer = L.layerGroup().addTo(map);
 const flowLayer = L.layerGroup().addTo(map);
 const activityLayer = L.layerGroup().addTo(map);
+const aisLayer = L.layerGroup().addTo(map);
+let aisObjects=[];
 const activityMarkers = new Map();
 let heatLayer = null;
 let topology = null;
@@ -4645,6 +4647,25 @@ document.getElementById('accessDownload').addEventListener('click',()=>{
   window.location.href='/api/access-log';
 });
 
+
+function aisValue(obj,...keys){for(const k of keys){const v=obj?.[k];if(v!==undefined&&v!==null&&String(v)!=='')return v;}return null;}
+function aisNavStatus(v){const m={0:'Em navegação',1:'Ancorado',2:'Sem comando',3:'Manobrabilidade restrita',4:'Restrito pelo calado',5:'Atracado',6:'Encalhado',7:'Pescando',8:'Navegando à vela',14:'AIS-SART ativo',15:'Não definido'};const n=Number(v);return Number.isFinite(n)?(m[n]||String(v)):String(v||'');}
+function aisShipType(v){const n=Number(v);if(!Number.isFinite(n))return String(v||'');if(n>=70&&n<=79)return 'Navio de carga';if(n>=80&&n<=89)return 'Navio-tanque';if(n>=60&&n<=69)return 'Navio de passageiros';if(n>=30&&n<=39)return 'Pesca / serviço especial';if(n>=50&&n<=59)return 'Rebocador / piloto / serviço';return 'Embarcação AIS tipo '+n;}
+function aisPopupHtml(o){
+  const name=aisValue(o,'name','shipName','vesselName')||('MMSI '+(aisValue(o,'mmsi')||'—'));const rows=[];const add=(k,v)=>{if(v!==null&&v!==undefined&&String(v)!=='')rows.push('<b>'+esc(k)+'</b><span>'+esc(v)+'</span>');};
+  add('MMSI',aisValue(o,'mmsi'));add('Indicativo',aisValue(o,'callsign','callSign'));const type=aisValue(o,'shipType','vesselType','type');if(type!==null)add('Tipo',aisShipType(type));const nav=aisValue(o,'navigationStatus','navStatus');if(nav!==null)add('Status',aisNavStatus(nav));
+  const sog=Number(aisValue(o,'sog','speedOverGround'));if(Number.isFinite(sog))add('Velocidade',sog.toFixed(1)+' kn · '+(sog*1.852).toFixed(1)+' km/h');const cog=Number(aisValue(o,'cog','courseOverGround'));if(Number.isFinite(cog))add('Rumo',cog.toFixed(1)+'°');const hdg=Number(aisValue(o,'heading','trueHeading'));if(Number.isFinite(hdg))add('Proa',hdg.toFixed(0)+'°');
+  add('Destino',aisValue(o,'destination'));add('ETA',aisValue(o,'eta'));const draft=Number(aisValue(o,'draft','draught'));if(Number.isFinite(draft))add('Calado',draft.toFixed(1)+' m');
+  const lat=Number(aisValue(o,'lat','latitude')),lon=Number(aisValue(o,'lon','lng','longitude'));if(Number.isFinite(lat)&&Number.isFinite(lon))add('Posição',lat.toFixed(5)+', '+lon.toFixed(5));const ts=Number(aisValue(o,'timestampMs','timestamp','updatedAt'));if(Number.isFinite(ts)&&ts>0)add('Atualização',dt(ts<1e12?ts*1000:ts));add('Fonte',aisValue(o,'source')||'AIS');
+  const key=String(aisValue(o,'mmsi')||name).replace(/[^A-Za-z0-9_-]/g,'_');return '<div class="aisPopup"><div class="aisTitle">🚢 '+esc(name)+'</div><div id="aisImage-'+key+'"></div><div class="aisGrid">'+rows.join('')+'</div></div>';
+}
+async function loadAisImage(o,containerId){
+  const el=document.getElementById(containerId);if(!el)return;const q=new URLSearchParams({name:String(aisValue(o,'name','shipName','vesselName')||''),mmsi:String(aisValue(o,'mmsi')||''),model:String(aisValue(o,'model','className')||''),type:String(aisValue(o,'shipType','vesselType','type')||'')});
+  try{const r=await fetch('/api/ais/image?'+q.toString(),{cache:'no-store'}),b=await r.json();if(!r.ok||!b.success)return;if(b.imageUrl)el.innerHTML='<img class="aisImage" src="'+esc(b.imageUrl)+'" alt=""><div class="aisImageNote">'+esc(b.label||'Foto da embarcação')+'</div>';else if(b.svg)el.innerHTML=b.svg+'<div class="aisImageNote">'+esc(b.label||'Imagem ilustrativa')+'</div>';}catch{}
+}
+async function loadAisObjects(){try{const r=await fetch('/api/ais/objects?hours=24',{cache:'no-store'}),b=await r.json();aisObjects=(r.ok&&b.success&&Array.isArray(b.data))?b.data:[];}catch{aisObjects=[];}}
+function renderAisObjects(){aisLayer.clearLayers();for(const o of aisObjects){const lat=Number(aisValue(o,'lat','latitude')),lon=Number(aisValue(o,'lon','lng','longitude'));if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;const marker=L.marker([lat,lon],{title:String(aisValue(o,'name','shipName','vesselName')||aisValue(o,'mmsi')||'AIS')});marker.bindPopup(aisPopupHtml(o),{maxWidth:440});marker.on('popupopen',()=>{const key=String(aisValue(o,'mmsi')||aisValue(o,'name','shipName','vesselName')||'ais').replace(/[^A-Za-z0-9_-]/g,'_');loadAisImage(o,'aisImage-'+key);});marker.addTo(aisLayer);}}
+
 async function loadNodeTrafficActivity(){
   try{
     const r=await fetch('/api/archive/nodes',{cache:'no-store'});
@@ -4663,8 +4684,9 @@ async function load(fit=false){
     const r = await fetch('/api/topology', {cache:'no-store'});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     topology = await r.json();
-    await loadNodeTrafficActivity();
+    await Promise.all([loadNodeTrafficActivity(),loadAisObjects()]);
     render();
+    renderAisObjects();
     map.invalidateSize();
     if(document.getElementById('playMode').value === 'history') updatePlaybackStatusIdle();
     if(fit && lastBounds && lastBounds.isValid()) await fitMapTight();
