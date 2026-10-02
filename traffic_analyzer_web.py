@@ -5433,6 +5433,233 @@ def _send_primary_message(text: str, reply_id=None, emoji: bool = False):
     return _mm_api_post(f"/api/v1/sources/{source}/messages", payload)
 
 
+def _automatic_notice_settings():
+    raw = _read_json_file(NOTICE_SETTINGS_FILE, {})
+    return {
+        "inmetEnabled": bool(raw.get("inmetEnabled", True)),
+        "meshtasticStableEnabled": bool(raw.get("meshtasticStableEnabled", True)),
+        "meshtasticUnstableEnabled": bool(raw.get("meshtasticUnstableEnabled", True)),
+        "pollSeconds": NOTICE_POLL_SECONDS,
+        "channel": 0,
+    }
+
+
+def _save_automatic_notice_settings(payload: dict):
+    data = {
+        "inmetEnabled": bool(payload.get("inmetEnabled", True)),
+        "meshtasticStableEnabled": bool(payload.get("meshtasticStableEnabled", True)),
+        "meshtasticUnstableEnabled": bool(payload.get("meshtasticUnstableEnabled", True)),
+        "updatedAtMs": int(time.time() * 1000),
+    }
+    _write_json_file(NOTICE_SETTINGS_FILE, data)
+    _notice_wakeup.set()
+    return _automatic_notice_settings()
+
+
+def _automatic_notice_state():
+    raw = _read_json_file(NOTICE_STATE_FILE, {})
+    raw.setdefault("inmet", {})
+    raw.setdefault("meshtasticStableId", None)
+    raw.setdefault("meshtasticUnstableId", None)
+    raw.setdefault("initialized", False)
+    return raw
+
+
+def _truncate_utf8(text: str, max_bytes: int = 600) -> str:
+    raw = re.sub(r"\s+", " ", str(text or "")).strip()
+    if len(raw.encode("utf-8")) <= max_bytes:
+        return raw
+    suffix = "…"
+    limit = max(1, max_bytes - len(suffix.encode("utf-8")))
+    out = raw.encode("utf-8")[:limit]
+    while out:
+        try:
+            return out.decode("utf-8") + suffix
+        except UnicodeDecodeError:
+            out = out[:-1]
+    return suffix
+
+
+def _record_automatic_notice(source: str, external_id: str, kind: str, message: str, success: bool, detail=""):
+    now_ms = int(time.time() * 1000)
+    try:
+        with _archive_connect() as conn:
+            conn.execute(
+                "INSERT INTO automatic_notices(source,external_id,kind,detected_at,sent_at,success,message,detail) VALUES(?,?,?,?,?,?,?,?)",
+                (str(source), str(external_id or ""), str(kind or ""), now_ms, now_ms if success else None,
+                 1 if success else 0, str(message or ""), str(detail or "")[:4000]),
+            )
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _notice_send(source: str, external_id: str, kind: str, message: str) -> bool:
+    text = _truncate_utf8(message, 600)
+    try:
+        body = _send_primary_message(text)
+        ok = not isinstance(body, dict) or body.get("success") is not False
+        _record_automatic_notice(source, external_id, kind, text, ok, json.dumps(body, ensure_ascii=False) if isinstance(body, dict) else str(body))
+        return ok
+    except Exception as exc:
+        _record_automatic_notice(source, external_id, kind, text, False, str(exc))
+        return False
+
+
+def _notice_brasilia_alert(alert: dict) -> bool:
+    hay = " ".join(str(alert.get(k) or "") for k in ("event","headline","description","area","areaDesc","areas")).lower()
+    if "brasília" in hay or "brasilia" in hay or "distrito federal" in hay:
+        return True
+    south, north, west, east = -16.10, -15.40, -48.35, -47.20
+    for poly in alert.get("polygons") or []:
+        pts=[]
+        for p in poly or []:
+            try: pts.append((float(p[0]),float(p[1])))
+            except Exception: pass
+        if not pts: continue
+        lats=[p[0] for p in pts]; lons=[p[1] for p in pts]
+        if max(lats) >= south and min(lats) <= north and max(lons) >= west and min(lons) <= east:
+            return True
+    return False
+
+
+def _notice_alert_id(alert: dict) -> str:
+    explicit = alert.get("identifier") or alert.get("id") or alert.get("codigo")
+    if explicit:
+        return str(explicit)
+    basis = "|".join(str(alert.get(k) or "") for k in ("event","headline","expires","description"))
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()[:24]
+
+
+def _notice_alert_signature(alert: dict) -> str:
+    basis = json.dumps(alert, ensure_ascii=False, sort_keys=True, separators=(",",":"))
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()
+
+
+def _notice_inmet_message(alert: dict, updated=False) -> str:
+    prefix = "⚠️ INMET Brasília/DF" + (" — ATUALIZAÇÃO" if updated else "")
+    event = str(alert.get("event") or "Alerta meteorológico").strip()
+    severity = str(alert.get("severity") or "").strip()
+    expires = str(alert.get("expires") or "").strip()
+    headline = str(alert.get("headline") or alert.get("description") or "").strip()
+    parts=[prefix+": "+event]
+    if severity: parts.append("Severidade "+severity)
+    if expires: parts.append("válido até "+expires)
+    if headline and headline.lower()!=event.lower(): parts.append(headline)
+    parts.append("Fonte: INMET")
+    return _truncate_utf8(" · ".join(parts), 600)
+
+
+def _meshtastic_releases():
+    req=urllib.request.Request(MESHTASTIC_RELEASES_URL,headers={
+        "Accept":"application/vnd.github+json",
+        "User-Agent":f"TrafficAnalyzer/{APP_VERSION}",
+        "X-GitHub-Api-Version":"2022-11-28",
+        "Cache-Control":"no-cache",
+    })
+    with urllib.request.urlopen(req,timeout=15) as resp:
+        data=json.loads(resp.read().decode("utf-8"))
+    return [r for r in data if isinstance(r,dict) and not r.get("draft") and r.get("tag_name")] if isinstance(data,list) else []
+
+
+def _meshtastic_release_kind(release: dict) -> str:
+    tag=str(release.get("tag_name") or "").lower()
+    unstable=bool(release.get("prerelease")) or bool(re.search(r"(?:alpha|beta|\brc\b|preview|nightly|dev)",tag))
+    return "unstable" if unstable else "stable"
+
+
+def _release_summary(body: str) -> str:
+    lines=[]
+    for line in str(body or "").replace("\r","").split("\n"):
+        s=re.sub(r"^\s*[-*#>]+\s*","",line).strip()
+        s=re.sub(r"\[([^\]]+)\]\([^\)]+\)",r"\1",s)
+        if s and not s.lower().startswith(("full changelog","what's changed","contributors")):
+            lines.append(s)
+        if len(" ".join(lines))>220: break
+    return _truncate_utf8(" ".join(lines), 220)
+
+
+def _meshtastic_notice_message(release: dict, kind: str) -> str:
+    tag=str(release.get("tag_name") or "").strip()
+    label="ESTÁVEL" if kind=="stable" else "INSTÁVEL"
+    published=str(release.get("published_at") or release.get("created_at") or "")[:10]
+    summary=_release_summary(release.get("body") or "")
+    parts=[f"📡 Meshtastic — nova versão {label}: {tag}"]
+    if published: parts.append("publicada "+published)
+    if summary: parts.append(summary)
+    return _truncate_utf8(" · ".join(parts),600)
+
+
+def _latest_release_of_kind(releases, kind):
+    rows=[r for r in releases if _meshtastic_release_kind(r)==kind]
+    if not rows: return None
+    rows.sort(key=lambda r:str(r.get("published_at") or r.get("created_at") or ""),reverse=True)
+    return rows[0]
+
+
+def _run_automatic_notice_check(force=False):
+    with _notice_lock:
+        settings=_automatic_notice_settings()
+        state=_automatic_notice_state()
+        now_ms=int(time.time()*1000)
+        errors=[]
+        sent_any=False
+        try:
+            body=_weather_alerts_inmet()
+            current={}
+            for alert in body.get("alerts") or []:
+                if not isinstance(alert,dict) or not _notice_brasilia_alert(alert): continue
+                aid=_notice_alert_id(alert); sig=_notice_alert_signature(alert); current[aid]=sig
+                old=(state.get("inmet") or {}).get(aid)
+                if old is None:
+                    if state.get("initialized") and settings.get("inmetEnabled"):
+                        if _notice_send("inmet",aid,"new",_notice_inmet_message(alert,False)): sent_any=True
+                        else: current.pop(aid,None)
+                elif old != sig and settings.get("inmetEnabled"):
+                    if _notice_send("inmet",aid,"update",_notice_inmet_message(alert,True)): sent_any=True
+                    else: current[aid]=old
+            state["inmet"]=current
+        except Exception as exc:
+            errors.append("INMET: "+str(exc))
+        try:
+            releases=_meshtastic_releases()
+            for kind,key,enabled_key in (
+                ("stable","meshtasticStableId","meshtasticStableEnabled"),
+                ("unstable","meshtasticUnstableId","meshtasticUnstableEnabled"),
+            ):
+                rel=_latest_release_of_kind(releases,kind)
+                if not rel: continue
+                rid=str(rel.get("id") or rel.get("tag_name"))
+                old=str(state.get(key) or "")
+                if not old:
+                    state[key]=rid
+                elif rid!=old:
+                    if settings.get(enabled_key):
+                        if _notice_send("meshtastic",rid,kind,_meshtastic_notice_message(rel,kind)):
+                            state[key]=rid;sent_any=True
+                    else:
+                        state[key]=rid
+        except Exception as exc:
+            errors.append("Meshtastic: "+str(exc))
+        state["initialized"]=True
+        state["lastCheckAtMs"]=now_ms
+        state["lastError"]="; ".join(errors) if errors else ""
+        if sent_any: state["lastSendAtMs"]=int(time.time()*1000)
+        _write_json_file(NOTICE_STATE_FILE,state)
+        return {"success":not bool(errors),"settings":settings,"state":state,"message":"; ".join(errors) if errors else "Verificação concluída."}
+
+
+def _automatic_notice_worker():
+    if _notice_stop.wait(12): return
+    while not _notice_stop.is_set():
+        try:
+            _run_automatic_notice_check()
+        except Exception:
+            pass
+        _notice_wakeup.clear()
+        _notice_wakeup.wait(NOTICE_POLL_SECONDS)
+        if _notice_stop.is_set(): break
+
 def _live_traceroutes(limit: int):
     source = urllib.parse.quote(MM_SOURCE, safe="")
     body = _mm_api_get(f"/api/v1/sources/{source}/traceroutes?limit={limit}")
@@ -6264,6 +6491,20 @@ def _archive_init():
         );
         CREATE INDEX IF NOT EXISTS idx_positions_node_time ON positions(source_id,node_num,timestamp);
         CREATE INDEX IF NOT EXISTS idx_positions_time ON positions(timestamp);
+
+        CREATE TABLE IF NOT EXISTS automatic_notices (
+          notice_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          source TEXT NOT NULL,
+          external_id TEXT,
+          kind TEXT,
+          detected_at INTEGER NOT NULL,
+          sent_at INTEGER,
+          success INTEGER NOT NULL DEFAULT 0,
+          message TEXT,
+          detail TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_auto_notices_time ON automatic_notices(detected_at);
+        CREATE INDEX IF NOT EXISTS idx_auto_notices_source ON automatic_notices(source);
         """)
     _tracklog_backfill()
 
