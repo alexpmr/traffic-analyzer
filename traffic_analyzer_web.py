@@ -5118,6 +5118,51 @@ document.getElementById('restoreAdminDefaults').addEventListener('click',restore
 document.getElementById('saveVisitorDefaults').addEventListener('click',saveVisitorDefaults);
 document.getElementById('flowToast').addEventListener('click',()=>setView('map'));
 
+let autoNoticeData=null;
+function renderAutoNoticeStatus(data){
+  autoNoticeData=data||{};
+  const settings=(data&&data.settings)||{};
+  const a=document.getElementById("autoNoticeInmet"),s=document.getElementById("autoNoticeMeshtasticStable"),u=document.getElementById("autoNoticeMeshtasticUnstable");
+  if(a)a.checked=settings.inmetEnabled!==false;
+  if(s)s.checked=settings.meshtasticStableEnabled!==false;
+  if(u)u.checked=settings.meshtasticUnstableEnabled!==false;
+  const box=document.getElementById("autoNoticeStatus");if(!box)return;
+  const st=(data&&data.state)||{};
+  const checked=st.lastCheckAtMs?new Date(Number(st.lastCheckAtMs)).toLocaleString(uiLocale()):tr("Nunca");
+  const sent=st.lastSendAtMs?new Date(Number(st.lastSendAtMs)).toLocaleString(uiLocale()):tr("Nunca");
+  const err=st.lastError?(" · "+tr("Erro")+": "+esc(st.lastError)):"";
+  box.innerHTML=tr("Última verificação:")+" "+esc(checked)+" · "+tr("Último envio:")+" "+esc(sent)+err;
+}
+async function loadAutoNoticeStatus(){
+  try{
+    const r=await fetch("/api/automatic-notices",{cache:"no-store"}),b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||("HTTP "+r.status));
+    renderAutoNoticeStatus(b);return b;
+  }catch(e){const box=document.getElementById("autoNoticeStatus");if(box)box.textContent=tr("Erro")+": "+e;return null;}
+}
+async function saveAutoNoticeSettings(){
+  if(!authCanWrite()){openAuthModal();throw new Error(tr("Somente leitura"));}
+  const payload={
+    inmetEnabled:document.getElementById("autoNoticeInmet").checked,
+    meshtasticStableEnabled:document.getElementById("autoNoticeMeshtasticStable").checked,
+    meshtasticUnstableEnabled:document.getElementById("autoNoticeMeshtasticUnstable").checked
+  };
+  const r=await authFetch("/api/automatic-notices",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||("HTTP "+r.status));renderAutoNoticeStatus(b);return b;
+}
+async function checkAutoNoticesNow(){
+  if(!authCanWrite()){openAuthModal();return;}
+  const btn=document.getElementById("autoNoticeCheckNow");btn.disabled=true;
+  try{
+    await saveAutoNoticeSettings();
+    const r=await authFetch("/api/automatic-notices/check",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+    const b=await r.json();if(!r.ok&&!b.success)throw new Error(b.message||("HTTP "+r.status));renderAutoNoticeStatus(b);
+  }catch(e){alert(tr("Erro")+": "+e);}finally{btn.disabled=false;}
+}
+for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMeshtasticUnstable"]){
+  document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
+}
+document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
 let updateRuntimeData=null;
 function updateStateLabel(state){
   const labels={idle:'—',pending:'Pendente',running:'Atualizando',success:'Concluída',failed:'Falhou',rolled_back:'Rollback executado',no_change:'Concluída'};
@@ -5157,7 +5202,7 @@ async function triggerUpdateNow(){
   try{
     const r=await authFetch('/api/update/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update'})});const b=await r.json();
     if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
-    await loadUpdateStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
+    await loadUpdateStatus();loadAutoNoticeStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
   }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
   finally{setTimeout(()=>{btn.disabled=false;btn.textContent=tr('Atualizar agora');},2200);}
 }
