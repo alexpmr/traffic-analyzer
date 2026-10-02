@@ -5202,7 +5202,7 @@ async function triggerUpdateNow(){
   try{
     const r=await authFetch('/api/update/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update'})});const b=await r.json();
     if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);
-    await loadUpdateStatus();loadAutoNoticeStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
+    await loadUpdateStatus();btn.textContent=tr(b.requested?'Solicitação de atualização enviada.':'Nenhuma atualização disponível.');
   }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
   finally{setTimeout(()=>{btn.disabled=false;btn.textContent=tr('Atualizar agora');},2200);}
 }
@@ -5332,6 +5332,7 @@ async function bootstrap(){
   loadAuthStatus(false);
   checkVersionStatus(true);
   loadUpdateStatus();
+  loadAutoNoticeStatus();
   showWhatsNewIfNeeded();
   setInterval(()=>checkVersionStatus(false),5*60*1000);
   setInterval(()=>loadAuthStatus(false),60*1000);
@@ -5506,6 +5507,7 @@ def _automatic_notice_state():
     raw.setdefault("inmet", {})
     raw.setdefault("meshtasticStableId", None)
     raw.setdefault("meshtasticUnstableId", None)
+    raw.setdefault("inmetInitialized", False)
     raw.setdefault("initialized", False)
     return raw
 
@@ -5657,13 +5659,14 @@ def _run_automatic_notice_check(force=False):
                 aid=_notice_alert_id(alert); sig=_notice_alert_signature(alert); current[aid]=sig
                 old=(state.get("inmet") or {}).get(aid)
                 if old is None:
-                    if state.get("initialized") and settings.get("inmetEnabled"):
+                    if state.get("inmetInitialized") and settings.get("inmetEnabled"):
                         if _notice_send("inmet",aid,"new",_notice_inmet_message(alert,False)): sent_any=True
                         else: current.pop(aid,None)
                 elif old != sig and settings.get("inmetEnabled"):
                     if _notice_send("inmet",aid,"update",_notice_inmet_message(alert,True)): sent_any=True
                     else: current[aid]=old
             state["inmet"]=current
+            state["inmetInitialized"]=True
         except Exception as exc:
             errors.append("INMET: "+str(exc))
         try:
@@ -7746,7 +7749,7 @@ def _weather_alerts_inmet():
                         lat,lon=pair.split(",",1); pts.append([float(lat),float(lon)])
                     except Exception: pass
                 if len(pts)>=3: polygons.append(pts)
-            alerts.append({"event":row.get("evento") or row.get("event"),"severity":row.get("severidade") or row.get("severity"),"headline":row.get("headline") or row.get("titulo"),"description":row.get("descricao") or row.get("description"),"expires":row.get("fim") or row.get("expires"),"polygons":polygons})
+            alerts.append({"identifier":row.get("identifier") or row.get("id") or row.get("codigo"),"event":row.get("evento") or row.get("event"),"severity":row.get("severidade") or row.get("severity"),"headline":row.get("headline") or row.get("titulo"),"description":row.get("descricao") or row.get("description"),"areaDesc":row.get("areaDesc") or row.get("area") or row.get("areas") or row.get("municipios"),"expires":row.get("fim") or row.get("expires"),"polygons":polygons})
     else:
         import xml.etree.ElementTree as ET
         root=ET.fromstring(raw)
@@ -7755,7 +7758,10 @@ def _weather_alerts_inmet():
         for alert in candidates:
             info=next((x for x in alert.iter() if str(x.tag).split("}")[-1]=="info"), alert)
             polygons=[]
+            area_desc=[]
             for area in [x for x in info.iter() if str(x.tag).split("}")[-1]=="area"]:
+                desc=_cap_text(area,"areaDesc")
+                if desc: area_desc.append(desc)
                 for pol in [x for x in area.iter() if str(x.tag).split("}")[-1]=="polygon"]:
                     pts=[]
                     for pair in re.split(r"\s+",(pol.text or "").strip()):
@@ -7763,7 +7769,7 @@ def _weather_alerts_inmet():
                             lat,lon=pair.split(",",1); pts.append([float(lat),float(lon)])
                         except Exception: pass
                     if len(pts)>=3: polygons.append(pts)
-            alerts.append({"event":_cap_text(info,"event"),"severity":_cap_text(info,"severity"),"headline":_cap_text(info,"headline"),"description":_cap_text(info,"description"),"expires":_cap_text(info,"expires"),"polygons":polygons})
+            alerts.append({"identifier":_cap_text(alert,"identifier"),"event":_cap_text(info,"event"),"severity":_cap_text(info,"severity"),"headline":_cap_text(info,"headline"),"description":_cap_text(info,"description"),"areaDesc":"; ".join(area_desc),"expires":_cap_text(info,"expires"),"polygons":polygons})
     return {"success":True,"source":"INMET","count":len(alerts),"alerts":alerts}
 
 
