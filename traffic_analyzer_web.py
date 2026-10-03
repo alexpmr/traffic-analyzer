@@ -96,7 +96,9 @@ _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "
 _topology_refresh_lock = threading.Lock()
 _version_status_lock = threading.Lock()
 _version_status_cache = {"checked_at": 0.0, "data": None}
-VERSION_CHECK_TTL_SECONDS = 300
+VERSION_CHECK_DEFAULT_MINUTES = 15
+VERSION_CHECK_MIN_MINUTES = 5
+VERSION_CHECK_MAX_MINUTES = 1440
 GITHUB_RELEASES_LATEST_URL = "https://api.github.com/repos/alexpmr/traffic-analyzer/releases/latest"
 UPDATE_SETTINGS_FILE = Path(os.getenv("UPDATE_SETTINGS_FILE", "/var/lib/traffic-analyzer/update-settings.json"))
 UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-analyzer/update-request.json"))
@@ -912,6 +914,10 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <div class="settingDesc">Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.</div>
       </div>
       <div class="settingRow">
+        <label>Verificar novas versões a cada: <input id="versionCheckInterval" type="number" min="5" max="1440" step="5" value="15" style="width:76px" data-admin-only> minutos</label>
+        <div class="settingDesc">Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.</div>
+      </div>
+      <div class="settingRow">
         <button id="updateNow" type="button" data-admin-only>Atualizar agora</button>
         <div class="settingDesc">Instala somente a Latest Release estável publicada no repositório oficial.</div>
       </div>
@@ -994,6 +1000,7 @@ const I18N_PAIRS=[
   ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
   ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
   ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
+  ['Verificar novas versões a cada:','Check for new versions every:'],['minutos','minutes'],['Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.','Default: 15 minutes. The change is persisted on the server and applied immediately without restarting Traffic Analyzer.'],
   ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['verificando…','checking…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
   ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['círculos visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
@@ -1532,20 +1539,36 @@ function rfCoverageStyle(snrValue,rssiValue){
   if(Number.isFinite(r)) return r>=-80?'#32cd32':r>=-100?'#d7d33f':r>=-115?'#ff9e2f':'#e34a33';
   return '#7f8c8d';
 }
+function rfCoverageIntensity(snrValue,rssiValue){
+  const s=Number(snrValue),r=Number(rssiValue);
+  if(Number.isFinite(s)) return Math.max(.18,Math.min(1,(s+20)/32));
+  if(Number.isFinite(r)) return Math.max(.18,Math.min(1,(r+130)/70));
+  return .18;
+}
 async function refreshRfCoverage(){
   if(!document.getElementById('rfCoverageEnabled')?.checked){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Desligado');return;}
   setLayerStatus('rfCoverageStatus','Carregando cobertura…');
   try{
     const r=await fetch('/api/layers/rf-coverage?hours='+encodeURIComponent(selectedCoverageHours()),{cache:'no-store'});
     const b=await r.json(); if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    const points=(b.points||[]).filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon)));
     rfCoverageLayer.clearLayers();
-    for(const p of (b.points||[])){
-      const circle=L.circleMarker([Number(p.lat),Number(p.lon)],{radius:5,weight:1,color:rfCoverageStyle(p.snr,p.rssi),fillColor:rfCoverageStyle(p.snr,p.rssi),fillOpacity:.55,opacity:.85,className:'rfCoveragePoint'});
-      circle.bindPopup('<b>'+esc(p.name||p.nodeId||'Nó')+'</b><br>Recepção RF registrada<br>SNR: '+snr(p.snr)+'<br>RSSI: '+(p.rssi==null?'—':esc(p.rssi)+' dBm')+'<br>'+dt(p.timestampMs));
-      rfCoverageLayer.addLayer(circle);
+    if(points.length){
+      if(typeof L.heatLayer!=='function')throw new Error('Leaflet.heat indisponível');
+      const heatPoints=points.map(p=>[Number(p.lat),Number(p.lon),rfCoverageIntensity(p.snr,p.rssi)]);
+      const heat=L.heatLayer(heatPoints,{
+        radius:28,blur:21,maxZoom:18,minOpacity:.20,
+        gradient:{0.18:'#313695',0.35:'#2c7bb6',0.52:'#abd9e9',0.68:'#ffffbf',0.82:'#fdae61',1:'#d73027'}
+      });
+      rfCoverageLayer.addLayer(heat);
+      for(const p of points){
+        const hit=L.circleMarker([Number(p.lat),Number(p.lon)],{radius:9,weight:0,opacity:0,fillOpacity:0,className:'rfCoverageHit'});
+        hit.bindPopup('<b>'+esc(p.name||p.nodeId||'Nó')+'</b><br>Recepção RF registrada<br>SNR: '+snr(p.snr)+'<br>RSSI: '+(p.rssi==null?'—':esc(p.rssi)+' dBm')+'<br>'+dt(p.timestampMs));
+        rfCoverageLayer.addLayer(hit);
+      }
     }
     if(!map.hasLayer(rfCoverageLayer))rfCoverageLayer.addTo(map);
-    setLayerStatus('rfCoverageStatus',`Ligado · ${(b.points||[]).length} pontos RF`);
+    setLayerStatus('rfCoverageStatus',`Ligado · ${points.length} recepções RF no mapa de calor`);
   }catch(e){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Cobertura indisponível: '+String(e?.message||e),true);}
 }
 function setRfCoverageEnabled(enabled,{persist=true}={}){
@@ -5163,6 +5186,20 @@ for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMesht
   document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
 }
 document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
+let versionCheckTimer=null;
+let versionCheckIntervalMinutes=15;
+function normalizeVersionCheckInterval(value){
+  const n=Math.round(Number(value));
+  return Number.isFinite(n)?Math.max(5,Math.min(1440,n)):15;
+}
+function scheduleVersionChecks(value){
+  const minutes=normalizeVersionCheckInterval(value);
+  if(versionCheckTimer&&minutes===versionCheckIntervalMinutes)return minutes;
+  versionCheckIntervalMinutes=minutes;
+  if(versionCheckTimer)clearInterval(versionCheckTimer);
+  versionCheckTimer=setInterval(()=>checkVersionStatus(false),minutes*60*1000);
+  return minutes;
+}
 let updateRuntimeData=null;
 function updateStateLabel(state){
   const labels={idle:'—',pending:'Pendente',running:'Atualizando',success:'Concluída',failed:'Falhou',rolled_back:'Rollback executado',no_change:'Concluída'};
@@ -5174,6 +5211,9 @@ function renderUpdateStatus(data){
   const settings=data?.settings||{};
   document.getElementById('autoUpdateEnabled').checked=Boolean(settings.enabled);
   document.getElementById('rollbackEnabled').checked=settings.rollbackEnabled!==false;
+  const interval=normalizeVersionCheckInterval(settings.checkIntervalMinutes);
+  const intervalInput=document.getElementById('versionCheckInterval');if(intervalInput)intervalInput.value=String(interval);
+  scheduleVersionChecks(interval);
   const state=String(data?.state||'idle');
   const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
   const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
@@ -5192,7 +5232,7 @@ async function loadUpdateStatus(){
 }
 async function saveUpdateSettings(){
   if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
-  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked};
+  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked,checkIntervalMinutes:normalizeVersionCheckInterval(document.getElementById('versionCheckInterval').value)};
   const r=await authFetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
 }
@@ -5208,6 +5248,7 @@ async function triggerUpdateNow(){
 }
 document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
+document.getElementById('versionCheckInterval').addEventListener('change',async()=>{const el=document.getElementById('versionCheckInterval');el.value=String(normalizeVersionCheckInterval(el.value));try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
 const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1440';
@@ -5331,10 +5372,10 @@ async function bootstrap(){
   initI18nObserver();
   loadAuthStatus(false);
   checkVersionStatus(true);
+  scheduleVersionChecks(15);
   loadUpdateStatus();
   loadAutoNoticeStatus();
   showWhatsNewIfNeeded();
-  setInterval(()=>checkVersionStatus(false),5*60*1000);
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
@@ -7891,18 +7932,33 @@ def _save_ui_defaults(payload: dict) -> dict:
     return {"defaults": prefs, "updatedAtMs": data["updatedAtMs"]}
 
 
+def _normalize_version_check_interval_minutes(value):
+    try:
+        minutes = int(round(float(value)))
+    except (TypeError, ValueError):
+        minutes = VERSION_CHECK_DEFAULT_MINUTES
+    return max(VERSION_CHECK_MIN_MINUTES, min(VERSION_CHECK_MAX_MINUTES, minutes))
+
+
 def _update_settings():
-    raw = _read_json_file(UPDATE_SETTINGS_FILE, {"enabled": False, "rollbackEnabled": True})
+    raw = _read_json_file(UPDATE_SETTINGS_FILE, {
+        "enabled": False,
+        "rollbackEnabled": True,
+        "checkIntervalMinutes": VERSION_CHECK_DEFAULT_MINUTES,
+    })
     return {
         "enabled": bool(raw.get("enabled", False)),
         "rollbackEnabled": bool(raw.get("rollbackEnabled", True)),
+        "checkIntervalMinutes": _normalize_version_check_interval_minutes(raw.get("checkIntervalMinutes")),
     }
 
 
 def _save_update_settings(payload: dict):
+    current = _update_settings()
     data = {
         "enabled": bool(payload.get("enabled", False)),
         "rollbackEnabled": bool(payload.get("rollbackEnabled", True)),
+        "checkIntervalMinutes": _normalize_version_check_interval_minutes(payload.get("checkIntervalMinutes", current["checkIntervalMinutes"])),
         "updatedAtMs": int(time.time() * 1000),
     }
     _write_json_file(UPDATE_SETTINGS_FILE, data)
@@ -8020,10 +8076,11 @@ def _version_tuple(value: str):
 
 def _version_status(force: bool = False):
     now = time.time()
+    cache_ttl_seconds = _update_settings()["checkIntervalMinutes"] * 60
     with _version_status_lock:
         cached = _version_status_cache.get("data")
         checked_at = float(_version_status_cache.get("checked_at") or 0)
-        if cached and not force and now - checked_at < VERSION_CHECK_TTL_SECONDS:
+        if cached and not force and now - checked_at < cache_ttl_seconds:
             return dict(cached)
 
         req = urllib.request.Request(
