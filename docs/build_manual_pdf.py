@@ -111,7 +111,7 @@ def main() -> None:
               P("O Traffic Analyzer usa a API do MeshMonitor como fonte de dados e mantém histórico próprio para análise. Ele não assume a conexão serial/TCP do rádio."),
               P("Principais áreas", "TA_H2")]
     for item in [
-        "<b>Mapa:</b> topologia e traceroutes observados, reprodução Histórica/Ao vivo, enquadramento e distinção visual entre enlaces RF confirmados e MQTT/não-RF.",
+        "<b>Mapa:</b> topologia e traceroutes observados, reprodução Histórica/Ao vivo, enquadramento, distinção visual entre enlaces RF confirmados e MQTT/não-RF e Cobertura RF em mapa de calor.",
         "<b>Tráfego:</b> pacotes RX/TX, filtros, payload amigável e dados técnicos.",
         "<b>Mensagens:</b> canal primário, respostas estruturadas, emojis, reações/tapbacks e localização de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
@@ -160,7 +160,7 @@ def main() -> None:
               P("Logs:", "TA_H2"),
               P("journalctl -u traffic-analyzer.service -n 50 --no-pager\njournalctl -u traffic-analyzer-map.service -n 50 --no-pager", "TA_Code"),
               P("Auto-update", "TA_H2"),
-              P("Em Configurações, o auto-update pode ser ativado. O processo web apenas grava uma solicitação em /var/lib/traffic-analyzer. O unit traffic-analyzer-auto-update.path dispara um serviço root dedicado, que baixa somente a Latest Release estável, valida o ZIP/digest, cria backup, instala, verifica /health e faz rollback se a verificação falhar."),
+              P("Em Configurações, o auto-update pode ser ativado. A verificação de nova versão ocorre a cada 15 minutos por padrão e o administrador pode alterar esse intervalo entre 5 e 1.440 minutos sem reiniciar o serviço. O processo web apenas grava uma solicitação em /var/lib/traffic-analyzer. O unit traffic-analyzer-auto-update.path dispara um serviço root dedicado, que baixa somente a Latest Release estável, valida o ZIP/digest, cria backup, instala, verifica /health e faz rollback se a verificação falhar."),
               P("Status do auto-update:", "TA_Body"),
               P("systemctl status traffic-analyzer-auto-update.path --no-pager\njournalctl -u traffic-analyzer-auto-update.service -n 80 --no-pager", "TA_Code"),
               P("Após atualizações de JavaScript/CSS, use Ctrl+F5 se o navegador ainda estiver mostrando conteúdo em cache."),

@@ -177,7 +177,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar camadas e avisos v1.44.0
+      - name: Validar backlog v1.45.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -198,6 +198,12 @@ jobs:
           grep -Fq 'id="alertsEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="cloudsEnabled"' traffic_analyzer_web.py
           grep -Fq '/api/layers/rf-coverage' traffic_analyzer_web.py
+          grep -Fq 'L.heatLayer(heatPoints' traffic_analyzer_web.py
+          grep -Fq 'rfCoverageIntensity' traffic_analyzer_web.py
+          grep -Fq 'recepções RF no mapa de calor' traffic_analyzer_web.py
+          grep -Fq 'id="versionCheckInterval"' traffic_analyzer_web.py
+          grep -Fq 'checkIntervalMinutes' traffic_analyzer_web.py
+          grep -Fq 'scheduleVersionChecks(15)' traffic_analyzer_web.py
           grep -Fq '/api/layers/elevation/tile/' traffic_analyzer_web.py
           grep -Fq '/api/layers/weather-alerts' traffic_analyzer_web.py
           grep -Fq '/api/layers/lightning' traffic_analyzer_web.py
@@ -214,6 +220,10 @@ jobs:
           grep -Fq 'TA_NOTICE_POLL_SECONDS' traffic-analyzer-map.env.example
           python - <<'PY'
           import traffic_analyzer_web as ta
+          assert ta._normalize_version_check_interval_minutes(None)==15
+          assert ta._normalize_version_check_interval_minutes(1)==5
+          assert ta._normalize_version_check_interval_minutes(30)==30
+          assert ta._normalize_version_check_interval_minutes(9999)==1440
           prefs=ta._sanitize_ui_defaults({
               "weatherRadarEnabled": True,
               "rfCoverageEnabled": True,

@@ -96,7 +96,9 @@ _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "
 _topology_refresh_lock = threading.Lock()
 _version_status_lock = threading.Lock()
 _version_status_cache = {"checked_at": 0.0, "data": None}
-VERSION_CHECK_TTL_SECONDS = 300
+VERSION_CHECK_DEFAULT_MINUTES = 15
+VERSION_CHECK_MIN_MINUTES = 5
+VERSION_CHECK_MAX_MINUTES = 1440
 GITHUB_RELEASES_LATEST_URL = "https://api.github.com/repos/alexpmr/traffic-analyzer/releases/latest"
 UPDATE_SETTINGS_FILE = Path(os.getenv("UPDATE_SETTINGS_FILE", "/var/lib/traffic-analyzer/update-settings.json"))
 UPDATE_REQUEST_FILE = Path(os.getenv("UPDATE_REQUEST_FILE", "/var/lib/traffic-analyzer/update-request.json"))
@@ -343,7 +345,7 @@ HTML = r'''<!doctype html>
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoveragePoint{stroke-width:1px}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:390px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:255px}}
+  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoverageHit{cursor:pointer}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:390px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:255px}}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -912,6 +914,10 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <div class="settingDesc">Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.</div>
       </div>
       <div class="settingRow">
+        <label>Verificar novas versões a cada: <input id="versionCheckInterval" type="number" min="5" max="1440" step="5" value="15" style="width:76px" data-admin-only> minutos</label>
+        <div class="settingDesc">Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.</div>
+      </div>
+      <div class="settingRow">
         <button id="updateNow" type="button" data-admin-only>Atualizar agora</button>
         <div class="settingDesc">Instala somente a Latest Release estável publicada no repositório oficial.</div>
       </div>
@@ -994,6 +1000,7 @@ const I18N_PAIRS=[
   ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
   ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
   ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
+  ['Verificar novas versões a cada:','Check for new versions every:'],['minutos','minutes'],['Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.','Default: 15 minutes. The change is persisted on the server and applied immediately without restarting Traffic Analyzer.'],
   ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['verificando…','checking…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
   ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['círculos visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
@@ -1171,7 +1178,7 @@ function renderHelp(){
     el.innerHTML=`<h2>Traffic Analyzer Help</h2>
       <p>Traffic Analyzer is a companion web application for MeshMonitor. It analyzes Meshtastic traffic, observed RF topology, traceroutes, messages, node activity, network health, and anomalies without taking over the radio connection used by MeshMonitor.</p>
       <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
-      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node popups can be dragged by their header to avoid covering legends or map controls, while their internal content remains scrollable. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
+      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node popups can be dragged by their header to avoid covering legends or map controls, while their internal content remains scrollable. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. The RF Coverage layer composes archived receptions into a heatmap: overlapping receptions accumulate visually and each point is weighted by SNR, with RSSI as fallback. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
       <ul><li><b>History:</b> replays traceroutes on their observed timeline and allows several packets to move simultaneously. Long windows are proportionally time-compressed.</li><li><b>Live:</b> each new complete traceroute starts independently without waiting for earlier animations to finish.</li><li><b>No artificial limit:</b> there is no functional cap on packets in transit; all observed events are kept.</li><li><b>Pause:</b> freezes every visual animation. Collection and processing continue, and waiting events are released on resume.</li><li><b>Speed:</b> also affects packets already moving and the History timeline.</li><li><b>Auto Zoom:</b> can follow all nodes involved in simultaneous traceroute animations.</li></ul>
       <h3>2. Nodes</h3><p>The Nodes tab inventories every node known to the configured MeshMonitor source. The filter narrows the list character by character. Click any column heading to sort ascending or descending. Last interaction is color-coded: green up to 1 hour, yellow from more than 1 hour through 12 hours, and red above 12 hours. Battery percentage is green at 50% or above, yellow from 20% to 49.9%, and red below 20%. Distance is calculated specifically from VHF3 when both nodes have a known position. The Columns menu can reveal RSSI, channel utilization, Air Util TX, Node ID, PKC and state. Clicking a row switches to the map, centers that node with a closer zoom, and does not open the popup; click the marker when you want details.</p>
       <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
@@ -1185,7 +1192,7 @@ function renderHelp(){
       <h3>8. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, Auto Zoom, and independent color/thickness for confirmed RF versus MQTT/non-RF links.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
       <h3>9. Authentication and Internet exposure</h3><p>When authentication is enabled, visitors may freely change visual and reading preferences in Settings; these changes stay only in that browser. Administrative actions remain locked: sending/replying/reacting to messages, forcing topology refresh, changing update settings, triggering updates, and changing the server-side visitor default all require an authenticated administrator session.</p><p>The administrator can save the current visual setup as the global default for new visitors. A visitor can still override it locally and can use <b>Restore administrator default</b> at any time. Every server write API remains protected by an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
       <h3>10. Language</h3><p>Use the pull-down language menu at the top of the application. Portuguese is the default. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
-      <h3>11. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. When a newer stable version exists, the badge shows DOWNLOAD and clicking it downloads that Release's versioned ZIP. When the installer is run, it stops the previous web instance and scheduled cycle before replacing files, then starts the services again. Under Settings → Updates, automatic installation can still be enabled through the dedicated systemd updater with backup, health check and rollback.</p>
+      <h3>11. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Automatic checks run every 15 minutes by default; an administrator can change the interval from 5 to 1,440 minutes under Settings → Updates and the new value takes effect immediately without a restart. When a newer stable version exists, the badge shows DOWNLOAD and clicking it downloads that Release's versioned ZIP. When the installer is run, it stops the previous web instance and scheduled cycle before replacing files, then starts the services again. Automatic installation can still be enabled through the dedicated systemd updater with backup, health check and rollback.</p>
       <div class="helpCode i18nNoTranslate">cat /opt/traffic-analyzer/VERSION</div>
       <p>After an update that changes JavaScript or CSS, use <b>Ctrl+F5</b> if the browser is still showing cached interface files.</p>
       <h3>12. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path.</div>`;
@@ -1193,7 +1200,7 @@ function renderHelp(){
     el.innerHTML=`<h2>Ajuda do Traffic Analyzer</h2>
       <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
       <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
-      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. O popup de cada nó pode ser arrastado pelo cabeçalho para não encobrir a legenda ou outros controles, mantendo a rolagem interna do conteúdo. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
+      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. O popup de cada nó pode ser arrastado pelo cabeçalho para não encobrir a legenda ou outros controles, mantendo a rolagem interna do conteúdo. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. A camada Cobertura RF compõe as recepções arquivadas em um mapa de calor: recepções sobrepostas se acumulam visualmente e cada ponto é ponderado por SNR, com RSSI como fallback. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
       <ul><li><b>Histórico:</b> reproduz traceroutes em ordem temporal e permite vários pacotes simultaneamente. Janelas longas têm a escala de tempo comprimida proporcionalmente.</li><li><b>Ao vivo:</b> novos traceroutes completos iniciam sua própria animação sem esperar os anteriores terminarem.</li><li><b>Sem limite artificial:</b> não há teto funcional de pacotes em trânsito; a interface acompanha todos os eventos observados.</li><li><b>Pausa:</b> congela todas as animações visuais. Coleta e processamento continuam, e o que ficou aguardando é liberado ao retomar.</li><li><b>Velocidade:</b> afeta também os pacotes que já estão se movendo e a linha do tempo do Histórico.</li><li><b>Auto Zoom:</b> opcionalmente acompanha em conjunto os nós envolvidos nas animações simultâneas.</li></ul>
       <h3>2. Nós</h3><p>A aba Nós lista todos os nós conhecidos pela fonte MeshMonitor configurada. O filtro reduz a lista caractere por caractere enquanto você digita. Clique em qualquer título de coluna para alternar entre ordem crescente e decrescente. A última interação usa cores: verde até 1 hora, amarelo acima de 1 hora até 12 horas e vermelho acima de 12 horas. O percentual da bateria fica verde a partir de 50%, amarelo de 20% a 49,9% e vermelho abaixo de 20%. A distância é calculada especificamente em relação ao VHF3 quando os dois nós possuem posição conhecida. O menu Colunas permite exibir RSSI, utilização do canal, Air Util TX, Node ID, PKC e estado. Ao clicar em uma linha, a aplicação muda para o mapa, centraliza o nó com zoom mais próximo e não abre o popup; clique no marcador quando quiser os detalhes.</p>
       <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
@@ -1207,7 +1214,7 @@ function renderHelp(){
       <h3>8. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor, Auto Zoom e cor/espessura independentes para enlaces RF confirmados e MQTT/não-RF.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
       <h3>9. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, visitantes podem alterar livremente preferências visuais e de leitura em Configurações; essas alterações ficam somente naquele navegador. Ações administrativas continuam bloqueadas: enviar/responder/reagir a mensagens, forçar atualização da topologia, alterar o auto-update, disparar atualização e mudar o padrão global dos visitantes exigem sessão administrativa autenticada.</p><p>O administrador pode salvar a configuração visual atual como padrão global para novos visitantes. Cada visitante ainda pode sobrescrevê-la localmente e usar <b>Restaurar padrão do administrador</b> quando quiser. Todas as APIs de escrita no servidor permanecem protegidas por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
       <h3>10. Idioma</h3><p>Use o menu pull-down de idioma no topo. Português é o padrão. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
-      <h3>11. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. Quando existir uma versão estável mais nova, o indicador mostra BAIXAR e um clique inicia o download do ZIP versionado daquela Release. Ao executar o instalador, a instância web e o ciclo agendado anteriores são parados antes da substituição dos arquivos e os serviços são iniciados novamente ao final. Em Configurações → Atualizações, a instalação automática continua disponível pelo serviço systemd dedicado, com backup, verificação de /health e rollback.</p>
+      <h3>11. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. A verificação automática ocorre a cada 15 minutos por padrão; o administrador pode definir de 5 a 1.440 minutos em Configurações → Atualizações e o novo intervalo entra em vigor imediatamente, sem reinício. Quando existir uma versão estável mais nova, o indicador mostra BAIXAR e um clique inicia o download do ZIP versionado daquela Release. Ao executar o instalador, a instância web e o ciclo agendado anteriores são parados antes da substituição dos arquivos e os serviços são iniciados novamente ao final. A instalação automática continua disponível pelo serviço systemd dedicado, com backup, verificação de /health e rollback.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
@@ -1532,20 +1539,36 @@ function rfCoverageStyle(snrValue,rssiValue){
   if(Number.isFinite(r)) return r>=-80?'#32cd32':r>=-100?'#d7d33f':r>=-115?'#ff9e2f':'#e34a33';
   return '#7f8c8d';
 }
+function rfCoverageIntensity(snrValue,rssiValue){
+  const s=Number(snrValue),r=Number(rssiValue);
+  if(Number.isFinite(s)) return Math.max(.18,Math.min(1,(s+20)/32));
+  if(Number.isFinite(r)) return Math.max(.18,Math.min(1,(r+130)/70));
+  return .18;
+}
 async function refreshRfCoverage(){
   if(!document.getElementById('rfCoverageEnabled')?.checked){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Desligado');return;}
   setLayerStatus('rfCoverageStatus','Carregando cobertura…');
   try{
     const r=await fetch('/api/layers/rf-coverage?hours='+encodeURIComponent(selectedCoverageHours()),{cache:'no-store'});
     const b=await r.json(); if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    const points=(b.points||[]).filter(p=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon)));
     rfCoverageLayer.clearLayers();
-    for(const p of (b.points||[])){
-      const circle=L.circleMarker([Number(p.lat),Number(p.lon)],{radius:5,weight:1,color:rfCoverageStyle(p.snr,p.rssi),fillColor:rfCoverageStyle(p.snr,p.rssi),fillOpacity:.55,opacity:.85,className:'rfCoveragePoint'});
-      circle.bindPopup('<b>'+esc(p.name||p.nodeId||'Nó')+'</b><br>Recepção RF registrada<br>SNR: '+snr(p.snr)+'<br>RSSI: '+(p.rssi==null?'—':esc(p.rssi)+' dBm')+'<br>'+dt(p.timestampMs));
-      rfCoverageLayer.addLayer(circle);
+    if(points.length){
+      if(typeof L.heatLayer!=='function')throw new Error('Leaflet.heat indisponível');
+      const heatPoints=points.map(p=>[Number(p.lat),Number(p.lon),rfCoverageIntensity(p.snr,p.rssi)]);
+      const heat=L.heatLayer(heatPoints,{
+        radius:28,blur:21,maxZoom:18,minOpacity:.20,
+        gradient:{0.18:'#313695',0.35:'#2c7bb6',0.52:'#abd9e9',0.68:'#ffffbf',0.82:'#fdae61',1:'#d73027'}
+      });
+      rfCoverageLayer.addLayer(heat);
+      for(const p of points){
+        const hit=L.circleMarker([Number(p.lat),Number(p.lon)],{radius:9,weight:0,opacity:0,fillOpacity:0,className:'rfCoverageHit'});
+        hit.bindPopup('<b>'+esc(p.name||p.nodeId||'Nó')+'</b><br>Recepção RF registrada<br>SNR: '+snr(p.snr)+'<br>RSSI: '+(p.rssi==null?'—':esc(p.rssi)+' dBm')+'<br>'+dt(p.timestampMs));
+        rfCoverageLayer.addLayer(hit);
+      }
     }
     if(!map.hasLayer(rfCoverageLayer))rfCoverageLayer.addTo(map);
-    setLayerStatus('rfCoverageStatus',`Ligado · ${(b.points||[]).length} pontos RF`);
+    setLayerStatus('rfCoverageStatus',`Ligado · ${points.length} recepções RF no mapa de calor`);
   }catch(e){rfCoverageLayer.clearLayers();setLayerStatus('rfCoverageStatus','Cobertura indisponível: '+String(e?.message||e),true);}
 }
 function setRfCoverageEnabled(enabled,{persist=true}={}){
@@ -5163,6 +5186,20 @@ for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMesht
   document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
 }
 document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
+let versionCheckTimer=null;
+let versionCheckIntervalMinutes=15;
+function normalizeVersionCheckInterval(value){
+  const n=Math.round(Number(value));
+  return Number.isFinite(n)?Math.max(5,Math.min(1440,n)):15;
+}
+function scheduleVersionChecks(value){
+  const minutes=normalizeVersionCheckInterval(value);
+  if(versionCheckTimer&&minutes===versionCheckIntervalMinutes)return minutes;
+  versionCheckIntervalMinutes=minutes;
+  if(versionCheckTimer)clearInterval(versionCheckTimer);
+  versionCheckTimer=setInterval(()=>checkVersionStatus(false),minutes*60*1000);
+  return minutes;
+}
 let updateRuntimeData=null;
 function updateStateLabel(state){
   const labels={idle:'—',pending:'Pendente',running:'Atualizando',success:'Concluída',failed:'Falhou',rolled_back:'Rollback executado',no_change:'Concluída'};
@@ -5174,6 +5211,9 @@ function renderUpdateStatus(data){
   const settings=data?.settings||{};
   document.getElementById('autoUpdateEnabled').checked=Boolean(settings.enabled);
   document.getElementById('rollbackEnabled').checked=settings.rollbackEnabled!==false;
+  const interval=normalizeVersionCheckInterval(settings.checkIntervalMinutes);
+  const intervalInput=document.getElementById('versionCheckInterval');if(intervalInput)intervalInput.value=String(interval);
+  scheduleVersionChecks(interval);
   const state=String(data?.state||'idle');
   const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
   const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
@@ -5192,7 +5232,7 @@ async function loadUpdateStatus(){
 }
 async function saveUpdateSettings(){
   if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
-  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked};
+  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked,checkIntervalMinutes:normalizeVersionCheckInterval(document.getElementById('versionCheckInterval').value)};
   const r=await authFetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
 }
@@ -5208,6 +5248,7 @@ async function triggerUpdateNow(){
 }
 document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
+document.getElementById('versionCheckInterval').addEventListener('change',async()=>{const el=document.getElementById('versionCheckInterval');el.value=String(normalizeVersionCheckInterval(el.value));try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
 const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1440';
@@ -5331,10 +5372,10 @@ async function bootstrap(){
   initI18nObserver();
   loadAuthStatus(false);
   checkVersionStatus(true);
+  scheduleVersionChecks(15);
   loadUpdateStatus();
   loadAutoNoticeStatus();
   showWhatsNewIfNeeded();
-  setInterval(()=>checkVersionStatus(false),5*60*1000);
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
@@ -7891,18 +7932,33 @@ def _save_ui_defaults(payload: dict) -> dict:
     return {"defaults": prefs, "updatedAtMs": data["updatedAtMs"]}
 
 
+def _normalize_version_check_interval_minutes(value):
+    try:
+        minutes = int(round(float(value)))
+    except (TypeError, ValueError):
+        minutes = VERSION_CHECK_DEFAULT_MINUTES
+    return max(VERSION_CHECK_MIN_MINUTES, min(VERSION_CHECK_MAX_MINUTES, minutes))
+
+
 def _update_settings():
-    raw = _read_json_file(UPDATE_SETTINGS_FILE, {"enabled": False, "rollbackEnabled": True})
+    raw = _read_json_file(UPDATE_SETTINGS_FILE, {
+        "enabled": False,
+        "rollbackEnabled": True,
+        "checkIntervalMinutes": VERSION_CHECK_DEFAULT_MINUTES,
+    })
     return {
         "enabled": bool(raw.get("enabled", False)),
         "rollbackEnabled": bool(raw.get("rollbackEnabled", True)),
+        "checkIntervalMinutes": _normalize_version_check_interval_minutes(raw.get("checkIntervalMinutes")),
     }
 
 
 def _save_update_settings(payload: dict):
+    current = _update_settings()
     data = {
         "enabled": bool(payload.get("enabled", False)),
         "rollbackEnabled": bool(payload.get("rollbackEnabled", True)),
+        "checkIntervalMinutes": _normalize_version_check_interval_minutes(payload.get("checkIntervalMinutes", current["checkIntervalMinutes"])),
         "updatedAtMs": int(time.time() * 1000),
     }
     _write_json_file(UPDATE_SETTINGS_FILE, data)
@@ -8020,10 +8076,11 @@ def _version_tuple(value: str):
 
 def _version_status(force: bool = False):
     now = time.time()
+    cache_ttl_seconds = _update_settings()["checkIntervalMinutes"] * 60
     with _version_status_lock:
         cached = _version_status_cache.get("data")
         checked_at = float(_version_status_cache.get("checked_at") or 0)
-        if cached and not force and now - checked_at < VERSION_CHECK_TTL_SECONDS:
+        if cached and not force and now - checked_at < cache_ttl_seconds:
             return dict(cached)
 
         req = urllib.request.Request(

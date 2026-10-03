@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.45.0 - 2026-10-03
+
+- Substitui os círculos isolados da camada **Cobertura RF** por um **mapa de calor real** usando Leaflet.heat.
+- Cada recepção arquivada contribui para o heatmap; regiões com observações sobrepostas ganham maior intensidade visual.
+- A intensidade individual considera SNR quando disponível e usa RSSI como fallback, preservando os dados reais observados.
+- Mantém o popup técnico de cada recepção por meio de áreas de interação transparentes, sem voltar a desenhar os antigos círculos visíveis.
+- A Cobertura RF continua usando apenas o histórico já coletado pelo Traffic Analyzer e não transmite pacotes adicionais na malha.
+- Altera a verificação automática de nova versão para **15 minutos por padrão**.
+- Adiciona em **Configurações → Atualizações** o campo para definir o intervalo de verificação entre **5 e 1.440 minutos**.
+- Persiste o intervalo no servidor e aplica a alteração imediatamente, sem reiniciar o Traffic Analyzer.
+- O clique manual no indicador de versão continua forçando uma consulta nova ao GitHub.
+- Preserva o seletor de idiomas com bandeiras e todos os recursos da v1.44.0.
+
 ## 1.44.0 - 2026-10-02
 
 - Adiciona worker de avisos automáticos no canal primário.
