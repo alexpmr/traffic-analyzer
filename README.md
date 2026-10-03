@@ -1,6 +1,19 @@
-# Traffic Analyzer v1.44.0
+# Traffic Analyzer v1.45.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.45.0
+
+- **Cobertura RF em heatmap:** a camada deixa de desenhar círculos isolados e passa a compor um mapa de calor real com todas as recepções arquivadas do período.
+- As recepções se acumulam visualmente; áreas com maior recorrência ficam mais quentes.
+- A intensidade usa **SNR** quando disponível e **RSSI** como fallback, sem inventar medições.
+- O detalhe de cada recepção continua acessível no mapa, mas os antigos círculos visíveis são substituídos por áreas de interação transparentes.
+- A camada continua totalmente passiva: usa apenas dados já registrados e **não envia consultas extras pela malha**.
+- A checagem automática de nova versão passa a ocorrer a cada **15 minutos por padrão**.
+- Em **Configurações → Atualizações**, o administrador pode definir o intervalo entre **5 e 1.440 minutos**.
+- O novo intervalo fica persistido no servidor e entra em vigor imediatamente, sem reiniciar o serviço.
+- Clicar no indicador de versão continua fazendo uma verificação forçada e imediata.
+- O seletor de idiomas com bandeiras e todas as funcionalidades da v1.44.0 permanecem preservados.
 
 ## Novidades da v1.44.0
 
