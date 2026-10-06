@@ -202,7 +202,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.45.0
+      - name: Validar backlog v1.46.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -229,6 +229,16 @@ jobs:
           grep -Fq 'id="versionCheckInterval"' traffic_analyzer_web.py
           grep -Fq 'checkIntervalMinutes' traffic_analyzer_web.py
           grep -Fq 'scheduleVersionChecks(15)' traffic_analyzer_web.py
+          grep -Fq 'FLAG_SVG_BR=' traffic_analyzer_web.py
+          grep -Fq 'FLAG_SVG_US=' traffic_analyzer_web.py
+          grep -Fq 'flag.innerHTML=meta.flagSvg' traffic_analyzer_web.py
+          ! grep -Fq '🇧🇷' traffic_analyzer_web.py
+          ! grep -Fq '🇺🇸' traffic_analyzer_web.py
+          grep -Fq 'const MAP_ZOOM_DELTA=0.20;' traffic_analyzer_web.py
+          grep -Fq 'const MAP_WHEEL_PX_PER_ZOOM_LEVEL=120;' traffic_analyzer_web.py
+          grep -Fq 'wheelDebounceTime:MAP_WHEEL_DEBOUNCE_MS' traffic_analyzer_web.py
+          grep -Fq '<option value="all" selected>Todo</option>' traffic_analyzer_web.py
+          grep -Fq "const raw=document.getElementById('statsPeriod')?.value||'all';" traffic_analyzer_web.py
           grep -Fq '/api/layers/elevation/tile/' traffic_analyzer_web.py
           grep -Fq '/api/layers/weather-alerts' traffic_analyzer_web.py
           grep -Fq '/api/layers/lightning' traffic_analyzer_web.py
@@ -342,18 +352,24 @@ jobs:
               assert not severe,severe
 
               button=d.find_element(By.ID,"uiLanguageButton")
-              assert "🇧🇷" in button.text and "Português" in button.text,button.text
+              assert "Português" in button.text,button.text
+              assert "BR" not in button.text,button.text
+              assert len(d.find_elements(By.CSS_SELECTOR,"#uiLanguageFlag svg.languageFlagSvg"))==1
               button.click()
               opts=d.find_elements(By.CSS_SELECTOR,".languageOption[data-language]")
               labels=[" ".join((o.get_attribute("textContent") or "").replace("✓","").split()) for o in opts]
-              assert labels==["🇧🇷Português","🇺🇸English"],labels
+              assert labels==["Português","English"],labels
+              assert len(d.find_elements(By.CSS_SELECTOR,".languageOption .languageFlag svg.languageFlagSvg"))==2
               assert d.find_element(By.ID,"uiLanguageMenu").get_attribute("class").find("open")>=0
               opts[1].click()
               assert d.execute_script("return currentLang")=="en"
-              assert "🇺🇸" in d.find_element(By.ID,"uiLanguageButton").text
+              assert "English" in d.find_element(By.ID,"uiLanguageButton").text
+              assert "US" not in d.find_element(By.ID,"uiLanguageButton").text
+              assert len(d.find_elements(By.CSS_SELECTOR,"#uiLanguageFlag svg.languageFlagSvg"))==1
               assert d.find_element(By.CSS_SELECTOR,'.navbtn[data-view="map"]').text=="Map"
               d.execute_script("applyLanguage('pt-BR',true)")
               assert d.execute_script("return currentLang")=="pt-BR"
+              assert len(d.find_elements(By.CSS_SELECTOR,"#uiLanguageFlag svg.languageFlagSvg"))==1
               assert d.find_element(By.ID,"autoNoticeInmet").is_selected()
               assert d.find_element(By.ID,"autoNoticeMeshtasticStable").is_selected()
               assert d.find_element(By.ID,"autoNoticeMeshtasticUnstable").is_selected()
@@ -390,6 +406,19 @@ jobs:
 
               osm_url=d.execute_script("return baseMaps.osm.url")
               assert osm_url=="https://tile.openstreetmap.org/{z}/{x}/{y}.png",osm_url
+              zoom_cfg=d.execute_script("return {snap:map.options.zoomSnap,delta:map.options.zoomDelta,wheel:map.options.wheelPxPerZoomLevel,debounce:map.options.wheelDebounceTime,scroll:map.options.scrollWheelZoom};")
+              assert abs(zoom_cfg["snap"]-.05)<1e-9,zoom_cfg
+              assert abs(zoom_cfg["delta"]-.20)<1e-9,zoom_cfg
+              assert zoom_cfg["wheel"]==120,zoom_cfg
+              assert zoom_cfg["debounce"]==30,zoom_cfg
+              assert zoom_cfg["scroll"] is True,zoom_cfg
+              d.execute_script("map.setZoom(9,{animate:false})")
+              d.execute_script("document.querySelector('.leaflet-control-zoom-in').click()")
+              time.sleep(.35)
+              assert abs(d.execute_script("return map.getZoom()")-9.2)<.06,d.execute_script("return map.getZoom()")
+              d.execute_script("map.setZoom(9,{animate:false})")
+              assert d.find_element(By.ID,"statsPeriod").get_attribute("value")=="all"
+              assert d.execute_script("return statisticsSinceMs()") is None
               fallback=d.execute_script("""
                 document.getElementById('mapType').value='osm';
                 setBaseMap('osm');
