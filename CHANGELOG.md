@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.46.0 - 2026-10-06
+
+- Corrige o seletor de idiomas para exibir **bandeiras reais em SVG embutido** no botão ativo e nas opções Português/English.
+- Remove a dependência dos emojis Unicode de bandeira, evitando a renderização como **BR/US** em Windows + Chrome.
+- Mantém as bandeiras locais, sem CDN, Twemoji, fonte externa ou recurso remoto.
+- Torna o zoom do mapa mais gradual com passo de **0,20**, snap fracionário de **0,05** e sensibilidade da roda ajustada para **120 px por nível de zoom**.
+- Reduz o debounce da roda para **30 ms**, deixando mouse e touchpad mais suaves e previsíveis.
+- Mantém os botões +/− usando a mesma granularidade fracionária e preserva o ponto sob o cursor pelo comportamento nativo do Leaflet.
+- Altera **Estatísticas → Período** para iniciar em **Todo** por padrão.
+- Garante que o fallback interno de Estatísticas também considere todo o histórico quando nenhum valor estiver disponível.
+- Preserva os demais períodos (1 h, 6 h, 24 h, 7 dias e 30 dias), filtro por nó e todos os recursos da v1.45.0.
+
 ## 1.45.0 - 2026-10-03
 
 - Substitui os círculos isolados da camada **Cobertura RF** por um **mapa de calor real** usando Leaflet.heat.
