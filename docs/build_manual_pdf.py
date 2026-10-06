@@ -122,7 +122,7 @@ def main() -> None:
         story.append(bullet(item))
 
     story += [P("Idioma", "TA_H2"),
-              P("Português (PT-BR) é o padrão. O seletor mostra as bandeiras do Brasil e dos Estados Unidos antes de Português e English. A troca altera a interface sem modificar nomes de nós, mensagens dos usuários ou valores brutos do protocolo."),
+              P("Português (PT-BR) é o padrão. O seletor mostra as bandeiras do Brasil e dos Estados Unidos antes de Português e English usando SVG embutido no próprio aplicativo, sem depender do suporte de emojis do Windows ou do navegador. A troca altera a interface sem modificar nomes de nós, mensagens dos usuários ou valores brutos do protocolo."),
               PageBreak(), P("3. Uso e interpretação", "TA_H1"),
               P("As linhas e traceroutes representam observações feitas pela fonte configurada. Ausência de tráfego ou de rota não é prova isolada de indisponibilidade."),
               P("Pausa, Ao vivo e Histórico", "TA_H2"),
@@ -133,7 +133,9 @@ def main() -> None:
               P("A classificação segue a semântica do MeshMonitor: o sentinel de SNR desconhecido do firmware é tratado como MQTT/não-RF no hop. Esse sentinel não prova exclusivamente o uso de MQTT, pois também pode aparecer em falha de descriptografia, relay role ou firmware antigo; por isso o Traffic Analyzer usa a expressão MQTT/não-RF."),
               P("Em Configurações > Mapa e topologia, cor e espessura podem ser ajustadas separadamente para RF e MQTT/não-RF. Visitantes alteram apenas o próprio navegador; o administrador pode salvar esses valores no padrão global."),
               P("Mapa-base e provedores de tiles", "TA_H2"),
-              P("O modo Ruas usa o endpoint oficial atual do OpenStreetMap: https://tile.openstreetmap.org/{z}/{x}/{y}.png. A interface envia uma política de Referer compatível com requisições web cross-origin. Se os tiles OSM falharem repetidamente, o Traffic Analyzer troca temporariamente para o mapa Claro (CARTO) para evitar uma tela em branco. A troca manual de mapa-base continua disponível em Configurações."),
+              P("O modo Ruas usa o endpoint oficial atual do OpenStreetMap: https://tile.openstreetmap.org/{z}/{x}/{y}.png. A interface envia uma política de Referer compatível com requisições web cross-origin. Se os tiles OSM falharem repetidamente, o Traffic Analyzer troca temporariamente para o mapa Claro (CARTO) para evitar uma tela em branco. A troca manual de mapa-base continua disponível em Configurações. Na v1.46.0, o mapa usa zoom fracionário mais gradual e sensibilidade reduzida na roda do mouse/touchpad para oferecer níveis intermediários de enquadramento."),
+              P("Estatísticas", "TA_H2"),
+              P("O período padrão da aba Estatísticas é Todo, portanto a primeira carga usa todo o histórico disponível. O usuário continua podendo restringir a análise para 1 h, 6 h, 24 h, 7 dias ou 30 dias e combinar o período com o filtro por nó."),
               P("Posições históricas", "TA_H2"),
               P("A coleta de posições recebidas continua preservada internamente em traffic.db para relatórios e análises futuras. A v1.27.0 remove a aba Tracklog e deixa de expor esse histórico por endpoint público."),
               P("Mensagens, respostas e reações", "TA_H2"),
