@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.47.0 - 2026-10-08
+
+- Cria memória histórica permanente de **nós** e **enlaces** dentro do `traffic.db`.
+- Nós observados permanecem no inventário mesmo depois de saírem do NodeDB/API do MeshMonitor.
+- Preserva a última posição válida conhecida para nós históricos quando disponível.
+- Enlaces observados deixam de depender da retenção e do limite de traceroutes do MeshMonitor.
+- Mantém eventos recentes suficientes para os filtros temporais e agregados completos para **Janela = Todos**.
+- Filtros de 1 h, 6 h, 12 h, 24 h, 7 dias e 30 dias passam a ocultar apenas a visualização, sem excluir a memória histórica.
+- Mantém a regra de confirmação RF somente com evidência física válida (SNR); demais observações permanecem MQTT/não-RF.
+- Adiciona fila durável `topology-history-queue` para preservar snapshots gerados enquanto o serviço web estiver parado.
+- Implementa recuperação best-effort de enlaces antigos a partir de metadata de `TRACEROUTE_APP` já arquivado.
+- Adiciona **Configurações → Banco de tráfego** com retenção de **1 dia, 1 semana, 1 mês ou Nunca apagar**.
+- Define **Nunca apagar** como padrão.
+- A limpeza automática remove apenas pacotes e posições brutas; tabelas históricas de nós/enlaces não são removidas.
+- Mostra na interface quantidade de pacotes, nós/enlaces históricos, registro mais antigo e tamanho aproximado do banco.
+- Atualiza instalador, documentação, testes automatizados e smoke tests.
+
 ## 1.46.0 - 2026-10-06
 
 - Corrige o seletor de idiomas para exibir **bandeiras reais em SVG embutido** no botão ativo e nas opções Português/English.
