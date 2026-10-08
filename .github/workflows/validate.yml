@@ -719,7 +719,8 @@ jobs:
               assert str(access_stats.get("logFile","")).endswith("access.log"),access_stats
               assert access_stats.get("summary",{}).get("today",0)>=1,access_stats
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
-              assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is not None
+              assert d.find_element(By.ID,"autoUpdateEnabled").is_selected()
               assert d.find_element(By.ID,"archiveRetentionDays").get_attribute("disabled") is None
               d.execute_script("arguments[0].value='7';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"archiveRetentionDays"))
               time.sleep(.4)
