@@ -2029,20 +2029,35 @@ function edgeStatsForWindow(e, cutoff){
   // navegador ficam limitados aos últimos 30 dias para manter o JSON leve.
   if(cutoff===null || !events){
     if(cutoff !== null && (e.lastSeenMs || 0) < cutoff) return null;
-    const observations=Number(e.observations || 0);
-    const aggregateSnr=[e.avgSnr,e.minSnr,e.maxSnr].find(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
-    const hasRfEvidence=aggregateSnr!==undefined;
-    const rf=e.historyPersistent?Math.max(0,Number(e.rfObservations||0)):(hasRfEvidence?Math.max(1,Number(e.rfObservations||observations||0)):0);
-    const nonRf=e.historyPersistent?Math.max(0,Number(e.nonRfObservations??e.mqttObservations??(observations-rf))):(hasRfEvidence?Math.max(0,observations-rf):observations);
+    const countOf=x=>Math.max(1,Number(x?.count||1));
+    const hasRfEvidence=x=>x?.snr!==null&&x?.snr!==undefined&&Number.isFinite(Number(x.snr));
+    const eventObservations=events?events.reduce((sum,x)=>sum+countOf(x),0):0;
+    const observations=Number(e.observations || eventObservations || 0);
+    let rf=0,nonRf=0,forward=Number(e.forwardObservations||0),back=Number(e.returnObservations||0);
+    let avgSnr=e.avgSnr,minSnr=e.minSnr,maxSnr=e.maxSnr;
+    if(e.historyPersistent || !events){
+      const aggregateSnr=[e.avgSnr,e.minSnr,e.maxSnr].find(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
+      const aggregateHasRf=aggregateSnr!==undefined;
+      rf=e.historyPersistent?Math.max(0,Number(e.rfObservations||0)):(aggregateHasRf?Math.max(1,Number(e.rfObservations||observations||0)):0);
+      nonRf=e.historyPersistent?Math.max(0,Number(e.nonRfObservations??e.mqttObservations??(observations-rf))):(aggregateHasRf?Math.max(0,observations-rf):observations);
+    }else{
+      rf=events.reduce((sum,x)=>sum+(hasRfEvidence(x)?countOf(x):0),0);
+      nonRf=Math.max(0,observations-rf);
+      forward=events.reduce((sum,x)=>sum+(x.leg==='forward'?countOf(x):0),0);
+      back=events.reduce((sum,x)=>sum+(x.leg==='return'?countOf(x):0),0);
+      const snrs=[];
+      for(const x of events)if(hasRfEvidence(x))for(let i=0;i<countOf(x);i++)snrs.push(Number(x.snr));
+      avgSnr=snrs.length?snrs.reduce((a,b)=>a+b,0)/snrs.length:null;
+      minSnr=snrs.length?Math.min(...snrs):null;
+      maxSnr=snrs.length?Math.max(...snrs):null;
+    }
     const mqtt=nonRf;
     return {
-      observations,
-      forward:Number(e.forwardObservations || 0),
-      back:Number(e.returnObservations || 0),
+      observations,forward,back,
       rf, mqtt, nonRf, otherNonRf:0,
       mixed:rf>0&&nonRf>0,
       displayTransport:rf>0?'rf':'mqtt',
-      avgSnr:e.avgSnr, minSnr:e.minSnr, maxSnr:e.maxSnr,
+      avgSnr,minSnr,maxSnr,
       lastSeenMs:e.lastSeenMs, latestTraceId:e.latestTraceId, latestChannel:e.latestChannel
     };
   }
