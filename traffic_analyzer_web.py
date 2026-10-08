@@ -876,6 +876,26 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
     </div>
 
+    <div class="adminOnlySection">
+      <h3>Banco de tráfego <span class="adminOnlyBadge">Administrador</span></h3>
+      <div class="settingsGrid">
+        <div class="settingRow">
+          <label>Retenção do tráfego bruto:
+            <select id="archiveRetentionDays" data-admin-only>
+              <option value="0" selected>Nunca apagar (padrão)</option>
+              <option value="1">1 dia</option>
+              <option value="7">1 semana</option>
+              <option value="30">1 mês</option>
+            </select>
+          </label>
+          <div class="settingDesc">Define por quanto tempo pacotes e posições brutas ficam no traffic.db. Nós e enlaces já observados permanecem na memória histórica até o banco ser apagado/resetado.</div>
+        </div>
+        <div class="settingRow">
+          <div id="archiveRetentionStatus" class="settingDesc">Carregando estado do banco...</div>
+        </div>
+      </div>
+    </div>
+
     <div id="adminDefaultsSection" class="adminOnlySection">
       <h3>Apresentação padrão para visitantes <span class="adminOnlyBadge">Administrador</span></h3>
       <div class="settingsGrid">
@@ -1008,6 +1028,7 @@ const I18N_PAIRS=[
   ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
   ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
   ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
+  ['Banco de tráfego','Traffic database'],['Retenção do tráfego bruto:','Raw traffic retention:'],['Nunca apagar (padrão)','Never delete (default)'],['1 dia','1 day'],['1 semana','1 week'],['1 mês','1 month'],['Define por quanto tempo pacotes e posições brutas ficam no traffic.db. Nós e enlaces já observados permanecem na memória histórica até o banco ser apagado/resetado.','Defines how long raw packets and positions stay in traffic.db. Previously observed nodes and links remain in historical memory until the database is deleted/reset.'],['Carregando estado do banco...','Loading database status...'],['pacotes','packets'],['nós históricos','historical nodes'],['enlaces históricos','historical links'],['registro mais antigo','oldest record'],['tamanho do banco','database size'],
   ['Verificar novas versões a cada:','Check for new versions every:'],['minutos','minutes'],['Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.','Default: 15 minutes. The change is persisted on the server and applied immediately without restarting Traffic Analyzer.'],
   ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['verificando…','checking…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
