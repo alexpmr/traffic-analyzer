@@ -14,6 +14,7 @@
 - Consolida A↔B como um único hop físico e nunca transforma uma rota A→B→C em A↔C.
 - Exibe distância geodésica, nós/IDs, observações RF, SNR médio e última RF.
 - Respeita período de Estatísticas e filtro por nó.
+- Torna cada item do Top 10 clicável: o mapa isola temporariamente apenas os dois nós e o enlace selecionado, com enquadramento automático e controle para restaurar a visualização completa.
 - Atualiza testes automatizados, smoke test, README, ajuda e manual PDF.
 
 ## 1.47.1 - 2026-10-08
