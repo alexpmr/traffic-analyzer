@@ -202,7 +202,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.46.0
+      - name: Validar backlog v1.47.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -239,6 +239,14 @@ jobs:
           grep -Fq 'wheelDebounceTime:MAP_WHEEL_DEBOUNCE_MS' traffic_analyzer_web.py
           grep -Fq '<option value="all" selected>Todo</option>' traffic_analyzer_web.py
           grep -Fq "const raw=document.getElementById('statsPeriod')?.value||'all';" traffic_analyzer_web.py
+          grep -Fq 'CREATE TABLE IF NOT EXISTS topology_nodes' traffic_analyzer_web.py
+          grep -Fq 'CREATE TABLE IF NOT EXISTS topology_edge_events' traffic_analyzer_web.py
+          grep -Fq 'historyRetention"] = "until-database-reset"' traffic_analyzer_web.py
+          grep -Fq 'id="archiveRetentionDays"' traffic_analyzer_web.py
+          grep -Fq 'Nunca apagar (padrão)' traffic_analyzer_web.py
+          grep -Fq '/api/archive/settings' traffic_analyzer_web.py
+          grep -Fq 'TA_TOPOLOGY_HISTORY_QUEUE_DIR' traffic_analyzer.py
+          grep -Fq 'topology-history-queue' install.sh
           grep -Fq '/api/layers/elevation/tile/' traffic_analyzer_web.py
           grep -Fq '/api/layers/weather-alerts' traffic_analyzer_web.py
           grep -Fq '/api/layers/lightning' traffic_analyzer_web.py
@@ -261,6 +269,56 @@ jobs:
           assert ta._normalize_version_check_interval_minutes(1)==5
           assert ta._normalize_version_check_interval_minutes(30)==30
           assert ta._normalize_version_check_interval_minutes(9999)==1440
+          assert ta._normalize_archive_retention_days(None)==0
+          assert ta._normalize_archive_retention_days(0)==0
+          assert ta._normalize_archive_retention_days(1)==1
+          assert ta._normalize_archive_retention_days(7)==7
+          assert ta._normalize_archive_retention_days(30)==30
+          assert ta._normalize_archive_retention_days(14)==0
+          from pathlib import Path
+          import tempfile,time,json
+          with tempfile.TemporaryDirectory() as td:
+              td=Path(td)
+              ta.TRAFFIC_ARCHIVE_DB=td/"traffic.db"
+              ta.ARCHIVE_SETTINGS_FILE=td/"archive-settings.json"
+              ta.TOPOLOGY_HISTORY_QUEUE_DIR=td/"topology-history-queue"
+              ta.MM_SOURCE="test-source"
+              ta._archive_init()
+              now=int(time.time()*1000)
+              raw1={
+                  "sourceId":"test-source","generatedAtMs":now,
+                  "summary":{"nodesInApi":2},
+                  "nodes":[
+                      {"nodeNum":10,"nodeId":"!0000000a","name":"A","longName":"A","shortName":"A","state":"identified","latitude":-15.8,"longitude":-47.9,"lastHeard":now},
+                      {"nodeNum":20,"nodeId":"!00000014","name":"B","longName":"B","shortName":"B","state":"identified","latitude":-15.81,"longitude":-47.89,"lastHeard":now-1000},
+                  ],
+                  "edges":[{
+                      "id":"10:20","a":10,"b":20,"aId":"!0000000a","bId":"!00000014",
+                      "observations":1,"firstSeenMs":now-2000,"lastSeenMs":now-2000,
+                      "events":[{"timestampMs":now-2000,"leg":"forward","snr":5.0,"traceId":123,"transport":"rf"}],
+                      "latestTraceId":123,"latestPacketId":456,"latestChannel":0,
+                  }],
+                  "traces":[]
+              }
+              ta._topology_history_ingest(raw1)
+              raw2={"sourceId":"test-source","generatedAtMs":now+5000,"summary":{"nodesInApi":1},
+                    "nodes":[raw1["nodes"][0]],"edges":[],"traces":[]}
+              merged=ta._topology_history_merge(raw2)
+              assert {n["nodeNum"] for n in merged["nodes"]}>={10,20},merged
+              old_b=next(n for n in merged["nodes"] if n["nodeNum"]==20)
+              assert old_b["historical"] is True and old_b["latitude"]==-15.81,old_b
+              edge=next(e for e in merged["edges"] if e["id"]=="10:20")
+              assert edge["observations"]==1 and edge["historyPersistent"] is True,edge
+              with ta._archive_connect() as conn:
+                  conn.execute("INSERT INTO packets(archive_key,source_id,timestamp,archived_at) VALUES(?,?,?,?)",("old","test-source",now-3*86400000,now))
+                  conn.execute("INSERT INTO packets(archive_key,source_id,timestamp,archived_at) VALUES(?,?,?,?)",("new","test-source",now,now))
+              saved=ta._save_archive_settings({"retentionDays":1})
+              assert saved["retentionDays"]==1,saved
+              with ta._archive_connect() as conn:
+                  assert conn.execute("SELECT COUNT(*) FROM packets").fetchone()[0]==1
+                  assert conn.execute("SELECT COUNT(*) FROM topology_nodes").fetchone()[0]>=2
+                  assert conn.execute("SELECT COUNT(*) FROM topology_edge_events").fetchone()[0]>=1
+              assert ta._save_archive_settings({"retentionDays":0})["retentionDays"]==0
           prefs=ta._sanitize_ui_defaults({
               "weatherRadarEnabled": True,
               "rfCoverageEnabled": True,
