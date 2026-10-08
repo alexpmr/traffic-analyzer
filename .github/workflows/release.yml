@@ -177,7 +177,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.47.1
+      - name: Validar backlog v1.48.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -219,6 +219,14 @@ jobs:
           grep -Fq 'historyRetention"] = "until-database-reset"' traffic_analyzer_web.py
           grep -Fq 'id="archiveRetentionDays"' traffic_analyzer_web.py
           grep -Fq 'function nodeHasValidMapPosition' traffic_analyzer_web.py
+          grep -Fq 'function normalizeObservedTimestampMs' traffic_analyzer_web.py
+          grep -Fq 'n?.lastSeenMs' traffic_analyzer_web.py
+          grep -Fq 'id="statsRfLongestRows"' traffic_analyzer_web.py
+          grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
+          grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
+          grep -Fq 'def _automatic_update_watch_worker' traffic_analyzer_web.py
+          grep -Fq 'Automatic stable-version updates: always enabled' traffic_analyzer_web.py
+          grep -Fq "const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeen';" traffic_analyzer_web.py
           grep -Fq 'Nunca apagar (padrão)' traffic_analyzer_web.py
           grep -Fq '/api/archive/settings' traffic_analyzer_web.py
           grep -Fq 'TA_TOPOLOGY_HISTORY_QUEUE_DIR' traffic_analyzer.py
@@ -243,6 +251,14 @@ jobs:
           assert ta._normalize_version_check_interval_minutes(1)==5
           assert ta._normalize_version_check_interval_minutes(30)==30
           assert ta._normalize_version_check_interval_minutes(9999)==1440
+          from pathlib import Path
+          import tempfile,time,json
+          with tempfile.TemporaryDirectory() as ud:
+              ud=Path(ud)
+              ta.UPDATE_SETTINGS_FILE=ud/"update-settings.json"
+              ta._write_json_file(ta.UPDATE_SETTINGS_FILE,{"enabled":False,"rollbackEnabled":True,"checkIntervalMinutes":30})
+              assert ta._update_settings()["enabled"] is True
+              assert ta._save_update_settings({"enabled":False,"rollbackEnabled":False,"checkIntervalMinutes":30})["enabled"] is True
           assert ta._normalize_archive_retention_days(None)==0
           assert ta._normalize_archive_retention_days(0)==0
           assert ta._normalize_archive_retention_days(1)==1
@@ -293,6 +309,27 @@ jobs:
                   assert conn.execute("SELECT COUNT(*) FROM topology_nodes").fetchone()[0]>=2
                   assert conn.execute("SELECT COUNT(*) FROM topology_edge_events").fetchone()[0]>=1
               assert ta._save_archive_settings({"retentionDays":0})["retentionDays"]==0
+              # Top 10 usa somente hops RF diretos: A-C sem SNR não pode entrar.
+              raw_long={
+                  "sourceId":"test-source","generatedAtMs":now,
+                  "summary":{"nodesInApi":3},
+                  "nodes":[
+                      {"nodeNum":10,"nodeId":"!0000000a","name":"A","state":"identified","latitude":-15.80,"longitude":-47.90,"lastHeard":now},
+                      {"nodeNum":20,"nodeId":"!00000014","name":"B","state":"identified","latitude":-15.81,"longitude":-47.89,"lastHeard":now},
+                      {"nodeNum":30,"nodeId":"!0000001e","name":"C","state":"identified","latitude":-16.80,"longitude":-48.90,"lastHeard":now},
+                  ],
+                  "edges":[
+                      {"id":"20:30","a":20,"b":30,"events":[{"timestampMs":now-500,"leg":"forward","snr":4.0,"traceId":200,"transport":"rf"}]},
+                      {"id":"10:30","a":10,"b":30,"events":[{"timestampMs":now-400,"leg":"forward","snr":None,"traceId":201,"transport":"mqtt"}]},
+                  ],"traces":[]
+              }
+              ta._topology_history_ingest(raw_long)
+              longest=ta._archive_rf_longest_links_query({})
+              ids=[x["edgeId"] for x in longest["data"]]
+              assert "20:30" in ids,longest
+              assert "10:30" not in ids,longest
+              assert all(x["rfObservations"]>=1 and x["avgSnr"] is not None for x in longest["data"]),longest
+              assert longest["data"]==sorted(longest["data"],key=lambda x:(-x["distanceKm"],-x["rfObservations"],-x["lastRfSeenMs"]))
           prefs=ta._sanitize_ui_defaults({
               "weatherRadarEnabled": True,
               "rfCoverageEnabled": True,
@@ -394,6 +431,18 @@ jobs:
               assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device')")==90000
               assert d.execute_script("return nodeQueryTimeoutMs('position')")==20000
               assert d.execute_script("return nodeQueryTimeoutMs('telemetry_device',{diagnostic:{backend:'virtual-node'}})")==30000
+              age_colors=d.execute_script("""
+                nodeTrafficLastSeen.clear();
+                const now=Date.now();
+                return [
+                  nodeTrafficAge({nodeNum:901,lastHeard:Math.floor((now-30*60*1000)/1000)}).color,
+                  nodeTrafficAge({nodeNum:902,lastHeard:now-8*3600*1000}).color,
+                  nodeTrafficAge({nodeNum:903,lastSeenMs:now-3*86400*1000}).color,
+                  nodeTrafficAge({nodeNum:904,lastHeard:(now+86400*1000)*1000}).color
+                ];
+              """)
+              assert age_colors==["#2ecc71","#f39c12","#e74c3c","#7f8c8d"],age_colors
+              assert len(d.find_elements(By.ID,"statsRfLongestRows"))==1
               correlated=d.execute_script("""
                 const now=Date.now();
                 const state={sentAt:now-5000,diagnostic:{backend:'virtual-node',packetId:123,correlationPacketId:123}};
