@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.47.1"
+VERSION="1.48.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -158,7 +158,7 @@ for f in "$STATE_DIR/traffic.db" "$STATE_DIR/traffic.db-wal" "$STATE_DIR/traffic
 done
 
 if [[ ! -f "$UPDATE_SETTINGS_FILE" ]]; then
-  printf '%s\n' '{"enabled": false, "rollbackEnabled": true}' > "$UPDATE_SETTINGS_FILE"
+  printf '%s\n' '{"enabled": true, "rollbackEnabled": true, "checkIntervalMinutes": 15}' > "$UPDATE_SETTINGS_FILE"
 fi
 if [[ ! -f "$UPDATE_STATUS_FILE" ]]; then
   printf '%s\n' '{"state": "idle"}' > "$UPDATE_STATUS_FILE"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.47.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.48.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.47.1"
+APP_VERSION = "1.48.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -124,6 +124,7 @@ NOTICE_POLL_SECONDS = max(300, min(int(os.getenv("TA_NOTICE_POLL_SECONDS", "600"
 MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20")).strip()
 _notice_stop = threading.Event()
 _notice_wakeup = threading.Event()
+_update_watch_stop = threading.Event()
 _notice_lock = threading.Lock()
 ELEVATION_TILE_BASE_URL = str(os.getenv("TA_ELEVATION_TILE_BASE_URL", "https://s3.amazonaws.com/elevation-tiles-prod/terrarium")).strip().rstrip("/")
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
@@ -729,7 +730,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     </div>
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
-    <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
+    <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.</div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -936,8 +937,8 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <h3>Atualizações <span class="adminOnlyBadge">Administrador</span></h3>
     <div class="settingsGrid">
       <div class="settingRow">
-        <label><input id="autoUpdateEnabled" type="checkbox" data-admin-only> Atualizar automaticamente ao detectar nova versão estável</label>
-        <div class="settingDesc">A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.</div>
+        <label><input id="autoUpdateEnabled" type="checkbox" checked disabled> Atualização automática de versões estáveis: sempre ativa</label>
+        <div class="settingDesc">Ao detectar uma Latest Release estável mais nova, o Traffic Analyzer cria automaticamente a solicitação. Um serviço systemd dedicado executa o update como root, preservando health check e rollback.</div>
       </div>
       <div class="settingRow">
         <label><input id="rollbackEnabled" type="checkbox" checked data-admin-only> Rollback automático se a nova versão não ficar saudável</label>
@@ -1049,7 +1050,7 @@ const I18N_PAIRS=[
   ['Severidade:','Severity:'],['Todas','All'],['Sistema','System'],['Monoespaçada','Monospace'],['Fonte:','Font:'],['Negrito','Bold'],['Itálico','Italic'],['Sublinhado','Underline'],
   ['Altura da linha:','Line height:'],['Espaço entre mensagens:','Space between messages:'],['Formatação somente visual. Nenhum marcador de estilo é enviado pela malha.','Visual formatting only. No style marker is transmitted over the mesh.'],
   ['Espessura das linhas:','Line thickness:'],['Ajusta apenas a visualização dos enlaces; não altera a topologia nem os cálculos.','Only changes link rendering; it does not change topology or calculations.'],['Restaurar padrão','Restore default'],
-  ['Atualizações','Updates'],['Atualizar automaticamente ao detectar nova versão estável','Automatically update when a new stable version is detected'],['A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.','The application only creates a request. A dedicated systemd service performs the update as root without granting generic privileges to the web process.'],
+  ['Atualizações','Updates'],['Atualização automática de versões estáveis: sempre ativa','Automatic stable-version updates: always enabled'],['Ao detectar uma Latest Release estável mais nova, o Traffic Analyzer cria automaticamente a solicitação. Um serviço systemd dedicado executa o update como root, preservando health check e rollback.','When a newer stable Latest Release is detected, Traffic Analyzer automatically creates the update request. A dedicated systemd service performs the update as root while preserving health checks and rollback.'],
   ['Rollback automático se a nova versão não ficar saudável','Automatic rollback if the new version does not become healthy'],['Em caso de falha, restaura a aplicação e os units do systemd preservados antes da atualização.','On failure, restores the application and systemd units saved before the update.'],['Atualizar agora','Update now'],['Instala somente a Latest Release estável publicada no repositório oficial.','Installs only the stable Latest Release published in the official repository.'],['Carregando status de atualização...','Loading update status...'],
   ['Traffic Analyzer atualizado','Traffic Analyzer updated'],['Versão anterior:','Previous version:'],['Versão atual:','Current version:'],['Última atualização:','Last update:'],['Destino','Target'],
   ['Pendente','Pending'],['Atualizando','Updating'],['Concluída','Completed'],['Falhou','Failed'],['Rollback executado','Rollback completed'],['Nunca','Never'],['Status:','Status:'],
@@ -1084,6 +1085,7 @@ const I18N_PAIRS=[
   ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
+  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.','Only direct RF hops with valid SNR and known positions at both endpoints. Routes with intermediate nodes are not treated as end-to-end links.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],
   ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
   ['Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.','Solid line only when the hop has physical RF evidence, currently a valid SNR. Mixed RF and MQTT/non-RF observations remain solid and the popup shows the composition.'],
   ['Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.','Dashed line when there is no physical RF evidence for the hop. Without a valid SNR, the observation is treated as MQTT/non-RF even if the traceroute record reached MeshMonitor over RF.'],
@@ -1219,13 +1221,13 @@ function renderHelp(){
       <h4>Reply</h4><p>Use <b>Reply</b> or double-click a message. Traffic Analyzer uses the native Meshtastic/MeshMonitor <code>replyId</code> and shows a reference to the original message in the reply bubble.</p>
       <h4>Emoji and reactions</h4><p>The emoji button inserts emoji into normal message text. On received messages, <b>React</b> offers larger 👍 👎 ❤️ 😂 😮 😢 controls. Traffic Analyzer first attempts the native Meshtastic tapback (<code>emoji=1</code> + <code>replyId</code>). If MeshMonitor denies only that endpoint with HTTP 403, it automatically sends an emoji reply with <code>replyId</code> as a compatibility fallback.</p><h4>Scrolling</h4><p>When you scroll up to read older messages, automatic refresh preserves your position. New messages do not pull the view to the bottom; a <b>↓ New messages</b> button appears. Clicking it - or manually returning to the bottom - restores auto-scroll. <b>Load older</b> also preserves the reading position.</p>
       <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The <code>@</code> character is only the autocomplete trigger; selecting a result inserts the full node name without <code>@</code>.</p>
-      <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
+      <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p><p>Under <b>Statistics → RF</b>, the <b>10 longest direct RF links</b> ranking uses only confirmed RF hops with valid SNR and known positions at both endpoints. A route A→B→C contributes A↔B and B↔C only; it never invents A↔C.</p>
       <h3>6. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
       <h3>7. Access</h3><p>The Access tab is restricted to the administrator when authentication is enabled. It summarizes page views by day, countries, cities, unique IP addresses, browsers, operating systems, and login success/failure counts. Raw access events are also written as JSON Lines to <code>access.log</code> next to <code>traffic.db</code>. Public IP geolocation is not sent to any external service by default: country/city come from trusted reverse-proxy/CDN headers, local/private addresses, or an explicitly configured server-side GeoIP endpoint.</p>
       <h3>8. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, Auto Zoom, and independent color/thickness for confirmed RF versus MQTT/non-RF links.</div><div class="helpMini"><b>Traffic database</b>The administrator can retain raw packets/positions for 1 day, 1 week, 1 month, or never delete them. The default is Never delete. This cleanup never removes the permanent node/link memory.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
       <h3>9. Authentication and Internet exposure</h3><p>When authentication is enabled, visitors may freely change visual and reading preferences in Settings; these changes stay only in that browser. Administrative actions remain locked: sending/replying/reacting to messages, forcing topology refresh, changing update settings, triggering updates, and changing the server-side visitor default all require an authenticated administrator session.</p><p>The administrator can save the current visual setup as the global default for new visitors. A visitor can still override it locally and can use <b>Restore administrator default</b> at any time. Every server write API remains protected by an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
       <h3>10. Language</h3><p>Use the pull-down language menu at the top of the application. Portuguese is the default. Flags are rendered as embedded SVG, so they do not depend on Windows or browser emoji support. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
-      <h3>11. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Automatic checks run every 15 minutes by default; an administrator can change the interval from 5 to 1,440 minutes under Settings → Updates and the new value takes effect immediately without a restart. When a newer stable version exists, the badge shows DOWNLOAD and clicking it downloads that Release's versioned ZIP. When the installer is run, it stops the previous web instance and scheduled cycle before replacing files, then starts the services again. Automatic installation can still be enabled through the dedicated systemd updater with backup, health check and rollback.</p>
+      <h3>11. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Automatic checks run every 15 minutes by default; an administrator can change the interval from 5 to 1,440 minutes under Settings → Updates. Starting with v1.48.0, every newer stable official Release is installed automatically by the dedicated systemd updater, even when no browser or administrator session is active. Backup, health check, lock and rollback remain enabled. After a successful update, each browser/profile sees the release-notes popup once for that installed version.</p>
       <div class="helpCode i18nNoTranslate">cat /opt/traffic-analyzer/VERSION</div>
       <p>After an update that changes JavaScript or CSS, use <b>Ctrl+F5</b> if the browser is still showing cached interface files.</p>
       <h3>12. Interpretation limits</h3><div class="helpCallout helpWarn">Traffic Analyzer describes observed data. RF meshes are dynamic: absence of traffic does not by itself prove an outage; a traceroute is evidence of a route observed at a point in time; a relay byte does not always identify a complete path.</div>`;
@@ -1241,13 +1243,13 @@ function renderHelp(){
       <h4>Responder</h4><p>Use <b>Responder</b> ou dê duplo clique em uma mensagem. O Traffic Analyzer usa o <code>replyId</code> nativo do Meshtastic/MeshMonitor e mostra no novo balão uma referência à mensagem original.</p>
       <h4>Emojis e reações</h4><p>O botão de emoji insere emojis normalmente no texto. Em mensagens recebidas, <b>Reagir</b> oferece 👍 👎 ❤️ 😂 😮 😢 em tamanho ampliado. O Traffic Analyzer tenta primeiro o tapback Meshtastic nativo (<code>emoji=1</code> + <code>replyId</code>). Se o MeshMonitor negar somente esse endpoint com HTTP 403, usa automaticamente uma resposta emoji compatível com <code>replyId</code>, sem perder a ação.</p><h4>Rolagem</h4><p>Ao subir para ler mensagens antigas, as consultas automáticas preservam a posição. Mensagens novas não puxam a tela para o fim; aparece o botão <b>↓ Novas mensagens</b>. Ao clicar nele - ou ao rolar manualmente até o final - o auto-scroll é reativado. <b>Carregar anteriores</b> também preserva o ponto de leitura.</p>
       <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O <code>@</code> funciona somente como gatilho da busca; ao selecionar, o campo recebe o nome completo do nó sem o caractere <code>@</code>.</p>
-      <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
+      <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p><p>Em <b>Estatísticas → RF</b>, o ranking <b>10 enlaces RF diretos mais longos</b> usa somente hops RF confirmados com SNR válido e posição conhecida nos dois extremos. Uma rota A→B→C contribui apenas com A↔B e B↔C; o sistema nunca inventa A↔C.</p>
       <h3>6. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
       <h3>7. Acessos</h3><p>A aba Acessos fica restrita ao administrador quando a autenticação estiver ativada. Ela resume acessos por dia, países, cidades, IPs únicos, navegadores, sistemas operacionais e sucessos/falhas de login. Os eventos brutos também são gravados em formato JSON Lines no arquivo <code>access.log</code>, ao lado do <code>traffic.db</code>. Por padrão, IPs públicos não são enviados a nenhum serviço externo de geolocalização: país/cidade vêm de cabeçalhos confiáveis do proxy/CDN, de endereços locais/privados ou de um endpoint GeoIP configurado explicitamente no servidor.</p>
       <h3>8. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor, Auto Zoom e cor/espessura independentes para enlaces RF confirmados e MQTT/não-RF.</div><div class="helpMini"><b>Banco de tráfego</b>O administrador pode reter pacotes/posições brutas por 1 dia, 1 semana, 1 mês ou Nunca apagar. O padrão é Nunca apagar. Essa limpeza nunca remove a memória permanente de nós/enlaces.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
       <h3>9. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, visitantes podem alterar livremente preferências visuais e de leitura em Configurações; essas alterações ficam somente naquele navegador. Ações administrativas continuam bloqueadas: enviar/responder/reagir a mensagens, forçar atualização da topologia, alterar o auto-update, disparar atualização e mudar o padrão global dos visitantes exigem sessão administrativa autenticada.</p><p>O administrador pode salvar a configuração visual atual como padrão global para novos visitantes. Cada visitante ainda pode sobrescrevê-la localmente e usar <b>Restaurar padrão do administrador</b> quando quiser. Todas as APIs de escrita no servidor permanecem protegidas por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
       <h3>10. Idioma</h3><p>Use o menu pull-down de idioma no topo. Português é o padrão. As bandeiras são desenhadas por SVG embutido, sem depender do suporte de emojis do Windows ou do navegador. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
-      <h3>11. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. A verificação automática ocorre a cada 15 minutos por padrão; o administrador pode definir de 5 a 1.440 minutos em Configurações → Atualizações e o novo intervalo entra em vigor imediatamente, sem reinício. Quando existir uma versão estável mais nova, o indicador mostra BAIXAR e um clique inicia o download do ZIP versionado daquela Release. Ao executar o instalador, a instância web e o ciclo agendado anteriores são parados antes da substituição dos arquivos e os serviços são iniciados novamente ao final. A instalação automática continua disponível pelo serviço systemd dedicado, com backup, verificação de /health e rollback.</p>
+      <h3>11. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. A verificação automática ocorre a cada 15 minutos por padrão; o administrador pode definir de 5 a 1.440 minutos em Configurações → Atualizações. A partir da v1.48.0, toda nova Release estável oficial é instalada automaticamente pelo atualizador systemd dedicado, mesmo sem navegador aberto ou sessão administrativa. Backup, health check, lock e rollback permanecem ativos. Após uma atualização bem-sucedida, cada navegador/perfil exibe uma única vez o popup com as novidades da versão instalada.</p>
       <div class="helpCode i18nNoTranslate">sudo traffic-analyzer-update
 cat /opt/traffic-analyzer/VERSION</div>
       <p>Depois de uma atualização que altere JavaScript ou CSS, use <b>Ctrl+F5</b> caso o navegador ainda esteja exibindo arquivos antigos em cache.</p>
@@ -1991,10 +1993,18 @@ function telemetryDisplay(type,value,unit=''){
   return `${value}${u?` ${u}`:''}`;
 }
 
+function normalizeObservedTimestampMs(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)||n<=0)return 0;
+  const ms=n<100000000000?n*1000:n;
+  if(ms>Date.now()+5*60*1000)return 0;
+  return ms;
+}
 function nodeLastTrafficMs(n){
-  const archived=Number(nodeTrafficLastSeen.get(Number(n.nodeNum))||0);
-  const heard=Number(n.lastHeard||0)>0 ? Number(n.lastHeard)*1000 : 0;
-  return Math.max(Number.isFinite(archived)?archived:0, Number.isFinite(heard)?heard:0);
+  const archived=normalizeObservedTimestampMs(nodeTrafficLastSeen.get(Number(n.nodeNum)));
+  const heard=normalizeObservedTimestampMs(n?.lastHeard);
+  const historical=normalizeObservedTimestampMs(n?.lastSeenMs);
+  return Math.max(archived,heard,historical);
 }
 function humanAge(ms){
   if(!ms) return 'sem registro';
@@ -4513,7 +4523,7 @@ function statsPopulateNodeFilter(){
 }
 function renderStatistics(){
   const p=statisticsPayload;if(!p)return;
-  const s=p.stats||{}, nodes=p.nodes||[], links=p.links||[], packets=p.packets||[];
+  const s=p.stats||{}, nodes=p.nodes||[], links=p.links||[], packets=p.packets||[], longestRf=p.longestRfLinks||[];
   const totalKnown=(topology?.nodes||[]).length, activeNodes=nodes.length;
   const snr=packets.map(x=>x.snr), rssi=packets.map(x=>x.rssi);
   const avgSnr=statsAvg(snr), avgRssi=statsAvg(rssi);
@@ -4551,6 +4561,9 @@ function renderStatistics(){
     healthCard(avgRssi==null?'—':fmtNum(avgRssi,0)+' dBm','RSSI médio'),
     healthCard(fmtNum(links.filter(x=>Number(x.packets||0)>=10).length),'Enlaces recorrentes','10+ pacotes')
   ].join('');
+  document.getElementById('statsRfLongestRows').innerHTML=longestRf.slice(0,10).map((x,i)=>
+    '<tr><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td>'+fmtNum(x.rfObservations)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>'
+  ).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
   document.getElementById('statsRfRows').innerHTML=links.slice(0,40).map(x=>
     '<tr><td><b>'+esc(statsNodeName(x.fromNode,x.fromNodeId))+'</b></td><td>'+esc(statsNodeName(x.toNode,x.toNodeId))+'</td><td>'+fmtNum(x.packets)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.avgRssi==null?'—':fmtNum(x.avgRssi,0)+' dBm')+'</td><td>'+(x.lastSeen?esc(humanAge(Number(x.lastSeen))):'—')+'</td></tr>'
   ).join('')||'<tr><td colspan="6" class="emptyPanel">Sem enlaces no período.</td></tr>';
@@ -4613,11 +4626,12 @@ async function loadStatistics(force=false){
       fetch('/api/archive/stats?x=1'+q,{cache:'no-store'}),
       fetch('/api/archive/nodes?x=1'+q,{cache:'no-store'}),
       fetch('/api/archive/links?x=1'+q,{cache:'no-store'}),
-      fetch('/api/archive/packets?limit=5000'+q,{cache:'no-store'})
+      fetch('/api/archive/packets?limit=5000'+q,{cache:'no-store'}),
+      fetch('/api/archive/rf-longest-links?x=1'+q,{cache:'no-store'})
     ]);
     for(const r of rs) if(!r.ok) throw new Error('HTTP '+r.status);
     const body=await Promise.all(rs.map(r=>r.json()));
-    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[]};
+    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[],longestRfLinks:body[4].data||[]};
     statisticsLoadedAt=Date.now();renderStatistics();
     document.getElementById('statsUpdated').textContent='atualizado '+new Date().toLocaleTimeString(uiLocale());
   }catch(e){
@@ -5304,6 +5318,7 @@ document.getElementById('archiveRetentionDays').addEventListener('change',async(
   catch(e){alert(tr('Erro')+': '+e);await loadArchiveRetentionSettings();}
 });
 
+const PAGE_VERSION='__APP_VERSION__';
 let versionCheckTimer=null;
 let versionCheckIntervalMinutes=15;
 function normalizeVersionCheckInterval(value){
@@ -5327,12 +5342,16 @@ function renderUpdateStatus(data){
   updateRuntimeData=data||{};
   const box=document.getElementById('updateStatusBox');if(!box)return;
   const settings=data?.settings||{};
-  document.getElementById('autoUpdateEnabled').checked=Boolean(settings.enabled);
+  document.getElementById('autoUpdateEnabled').checked=true;
   document.getElementById('rollbackEnabled').checked=settings.rollbackEnabled!==false;
   const interval=normalizeVersionCheckInterval(settings.checkIntervalMinutes);
   const intervalInput=document.getElementById('versionCheckInterval');if(intervalInput)intervalInput.value=String(interval);
   scheduleVersionChecks(interval);
   const state=String(data?.state||'idle');
+  const runtimeVersion=String(data?.localVersion||PAGE_VERSION);
+  if(runtimeVersion!==PAGE_VERSION && ['success','no_change','idle'].includes(state)){
+    setTimeout(()=>window.location.reload(),800);
+  }
   const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
   const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
   const completed=data?.completedAtMs?new Date(Number(data.completedAtMs)).toLocaleString(uiLocale()):tr('Nunca');
@@ -5350,7 +5369,7 @@ async function loadUpdateStatus(){
 }
 async function saveUpdateSettings(){
   if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
-  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked,checkIntervalMinutes:normalizeVersionCheckInterval(document.getElementById('versionCheckInterval').value)};
+  const payload={enabled:true,rollbackEnabled:document.getElementById('rollbackEnabled').checked,checkIntervalMinutes:normalizeVersionCheckInterval(document.getElementById('versionCheckInterval').value)};
   const r=await authFetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
 }
@@ -5364,12 +5383,11 @@ async function triggerUpdateNow(){
   }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
   finally{setTimeout(()=>{btn.disabled=false;btn.textContent=tr('Atualizar agora');},2200);}
 }
-document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('versionCheckInterval').addEventListener('change',async()=>{const el=document.getElementById('versionCheckInterval');el.value=String(normalizeVersionCheckInterval(el.value));try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1440';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeen';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
@@ -8149,6 +8167,99 @@ def _archive_links_query(query):
     return {"success": True, "count": len(rows), "data": [dict(r) for r in rows]}
 
 
+def _archive_rf_longest_links_query(query):
+    clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL"]
+    params = [MM_SOURCE]
+    raw_since = (query.get("since") or [None])[0]
+    raw_until = (query.get("until") or [None])[0]
+    if raw_since not in (None, ""):
+        clauses.append("e.timestamp_ms >= ?")
+        params.append(int(raw_since))
+    if raw_until not in (None, ""):
+        clauses.append("e.timestamp_ms <= ?")
+        params.append(int(raw_until))
+
+    node_filter = (query.get("node") or [None])[0]
+    node_nums = None
+    with _archive_connect() as conn:
+        if node_filter not in (None, ""):
+            try:
+                node_nums = [int(str(node_filter), 0) & 0xffffffff]
+            except ValueError:
+                matches = []
+                for row in conn.execute(
+                    "SELECT node_num,node_json FROM topology_nodes WHERE source_id=?",
+                    (MM_SOURCE,),
+                ).fetchall():
+                    try:
+                        node = json.loads(row["node_json"] or "{}")
+                    except Exception:
+                        node = {}
+                    needle = str(node_filter).strip().lower()
+                    hay = " ".join(str(node.get(k) or "") for k in ("nodeId","name","longName","shortName")).lower()
+                    if needle and needle in hay:
+                        matches.append(int(row["node_num"]))
+                node_nums = matches
+            if not node_nums:
+                return {"success": True, "count": 0, "data": []}
+            placeholders = ",".join("?" for _ in node_nums)
+            clauses.append(f"(e.a IN ({placeholders}) OR e.b IN ({placeholders}))")
+            params.extend(node_nums)
+            params.extend(node_nums)
+
+        rows = conn.execute(
+            f"""SELECT e.edge_id,e.a,e.b,
+                       SUM(e.observation_count) AS rfObservations,
+                       SUM(e.snr*e.observation_count)/NULLIF(SUM(e.observation_count),0) AS avgSnr,
+                       MAX(e.timestamp_ms) AS lastRfSeenMs
+                FROM topology_edge_events e
+                WHERE {' AND '.join(clauses)}
+                GROUP BY e.edge_id,e.a,e.b""",
+            params,
+        ).fetchall()
+
+        node_rows = conn.execute(
+            "SELECT node_num,node_json FROM topology_nodes WHERE source_id=?",
+            (MM_SOURCE,),
+        ).fetchall()
+
+    node_map = {}
+    for row in node_rows:
+        try:
+            node = json.loads(row["node_json"] or "{}")
+        except Exception:
+            node = {}
+        node["nodeNum"] = int(row["node_num"])
+        node_map[int(row["node_num"])] = node
+
+    data = []
+    for row in rows:
+        a = int(row["a"]); b = int(row["b"])
+        na = node_map.get(a, {}); nb = node_map.get(b, {})
+        if not (_history_valid_position(na.get("latitude"), na.get("longitude")) and
+                _history_valid_position(nb.get("latitude"), nb.get("longitude"))):
+            continue
+        distance_km = _haversine_m(
+            float(na["latitude"]), float(na["longitude"]),
+            float(nb["latitude"]), float(nb["longitude"]),
+        ) / 1000.0
+        data.append({
+            "edgeId": str(row["edge_id"]),
+            "a": a,
+            "b": b,
+            "aId": na.get("nodeId") or _history_node_id(a),
+            "bId": nb.get("nodeId") or _history_node_id(b),
+            "aName": na.get("name") or na.get("longName") or na.get("shortName") or na.get("nodeId") or _history_node_id(a),
+            "bName": nb.get("name") or nb.get("longName") or nb.get("shortName") or nb.get("nodeId") or _history_node_id(b),
+            "distanceKm": round(distance_km, 3),
+            "rfObservations": int(row["rfObservations"] or 0),
+            "avgSnr": round(float(row["avgSnr"]), 2) if row["avgSnr"] is not None else None,
+            "lastRfSeenMs": int(row["lastRfSeenMs"] or 0),
+        })
+    data.sort(key=lambda x: (-float(x["distanceKm"]), -int(x["rfObservations"]), -int(x["lastRfSeenMs"])))
+    return {"success": True, "count": min(10, len(data)), "data": data[:10]}
+
+
 def _archive_export(query, fmt="jsonl"):
     export_query = dict(query)
     export_query["limit"] = [str(max(1, min(int((query.get("limit") or ["100000"])[0]), 100000)))]
@@ -8761,12 +8872,13 @@ def _normalize_version_check_interval_minutes(value):
 
 def _update_settings():
     raw = _read_json_file(UPDATE_SETTINGS_FILE, {
-        "enabled": False,
+        "enabled": True,
         "rollbackEnabled": True,
         "checkIntervalMinutes": VERSION_CHECK_DEFAULT_MINUTES,
     })
     return {
-        "enabled": bool(raw.get("enabled", False)),
+        # A partir da v1.48.0, updates estáveis oficiais são sempre automáticos.
+        "enabled": True,
         "rollbackEnabled": bool(raw.get("rollbackEnabled", True)),
         "checkIntervalMinutes": _normalize_version_check_interval_minutes(raw.get("checkIntervalMinutes")),
     }
@@ -8775,7 +8887,7 @@ def _update_settings():
 def _save_update_settings(payload: dict):
     current = _update_settings()
     data = {
-        "enabled": bool(payload.get("enabled", False)),
+        "enabled": True,
         "rollbackEnabled": bool(payload.get("rollbackEnabled", True)),
         "checkIntervalMinutes": _normalize_version_check_interval_minutes(payload.get("checkIntervalMinutes", current["checkIntervalMinutes"])),
         "updatedAtMs": int(time.time() * 1000),
@@ -8855,7 +8967,7 @@ def _request_update(version_data=None, reason: str = "manual"):
 
 def _maybe_request_auto_update(version_data: dict):
     settings = _update_settings()
-    if not settings.get("enabled") or not version_data.get("updateAvailable") or not version_data.get("stable", True):
+    if not version_data.get("updateAvailable") or not version_data.get("stable", True):
         return
     target = str(version_data.get("latestVersion") or "")
     status = _read_json_file(UPDATE_STATUS_FILE, {})
@@ -8878,6 +8990,22 @@ def _maybe_request_auto_update(version_data: dict):
             "requestedBy": "automatic",
             "message": str(exc),
         })
+
+
+def _automatic_update_watch_worker():
+    """Detecta releases estáveis em background, sem depender de navegador/login."""
+    if _update_watch_stop.wait(15):
+        return
+    while not _update_watch_stop.is_set():
+        try:
+            version_data = _version_status(force=False)
+            _maybe_request_auto_update(version_data)
+        except Exception as exc:
+            print(f"Monitor de atualização automática: {exc}", flush=True)
+        minutes = _update_settings().get("checkIntervalMinutes", VERSION_CHECK_DEFAULT_MINUTES)
+        wait_seconds = max(60, _normalize_version_check_interval_minutes(minutes) * 60)
+        if _update_watch_stop.wait(wait_seconds):
+            break
 
 
 def _version_tuple(value: str):
@@ -9093,8 +9221,7 @@ class Handler(BaseHTTPRequestHandler):
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
                 force = (query.get("force") or ["0"])[0] in {"1", "true", "yes"}
                 body = _version_status(force=force)
-                if not AUTH_ENABLED or _auth_session(self):
-                    _maybe_request_auto_update(body)
+                _maybe_request_auto_update(body)
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "status": "unavailable", "localVersion": APP_VERSION, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
@@ -9285,6 +9412,10 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if path == "/api/archive/links":
                     body = _archive_links_query(query)
+                    self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+                    return
+                if path == "/api/archive/rf-longest-links":
+                    body = _archive_rf_longest_links_query(query)
                     self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
                     return
                 if path == "/api/archive/export":
@@ -9510,6 +9641,8 @@ def main():
     archive_thread.start()
     notice_thread = threading.Thread(target=_automatic_notice_worker, name="automatic-notices", daemon=True)
     notice_thread.start()
+    update_thread = threading.Thread(target=_automatic_update_watch_worker, name="automatic-update-watch", daemon=True)
+    update_thread.start()
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
     print(f"Traffic Analyzer v{APP_VERSION} ouvindo em http://{BIND}:{PORT}/", flush=True)
     print(f"Topologia: {TOPOLOGY_FILE}", flush=True)
@@ -9523,6 +9656,7 @@ def main():
         _archive_stop.set()
         _notice_stop.set()
         _notice_wakeup.set()
+        _update_watch_stop.set()
         httpd.server_close()
 
 
