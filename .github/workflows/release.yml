@@ -536,6 +536,12 @@ jobs:
               assert d.find_element(By.ID,"mqttLineColor").get_attribute("disabled") is None
               assert d.find_element(By.ID,"mqttLineWidth").get_attribute("disabled") is None
               assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is not None
+              assert d.find_element(By.ID,"archiveRetentionDays").get_attribute("disabled") is not None
+              assert d.find_element(By.ID,"archiveRetentionDays").get_attribute("value")=="0"
+              archive_public=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/archive/settings',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
+              """)
+              assert archive_public.get("success") and archive_public.get("settings",{}).get("retentionDays")==0,archive_public
               assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is not None
               d.execute_script("arguments[0].value='light';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"uiTheme"))
               assert d.execute_script("return document.body.dataset.theme==='light'")
@@ -586,6 +592,19 @@ jobs:
               assert access_stats.get("summary",{}).get("today",0)>=1,access_stats
               assert d.find_element(By.ID,"uiTheme").get_attribute("disabled") is None
               assert d.find_element(By.ID,"autoUpdateEnabled").get_attribute("disabled") is None
+              assert d.find_element(By.ID,"archiveRetentionDays").get_attribute("disabled") is None
+              d.execute_script("arguments[0].value='7';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"archiveRetentionDays"))
+              time.sleep(.4)
+              archive_saved=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/archive/settings',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
+              """)
+              assert archive_saved.get("success") and archive_saved.get("settings",{}).get("retentionDays")==7,archive_saved
+              d.execute_script("arguments[0].value='0';arguments[0].dispatchEvent(new Event('change',{bubbles:true}))",d.find_element(By.ID,"archiveRetentionDays"))
+              time.sleep(.4)
+              archive_reset=d.execute_async_script("""
+                const done=arguments[0];fetch('/api/archive/settings',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
+              """)
+              assert archive_reset.get("settings",{}).get("retentionDays")==0,archive_reset
               assert d.find_element(By.ID,"saveVisitorDefaults").get_attribute("disabled") is None
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"saveVisitorDefaults"))
               time.sleep(.4)
