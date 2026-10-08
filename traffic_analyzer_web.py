@@ -2000,14 +2000,16 @@ function cutoffForSelection(){
 
 function edgeStatsForWindow(e, cutoff){
   const events = Array.isArray(e.events) ? e.events : null;
-  if(!events){
+  // "Todos" usa os agregados persistentes completos. Os eventos enviados ao
+  // navegador ficam limitados aos últimos 30 dias para manter o JSON leve.
+  if(cutoff===null || !events){
     if(cutoff !== null && (e.lastSeenMs || 0) < cutoff) return null;
     const observations=Number(e.observations || 0);
     const aggregateSnr=[e.avgSnr,e.minSnr,e.maxSnr].find(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
     const hasRfEvidence=aggregateSnr!==undefined;
-    const rf=hasRfEvidence?Math.max(1,Number(e.rfObservations||observations||0)):0;
-    const mqtt=hasRfEvidence?Math.max(0,observations-rf):observations;
-    const nonRf=mqtt;
+    const rf=e.historyPersistent?Math.max(0,Number(e.rfObservations||0)):(hasRfEvidence?Math.max(1,Number(e.rfObservations||observations||0)):0);
+    const nonRf=e.historyPersistent?Math.max(0,Number(e.nonRfObservations??e.mqttObservations??(observations-rf))):(hasRfEvidence?Math.max(0,observations-rf):observations);
+    const mqtt=nonRf;
     return {
       observations,
       forward:Number(e.forwardObservations || 0),
@@ -2019,24 +2021,32 @@ function edgeStatsForWindow(e, cutoff){
       lastSeenMs:e.lastSeenMs, latestTraceId:e.latestTraceId, latestChannel:e.latestChannel
     };
   }
-  const active = cutoff === null ? events : events.filter(x => Number(x.timestampMs || 0) >= cutoff);
+  const active = events.filter(x => Number(x.timestampMs || 0) >= cutoff);
   if(!active.length) return null;
+  const countOf=x=>Math.max(1,Number(x?.count||1));
   const hasRfEvidence=x=>x?.snr!==null&&x?.snr!==undefined&&Number.isFinite(Number(x.snr));
-  const snrs = active.filter(hasRfEvidence).map(x=>Number(x.snr));
-  const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
-  const rf=active.filter(hasRfEvidence).length;
-  const mqtt=active.length-rf;
+  const observations=active.reduce((sum,x)=>sum+countOf(x),0);
+  const rf=active.reduce((sum,x)=>sum+(hasRfEvidence(x)?countOf(x):0),0);
+  const mqtt=observations-rf;
   const nonRf=mqtt;
+  const forward=active.reduce((sum,x)=>sum+(x.leg==='forward'?countOf(x):0),0);
+  const back=active.reduce((sum,x)=>sum+(x.leg==='return'?countOf(x):0),0);
+  let snrSum=0,snrCount=0,minSnr=null,maxSnr=null;
+  for(const x of active){
+    if(!hasRfEvidence(x))continue;
+    const value=Number(x.snr),count=countOf(x);
+    snrSum+=value*count;snrCount+=count;
+    minSnr=minSnr===null?value:Math.min(minSnr,value);
+    maxSnr=maxSnr===null?value:Math.max(maxSnr,value);
+  }
+  const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
   return {
-    observations:active.length,
-    forward:active.filter(x => x.leg === 'forward').length,
-    back:active.filter(x => x.leg === 'return').length,
+    observations,forward,back,
     rf, mqtt, nonRf, otherNonRf:0,
     mixed:rf>0&&nonRf>0,
     displayTransport:rf>0?'rf':'mqtt',
-    avgSnr:snrs.length ? snrs.reduce((a,b)=>a+b,0)/snrs.length : null,
-    minSnr:snrs.length ? Math.min(...snrs) : null,
-    maxSnr:snrs.length ? Math.max(...snrs) : null,
+    avgSnr:snrCount?snrSum/snrCount:null,
+    minSnr,maxSnr,
     lastSeenMs:Number(latest.timestampMs || e.lastSeenMs || 0),
     latestTraceId:latest.traceId ?? e.latestTraceId,
     latestChannel:e.latestChannel
