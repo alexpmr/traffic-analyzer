@@ -247,6 +247,9 @@ jobs:
           grep -Fq 'function normalizeObservedTimestampMs' traffic_analyzer_web.py
           grep -Fq 'n?.lastSeenMs' traffic_analyzer_web.py
           grep -Fq 'id="statsRfLongestRows"' traffic_analyzer_web.py
+          grep -Fq 'id="clearLinkIsolation"' traffic_analyzer_web.py
+          grep -Fq 'function isolateStatsRfLink' traffic_analyzer_web.py
+          grep -Fq 'clickableStatRow' traffic_analyzer_web.py
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
           grep -Fq 'def _automatic_update_watch_worker' traffic_analyzer_web.py
@@ -661,6 +664,34 @@ jobs:
               assert len(styles)==2,styles
               assert styles[0]["dash"]=="10 8",styles
               assert styles[1]["dash"] in ("",None),styles
+              isolated=d.execute_script("""
+                topology={
+                  generatedAtMs:Date.now(),
+                  nodes:[
+                    {nodeNum:10,nodeId:'!0000000a',name:'A',shortName:'A',latitude:-15.80,longitude:-47.90,state:'identified'},
+                    {nodeNum:20,nodeId:'!00000014',name:'B',shortName:'B',latitude:-15.81,longitude:-47.89,state:'identified'},
+                    {nodeNum:30,nodeId:'!0000001e',name:'C',shortName:'C',latitude:-15.82,longitude:-47.88,state:'identified'}
+                  ],
+                  edges:[
+                    {id:'10:20',a:10,b:20,aId:'!0000000a',bId:'!00000014',aName:'A',bName:'B',geometry:[[-15.80,-47.90],[-15.81,-47.89]],observations:1,rfObservations:1,events:[{timestampMs:Date.now(),leg:'forward',snr:4,traceId:1,transport:'rf'}]},
+                    {id:'20:30',a:20,b:30,aId:'!00000014',bId:'!0000001e',aName:'B',bName:'C',geometry:[[-15.81,-47.89],[-15.82,-47.88]],observations:1,rfObservations:1,events:[{timestampMs:Date.now(),leg:'forward',snr:5,traceId:2,transport:'rf'}]}
+                  ],traces:[]
+                };
+                document.getElementById('showNodes').checked=true;
+                document.getElementById('showLines').checked=true;
+                isolateStatsRfLink('20:30');
+                return {edge:isolatedEdgeId,lines:lineLayer.getLayers().length,nodes:nodeLayer.getLayers().length,button:document.getElementById('clearLinkIsolation').style.display};
+              """)
+              assert isolated["edge"]=="20:30",isolated
+              assert isolated["lines"]==1 and isolated["nodes"]==2,isolated
+              assert isolated["button"]!="none",isolated
+              restored=d.execute_script("""
+                clearStatsRfLinkIsolation();
+                return {edge:isolatedEdgeId,lines:lineLayer.getLayers().length,nodes:nodeLayer.getLayers().length,button:document.getElementById('clearLinkIsolation').style.display};
+              """)
+              assert restored["edge"] is None,restored
+              assert restored["lines"]==2 and restored["nodes"]==3,restored
+              assert restored["button"]=="none",restored
               # Regressão v1.47.0: nó histórico sem latitude/longitude não pode
               # abortar o render dos nós válidos com Invalid LatLng.
               map_nodes=d.execute_script("""
