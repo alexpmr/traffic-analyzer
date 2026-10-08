@@ -5236,6 +5236,49 @@ for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMesht
   document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
 }
 document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
+
+function formatArchiveBytes(value){
+  const n=Math.max(0,Number(value||0));
+  if(n<1024)return n+' B';
+  if(n<1024*1024)return (n/1024).toFixed(1)+' KiB';
+  if(n<1024*1024*1024)return (n/(1024*1024)).toFixed(1)+' MiB';
+  return (n/(1024*1024*1024)).toFixed(2)+' GiB';
+}
+function renderArchiveRetention(data){
+  const settings=data?.settings||{};
+  const status=data?.status||{};
+  const days=Number(settings.retentionDays??status.retentionDays??0);
+  const select=document.getElementById('archiveRetentionDays');
+  if(select)select.value=['0','1','7','30'].includes(String(days))?String(days):'0';
+  const box=document.getElementById('archiveRetentionStatus');if(!box)return;
+  const oldest=status.firstTimestamp?new Date(Number(status.firstTimestamp)).toLocaleString(uiLocale()):tr('Nunca');
+  box.textContent=
+    `${fmtNum(status.packets||0)} ${tr('pacotes')} · ${fmtNum(status.persistentNodes||0)} ${tr('nós históricos')} · `+
+    `${fmtNum(status.persistentEdges||0)} ${tr('enlaces históricos')} · ${tr('registro mais antigo')}: ${oldest} · `+
+    `${tr('tamanho do banco')}: ${formatArchiveBytes(status.dbBytes||0)}`;
+}
+async function loadArchiveRetentionSettings(){
+  try{
+    const r=await fetch('/api/archive/settings',{cache:'no-store'}),b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    renderArchiveRetention(b);return b;
+  }catch(e){
+    const box=document.getElementById('archiveRetentionStatus');if(box)box.textContent=tr('Erro')+': '+e;
+    return null;
+  }
+}
+async function saveArchiveRetentionSettings(){
+  if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
+  const retentionDays=Number(document.getElementById('archiveRetentionDays').value||0);
+  const r=await authFetch('/api/archive/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retentionDays})});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+  renderArchiveRetention(b);return b;
+}
+document.getElementById('archiveRetentionDays').addEventListener('change',async()=>{
+  try{await saveArchiveRetentionSettings();}
+  catch(e){alert(tr('Erro')+': '+e);await loadArchiveRetentionSettings();}
+});
+
 let versionCheckTimer=null;
 let versionCheckIntervalMinutes=15;
 function normalizeVersionCheckInterval(value){
@@ -5425,9 +5468,11 @@ async function bootstrap(){
   scheduleVersionChecks(15);
   loadUpdateStatus();
   loadAutoNoticeStatus();
+  loadArchiveRetentionSettings();
   showWhatsNewIfNeeded();
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
+  setInterval(()=>loadArchiveRetentionSettings(),60000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
   loadTrafficInitial();
   setInterval(() => load(false), 60000);
