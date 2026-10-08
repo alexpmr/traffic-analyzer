@@ -7987,7 +7987,9 @@ def _archive_export(query, fmt="jsonl"):
 def _load_topology_safe():
     try:
         raw = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
-        return raw if isinstance(raw, dict) else {}
+        if not isinstance(raw, dict):
+            return {}
+        return _topology_history_merge(raw)
     except Exception:
         return {}
 
@@ -8779,7 +8781,8 @@ def _refresh_topology_now():
             detail = (proc.stderr or proc.stdout or "falha sem detalhes").strip()
             raise RuntimeError(detail[-1800:])
         updated_ms = int(TOPOLOGY_FILE.stat().st_mtime * 1000) if TOPOLOGY_FILE.exists() else int(time.time()*1000)
-        return {"success": True, "updatedAtMs": updated_ms, "message": "Topologia atualizada."}
+        _topology_history_ingest_current()
+        return {"success": True, "updatedAtMs": updated_ms, "message": "Topologia atualizada e memória histórica preservada."}
     finally:
         _topology_refresh_lock.release()
 
@@ -8937,8 +8940,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in ("/api/topology", "/topology.json"):
             try:
-                raw = TOPOLOGY_FILE.read_bytes()
-                json.loads(raw.decode("utf-8"))
+                if not TOPOLOGY_FILE.exists():
+                    raise FileNotFoundError(str(TOPOLOGY_FILE))
+                body = _load_topology_safe()
+                if not body:
+                    raise RuntimeError("topology.json inválido ou memória histórica indisponível")
+                raw = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", raw)
             except FileNotFoundError:
                 self._send(503, "application/json; charset=utf-8", json.dumps({
