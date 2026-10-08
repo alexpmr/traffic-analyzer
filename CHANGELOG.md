@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.49.0 - 2026-10-08
+
+- Torna interativo o ranking dos 10 enlaces RF diretos mais longos em Estatísticas → RF.
+- Ao selecionar um enlace, abre o mapa em modo de isolamento temporário mostrando somente os dois nós e aquele hop RF.
+- Enquadra automaticamente os dois extremos do enlace selecionado.
+- Oculta temporariamente os demais nós e enlaces sem modificar o banco nem as preferências persistidas.
+- Adiciona o botão **Mostrar todos os nós e enlaces** para restaurar a topologia completa.
+- O isolamento ignora temporariamente filtros de visibilidade que impediriam mostrar o par selecionado, sem alterar esses filtros.
+- Adiciona acessibilidade por teclado com Enter/Espaço nas linhas do ranking.
+- Atualiza documentação e smoke test para validar isolamento/restauração no navegador.
+
 ## 1.48.0 - 2026-10-08
 
 - Torna a instalação automática da Latest Release estável um comportamento permanente.
