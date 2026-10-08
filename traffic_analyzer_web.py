@@ -6652,6 +6652,547 @@ def _archive_init():
     _tracklog_backfill()
 
 
+def _normalize_archive_retention_days(value) -> int:
+    try:
+        days = int(value)
+    except (TypeError, ValueError):
+        days = ARCHIVE_RETENTION_DEFAULT_DAYS
+    return days if days in ARCHIVE_RETENTION_ALLOWED_DAYS else ARCHIVE_RETENTION_DEFAULT_DAYS
+
+
+def _archive_settings():
+    raw = _read_json_file(ARCHIVE_SETTINGS_FILE, {})
+    return {
+        "retentionDays": _normalize_archive_retention_days(raw.get("retentionDays", ARCHIVE_RETENTION_DEFAULT_DAYS)),
+        "allowedDays": [0, 1, 7, 30],
+        "updatedAtMs": raw.get("updatedAtMs"),
+    }
+
+
+def _save_archive_settings(payload: dict):
+    days = _normalize_archive_retention_days(payload.get("retentionDays"))
+    if payload.get("retentionDays") not in (None, "", days, str(days)):
+        raise ValueError("Retenção inválida. Use 0, 1, 7 ou 30 dias.")
+    data = {"retentionDays": days, "updatedAtMs": int(time.time() * 1000)}
+    _write_json_file(ARCHIVE_SETTINGS_FILE, data)
+    removed = _archive_cleanup(retention_days=days)
+    return {**_archive_settings(), "removedPackets": removed}
+
+
+def _history_ts_ms(value, fallback=0):
+    if value in (None, ""):
+        return int(fallback or 0)
+    try:
+        num = float(value)
+        if not num:
+            return int(fallback or 0)
+        return int(num * 1000) if abs(num) < 10_000_000_000 else int(num)
+    except (TypeError, ValueError):
+        pass
+    try:
+        raw = str(value).strip().replace("Z", "+00:00")
+        return int(datetime.fromisoformat(raw).timestamp() * 1000)
+    except Exception:
+        return int(fallback or 0)
+
+
+def _history_valid_position(lat, lon):
+    try:
+        lat = float(lat); lon = float(lon)
+    except (TypeError, ValueError):
+        return False
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return False
+    return not (abs(lat) < 0.01 and abs(lon) < 0.01)
+
+
+def _history_node_seen_ms(node: dict, fallback_ms: int):
+    vals = [
+        _history_ts_ms(node.get("lastHeard")),
+        _history_ts_ms(node.get("updatedAt")),
+        _history_ts_ms(node.get("positionTimestamp")),
+        _history_ts_ms(node.get("nodeStatusUpdatedAt")),
+    ]
+    best = max(vals or [0])
+    return best or int(fallback_ms or time.time() * 1000)
+
+
+def _history_node_position_ms(node: dict, fallback_ms: int):
+    return (
+        _history_ts_ms(node.get("positionTimestamp"))
+        or _history_ts_ms(node.get("updatedAt"))
+        or _history_ts_ms(node.get("lastHeard"))
+        or int(fallback_ms or time.time() * 1000)
+    )
+
+
+def _history_node_id(node_num: int):
+    return f"!{int(node_num) & 0xffffffff:08x}"
+
+
+def _history_merge_node_json(old: dict, new: dict, seen_ms: int, old_position_ms=0):
+    merged = dict(old or {})
+    new = dict(new or {})
+    state_rank = {"route-only": 0, "stub": 1, "identified": 2}
+    old_state = str(merged.get("state") or "route-only")
+    new_state = str(new.get("state") or "route-only")
+    for key, value in new.items():
+        if key in {"latitude", "longitude", "altitude", "positionSource"}:
+            continue
+        if value is None or value == "":
+            continue
+        if key == "state":
+            if state_rank.get(new_state, 0) >= state_rank.get(old_state, 0):
+                merged[key] = new_state
+            continue
+        if key in {"publicKey", "routeParticipant", "hasPKC", "isStoreForwardServer"}:
+            merged[key] = bool(merged.get(key)) or bool(value)
+            continue
+        if key == "lastHeard":
+            previous = _history_ts_ms(merged.get(key))
+            current = _history_ts_ms(value)
+            merged[key] = max(previous, current) if max(previous, current) else value
+            continue
+        merged[key] = value
+    pos_ms = int(old_position_ms or 0)
+    if _history_valid_position(new.get("latitude"), new.get("longitude")):
+        candidate_pos_ms = _history_node_position_ms(new, seen_ms)
+        if candidate_pos_ms >= pos_ms:
+            merged["latitude"] = float(new.get("latitude"))
+            merged["longitude"] = float(new.get("longitude"))
+            merged["altitude"] = new.get("altitude")
+            merged["positionSource"] = new.get("positionSource") or "observed"
+            pos_ms = candidate_pos_ms
+    return merged, pos_ms
+
+
+def _topology_store_node(conn, source_id: str, node: dict, seen_ms: int):
+    try:
+        node_num = int(node.get("nodeNum")) & 0xffffffff
+    except Exception:
+        return
+    if node_num in {0, 1, 2, 3, 255, 65535, 0xffffffff}:
+        return
+    row = conn.execute(
+        "SELECT first_seen_ms,last_seen_ms,position_seen_ms,node_json FROM topology_nodes WHERE source_id=? AND node_num=?",
+        (source_id, node_num),
+    ).fetchone()
+    old = {}
+    first_seen = int(seen_ms)
+    last_seen = int(seen_ms)
+    old_position_ms = 0
+    if row:
+        try:
+            old = json.loads(row["node_json"] or "{}")
+        except Exception:
+            old = {}
+        first_seen = min(int(row["first_seen_ms"] or seen_ms), int(seen_ms))
+        last_seen = max(int(row["last_seen_ms"] or 0), int(seen_ms))
+        old_position_ms = int(row["position_seen_ms"] or 0)
+    merged, position_ms = _history_merge_node_json(old, node, seen_ms, old_position_ms)
+    merged["nodeNum"] = node_num
+    merged["nodeId"] = merged.get("nodeId") or _history_node_id(node_num)
+    merged["name"] = merged.get("name") or merged.get("longName") or merged.get("shortName") or merged["nodeId"]
+    merged["firstSeenMs"] = first_seen
+    merged["lastSeenMs"] = last_seen
+    conn.execute(
+        """INSERT INTO topology_nodes(source_id,node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json)
+           VALUES(?,?,?,?,?,?)
+           ON CONFLICT(source_id,node_num) DO UPDATE SET
+             first_seen_ms=excluded.first_seen_ms,
+             last_seen_ms=excluded.last_seen_ms,
+             position_seen_ms=excluded.position_seen_ms,
+             node_json=excluded.node_json""",
+        (source_id, node_num, first_seen, last_seen, position_ms or None, json.dumps(merged, ensure_ascii=False, separators=(",", ":"))),
+    )
+
+
+def _topology_event_key(source_id, edge_id, timestamp_ms, leg, trace_id, snr, transport, occurrence=0):
+    raw = "|".join([
+        str(source_id), str(edge_id), str(int(timestamp_ms or 0)), str(leg or ""),
+        str(trace_id or ""), "" if snr is None else f"{float(snr):.6f}",
+        str(transport or ""), str(int(occurrence or 0)),
+    ])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _topology_history_ingest(topology: dict):
+    if not isinstance(topology, dict):
+        return {"nodes": 0, "events": 0}
+    source_id = str(topology.get("sourceId") or MM_SOURCE)
+    generated_ms = _history_ts_ms(topology.get("generatedAtMs"), int(time.time() * 1000))
+    node_count = 0
+    event_count = 0
+    with _archive_connect() as conn:
+        for node in topology.get("nodes", []) or []:
+            if not isinstance(node, dict):
+                continue
+            seen_ms = _history_node_seen_ms(node, generated_ms)
+            _topology_store_node(conn, source_id, node, seen_ms)
+            node_count += 1
+        for edge in topology.get("edges", []) or []:
+            if not isinstance(edge, dict):
+                continue
+            try:
+                a = int(edge.get("a")) & 0xffffffff
+                b = int(edge.get("b")) & 0xffffffff
+            except Exception:
+                continue
+            lo, hi = sorted((a, b))
+            edge_id = f"{lo}:{hi}"
+            events = edge.get("events") if isinstance(edge.get("events"), list) else []
+            if not events:
+                events = [{
+                    "timestampMs": edge.get("lastSeenMs") or generated_ms,
+                    "leg": edge.get("latestLeg"),
+                    "snr": edge.get("avgSnr"),
+                    "traceId": edge.get("latestTraceId"),
+                    "transport": edge.get("transportClass") or "mqtt",
+                    "_count": max(1, int(edge.get("observations") or 1)),
+                }]
+            occurrences = {}
+            for ev in events:
+                if not isinstance(ev, dict):
+                    continue
+                ts = _history_ts_ms(ev.get("timestampMs"), generated_ms)
+                leg = str(ev.get("leg") or "")
+                snr = ev.get("snr")
+                try:
+                    snr = float(snr) if snr is not None else None
+                except (TypeError, ValueError):
+                    snr = None
+                transport = "rf" if str(ev.get("transport") or "").lower() == "rf" and snr is not None else "mqtt"
+                trace_id = ev.get("traceId")
+                sig = (ts, leg, trace_id, snr, transport)
+                occurrence = occurrences.get(sig, 0)
+                occurrences[sig] = occurrence + 1
+                event_key = _topology_event_key(source_id, edge_id, ts, leg, trace_id, snr, transport, occurrence)
+                before = conn.total_changes
+                conn.execute(
+                    """INSERT OR IGNORE INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,observation_count,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        event_key, source_id, edge_id, lo, hi, ts, leg, snr, transport,
+                        None if trace_id is None else str(trace_id),
+                        None if edge.get("latestPacketId") is None else str(edge.get("latestPacketId")),
+                        edge.get("latestChannel"),
+                        max(1, int(ev.get("_count") or ev.get("count") or 1)),
+                        int(time.time() * 1000),
+                    ),
+                )
+                event_count += conn.total_changes - before
+    return {"nodes": node_count, "events": event_count}
+
+
+def _topology_history_ingest_current():
+    try:
+        raw = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            return _topology_history_ingest(raw)
+    except Exception:
+        pass
+    return {"nodes": 0, "events": 0}
+
+
+def _history_array(value):
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+    return []
+
+
+def _history_trace_payload(metadata):
+    if not isinstance(metadata, dict):
+        return None
+    if any(k in metadata for k in ("route", "routeBack", "snrTowards", "snrBack", "routePositions")):
+        return metadata
+    for value in metadata.values():
+        if isinstance(value, dict):
+            found = _history_trace_payload(value)
+            if found:
+                return found
+    return None
+
+
+def _history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
+    mids = []
+    for value in _history_array(mids_raw):
+        try:
+            mids.append(int(value) & 0xffffffff)
+        except Exception:
+            mids.append(0xffffffff)
+    snrs = _history_array(snr_raw)
+    entries = [(start_num, None)]
+    for idx, n in enumerate(mids):
+        entries.append((n, snrs[idx] if idx < len(snrs) else None))
+    entries.append((end_num, snrs[len(mids)] if len(mids) < len(snrs) else None))
+    out = []
+    invalid = {0, 1, 2, 3, 255, 65535, 0xffffffff}
+    for idx in range(len(entries) - 1):
+        a = entries[idx][0]; b, raw_snr = entries[idx + 1]
+        if a in invalid or b in invalid:
+            continue
+        snr = None
+        if raw_snr is not None:
+            try:
+                snr = float(raw_snr) / 4.0
+                if abs(snr + 32.0) < 1e-9:
+                    snr = None
+            except Exception:
+                snr = None
+        out.append((a, b, leg, snr, idx))
+    return out
+
+
+def _topology_history_recover_from_archive():
+    """Best-effort one-time recovery of old links from archived traceroute packet metadata."""
+    meta_key = f"topology-recovery-v1:{MM_SOURCE}"
+    with _archive_connect() as conn:
+        done = conn.execute("SELECT meta_value FROM topology_history_meta WHERE meta_key=?", (meta_key,)).fetchone()
+        if done:
+            return {"recovered": 0, "skipped": True}
+        oldest = conn.execute(
+            "SELECT MIN(timestamp_ms) AS ts FROM topology_edge_events WHERE source_id=?", (MM_SOURCE,)
+        ).fetchone()
+        oldest_ts = int(oldest["ts"]) if oldest and oldest["ts"] is not None else None
+        params = [MM_SOURCE]
+        sql = """SELECT packet_id,timestamp,from_node,from_node_id,from_node_long_name,
+                        to_node,to_node_id,to_node_long_name,channel,metadata
+                 FROM packets
+                 WHERE source_id=? AND portnum_name='TRACEROUTE_APP' AND metadata IS NOT NULL"""
+        if oldest_ts is not None:
+            sql += " AND timestamp < ?"
+            params.append(oldest_ts)
+        sql += " ORDER BY timestamp ASC"
+        rows = conn.execute(sql, params).fetchall()
+        recovered = 0
+        for row in rows:
+            try:
+                metadata = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+            except Exception:
+                continue
+            trace = _history_trace_payload(metadata)
+            if not trace:
+                continue
+            try:
+                from_num = int(trace.get("fromNodeNum") or row["from_node"]) & 0xffffffff
+                to_num = int(trace.get("toNodeNum") or row["to_node"]) & 0xffffffff
+            except Exception:
+                continue
+            ts = _history_ts_ms(trace.get("timestamp") or trace.get("createdAt") or row["timestamp"])
+            for num, nid, name in (
+                (from_num, row["from_node_id"], row["from_node_long_name"]),
+                (to_num, row["to_node_id"], row["to_node_long_name"]),
+            ):
+                _topology_store_node(conn, MM_SOURCE, {
+                    "nodeNum": num,
+                    "nodeId": nid or _history_node_id(num),
+                    "name": name or nid or _history_node_id(num),
+                    "longName": name,
+                    "state": "stub" if name else "route-only",
+                    "routeParticipant": True,
+                }, ts)
+            positions = trace.get("routePositions")
+            if isinstance(positions, str):
+                try:
+                    positions = json.loads(positions)
+                except Exception:
+                    positions = {}
+            if isinstance(positions, dict):
+                for key, pos in positions.items():
+                    if not isinstance(pos, dict):
+                        continue
+                    try:
+                        n = int(key) & 0xffffffff
+                    except Exception:
+                        continue
+                    lat = pos.get("lat"); lon = pos.get("lng", pos.get("lon"))
+                    if _history_valid_position(lat, lon):
+                        _topology_store_node(conn, MM_SOURCE, {
+                            "nodeNum": n, "nodeId": _history_node_id(n), "name": _history_node_id(n),
+                            "state": "route-only", "routeParticipant": True,
+                            "latitude": float(lat), "longitude": float(lon), "altitude": pos.get("alt"),
+                            "positionSource": "archive-traceroute",
+                        }, ts)
+            legs = []
+            if trace.get("route") not in (None, "", "[]", []):
+                legs += _history_trace_links(from_num, trace.get("route"), to_num, trace.get("snrTowards"), "forward")
+            if trace.get("routeBack") not in (None, "", "[]", []) or trace.get("snrBack") not in (None, "", "[]", []):
+                legs += _history_trace_links(to_num, trace.get("routeBack"), from_num, trace.get("snrBack"), "return")
+            occurrences = {}
+            trace_id = trace.get("id") or row["packet_id"]
+            for a0, b0, leg, snr, hop_idx in legs:
+                lo, hi = sorted((a0, b0)); edge_id = f"{lo}:{hi}"
+                transport = "rf" if snr is not None else "mqtt"
+                sig = (edge_id, ts, leg, trace_id, snr, transport)
+                occurrence = occurrences.get(sig, 0); occurrences[sig] = occurrence + 1
+                key = _topology_event_key(MM_SOURCE, edge_id, ts, leg, trace_id, snr, transport, occurrence)
+                before = conn.total_changes
+                conn.execute(
+                    """INSERT OR IGNORE INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,observation_count,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?)""",
+                    (key, MM_SOURCE, edge_id, lo, hi, ts, leg, snr, transport,
+                     None if trace_id is None else str(trace_id),
+                     None if row["packet_id"] is None else str(row["packet_id"]),
+                     row["channel"], int(time.time() * 1000)),
+                )
+                recovered += conn.total_changes - before
+        conn.execute(
+            "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+            (meta_key, json.dumps({"completedAtMs": int(time.time() * 1000), "recovered": recovered}, separators=(",", ":"))),
+        )
+        return {"recovered": recovered, "skipped": False}
+
+
+def _topology_history_merge(raw: dict):
+    if not isinstance(raw, dict):
+        return {}
+    try:
+        _topology_history_ingest(raw)
+        source_id = str(raw.get("sourceId") or MM_SOURCE)
+        current_nums = set()
+        for n in raw.get("nodes", []) or []:
+            try:
+                current_nums.add(int(n.get("nodeNum")) & 0xffffffff)
+            except Exception:
+                pass
+        with _archive_connect() as conn:
+            node_rows = conn.execute(
+                "SELECT node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json FROM topology_nodes WHERE source_id=?",
+                (source_id,),
+            ).fetchall()
+            nodes = []
+            coord = {}
+            for row in node_rows:
+                try:
+                    node = json.loads(row["node_json"] or "{}")
+                except Exception:
+                    node = {}
+                num = int(row["node_num"])
+                node["nodeNum"] = num
+                node["nodeId"] = node.get("nodeId") or _history_node_id(num)
+                node["name"] = node.get("name") or node.get("longName") or node.get("shortName") or node["nodeId"]
+                node["firstSeenMs"] = int(row["first_seen_ms"] or 0)
+                node["lastSeenMs"] = int(row["last_seen_ms"] or 0)
+                node["historical"] = num not in current_nums
+                node["currentlyInMeshMonitor"] = num in current_nums
+                if node["historical"] and _history_valid_position(node.get("latitude"), node.get("longitude")):
+                    node["positionSource"] = "history-last-known"
+                if _history_valid_position(node.get("latitude"), node.get("longitude")):
+                    coord[num] = (float(node["latitude"]), float(node["longitude"]))
+                nodes.append(node)
+
+            group_rows = conn.execute(
+                """SELECT edge_id,a,b,
+                          SUM(observation_count) AS observations,
+                          SUM(CASE WHEN leg='forward' THEN observation_count ELSE 0 END) AS forward_obs,
+                          SUM(CASE WHEN leg='return' THEN observation_count ELSE 0 END) AS return_obs,
+                          SUM(CASE WHEN transport='rf' THEN observation_count ELSE 0 END) AS rf_obs,
+                          SUM(CASE WHEN transport!='rf' THEN observation_count ELSE 0 END) AS nonrf_obs,
+                          MIN(timestamp_ms) AS first_seen,
+                          MAX(timestamp_ms) AS last_seen,
+                          SUM(CASE WHEN snr IS NOT NULL THEN snr*observation_count ELSE 0 END) AS snr_sum,
+                          SUM(CASE WHEN snr IS NOT NULL THEN observation_count ELSE 0 END) AS snr_count,
+                          MIN(snr) AS min_snr, MAX(snr) AS max_snr
+                   FROM topology_edge_events WHERE source_id=? GROUP BY edge_id,a,b""",
+                (source_id,),
+            ).fetchall()
+            latest_rows = conn.execute(
+                """SELECT e.* FROM topology_edge_events e
+                   JOIN (
+                     SELECT edge_id,MAX(timestamp_ms) AS max_ts
+                     FROM topology_edge_events WHERE source_id=? GROUP BY edge_id
+                   ) m ON e.edge_id=m.edge_id AND e.timestamp_ms=m.max_ts
+                   WHERE e.source_id=? ORDER BY e.edge_id,e.event_key""",
+                (source_id, source_id),
+            ).fetchall()
+            latest = {}
+            for row in latest_rows:
+                latest.setdefault(str(row["edge_id"]), row)
+            recent_cutoff = int(time.time() * 1000) - 30 * 86400 * 1000
+            recent_rows = conn.execute(
+                """SELECT edge_id,timestamp_ms,leg,snr,transport,trace_id,observation_count
+                   FROM topology_edge_events
+                   WHERE source_id=? AND timestamp_ms>=?
+                   ORDER BY timestamp_ms ASC,event_key ASC""",
+                (source_id, recent_cutoff),
+            ).fetchall()
+            recent = {}
+            for row in recent_rows:
+                recent.setdefault(str(row["edge_id"]), []).append({
+                    "timestampMs": int(row["timestamp_ms"]),
+                    "leg": row["leg"],
+                    "snr": row["snr"],
+                    "traceId": row["trace_id"],
+                    "transport": row["transport"],
+                    "count": int(row["observation_count"] or 1),
+                })
+            by_num = {int(n["nodeNum"]): n for n in nodes}
+            edges = []
+            for row in group_rows:
+                a = int(row["a"]); b = int(row["b"]); edge_id = str(row["edge_id"])
+                latest_row = latest.get(edge_id)
+                obs = int(row["observations"] or 0)
+                rf = int(row["rf_obs"] or 0)
+                nonrf = int(row["nonrf_obs"] or 0)
+                snr_count = int(row["snr_count"] or 0)
+                geometry = [[*coord[a]], [*coord[b]]] if a in coord and b in coord else None
+                edges.append({
+                    "id": edge_id, "a": a, "b": b,
+                    "aId": _history_node_id(a), "bId": _history_node_id(b),
+                    "aName": (by_num.get(a) or {}).get("name") or _history_node_id(a),
+                    "bName": (by_num.get(b) or {}).get("name") or _history_node_id(b),
+                    "observations": obs,
+                    "forwardObservations": int(row["forward_obs"] or 0),
+                    "returnObservations": int(row["return_obs"] or 0),
+                    "rfObservations": rf,
+                    "mqttObservations": nonrf,
+                    "nonRfObservations": nonrf,
+                    "transportClass": "rf" if rf > 0 else "mqtt",
+                    "firstSeenMs": int(row["first_seen"] or 0),
+                    "lastSeenMs": int(row["last_seen"] or 0),
+                    "avgSnr": round(float(row["snr_sum"] or 0) / snr_count, 2) if snr_count else None,
+                    "minSnr": row["min_snr"], "maxSnr": row["max_snr"],
+                    "latestTraceId": latest_row["trace_id"] if latest_row else None,
+                    "latestPacketId": latest_row["packet_id"] if latest_row else None,
+                    "latestChannel": latest_row["channel"] if latest_row else None,
+                    "latestLeg": latest_row["leg"] if latest_row else None,
+                    "geometry": geometry,
+                    "events": recent.get(edge_id, []),
+                    "historyPersistent": True,
+                })
+            edges.sort(key=lambda e: (int(e.get("lastSeenMs") or 0), int(e.get("observations") or 0)), reverse=True)
+            nodes.sort(key=lambda n: (str(n.get("state") or "") != "identified", str(n.get("name") or "").lower()))
+
+        merged = dict(raw)
+        summary = dict(raw.get("summary") or {})
+        summary["persistentNodes"] = len(nodes)
+        summary["historicalNodes"] = sum(1 for n in nodes if n.get("historical"))
+        summary["observedEdges"] = len(edges)
+        summary["mappableEdges"] = sum(1 for e in edges if e.get("geometry"))
+        summary["mappableNodes"] = sum(1 for n in nodes if _history_valid_position(n.get("latitude"), n.get("longitude")))
+        merged["summary"] = summary
+        merged["nodes"] = nodes
+        merged["edges"] = edges
+        merged["persistentHistory"] = True
+        merged["historyRetention"] = "until-database-reset"
+        merged["disclaimer"] = (
+            "Nós e enlaces observados são preservados historicamente no traffic.db até o banco ser apagado/resetado. "
+            "Os filtros temporais alteram somente a visualização. Linha contínua exige evidência RF válida; "
+            "linha tracejada representa MQTT/não-RF."
+        )
+        return merged
+    except Exception:
+        return raw
+
+
 def _access_init():
     ACCESS_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with _archive_connect() as conn:
