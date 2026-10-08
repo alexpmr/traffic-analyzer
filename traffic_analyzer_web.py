@@ -7189,6 +7189,25 @@ def _topology_history_merge(raw: dict):
                 if _history_valid_position(node.get("latitude"), node.get("longitude")):
                     coord[num] = (float(node["latitude"]), float(node["longitude"]))
                 nodes.append(node)
+            # Mantém compatibilidade com entradas correntes que deliberadamente
+            # não entram na memória histórica (IDs reservados/diagnósticos).
+            stored_nums = {int(n.get("nodeNum")) for n in nodes if n.get("nodeNum") is not None}
+            for current in raw.get("nodes", []) or []:
+                if not isinstance(current, dict):
+                    continue
+                try:
+                    num = int(current.get("nodeNum")) & 0xffffffff
+                except Exception:
+                    continue
+                if num in stored_nums:
+                    continue
+                node = dict(current)
+                node["historical"] = False
+                node["currentlyInMeshMonitor"] = True
+                if _history_valid_position(node.get("latitude"), node.get("longitude")):
+                    coord[num] = (float(node["latitude"]), float(node["longitude"]))
+                nodes.append(node)
+                stored_nums.add(num)
 
             group_rows = conn.execute(
                 """SELECT edge_id,a,b,
