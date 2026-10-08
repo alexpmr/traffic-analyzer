@@ -13,6 +13,7 @@
 - Timestamps absurdamente futuros são ignorados em vez de fazer o nó parecer recém-ouvido.
 - **Estatísticas → RF:** adiciona o ranking **10 enlaces RF diretos mais longos**, mostrando nós, IDs, distância, observações RF, SNR médio e última observação RF.
 - O ranking considera somente hops físicos diretos com SNR válido; rotas com intermediários não viram enlaces ponta a ponta.
+- Cada linha do ranking é clicável: ao selecionar um enlace, o mapa passa temporariamente a mostrar somente os dois nós e aquele enlace, com enquadramento automático e botão para restaurar toda a topologia.
 - O período selecionado em Estatísticas e o filtro por nó são respeitados.
 - Preserva integralmente a memória histórica, retenção configurável e demais recursos da v1.47.1.
 
