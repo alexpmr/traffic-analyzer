@@ -124,6 +124,7 @@ NOTICE_POLL_SECONDS = max(300, min(int(os.getenv("TA_NOTICE_POLL_SECONDS", "600"
 MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20")).strip()
 _notice_stop = threading.Event()
 _notice_wakeup = threading.Event()
+_update_watch_stop = threading.Event()
 _notice_lock = threading.Lock()
 ELEVATION_TILE_BASE_URL = str(os.getenv("TA_ELEVATION_TILE_BASE_URL", "https://s3.amazonaws.com/elevation-tiles-prod/terrarium")).strip().rstrip("/")
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
@@ -729,7 +730,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     </div>
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
-    <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
+    <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.</div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -936,8 +937,8 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <h3>Atualizações <span class="adminOnlyBadge">Administrador</span></h3>
     <div class="settingsGrid">
       <div class="settingRow">
-        <label><input id="autoUpdateEnabled" type="checkbox" data-admin-only> Atualizar automaticamente ao detectar nova versão estável</label>
-        <div class="settingDesc">A aplicação apenas cria uma solicitação. Um serviço systemd dedicado executa o update como root, sem conceder privilégios genéricos ao processo web.</div>
+        <label><input id="autoUpdateEnabled" type="checkbox" checked disabled> Atualização automática de versões estáveis: sempre ativa</label>
+        <div class="settingDesc">Ao detectar uma Latest Release estável mais nova, o Traffic Analyzer cria automaticamente a solicitação. Um serviço systemd dedicado executa o update como root, preservando health check e rollback.</div>
       </div>
       <div class="settingRow">
         <label><input id="rollbackEnabled" type="checkbox" checked data-admin-only> Rollback automático se a nova versão não ficar saudável</label>
@@ -1991,10 +1992,18 @@ function telemetryDisplay(type,value,unit=''){
   return `${value}${u?` ${u}`:''}`;
 }
 
+function normalizeObservedTimestampMs(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)||n<=0)return 0;
+  const ms=n<100000000000?n*1000:n;
+  if(ms>Date.now()+5*60*1000)return 0;
+  return ms;
+}
 function nodeLastTrafficMs(n){
-  const archived=Number(nodeTrafficLastSeen.get(Number(n.nodeNum))||0);
-  const heard=Number(n.lastHeard||0)>0 ? Number(n.lastHeard)*1000 : 0;
-  return Math.max(Number.isFinite(archived)?archived:0, Number.isFinite(heard)?heard:0);
+  const archived=normalizeObservedTimestampMs(nodeTrafficLastSeen.get(Number(n.nodeNum)));
+  const heard=normalizeObservedTimestampMs(n?.lastHeard);
+  const historical=normalizeObservedTimestampMs(n?.lastSeenMs);
+  return Math.max(archived,heard,historical);
 }
 function humanAge(ms){
   if(!ms) return 'sem registro';
@@ -4513,7 +4522,7 @@ function statsPopulateNodeFilter(){
 }
 function renderStatistics(){
   const p=statisticsPayload;if(!p)return;
-  const s=p.stats||{}, nodes=p.nodes||[], links=p.links||[], packets=p.packets||[];
+  const s=p.stats||{}, nodes=p.nodes||[], links=p.links||[], packets=p.packets||[], longestRf=p.longestRfLinks||[];
   const totalKnown=(topology?.nodes||[]).length, activeNodes=nodes.length;
   const snr=packets.map(x=>x.snr), rssi=packets.map(x=>x.rssi);
   const avgSnr=statsAvg(snr), avgRssi=statsAvg(rssi);
@@ -4551,6 +4560,9 @@ function renderStatistics(){
     healthCard(avgRssi==null?'—':fmtNum(avgRssi,0)+' dBm','RSSI médio'),
     healthCard(fmtNum(links.filter(x=>Number(x.packets||0)>=10).length),'Enlaces recorrentes','10+ pacotes')
   ].join('');
+  document.getElementById('statsRfLongestRows').innerHTML=longestRf.slice(0,10).map((x,i)=>
+    '<tr><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td>'+fmtNum(x.rfObservations)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>'
+  ).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
   document.getElementById('statsRfRows').innerHTML=links.slice(0,40).map(x=>
     '<tr><td><b>'+esc(statsNodeName(x.fromNode,x.fromNodeId))+'</b></td><td>'+esc(statsNodeName(x.toNode,x.toNodeId))+'</td><td>'+fmtNum(x.packets)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.avgRssi==null?'—':fmtNum(x.avgRssi,0)+' dBm')+'</td><td>'+(x.lastSeen?esc(humanAge(Number(x.lastSeen))):'—')+'</td></tr>'
   ).join('')||'<tr><td colspan="6" class="emptyPanel">Sem enlaces no período.</td></tr>';
@@ -5327,7 +5339,7 @@ function renderUpdateStatus(data){
   updateRuntimeData=data||{};
   const box=document.getElementById('updateStatusBox');if(!box)return;
   const settings=data?.settings||{};
-  document.getElementById('autoUpdateEnabled').checked=Boolean(settings.enabled);
+  document.getElementById('autoUpdateEnabled').checked=true;
   document.getElementById('rollbackEnabled').checked=settings.rollbackEnabled!==false;
   const interval=normalizeVersionCheckInterval(settings.checkIntervalMinutes);
   const intervalInput=document.getElementById('versionCheckInterval');if(intervalInput)intervalInput.value=String(interval);
@@ -5350,7 +5362,7 @@ async function loadUpdateStatus(){
 }
 async function saveUpdateSettings(){
   if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
-  const payload={enabled:document.getElementById('autoUpdateEnabled').checked,rollbackEnabled:document.getElementById('rollbackEnabled').checked,checkIntervalMinutes:normalizeVersionCheckInterval(document.getElementById('versionCheckInterval').value)};
+  const payload={enabled:true,rollbackEnabled:document.getElementById('rollbackEnabled').checked,checkIntervalMinutes:normalizeVersionCheckInterval(document.getElementById('versionCheckInterval').value)};
   const r=await authFetch('/api/update/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||`HTTP ${r.status}`);renderUpdateStatus(b.status||{});return b;
 }
@@ -5364,12 +5376,11 @@ async function triggerUpdateNow(){
   }catch(e){btn.textContent=tr('Erro');alert(`${tr('Erro')}: ${e}`);}
   finally{setTimeout(()=>{btn.disabled=false;btn.textContent=tr('Atualizar agora');},2200);}
 }
-document.getElementById('autoUpdateEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('rollbackEnabled').addEventListener('change',async()=>{try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('versionCheckInterval').addEventListener('change',async()=>{const el=document.getElementById('versionCheckInterval');el.value=String(normalizeVersionCheckInterval(el.value));try{await saveUpdateSettings();}catch(e){alert(`${tr('Erro')}: ${e}`);await loadUpdateStatus();}});
 document.getElementById('updateNow').addEventListener('click',triggerUpdateNow);
 
-const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeenV1440';
+const WHATS_NEW_SEEN_KEY='trafficAnalyzerWhatsNewSeen';
 async function showWhatsNewIfNeeded(){
   try{
     const r=await fetch('/api/current-release-notes',{cache:'no-store'});const b=await r.json();if(!r.ok||!b.success)return;
