@@ -2961,16 +2961,22 @@ function render(){
   const showNodes = document.getElementById('showNodes').checked;
   const showHeatmap = document.getElementById('showHeatmap').checked;
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
+  const isolatedEdge = isolatedEdgeId ? (topology.edges||[]).find(e=>String(e.id||'')===String(isolatedEdgeId)) : null;
+  isolatedEdgeNodes = new Set(isolatedEdge ? [Number(isolatedEdge.a),Number(isolatedEdge.b)] : []);
+  const isolationActive=Boolean(isolatedEdge);
+  const isolationButton=document.getElementById('clearLinkIsolation');
+  if(isolationButton)isolationButton.style.display=isolationActive?'':'none';
   const visibleNodes = new Set();
   const heatWeights = new Map();
   let edgeCount = 0, rfEdgeCount = 0, mqttOnlyEdgeCount = 0, mixedEdgeCount = 0;
 
   for(const e of topology.edges || []){
+    if(isolationActive && String(e.id||'')!==String(isolatedEdgeId)) continue;
     if(!e.geometry) continue;
-    const stats = edgeStatsForWindow(e, cutoff);
-    if(!stats || stats.observations < minObs) continue;
+    const stats = edgeStatsForWindow(e, isolationActive?null:cutoff);
+    if(!stats || (!isolationActive && stats.observations < minObs)) continue;
     const a = nodeMap.get(Number(e.a)), b = nodeMap.get(Number(e.b));
-    if(onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
+    if(!isolationActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
     if(stats.mixed) mixedEdgeCount++;
@@ -2980,7 +2986,7 @@ function render(){
     heatWeights.set(Number(e.a), (heatWeights.get(Number(e.a)) || 0) + obs);
     heatWeights.set(Number(e.b), (heatWeights.get(Number(e.b)) || 0) + obs);
 
-    if(showLines){
+    if(showLines || isolationActive){
       const mqttOnly=stats.displayTransport==='mqtt';
       const lineColor=mqttOnly?(document.getElementById('mqttLineColor').value||'#ff8c42'):(document.getElementById('rfLineColor').value||'#ffff00');
       const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById(mqttOnly?'mqttLineWidth':'rfLineWidth').value||3)));
@@ -3035,13 +3041,14 @@ function render(){
   let markerCount = 0, mappableCount = 0;
   const mappableStates = {identified:0, stub:0, 'route-only':0};
   for(const n of topology.nodes || []){
+    if(isolationActive && !isolatedEdgeNodes.has(Number(n.nodeNum))) continue;
     if(!nodeHasValidMapPosition(n)) continue;
-    if(onlyIdentified && n.state !== 'identified') continue;
+    if(!isolationActive && onlyIdentified && n.state !== 'identified') continue;
     const lat=Number(n.latitude),lon=Number(n.longitude);
     mappableCount++;
     mappableStates[n.state] = (mappableStates[n.state] || 0) + 1;
     coords.push([lat,lon]);
-    if(!showNodes) continue;
+    if(!showNodes && !isolationActive) continue;
 
     const trafficAge=nodeTrafficAge(n);
     const marker = L.circleMarker([lat,lon], {
