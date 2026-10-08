@@ -6903,11 +6903,61 @@ def _topology_history_ingest(topology: dict):
     generated_ms = _history_ts_ms(topology.get("generatedAtMs"), int(time.time() * 1000))
     node_count = 0
     event_count = 0
+    # Nós que existem apenas por participação em rota não devem parecer
+    # "vistos agora" a cada regeneração. Usa a observação real mais recente
+    # dos enlaces/traceroutes como fallback do lastSeen histórico.
+    route_seen = {}
+    for edge in topology.get("edges", []) or []:
+        if not isinstance(edge, dict):
+            continue
+        ts = _history_ts_ms(edge.get("lastSeenMs"))
+        if not ts:
+            for ev in edge.get("events", []) or []:
+                if isinstance(ev, dict):
+                    ts = max(ts, _history_ts_ms(ev.get("timestampMs")))
+        for key in ("a", "b"):
+            try:
+                num = int(edge.get(key)) & 0xffffffff
+            except Exception:
+                continue
+            if ts:
+                route_seen[num] = max(int(route_seen.get(num) or 0), ts)
+    for tr in topology.get("traces", []) or []:
+        if not isinstance(tr, dict):
+            continue
+        ts = _history_ts_ms(tr.get("timestampMs") or tr.get("timestamp") or tr.get("createdAt"))
+        for key in ("fromNodeNum", "toNodeNum"):
+            try:
+                num = int(tr.get(key)) & 0xffffffff
+            except Exception:
+                continue
+            if ts:
+                route_seen[num] = max(int(route_seen.get(num) or 0), ts)
+        for path_key in ("forwardPath", "returnPath"):
+            for point in tr.get(path_key, []) or []:
+                if not isinstance(point, dict):
+                    continue
+                try:
+                    num = int(point.get("nodeNum")) & 0xffffffff
+                except Exception:
+                    continue
+                if ts:
+                    route_seen[num] = max(int(route_seen.get(num) or 0), ts)
     with _archive_connect() as conn:
         for node in topology.get("nodes", []) or []:
             if not isinstance(node, dict):
                 continue
-            seen_ms = _history_node_seen_ms(node, generated_ms)
+            try:
+                node_num = int(node.get("nodeNum")) & 0xffffffff
+            except Exception:
+                continue
+            explicit_seen = max(
+                _history_ts_ms(node.get("lastHeard")),
+                _history_ts_ms(node.get("updatedAt")),
+                _history_ts_ms(node.get("positionTimestamp")),
+                _history_ts_ms(node.get("nodeStatusUpdatedAt")),
+            )
+            seen_ms = explicit_seen or int(route_seen.get(node_num) or 0) or generated_ms
             _topology_store_node(conn, source_id, node, seen_ms)
             node_count += 1
         for edge in topology.get("edges", []) or []:
