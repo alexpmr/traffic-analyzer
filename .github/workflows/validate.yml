@@ -202,7 +202,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.47.0
+      - name: Validar backlog v1.47.1
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -243,6 +243,7 @@ jobs:
           grep -Fq 'CREATE TABLE IF NOT EXISTS topology_edge_events' traffic_analyzer_web.py
           grep -Fq 'historyRetention"] = "until-database-reset"' traffic_analyzer_web.py
           grep -Fq 'id="archiveRetentionDays"' traffic_analyzer_web.py
+          grep -Fq 'function nodeHasValidMapPosition' traffic_analyzer_web.py
           grep -Fq 'Nunca apagar (padrão)' traffic_analyzer_web.py
           grep -Fq '/api/archive/settings' traffic_analyzer_web.py
           grep -Fq 'TA_TOPOLOGY_HISTORY_QUEUE_DIR' traffic_analyzer.py
@@ -611,6 +612,29 @@ jobs:
               assert len(styles)==2,styles
               assert styles[0]["dash"]=="10 8",styles
               assert styles[1]["dash"] in ("",None),styles
+              # Regressão v1.47.0: nó histórico sem latitude/longitude não pode
+              # abortar o render dos nós válidos com Invalid LatLng.
+              map_nodes=d.execute_script("""
+                topology={
+                  generatedAtMs:Date.now(),
+                  nodes:[
+                    {nodeNum:99,nodeId:'!00000063',name:'Histórico sem posição',state:'route-only',historical:true},
+                    {nodeNum:10,nodeId:'!0000000a',name:'A',shortName:'A',latitude:-15.80,longitude:-47.90,state:'identified'},
+                    {nodeNum:20,nodeId:'!00000014',name:'B',shortName:'B',latitude:'-15.81',longitude:'-47.89',state:'identified'}
+                  ],
+                  edges:[],traces:[]
+                };
+                document.getElementById('showNodes').checked=true;
+                document.getElementById('onlyIdentified').checked=false;
+                render();
+                return {markers:nodeLayer.getLayers().length,known:nodeMarkers.size,valid99:nodeHasValidMapPosition(topology.nodes[0])};
+              """)
+              assert map_nodes["markers"]==2,map_nodes
+              assert map_nodes["known"]==2,map_nodes
+              assert map_nodes["valid99"] is False,map_nodes
+              render_logs=d.get_log("browser")
+              invalid_latlng=[x for x in render_logs if "Invalid LatLng" in x.get("message","")]
+              assert not invalid_latlng,invalid_latlng
               legend_text=d.find_element(By.CSS_SELECTOR,".legend").get_attribute("textContent")
               assert "Tipo de enlace" in legend_text,legend_text
               assert "MQTT / não-RF" in legend_text,legend_text

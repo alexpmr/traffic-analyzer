@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.47.1 - 2026-10-08
+
+- Corrige `Invalid LatLng object: (undefined, undefined)` introduzido pela memória histórica da v1.47.0.
+- O mapa agora valida latitude/longitude antes de criar marcadores e pontos de heatmap.
+- Nós históricos sem posição permanecem no inventário da aba Nós, mas não são enviados ao Leaflet.
+- Coordenadas válidas em formato numérico ou string numérica continuam aceitas.
+- Rejeita coordenadas ausentes, NaN/infinito, fora das faixas geográficas e Null Island.
+- Adiciona smoke test específico reproduzindo um nó histórico sem coordenadas e verificando que os demais nós continuam visíveis.
+- Mantém sem alterações a persistência permanente de nós/enlaces e a retenção configurável do tráfego bruto.
+
 ## 1.47.0 - 2026-10-08
 
 - Cria memória histórica permanente de **nós** e **enlaces** dentro do `traffic.db`.

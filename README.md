@@ -1,6 +1,15 @@
-# Traffic Analyzer v1.47.0
+# Traffic Analyzer v1.47.1
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Correção da v1.47.1
+
+- Corrige a regressão da v1.47.0 em que **nós históricos sem posição conhecida** podiam causar `Invalid LatLng object: (undefined, undefined)` no Leaflet.
+- Nós sem latitude/longitude válida continuam corretamente preservados na aba **Nós**, mas deixam de ser enviados ao renderizador do mapa.
+- Nós com coordenadas válidas voltam a aparecer normalmente no mapa, sem afetar os enlaces persistentes.
+- Aceita coordenadas numéricas ou strings numéricas válidas e rejeita valores ausentes, não finitos, fora da faixa geográfica ou Null Island.
+- Adiciona teste de regressão no navegador para garantir que um nó histórico sem posição não interrompa os demais marcadores.
+- Preserva integralmente a memória histórica e a retenção configurável introduzidas na v1.47.0.
 
 ## Novidades da v1.47.0
 
