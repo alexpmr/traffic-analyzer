@@ -2115,6 +2115,11 @@ function nodeQueryTimeoutMs(action,state=null){
   return String(action||'').startsWith('telemetry_')?NODE_QUERY_TELEMETRY_TIMEOUT_MS:NODE_QUERY_TIMEOUT_MS;
 }
 function nodeHas(v){return v!==null&&v!==undefined&&!(typeof v==='string'&&v.trim()==='');}
+function nodeHasValidMapPosition(n){
+  if(!n)return false;
+  const lat=Number(n.latitude),lon=Number(n.longitude);
+  return nodeHas(n.latitude)&&nodeHas(n.longitude)&&Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180&&!(Math.abs(lat)<0.01&&Math.abs(lon)<0.01);
+}
 function nodeFmtNum(v,d=1,suffix=''){const n=Number(v);return Number.isFinite(n)?`${n.toLocaleString(uiLocale(),{maximumFractionDigits:d})}${suffix}`:'—';}
 function nodeFmtTs(v){
   const n=Number(v); if(!Number.isFinite(n)||n<=0)return '—';
@@ -3000,10 +3005,10 @@ function render(){
     const heatPoints = [];
     for(const [nodeNum, weight] of heatWeights.entries()){
       const n = nodeMap.get(nodeNum);
-      if(!n || n.latitude === null || n.longitude === null) continue;
+      if(!nodeHasValidMapPosition(n)) continue;
       if(onlyIdentified && n.state !== 'identified') continue;
       const intensity = Math.max(.08, Math.log1p(weight) / Math.log1p(maxWeight));
-      heatPoints.push([n.latitude, n.longitude, intensity]);
+      heatPoints.push([Number(n.latitude), Number(n.longitude), intensity]);
     }
     if(heatPoints.length){
       heatLayer = L.heatLayer(heatPoints, {
@@ -3017,15 +3022,16 @@ function render(){
   let markerCount = 0, mappableCount = 0;
   const mappableStates = {identified:0, stub:0, 'route-only':0};
   for(const n of topology.nodes || []){
-    if(n.latitude === null || n.longitude === null) continue;
+    if(!nodeHasValidMapPosition(n)) continue;
     if(onlyIdentified && n.state !== 'identified') continue;
+    const lat=Number(n.latitude),lon=Number(n.longitude);
     mappableCount++;
     mappableStates[n.state] = (mappableStates[n.state] || 0) + 1;
-    coords.push([n.latitude,n.longitude]);
+    coords.push([lat,lon]);
     if(!showNodes) continue;
 
     const trafficAge=nodeTrafficAge(n);
-    const marker = L.circleMarker([n.latitude,n.longitude], {
+    const marker = L.circleMarker([lat,lon], {
       radius:n.state === 'identified' ? 6 : 7,
       color:trafficAge.color, fillColor:trafficAge.color, fillOpacity:.90, weight:2
     });
