@@ -7217,7 +7217,7 @@ def _topology_history_merge(raw: dict):
             latest = {}
             for row in latest_rows:
                 latest.setdefault(str(row["edge_id"]), row)
-            recent_cutoff = int(time.time() * 1000) - 30 * 86400 * 1000
+            recent_cutoff = int(time.time() * 1000) - 32 * 86400 * 1000
             recent_rows = conn.execute(
                 """SELECT edge_id,timestamp_ms,leg,snr,transport,trace_id,observation_count
                    FROM topology_edge_events
