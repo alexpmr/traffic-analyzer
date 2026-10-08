@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.48.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.49.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.48.0"
+APP_VERSION = "1.49.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -390,6 +390,7 @@ HTML = r'''<!doctype html>
   .statsTopbar{position:sticky;top:0;z-index:20;background:#101b26;border-bottom:1px solid #304353;padding:10px 14px;box-shadow:0 5px 14px rgba(0,0,0,.18)}
   .statsHeader{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.statsHeader h2{margin:0 auto 0 0;font-size:18px}
   .statsTabs{display:flex;gap:5px;flex-wrap:wrap}.statsTab{font-weight:700;font-size:12px;padding:6px 9px}.statsTab.active{background:#e4b800;color:#101820;border-color:#ffe34d}
+  .clickableStatRow{cursor:pointer}.clickableStatRow:hover,.clickableStatRow:focus{outline:none;background:rgba(228,184,0,.12)}
   .statsPanel{display:none}.statsPanel.active{display:block}
   .statsOverviewText{background:#17212b;border:1px solid #304353;border-left:4px solid #e4b800;border-radius:8px;padding:12px 14px;line-height:1.55;margin:10px 0 12px}
   .statsSplit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.statsCompactTable{min-width:560px}
@@ -606,7 +607,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <div id="cloudsStatus" class="layerStatus">Desligado</div>
       </div>
     </details>
-    <button id="fit">Enquadrar</button><button id="reload">Atualizar</button>
+    <button id="clearLinkIsolation" type="button" style="display:none">Mostrar todos os nós e enlaces</button><button id="fit">Enquadrar</button><button id="reload">Atualizar</button>
   </div>
 </div>
 <div id="map"></div>
@@ -1085,7 +1086,7 @@ const I18N_PAIRS=[
   ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
-  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.','Only direct RF hops with valid SNR and known positions at both endpoints. Routes with intermediate nodes are not treated as end-to-end links.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],
+  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.','Only direct RF hops with valid SNR and known positions at both endpoints. Routes with intermediate nodes are not treated as end-to-end links.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],['Clique para mostrar somente este enlace no mapa','Click to show only this link on the map'],['Mostrar todos os nós e enlaces','Show all nodes and links'],['Este enlace não está disponível na topologia atual.','This link is not available in the current topology.'],['Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.','This link cannot be framed because one endpoint has no valid position.'],
   ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
   ['Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.','Solid line only when the hop has physical RF evidence, currently a valid SNR. Mixed RF and MQTT/non-RF observations remain solid and the popup shows the composition.'],
   ['Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.','Dashed line when there is no physical RF evidence for the hop. Without a valid SNR, the observation is treated as MQTT/non-RF even if the traceroute record reached MeshMonitor over RF.'],
@@ -1369,6 +1370,8 @@ let nodesFilterText = '';
 const NODES_COLUMNS_KEY='trafficAnalyzerNodesColumnsV132';
 let nodesOptionalColumns=new Set();
 let lastBounds = null;
+let isolatedEdgeId = null;
+let isolatedEdgeNodes = new Set();
 let historyIndex = 0;
 let playbackRunning = false;
 let historyAnimationPaused = false;
@@ -2958,16 +2961,22 @@ function render(){
   const showNodes = document.getElementById('showNodes').checked;
   const showHeatmap = document.getElementById('showHeatmap').checked;
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
+  const isolatedEdge = isolatedEdgeId ? (topology.edges||[]).find(e=>String(e.id||'')===String(isolatedEdgeId)) : null;
+  isolatedEdgeNodes = new Set(isolatedEdge ? [Number(isolatedEdge.a),Number(isolatedEdge.b)] : []);
+  const isolationActive=Boolean(isolatedEdge);
+  const isolationButton=document.getElementById('clearLinkIsolation');
+  if(isolationButton)isolationButton.style.display=isolationActive?'':'none';
   const visibleNodes = new Set();
   const heatWeights = new Map();
   let edgeCount = 0, rfEdgeCount = 0, mqttOnlyEdgeCount = 0, mixedEdgeCount = 0;
 
   for(const e of topology.edges || []){
+    if(isolationActive && String(e.id||'')!==String(isolatedEdgeId)) continue;
     if(!e.geometry) continue;
-    const stats = edgeStatsForWindow(e, cutoff);
-    if(!stats || stats.observations < minObs) continue;
+    const stats = edgeStatsForWindow(e, isolationActive?null:cutoff);
+    if(!stats || (!isolationActive && stats.observations < minObs)) continue;
     const a = nodeMap.get(Number(e.a)), b = nodeMap.get(Number(e.b));
-    if(onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
+    if(!isolationActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
     if(stats.mixed) mixedEdgeCount++;
@@ -2977,7 +2986,7 @@ function render(){
     heatWeights.set(Number(e.a), (heatWeights.get(Number(e.a)) || 0) + obs);
     heatWeights.set(Number(e.b), (heatWeights.get(Number(e.b)) || 0) + obs);
 
-    if(showLines){
+    if(showLines || isolationActive){
       const mqttOnly=stats.displayTransport==='mqtt';
       const lineColor=mqttOnly?(document.getElementById('mqttLineColor').value||'#ff8c42'):(document.getElementById('rfLineColor').value||'#ffff00');
       const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById(mqttOnly?'mqttLineWidth':'rfLineWidth').value||3)));
@@ -3032,13 +3041,14 @@ function render(){
   let markerCount = 0, mappableCount = 0;
   const mappableStates = {identified:0, stub:0, 'route-only':0};
   for(const n of topology.nodes || []){
+    if(isolationActive && !isolatedEdgeNodes.has(Number(n.nodeNum))) continue;
     if(!nodeHasValidMapPosition(n)) continue;
-    if(onlyIdentified && n.state !== 'identified') continue;
+    if(!isolationActive && onlyIdentified && n.state !== 'identified') continue;
     const lat=Number(n.latitude),lon=Number(n.longitude);
     mappableCount++;
     mappableStates[n.state] = (mappableStates[n.state] || 0) + 1;
     coords.push([lat,lon]);
-    if(!showNodes) continue;
+    if(!showNodes && !isolationActive) continue;
 
     const trafficAge=nodeTrafficAge(n);
     const marker = L.circleMarker([lat,lon], {
@@ -4562,8 +4572,13 @@ function renderStatistics(){
     healthCard(fmtNum(links.filter(x=>Number(x.packets||0)>=10).length),'Enlaces recorrentes','10+ pacotes')
   ].join('');
   document.getElementById('statsRfLongestRows').innerHTML=longestRf.slice(0,10).map((x,i)=>
-    '<tr><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td>'+fmtNum(x.rfObservations)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>'
+    '<tr class="clickableStatRow" tabindex="0" role="button" data-edge-id="'+esc(x.edgeId||'')+'" title="'+esc(tr('Clique para mostrar somente este enlace no mapa'))+'"><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td>'+fmtNum(x.rfObservations)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>'
   ).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
+  document.querySelectorAll('#statsRfLongestRows tr[data-edge-id]').forEach(row=>{
+    const activate=()=>isolateStatsRfLink(row.dataset.edgeId);
+    row.addEventListener('click',activate);
+    row.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();activate();}});
+  });
   document.getElementById('statsRfRows').innerHTML=links.slice(0,40).map(x=>
     '<tr><td><b>'+esc(statsNodeName(x.fromNode,x.fromNodeId))+'</b></td><td>'+esc(statsNodeName(x.toNode,x.toNodeId))+'</td><td>'+fmtNum(x.packets)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.avgRssi==null?'—':fmtNum(x.avgRssi,0)+' dBm')+'</td><td>'+(x.lastSeen?esc(humanAge(Number(x.lastSeen))):'—')+'</td></tr>'
   ).join('')||'<tr><td colspan="6" class="emptyPanel">Sem enlaces no período.</td></tr>';
@@ -4639,6 +4654,29 @@ async function loadStatistics(force=false){
     document.getElementById('statsUpdated').textContent='erro';
   }
 }
+function isolateStatsRfLink(edgeId){
+  const edge=(topology?.edges||[]).find(e=>String(e.id||'')===String(edgeId||''));
+  if(!edge){alert(tr('Este enlace não está disponível na topologia atual.'));return;}
+  const nodeMap=new Map((topology?.nodes||[]).map(n=>[Number(n.nodeNum),n]));
+  const a=nodeMap.get(Number(edge.a)),b=nodeMap.get(Number(edge.b));
+  if(!nodeHasValidMapPosition(a)||!nodeHasValidMapPosition(b)){
+    alert(tr('Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.'));
+    return;
+  }
+  isolatedEdgeId=String(edge.id||edgeId);
+  closeNodeWindow();
+  setView('map');
+  render();
+  setTimeout(()=>fitMapTight(),80);
+}
+function clearStatsRfLinkIsolation(){
+  if(!isolatedEdgeId)return;
+  isolatedEdgeId=null;
+  isolatedEdgeNodes=new Set();
+  render();
+}
+document.getElementById('clearLinkIsolation').addEventListener('click',clearStatsRfLinkIsolation);
+
 function setStatisticsTab(name){
   document.querySelectorAll('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===name));
   document.querySelectorAll('.statsPanel').forEach(p=>p.classList.remove('active'));

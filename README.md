@@ -1,6 +1,18 @@
-# Traffic Analyzer v1.48.0
+# Traffic Analyzer v1.49.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.49.0
+
+- **Estatísticas → RF:** o ranking dos enlaces RF diretos mais longos agora é interativo.
+- Ao clicar em qualquer enlace do Top 10, a interface muda para **Mapa** e isola temporariamente somente os **dois nós** e o **enlace RF selecionado**.
+- O mapa enquadra automaticamente o par selecionado.
+- Durante o isolamento, os demais nós e enlaces ficam ocultos sem alterar ou apagar dados.
+- Um botão **Mostrar todos os nós e enlaces** restaura imediatamente a topologia completa e os filtros/preferências anteriores continuam intactos.
+- O modo isolado força apenas a visualização necessária do par selecionado, mesmo que filtros do mapa ocultassem aquele enlace/nós.
+- O ranking continua considerando somente **hops RF diretos com SNR válido**, sem transformar rotas com intermediários em enlaces ponta a ponta.
+- Suporte a clique, **Enter** e **Espaço** no ranking.
+- Preserva todos os recursos da v1.48.0.
 
 ## Novidades da v1.48.0
 
