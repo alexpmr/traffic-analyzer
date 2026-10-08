@@ -47,6 +47,10 @@ TOPOLOGY_FILE = Path(os.getenv(
     "TOPOLOGY_FILE",
     "/var/lib/traffic-analyzer/topology.json",
 ))
+TOPOLOGY_HISTORY_QUEUE_DIR = Path(os.getenv(
+    "TA_TOPOLOGY_HISTORY_QUEUE_DIR",
+    str(TOPOLOGY_FILE.parent / "topology-history-queue"),
+))
 MM_BASE_URL = os.getenv("MM_BASE_URL", "http://127.0.0.1:3001").rstrip("/")
 MM_API_TOKEN = os.getenv("MM_API_TOKEN", "").strip()
 MM_SOURCE = os.getenv("MM_SOURCE", "default").strip() or "default"
@@ -6971,6 +6975,27 @@ def _topology_history_ingest_current():
     return {"nodes": 0, "events": 0}
 
 
+def _topology_history_drain_queue(limit=200):
+    processed = 0
+    inserted_events = 0
+    try:
+        TOPOLOGY_HISTORY_QUEUE_DIR.mkdir(parents=True, exist_ok=True)
+        paths = sorted(TOPOLOGY_HISTORY_QUEUE_DIR.glob("topology-*.json"))[:max(1, int(limit))]
+    except Exception:
+        return {"processed": 0, "events": 0}
+    for path in paths:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            result = _topology_history_ingest(raw if isinstance(raw, dict) else {})
+            inserted_events += int(result.get("events") or 0)
+            path.unlink(missing_ok=True)
+            processed += 1
+        except Exception:
+            # Mantém o arquivo para uma tentativa futura; não perde observações.
+            continue
+    return {"processed": processed, "events": inserted_events}
+
+
 def _history_array(value):
     if isinstance(value, list):
         return value
@@ -7855,6 +7880,7 @@ def _archive_worker():
             # Packet Monitor. Depois trabalha apenas sobre uma janela sobreposta.
             was_first = not first_success
             inserted = _archive_sync_once(full=was_first)
+            _topology_history_drain_queue()
             _topology_history_ingest_current()
             if was_first:
                 recovery = _topology_history_recover_from_archive()
@@ -8062,6 +8088,7 @@ def _archive_export(query, fmt="jsonl"):
 
 def _load_topology_safe():
     try:
+        _topology_history_drain_queue()
         raw = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             return {}
@@ -8857,6 +8884,7 @@ def _refresh_topology_now():
             detail = (proc.stderr or proc.stdout or "falha sem detalhes").strip()
             raise RuntimeError(detail[-1800:])
         updated_ms = int(TOPOLOGY_FILE.stat().st_mtime * 1000) if TOPOLOGY_FILE.exists() else int(time.time()*1000)
+        _topology_history_drain_queue()
         _topology_history_ingest_current()
         return {"success": True, "updatedAtMs": updated_ms, "message": "Topologia atualizada e memória histórica preservada."}
     finally:
