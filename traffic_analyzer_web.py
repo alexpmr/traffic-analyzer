@@ -89,7 +89,13 @@ _access_geo_cache = {}
 ARCHIVE_POLL_SECONDS = max(1.0, float(os.getenv("ARCHIVE_POLL_SECONDS", "2")))
 ARCHIVE_PAGE_SIZE = max(100, min(int(os.getenv("ARCHIVE_PAGE_SIZE", "500")), 1000))
 ARCHIVE_OVERLAP_MS = max(1000, int(os.getenv("ARCHIVE_OVERLAP_MS", "10000")))
-ARCHIVE_RETENTION_DAYS = max(0, int(os.getenv("ARCHIVE_RETENTION_DAYS", "0")))
+ARCHIVE_RETENTION_ALLOWED_DAYS = {0, 1, 7, 30}
+try:
+    _archive_retention_env = int(os.getenv("ARCHIVE_RETENTION_DAYS", "0"))
+except (TypeError, ValueError):
+    _archive_retention_env = 0
+ARCHIVE_RETENTION_DEFAULT_DAYS = _archive_retention_env if _archive_retention_env in ARCHIVE_RETENTION_ALLOWED_DAYS else 0
+ARCHIVE_SETTINGS_FILE = Path(os.getenv("TA_ARCHIVE_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "archive-settings.json")))
 _archive_stop = threading.Event()
 _archive_status_lock = threading.Lock()
 _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "inserted_last_sync": 0}
@@ -6607,6 +6613,41 @@ def _archive_init():
         );
         CREATE INDEX IF NOT EXISTS idx_auto_notices_time ON automatic_notices(detected_at);
         CREATE INDEX IF NOT EXISTS idx_auto_notices_source ON automatic_notices(source);
+
+        CREATE TABLE IF NOT EXISTS topology_nodes (
+          source_id TEXT NOT NULL,
+          node_num INTEGER NOT NULL,
+          first_seen_ms INTEGER NOT NULL,
+          last_seen_ms INTEGER NOT NULL,
+          position_seen_ms INTEGER,
+          node_json TEXT NOT NULL,
+          PRIMARY KEY(source_id,node_num)
+        );
+        CREATE INDEX IF NOT EXISTS idx_topology_nodes_last_seen ON topology_nodes(source_id,last_seen_ms);
+
+        CREATE TABLE IF NOT EXISTS topology_edge_events (
+          event_key TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          edge_id TEXT NOT NULL,
+          a INTEGER NOT NULL,
+          b INTEGER NOT NULL,
+          timestamp_ms INTEGER NOT NULL,
+          leg TEXT,
+          snr REAL,
+          transport TEXT NOT NULL,
+          trace_id TEXT,
+          packet_id TEXT,
+          channel INTEGER,
+          observation_count INTEGER NOT NULL DEFAULT 1,
+          archived_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_topology_edge_time ON topology_edge_events(source_id,timestamp_ms);
+        CREATE INDEX IF NOT EXISTS idx_topology_edge_pair ON topology_edge_events(source_id,edge_id,timestamp_ms);
+
+        CREATE TABLE IF NOT EXISTS topology_history_meta (
+          meta_key TEXT PRIMARY KEY,
+          meta_value TEXT
+        );
         """)
     _tracklog_backfill()
 
