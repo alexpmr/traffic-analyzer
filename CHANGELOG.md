@@ -16,22 +16,6 @@
 - Respeita período de Estatísticas e filtro por nó.
 - Atualiza testes automatizados, smoke test, README, ajuda e manual PDF.
 
-## 1.48.0 - 2026-10-08
-
-- Torna a instalação automática da Latest Release estável um comportamento permanente.
-- Adiciona worker de verificação de versão em background, independente de navegador ou sessão autenticada.
-- Preserva intervalo configurável, lock, health check, rollback e backoff de falha do atualizador.
-- Recarrega automaticamente páginas abertas quando o backend já estiver executando uma versão mais nova.
-- Mantém popup de novidades uma vez por versão em cada navegador/perfil.
-- Corrige a idade visual dos nós normalizando `lastHeard` em segundos ou milissegundos e incluindo `lastSeenMs` histórico.
-- Ignora timestamps excessivamente futuros.
-- Adiciona em Estatísticas → RF os **10 enlaces RF diretos mais longos**.
-- O ranking usa somente `topology_edge_events` com transporte RF confirmado e SNR válido.
-- Consolida A↔B como um único hop físico e nunca transforma uma rota A→B→C em A↔C.
-- Exibe distância geodésica, nós/IDs, observações RF, SNR médio e última RF.
-- Respeita período de Estatísticas e filtro por nó.
-- Atualiza testes automatizados, smoke test, README, ajuda e manual PDF.
-
 ## 1.47.1 - 2026-10-08
 
 - Corrige `Invalid LatLng object: (undefined, undefined)` introduzido pela memória histórica da v1.47.0.
