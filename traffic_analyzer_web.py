@@ -8161,6 +8161,99 @@ def _archive_links_query(query):
     return {"success": True, "count": len(rows), "data": [dict(r) for r in rows]}
 
 
+def _archive_rf_longest_links_query(query):
+    clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL"]
+    params = [MM_SOURCE]
+    raw_since = (query.get("since") or [None])[0]
+    raw_until = (query.get("until") or [None])[0]
+    if raw_since not in (None, ""):
+        clauses.append("e.timestamp_ms >= ?")
+        params.append(int(raw_since))
+    if raw_until not in (None, ""):
+        clauses.append("e.timestamp_ms <= ?")
+        params.append(int(raw_until))
+
+    node_filter = (query.get("node") or [None])[0]
+    node_nums = None
+    with _archive_connect() as conn:
+        if node_filter not in (None, ""):
+            try:
+                node_nums = [int(str(node_filter), 0) & 0xffffffff]
+            except ValueError:
+                matches = []
+                for row in conn.execute(
+                    "SELECT node_num,node_json FROM topology_nodes WHERE source_id=?",
+                    (MM_SOURCE,),
+                ).fetchall():
+                    try:
+                        node = json.loads(row["node_json"] or "{}")
+                    except Exception:
+                        node = {}
+                    needle = str(node_filter).strip().lower()
+                    hay = " ".join(str(node.get(k) or "") for k in ("nodeId","name","longName","shortName")).lower()
+                    if needle and needle in hay:
+                        matches.append(int(row["node_num"]))
+                node_nums = matches
+            if not node_nums:
+                return {"success": True, "count": 0, "data": []}
+            placeholders = ",".join("?" for _ in node_nums)
+            clauses.append(f"(e.a IN ({placeholders}) OR e.b IN ({placeholders}))")
+            params.extend(node_nums)
+            params.extend(node_nums)
+
+        rows = conn.execute(
+            f"""SELECT e.edge_id,e.a,e.b,
+                       SUM(e.observation_count) AS rfObservations,
+                       SUM(e.snr*e.observation_count)/NULLIF(SUM(e.observation_count),0) AS avgSnr,
+                       MAX(e.timestamp_ms) AS lastRfSeenMs
+                FROM topology_edge_events e
+                WHERE {' AND '.join(clauses)}
+                GROUP BY e.edge_id,e.a,e.b""",
+            params,
+        ).fetchall()
+
+        node_rows = conn.execute(
+            "SELECT node_num,node_json FROM topology_nodes WHERE source_id=?",
+            (MM_SOURCE,),
+        ).fetchall()
+
+    node_map = {}
+    for row in node_rows:
+        try:
+            node = json.loads(row["node_json"] or "{}")
+        except Exception:
+            node = {}
+        node["nodeNum"] = int(row["node_num"])
+        node_map[int(row["node_num"])] = node
+
+    data = []
+    for row in rows:
+        a = int(row["a"]); b = int(row["b"])
+        na = node_map.get(a, {}); nb = node_map.get(b, {})
+        if not (_history_valid_position(na.get("latitude"), na.get("longitude")) and
+                _history_valid_position(nb.get("latitude"), nb.get("longitude"))):
+            continue
+        distance_km = _haversine_m(
+            float(na["latitude"]), float(na["longitude"]),
+            float(nb["latitude"]), float(nb["longitude"]),
+        ) / 1000.0
+        data.append({
+            "edgeId": str(row["edge_id"]),
+            "a": a,
+            "b": b,
+            "aId": na.get("nodeId") or _history_node_id(a),
+            "bId": nb.get("nodeId") or _history_node_id(b),
+            "aName": na.get("name") or na.get("longName") or na.get("shortName") or na.get("nodeId") or _history_node_id(a),
+            "bName": nb.get("name") or nb.get("longName") or nb.get("shortName") or nb.get("nodeId") or _history_node_id(b),
+            "distanceKm": round(distance_km, 3),
+            "rfObservations": int(row["rfObservations"] or 0),
+            "avgSnr": round(float(row["avgSnr"]), 2) if row["avgSnr"] is not None else None,
+            "lastRfSeenMs": int(row["lastRfSeenMs"] or 0),
+        })
+    data.sort(key=lambda x: (-float(x["distanceKm"]), -int(x["rfObservations"]), -int(x["lastRfSeenMs"])))
+    return {"success": True, "count": min(10, len(data)), "data": data[:10]}
+
+
 def _archive_export(query, fmt="jsonl"):
     export_query = dict(query)
     export_query["limit"] = [str(max(1, min(int((query.get("limit") or ["100000"])[0]), 100000)))]
@@ -9297,6 +9390,10 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if path == "/api/archive/links":
                     body = _archive_links_query(query)
+                    self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+                    return
+                if path == "/api/archive/rf-longest-links":
+                    body = _archive_rf_longest_links_query(query)
                     self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
                     return
                 if path == "/api/archive/export":
