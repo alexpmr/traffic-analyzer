@@ -390,6 +390,7 @@ HTML = r'''<!doctype html>
   .statsTopbar{position:sticky;top:0;z-index:20;background:#101b26;border-bottom:1px solid #304353;padding:10px 14px;box-shadow:0 5px 14px rgba(0,0,0,.18)}
   .statsHeader{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.statsHeader h2{margin:0 auto 0 0;font-size:18px}
   .statsTabs{display:flex;gap:5px;flex-wrap:wrap}.statsTab{font-weight:700;font-size:12px;padding:6px 9px}.statsTab.active{background:#e4b800;color:#101820;border-color:#ffe34d}
+  .clickableStatRow{cursor:pointer}.clickableStatRow:hover,.clickableStatRow:focus{outline:none;background:rgba(228,184,0,.12)}
   .statsPanel{display:none}.statsPanel.active{display:block}
   .statsOverviewText{background:#17212b;border:1px solid #304353;border-left:4px solid #e4b800;border-radius:8px;padding:12px 14px;line-height:1.55;margin:10px 0 12px}
   .statsSplit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.statsCompactTable{min-width:560px}
@@ -606,7 +607,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <div id="cloudsStatus" class="layerStatus">Desligado</div>
       </div>
     </details>
-    <button id="fit">Enquadrar</button><button id="reload">Atualizar</button>
+    <button id="clearLinkIsolation" type="button" style="display:none">Mostrar todos os nós e enlaces</button><button id="fit">Enquadrar</button><button id="reload">Atualizar</button>
   </div>
 </div>
 <div id="map"></div>
@@ -1369,6 +1370,8 @@ let nodesFilterText = '';
 const NODES_COLUMNS_KEY='trafficAnalyzerNodesColumnsV132';
 let nodesOptionalColumns=new Set();
 let lastBounds = null;
+let isolatedEdgeId = null;
+let isolatedEdgeNodes = new Set();
 let historyIndex = 0;
 let playbackRunning = false;
 let historyAnimationPaused = false;
