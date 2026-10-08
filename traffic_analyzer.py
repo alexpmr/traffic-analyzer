@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.36.5
+Traffic Analyzer v1.47.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -62,6 +62,10 @@ STATE_FILE = Path(os.getenv(
 TOPOLOGY_FILE = Path(os.getenv(
     "TOPOLOGY_FILE",
     "/var/lib/traffic-analyzer/topology.json",
+))
+TOPOLOGY_HISTORY_QUEUE_DIR = Path(os.getenv(
+    "TA_TOPOLOGY_HISTORY_QUEUE_DIR",
+    "/var/lib/traffic-analyzer/topology-history-queue",
 ))
 
 INVALID_NODE_NUMS = {0, 1, 2, 3, 255, 65535, 0xFFFFFFFF}
@@ -787,6 +791,14 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
 def write_topology(nodes, traceroutes, now_ms, local_node_num=None):
     topology = build_topology(nodes, traceroutes, now_ms, local_node_num=local_node_num)
     atomic_json_write(TOPOLOGY_FILE, topology, mode=0o644)
+    # Cada geração também entra em uma fila durável. O serviço web consome esses
+    # snapshots e os consolida no traffic.db. Assim, observações feitas enquanto
+    # a interface web estiver parada não somem quando topology.json for sobrescrito.
+    try:
+        queue_name = f"topology-{int(now_ms)}-{os.getpid()}-{time.time_ns()}.json"
+        atomic_json_write(TOPOLOGY_HISTORY_QUEUE_DIR / queue_name, topology, mode=0o644)
+    except Exception as exc:
+        LOG.warning("Não foi possível enfileirar snapshot histórico da topologia: %s", exc)
     s = topology["summary"]
     LOG.info(
         "Topologia: %d enlaces observados (%d mapeáveis), %d nodes mapeáveis; arquivo=%s",
@@ -932,7 +944,7 @@ def run_discovery(nodes, traceroutes, now_ms, state):
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Traffic Analyzer v1.36.5")
+    p = argparse.ArgumentParser(description="Traffic Analyzer v1.47.0")
     p.add_argument(
         "--topology-only",
         action="store_true",

@@ -1,6 +1,21 @@
-# Traffic Analyzer v1.46.0
+# Traffic Analyzer v1.47.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.47.0
+
+- **Memória permanente de nós:** uma vez observado, o nó permanece no `traffic.db` até o banco ser explicitamente apagado/resetado.
+- **Última posição conhecida:** nós que deixam de aparecer no MeshMonitor continuam no inventário e, quando houver posição válida arquivada, permanecem mapeáveis com essa posição histórica.
+- **Memória permanente de enlaces:** cada hop/enlace realmente observado é persistido independentemente da retenção futura do MeshMonitor ou do limite de traceroutes retornados pela API.
+- **Janela = Todos** passa a usar os agregados históricos completos. As janelas de 1 h, 6 h, 12 h, 24 h, 7 dias e 30 dias apenas filtram a visualização e não apagam a memória.
+- A classificação **RF × MQTT/não-RF** continua baseada em evidência real: somente observações com SNR válido são confirmadas como RF.
+- Adiciona uma **fila durável de snapshots de topologia** para não perder observações caso o serviço web esteja temporariamente parado.
+- Faz recuperação best-effort de enlaces antigos a partir de pacotes `TRACEROUTE_APP` já arquivados quando o metadata disponível permitir.
+- **Configurações → Banco de tráfego:** nova retenção administrativa para pacotes/posições brutas com **1 dia, 1 semana, 1 mês ou Nunca apagar**.
+- O padrão é **Nunca apagar**.
+- A retenção do tráfego bruto é independente da memória de nós/enlaces: limpar pacotes antigos não remove nós e enlaces historicamente observados.
+- Exibe quantidade de pacotes, nós históricos, enlaces históricos, registro bruto mais antigo e tamanho aproximado do banco.
+- Preserva todos os recursos da v1.46.0.
 
 ## Novidades da v1.46.0
 

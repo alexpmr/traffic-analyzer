@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.44.0"
+VERSION="1.47.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -59,6 +59,7 @@ fi
 PREVIOUS_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
 install -d -m 0755 "$APP_DIR"
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR"
+install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR/topology-history-queue"
 install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
 install -m 0755 "$BASE_DIR/meshtastic_query.py" "$APP_DIR/meshtastic_query.py"
@@ -88,6 +89,7 @@ append_if_missing "$ENV_FILE" "TRACEROUTE_LIMIT" "5000"
 append_if_missing "$ENV_FILE" "STATE_FILE" "$STATE_DIR/state.json"
 append_if_missing "$ENV_FILE" "TOPOLOGY_FILE" "$STATE_DIR/topology.json"
 append_if_missing "$ENV_FILE" "TRAFFIC_ARCHIVE_DB" "$STATE_DIR/traffic.db"
+append_if_missing "$ENV_FILE" "TA_TOPOLOGY_HISTORY_QUEUE_DIR" "$STATE_DIR/topology-history-queue"
 append_if_missing "$ENV_FILE" "ARCHIVE_POLL_SECONDS" "2"
 append_if_missing "$ENV_FILE" "ARCHIVE_PAGE_SIZE" "500"
 append_if_missing "$ENV_FILE" "ARCHIVE_OVERLAP_MS" "10000"

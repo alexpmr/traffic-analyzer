@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.44.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.47.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.44.0"
+APP_VERSION = "1.47.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -46,6 +46,10 @@ DISPLAY_TITLE = _display_title(TITLE)
 TOPOLOGY_FILE = Path(os.getenv(
     "TOPOLOGY_FILE",
     "/var/lib/traffic-analyzer/topology.json",
+))
+TOPOLOGY_HISTORY_QUEUE_DIR = Path(os.getenv(
+    "TA_TOPOLOGY_HISTORY_QUEUE_DIR",
+    str(TOPOLOGY_FILE.parent / "topology-history-queue"),
 ))
 MM_BASE_URL = os.getenv("MM_BASE_URL", "http://127.0.0.1:3001").rstrip("/")
 MM_API_TOKEN = os.getenv("MM_API_TOKEN", "").strip()
@@ -89,7 +93,13 @@ _access_geo_cache = {}
 ARCHIVE_POLL_SECONDS = max(1.0, float(os.getenv("ARCHIVE_POLL_SECONDS", "2")))
 ARCHIVE_PAGE_SIZE = max(100, min(int(os.getenv("ARCHIVE_PAGE_SIZE", "500")), 1000))
 ARCHIVE_OVERLAP_MS = max(1000, int(os.getenv("ARCHIVE_OVERLAP_MS", "10000")))
-ARCHIVE_RETENTION_DAYS = max(0, int(os.getenv("ARCHIVE_RETENTION_DAYS", "0")))
+ARCHIVE_RETENTION_ALLOWED_DAYS = {0, 1, 7, 30}
+try:
+    _archive_retention_env = int(os.getenv("ARCHIVE_RETENTION_DAYS", "0"))
+except (TypeError, ValueError):
+    _archive_retention_env = 0
+ARCHIVE_RETENTION_DEFAULT_DAYS = _archive_retention_env if _archive_retention_env in ARCHIVE_RETENTION_ALLOWED_DAYS else 0
+ARCHIVE_SETTINGS_FILE = Path(os.getenv("TA_ARCHIVE_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "archive-settings.json")))
 _archive_stop = threading.Event()
 _archive_status_lock = threading.Lock()
 _archive_status = {"running": False, "last_sync_ms": None, "last_error": None, "inserted_last_sync": 0}
@@ -870,6 +880,26 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
     </div>
 
+    <div class="adminOnlySection">
+      <h3>Banco de tráfego <span class="adminOnlyBadge">Administrador</span></h3>
+      <div class="settingsGrid">
+        <div class="settingRow">
+          <label>Retenção do tráfego bruto:
+            <select id="archiveRetentionDays" data-admin-only>
+              <option value="0" selected>Nunca apagar (padrão)</option>
+              <option value="1">1 dia</option>
+              <option value="7">1 semana</option>
+              <option value="30">1 mês</option>
+            </select>
+          </label>
+          <div class="settingDesc">Define por quanto tempo pacotes e posições brutas ficam no traffic.db. Nós e enlaces já observados permanecem na memória histórica até o banco ser apagado/resetado.</div>
+        </div>
+        <div class="settingRow">
+          <div id="archiveRetentionStatus" class="settingDesc">Carregando estado do banco...</div>
+        </div>
+      </div>
+    </div>
+
     <div id="adminDefaultsSection" class="adminOnlySection">
       <h3>Apresentação padrão para visitantes <span class="adminOnlyBadge">Administrador</span></h3>
       <div class="settingsGrid">
@@ -1002,6 +1032,7 @@ const I18N_PAIRS=[
   ['Atividade em tempo real no mapa','Real-time map activity'],['Animar atividade dos nós','Animate node activity'],['Realçar origem/resposta','Highlight source/response'],['Realçar retransmissor observado','Highlight observed relay'],['Cada atividade observada recebe um pulso visual no mapa. Só são destacados nós que podem ser identificados com segurança.','Each observed activity gets a visual pulse on the map. Only nodes that can be identified safely are highlighted.'],['Duração do realce:','Highlight duration:'],['Origem/resposta usa pulso azul/roxo; relay observado usa pulso amarelo. O Traffic Analyzer não inventa relays intermediários.','Source/response uses a blue/purple pulse; the observed relay uses a yellow pulse. Traffic Analyzer does not invent intermediate relays.'],
   ['Tamanho da fonte:','Font size:'],['Ajusta o tamanho do texto do chat, do remetente, do horário e do campo de composição. A preferência fica salva neste navegador.','Adjusts chat text, sender, timestamp, and composer font sizes. The preference is saved in this browser.'],['Uso da tela','Screen usage'],['A tela de Mensagens usa praticamente toda a largura e altura disponíveis, preservando apenas margens mínimas para leitura.','The Messages screen uses nearly all available width and height while preserving minimal reading margins.'],
   ['Fluxos e privacidade','Flows and privacy'],['Mostrar fluxo de NodeInfo no mapa','Show NodeInfo flow on the map'],['O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.','The map connects source and destination. Hop-by-hop animation only uses an observed route when a compatible complete traceroute exists; without sufficient evidence, no hop is invented.'],['Conteúdo dos pacotes','Packet content'],['Mensagens TEXT_MESSAGE em broadcast mostram o payload no detalhe. Mensagens diretas continuam ocultas por padrão. Payloads e dados técnicos são apresentados com rótulos amigáveis; o JSON bruto fica disponível apenas como diagnóstico secundário.','Broadcast TEXT_MESSAGE packets show their payload in details. Direct messages remain hidden by default. Payloads and technical data are shown with friendly labels; raw JSON remains available only as secondary diagnostics.'],['Segurança','Security'],['O token mm_v1 permanece no processo servidor e não é enviado ao navegador.','The mm_v1 token remains in the server process and is never sent to the browser.'],
+  ['Banco de tráfego','Traffic database'],['Retenção do tráfego bruto:','Raw traffic retention:'],['Nunca apagar (padrão)','Never delete (default)'],['1 dia','1 day'],['1 semana','1 week'],['1 mês','1 month'],['Define por quanto tempo pacotes e posições brutas ficam no traffic.db. Nós e enlaces já observados permanecem na memória histórica até o banco ser apagado/resetado.','Defines how long raw packets and positions stay in traffic.db. Previously observed nodes and links remain in historical memory until the database is deleted/reset.'],['Carregando estado do banco...','Loading database status...'],['pacotes','packets'],['nós históricos','historical nodes'],['enlaces históricos','historical links'],['registro mais antigo','oldest record'],['tamanho do banco','database size'],
   ['Verificar novas versões a cada:','Check for new versions every:'],['minutos','minutes'],['Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.','Default: 15 minutes. The change is persisted on the server and applied immediately without restarting Traffic Analyzer.'],
   ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['verificando…','checking…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
@@ -1180,7 +1211,7 @@ function renderHelp(){
     el.innerHTML=`<h2>Traffic Analyzer Help</h2>
       <p>Traffic Analyzer is a companion web application for MeshMonitor. It analyzes Meshtastic traffic, observed RF topology, traceroutes, messages, node activity, network health, and anomalies without taking over the radio connection used by MeshMonitor.</p>
       <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
-      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Node popups can be dragged by their header to avoid covering legends or map controls, while their internal content remains scrollable. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. The RF Coverage layer composes archived receptions into a heatmap: overlapping receptions accumulate visually and each point is weighted by SNR, with RSSI as fallback. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
+      <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Starting with v1.47.0, every observed node and link is kept in Traffic Analyzer's own historical memory until traffic.db is explicitly deleted/reset; MeshMonitor retention no longer makes an already-known link disappear. Time windows only filter the view. Node popups can be dragged by their header to avoid covering legends or map controls, while their internal content remains scrollable. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. The RF Coverage layer composes archived receptions into a heatmap: overlapping receptions accumulate visually and each point is weighted by SNR, with RSSI as fallback. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
       <ul><li><b>History:</b> replays traceroutes on their observed timeline and allows several packets to move simultaneously. Long windows are proportionally time-compressed.</li><li><b>Live:</b> each new complete traceroute starts independently without waiting for earlier animations to finish.</li><li><b>No artificial limit:</b> there is no functional cap on packets in transit; all observed events are kept.</li><li><b>Pause:</b> freezes every visual animation. Collection and processing continue, and waiting events are released on resume.</li><li><b>Speed:</b> also affects packets already moving and the History timeline.</li><li><b>Auto Zoom:</b> can follow all nodes involved in simultaneous traceroute animations.</li></ul>
       <h3>2. Nodes</h3><p>The Nodes tab inventories every node known to the configured MeshMonitor source. The filter narrows the list character by character. Click any column heading to sort ascending or descending. Last interaction is color-coded: green up to 1 hour, yellow from more than 1 hour through 12 hours, and red above 12 hours. Battery percentage is green at 50% or above, yellow from 20% to 49.9%, and red below 20%. Distance is calculated specifically from VHF3 when both nodes have a known position. The Columns menu can reveal RSSI, channel utilization, Air Util TX, Node ID, PKC and state. Clicking a row switches to the map, centers that node with a closer zoom, and does not open the popup; click the marker when you want details.</p>
       <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
@@ -1191,7 +1222,7 @@ function renderHelp(){
       <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p>
       <h3>6. Anomalies</h3><p>Anomaly detection uses heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret an alert together with RF conditions, node role, power state, and the observation point.</p>
       <h3>7. Access</h3><p>The Access tab is restricted to the administrator when authentication is enabled. It summarizes page views by day, countries, cities, unique IP addresses, browsers, operating systems, and login success/failure counts. Raw access events are also written as JSON Lines to <code>access.log</code> next to <code>traffic.db</code>. Public IP geolocation is not sent to any external service by default: country/city come from trusted reverse-proxy/CDN headers, local/private addresses, or an explicitly configured server-side GeoIP endpoint.</p>
-      <h3>8. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, Auto Zoom, and independent color/thickness for confirmed RF versus MQTT/non-RF links.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
+      <h3>8. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, Auto Zoom, and independent color/thickness for confirmed RF versus MQTT/non-RF links.</div><div class="helpMini"><b>Traffic database</b>The administrator can retain raw packets/positions for 1 day, 1 week, 1 month, or never delete them. The default is Never delete. This cleanup never removes the permanent node/link memory.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
       <h3>9. Authentication and Internet exposure</h3><p>When authentication is enabled, visitors may freely change visual and reading preferences in Settings; these changes stay only in that browser. Administrative actions remain locked: sending/replying/reacting to messages, forcing topology refresh, changing update settings, triggering updates, and changing the server-side visitor default all require an authenticated administrator session.</p><p>The administrator can save the current visual setup as the global default for new visitors. A visitor can still override it locally and can use <b>Restore administrator default</b> at any time. Every server write API remains protected by an authenticated session and CSRF token.</p><p>Configure the administrator password on the server with <code>sudo traffic-analyzer-set-password</code>. Passwords are stored only as PBKDF2-SHA256 hashes. Sessions use HttpOnly/SameSite cookies and expire automatically. For Internet exposure, place Traffic Analyzer behind an HTTPS reverse proxy such as Caddy, Nginx or Cloudflare Tunnel; the application itself does not terminate TLS.</p>
       <h3>10. Language</h3><p>Use the pull-down language menu at the top of the application. Portuguese is the default. Flags are rendered as embedded SVG, so they do not depend on Windows or browser emoji support. Switching to English translates navigation, settings, help, status messages, labels, tooltips, map interface text, and analytical panels. Node names, user messages, IDs, raw protocol values, and release notes are preserved as source data.</p>
       <h3>11. Version and updates</h3><p>The badge at the top compares the installed version with the latest published GitHub Release. Automatic checks run every 15 minutes by default; an administrator can change the interval from 5 to 1,440 minutes under Settings → Updates and the new value takes effect immediately without a restart. When a newer stable version exists, the badge shows DOWNLOAD and clicking it downloads that Release's versioned ZIP. When the installer is run, it stops the previous web instance and scheduled cycle before replacing files, then starts the services again. Automatic installation can still be enabled through the dedicated systemd updater with backup, health check and rollback.</p>
@@ -1202,7 +1233,7 @@ function renderHelp(){
     el.innerHTML=`<h2>Ajuda do Traffic Analyzer</h2>
       <p>O Traffic Analyzer é uma aplicação web complementar ao MeshMonitor. Ele analisa tráfego Meshtastic, topologia RF observada, traceroutes, mensagens, atividade dos nós, saúde da rede e anomalias sem assumir a conexão com o rádio utilizada pelo MeshMonitor.</p>
       <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
-      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. O popup de cada nó pode ser arrastado pelo cabeçalho para não encobrir a legenda ou outros controles, mantendo a rolagem interna do conteúdo. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. A camada Cobertura RF compõe as recepções arquivadas em um mapa de calor: recepções sobrepostas se acumulam visualmente e cada ponto é ponderado por SNR, com RSSI como fallback. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
+      <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A partir da v1.47.0, cada nó e enlace observado fica na memória histórica própria do Traffic Analyzer até o traffic.db ser explicitamente apagado/resetado; a retenção do MeshMonitor não faz mais um enlace já conhecido desaparecer. As janelas de tempo apenas filtram a visualização. O popup de cada nó pode ser arrastado pelo cabeçalho para não encobrir a legenda ou outros controles, mantendo a rolagem interna do conteúdo. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. A camada Cobertura RF compõe as recepções arquivadas em um mapa de calor: recepções sobrepostas se acumulam visualmente e cada ponto é ponderado por SNR, com RSSI como fallback. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
       <ul><li><b>Histórico:</b> reproduz traceroutes em ordem temporal e permite vários pacotes simultaneamente. Janelas longas têm a escala de tempo comprimida proporcionalmente.</li><li><b>Ao vivo:</b> novos traceroutes completos iniciam sua própria animação sem esperar os anteriores terminarem.</li><li><b>Sem limite artificial:</b> não há teto funcional de pacotes em trânsito; a interface acompanha todos os eventos observados.</li><li><b>Pausa:</b> congela todas as animações visuais. Coleta e processamento continuam, e o que ficou aguardando é liberado ao retomar.</li><li><b>Velocidade:</b> afeta também os pacotes que já estão se movendo e a linha do tempo do Histórico.</li><li><b>Auto Zoom:</b> opcionalmente acompanha em conjunto os nós envolvidos nas animações simultâneas.</li></ul>
       <h3>2. Nós</h3><p>A aba Nós lista todos os nós conhecidos pela fonte MeshMonitor configurada. O filtro reduz a lista caractere por caractere enquanto você digita. Clique em qualquer título de coluna para alternar entre ordem crescente e decrescente. A última interação usa cores: verde até 1 hora, amarelo acima de 1 hora até 12 horas e vermelho acima de 12 horas. O percentual da bateria fica verde a partir de 50%, amarelo de 20% a 49,9% e vermelho abaixo de 20%. A distância é calculada especificamente em relação ao VHF3 quando os dois nós possuem posição conhecida. O menu Colunas permite exibir RSSI, utilização do canal, Air Util TX, Node ID, PKC e estado. Ao clicar em uma linha, a aplicação muda para o mapa, centraliza o nó com zoom mais próximo e não abre o popup; clique no marcador quando quiser os detalhes.</p>
       <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
@@ -1213,7 +1244,7 @@ function renderHelp(){
       <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p>
       <h3>6. Anomalias</h3><p>A detecção usa heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada alerta junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
       <h3>7. Acessos</h3><p>A aba Acessos fica restrita ao administrador quando a autenticação estiver ativada. Ela resume acessos por dia, países, cidades, IPs únicos, navegadores, sistemas operacionais e sucessos/falhas de login. Os eventos brutos também são gravados em formato JSON Lines no arquivo <code>access.log</code>, ao lado do <code>traffic.db</code>. Por padrão, IPs públicos não são enviados a nenhum serviço externo de geolocalização: país/cidade vêm de cabeçalhos confiáveis do proxy/CDN, de endereços locais/privados ou de um endpoint GeoIP configurado explicitamente no servidor.</p>
-      <h3>8. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor, Auto Zoom e cor/espessura independentes para enlaces RF confirmados e MQTT/não-RF.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
+      <h3>8. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor, Auto Zoom e cor/espessura independentes para enlaces RF confirmados e MQTT/não-RF.</div><div class="helpMini"><b>Banco de tráfego</b>O administrador pode reter pacotes/posições brutas por 1 dia, 1 semana, 1 mês ou Nunca apagar. O padrão é Nunca apagar. Essa limpeza nunca remove a memória permanente de nós/enlaces.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
       <h3>9. Autenticação e exposição na internet</h3><p>Com a autenticação ativada, visitantes podem alterar livremente preferências visuais e de leitura em Configurações; essas alterações ficam somente naquele navegador. Ações administrativas continuam bloqueadas: enviar/responder/reagir a mensagens, forçar atualização da topologia, alterar o auto-update, disparar atualização e mudar o padrão global dos visitantes exigem sessão administrativa autenticada.</p><p>O administrador pode salvar a configuração visual atual como padrão global para novos visitantes. Cada visitante ainda pode sobrescrevê-la localmente e usar <b>Restaurar padrão do administrador</b> quando quiser. Todas as APIs de escrita no servidor permanecem protegidas por sessão autenticada e token CSRF.</p><p>Configure a senha administrativa no servidor com <code>sudo traffic-analyzer-set-password</code>. A senha é armazenada apenas como hash PBKDF2-SHA256. As sessões usam cookie HttpOnly/SameSite e expiram automaticamente. Para exposição na internet, use um reverse proxy HTTPS como Caddy, Nginx ou Cloudflare Tunnel; o Traffic Analyzer não termina TLS diretamente.</p>
       <h3>10. Idioma</h3><p>Use o menu pull-down de idioma no topo. Português é o padrão. As bandeiras são desenhadas por SVG embutido, sem depender do suporte de emojis do Windows ou do navegador. Ao selecionar English, navegação, configurações, ajuda, estados, rótulos, tooltips, textos da interface do mapa e painéis analíticos passam para inglês. Nomes dos nós, mensagens dos usuários, IDs, valores brutos de protocolo e notas das Releases permanecem como dados de origem.</p>
       <h3>11. Versão e atualização</h3><p>O indicador no topo compara a versão instalada com a Latest Release publicada no GitHub. A verificação automática ocorre a cada 15 minutos por padrão; o administrador pode definir de 5 a 1.440 minutos em Configurações → Atualizações e o novo intervalo entra em vigor imediatamente, sem reinício. Quando existir uma versão estável mais nova, o indicador mostra BAIXAR e um clique inicia o download do ZIP versionado daquela Release. Ao executar o instalador, a instância web e o ciclo agendado anteriores são parados antes da substituição dos arquivos e os serviços são iniciados novamente ao final. A instalação automática continua disponível pelo serviço systemd dedicado, com backup, verificação de /health e rollback.</p>
@@ -1994,43 +2025,68 @@ function cutoffForSelection(){
 
 function edgeStatsForWindow(e, cutoff){
   const events = Array.isArray(e.events) ? e.events : null;
-  if(!events){
+  // "Todos" usa os agregados persistentes completos. Os eventos enviados ao
+  // navegador ficam limitados aos últimos 30 dias para manter o JSON leve.
+  if(cutoff===null || !events){
     if(cutoff !== null && (e.lastSeenMs || 0) < cutoff) return null;
-    const observations=Number(e.observations || 0);
-    const aggregateSnr=[e.avgSnr,e.minSnr,e.maxSnr].find(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
-    const hasRfEvidence=aggregateSnr!==undefined;
-    const rf=hasRfEvidence?Math.max(1,Number(e.rfObservations||observations||0)):0;
-    const mqtt=hasRfEvidence?Math.max(0,observations-rf):observations;
-    const nonRf=mqtt;
+    const countOf=x=>Math.max(1,Number(x?.count||1));
+    const hasRfEvidence=x=>x?.snr!==null&&x?.snr!==undefined&&Number.isFinite(Number(x.snr));
+    const eventObservations=events?events.reduce((sum,x)=>sum+countOf(x),0):0;
+    const observations=Number(e.observations || eventObservations || 0);
+    let rf=0,nonRf=0,forward=Number(e.forwardObservations||0),back=Number(e.returnObservations||0);
+    let avgSnr=e.avgSnr,minSnr=e.minSnr,maxSnr=e.maxSnr;
+    if(e.historyPersistent || !events){
+      const aggregateSnr=[e.avgSnr,e.minSnr,e.maxSnr].find(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
+      const aggregateHasRf=aggregateSnr!==undefined;
+      rf=e.historyPersistent?Math.max(0,Number(e.rfObservations||0)):(aggregateHasRf?Math.max(1,Number(e.rfObservations||observations||0)):0);
+      nonRf=e.historyPersistent?Math.max(0,Number(e.nonRfObservations??e.mqttObservations??(observations-rf))):(aggregateHasRf?Math.max(0,observations-rf):observations);
+    }else{
+      rf=events.reduce((sum,x)=>sum+(hasRfEvidence(x)?countOf(x):0),0);
+      nonRf=Math.max(0,observations-rf);
+      forward=events.reduce((sum,x)=>sum+(x.leg==='forward'?countOf(x):0),0);
+      back=events.reduce((sum,x)=>sum+(x.leg==='return'?countOf(x):0),0);
+      const snrs=[];
+      for(const x of events)if(hasRfEvidence(x))for(let i=0;i<countOf(x);i++)snrs.push(Number(x.snr));
+      avgSnr=snrs.length?snrs.reduce((a,b)=>a+b,0)/snrs.length:null;
+      minSnr=snrs.length?Math.min(...snrs):null;
+      maxSnr=snrs.length?Math.max(...snrs):null;
+    }
+    const mqtt=nonRf;
     return {
-      observations,
-      forward:Number(e.forwardObservations || 0),
-      back:Number(e.returnObservations || 0),
+      observations,forward,back,
       rf, mqtt, nonRf, otherNonRf:0,
       mixed:rf>0&&nonRf>0,
       displayTransport:rf>0?'rf':'mqtt',
-      avgSnr:e.avgSnr, minSnr:e.minSnr, maxSnr:e.maxSnr,
+      avgSnr,minSnr,maxSnr,
       lastSeenMs:e.lastSeenMs, latestTraceId:e.latestTraceId, latestChannel:e.latestChannel
     };
   }
-  const active = cutoff === null ? events : events.filter(x => Number(x.timestampMs || 0) >= cutoff);
+  const active = events.filter(x => Number(x.timestampMs || 0) >= cutoff);
   if(!active.length) return null;
+  const countOf=x=>Math.max(1,Number(x?.count||1));
   const hasRfEvidence=x=>x?.snr!==null&&x?.snr!==undefined&&Number.isFinite(Number(x.snr));
-  const snrs = active.filter(hasRfEvidence).map(x=>Number(x.snr));
-  const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
-  const rf=active.filter(hasRfEvidence).length;
-  const mqtt=active.length-rf;
+  const observations=active.reduce((sum,x)=>sum+countOf(x),0);
+  const rf=active.reduce((sum,x)=>sum+(hasRfEvidence(x)?countOf(x):0),0);
+  const mqtt=observations-rf;
   const nonRf=mqtt;
+  const forward=active.reduce((sum,x)=>sum+(x.leg==='forward'?countOf(x):0),0);
+  const back=active.reduce((sum,x)=>sum+(x.leg==='return'?countOf(x):0),0);
+  let snrSum=0,snrCount=0,minSnr=null,maxSnr=null;
+  for(const x of active){
+    if(!hasRfEvidence(x))continue;
+    const value=Number(x.snr),count=countOf(x);
+    snrSum+=value*count;snrCount+=count;
+    minSnr=minSnr===null?value:Math.min(minSnr,value);
+    maxSnr=maxSnr===null?value:Math.max(maxSnr,value);
+  }
+  const latest = active.reduce((a,b) => Number(a.timestampMs||0) >= Number(b.timestampMs||0) ? a : b);
   return {
-    observations:active.length,
-    forward:active.filter(x => x.leg === 'forward').length,
-    back:active.filter(x => x.leg === 'return').length,
+    observations,forward,back,
     rf, mqtt, nonRf, otherNonRf:0,
     mixed:rf>0&&nonRf>0,
     displayTransport:rf>0?'rf':'mqtt',
-    avgSnr:snrs.length ? snrs.reduce((a,b)=>a+b,0)/snrs.length : null,
-    minSnr:snrs.length ? Math.min(...snrs) : null,
-    maxSnr:snrs.length ? Math.max(...snrs) : null,
+    avgSnr:snrCount?snrSum/snrCount:null,
+    minSnr,maxSnr,
     lastSeenMs:Number(latest.timestampMs || e.lastSeenMs || 0),
     latestTraceId:latest.traceId ?? e.latestTraceId,
     latestChannel:e.latestChannel
@@ -5199,6 +5255,49 @@ for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMesht
   document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
 }
 document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
+
+function formatArchiveBytes(value){
+  const n=Math.max(0,Number(value||0));
+  if(n<1024)return n+' B';
+  if(n<1024*1024)return (n/1024).toFixed(1)+' KiB';
+  if(n<1024*1024*1024)return (n/(1024*1024)).toFixed(1)+' MiB';
+  return (n/(1024*1024*1024)).toFixed(2)+' GiB';
+}
+function renderArchiveRetention(data){
+  const settings=data?.settings||{};
+  const status=data?.status||{};
+  const days=Number(settings.retentionDays??status.retentionDays??0);
+  const select=document.getElementById('archiveRetentionDays');
+  if(select)select.value=['0','1','7','30'].includes(String(days))?String(days):'0';
+  const box=document.getElementById('archiveRetentionStatus');if(!box)return;
+  const oldest=status.firstTimestamp?new Date(Number(status.firstTimestamp)).toLocaleString(uiLocale()):tr('Nunca');
+  box.textContent=
+    `${fmtNum(status.packets||0)} ${tr('pacotes')} · ${fmtNum(status.persistentNodes||0)} ${tr('nós históricos')} · `+
+    `${fmtNum(status.persistentEdges||0)} ${tr('enlaces históricos')} · ${tr('registro mais antigo')}: ${oldest} · `+
+    `${tr('tamanho do banco')}: ${formatArchiveBytes(status.dbBytes||0)}`;
+}
+async function loadArchiveRetentionSettings(){
+  try{
+    const r=await fetch('/api/archive/settings',{cache:'no-store'}),b=await r.json();
+    if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+    renderArchiveRetention(b);return b;
+  }catch(e){
+    const box=document.getElementById('archiveRetentionStatus');if(box)box.textContent=tr('Erro')+': '+e;
+    return null;
+  }
+}
+async function saveArchiveRetentionSettings(){
+  if(!authCanWrite()){openAuthModal();throw new Error(tr('Somente leitura'));}
+  const retentionDays=Number(document.getElementById('archiveRetentionDays').value||0);
+  const r=await authFetch('/api/archive/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({retentionDays})});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||('HTTP '+r.status));
+  renderArchiveRetention(b);return b;
+}
+document.getElementById('archiveRetentionDays').addEventListener('change',async()=>{
+  try{await saveArchiveRetentionSettings();}
+  catch(e){alert(tr('Erro')+': '+e);await loadArchiveRetentionSettings();}
+});
+
 let versionCheckTimer=null;
 let versionCheckIntervalMinutes=15;
 function normalizeVersionCheckInterval(value){
@@ -5388,9 +5487,11 @@ async function bootstrap(){
   scheduleVersionChecks(15);
   loadUpdateStatus();
   loadAutoNoticeStatus();
+  loadArchiveRetentionSettings();
   showWhatsNewIfNeeded();
   setInterval(()=>loadAuthStatus(false),60*1000);
   setInterval(()=>loadUpdateStatus(),15000);
+  setInterval(()=>loadArchiveRetentionSettings(),60000);
   load(true).then(()=>{ if(document.getElementById('playMode').value==='live') startLivePolling(); });
   loadTrafficInitial();
   setInterval(() => load(false), 60000);
@@ -6607,8 +6708,674 @@ def _archive_init():
         );
         CREATE INDEX IF NOT EXISTS idx_auto_notices_time ON automatic_notices(detected_at);
         CREATE INDEX IF NOT EXISTS idx_auto_notices_source ON automatic_notices(source);
+
+        CREATE TABLE IF NOT EXISTS topology_nodes (
+          source_id TEXT NOT NULL,
+          node_num INTEGER NOT NULL,
+          first_seen_ms INTEGER NOT NULL,
+          last_seen_ms INTEGER NOT NULL,
+          position_seen_ms INTEGER,
+          node_json TEXT NOT NULL,
+          PRIMARY KEY(source_id,node_num)
+        );
+        CREATE INDEX IF NOT EXISTS idx_topology_nodes_last_seen ON topology_nodes(source_id,last_seen_ms);
+
+        CREATE TABLE IF NOT EXISTS topology_edge_events (
+          event_key TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          edge_id TEXT NOT NULL,
+          a INTEGER NOT NULL,
+          b INTEGER NOT NULL,
+          timestamp_ms INTEGER NOT NULL,
+          leg TEXT,
+          snr REAL,
+          transport TEXT NOT NULL,
+          trace_id TEXT,
+          packet_id TEXT,
+          channel INTEGER,
+          observation_count INTEGER NOT NULL DEFAULT 1,
+          archived_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_topology_edge_time ON topology_edge_events(source_id,timestamp_ms);
+        CREATE INDEX IF NOT EXISTS idx_topology_edge_pair ON topology_edge_events(source_id,edge_id,timestamp_ms);
+
+        CREATE TABLE IF NOT EXISTS topology_history_meta (
+          meta_key TEXT PRIMARY KEY,
+          meta_value TEXT
+        );
         """)
     _tracklog_backfill()
+
+
+def _normalize_archive_retention_days(value) -> int:
+    try:
+        days = int(value)
+    except (TypeError, ValueError):
+        days = ARCHIVE_RETENTION_DEFAULT_DAYS
+    return days if days in ARCHIVE_RETENTION_ALLOWED_DAYS else ARCHIVE_RETENTION_DEFAULT_DAYS
+
+
+def _archive_settings():
+    raw = _read_json_file(ARCHIVE_SETTINGS_FILE, {})
+    return {
+        "retentionDays": _normalize_archive_retention_days(raw.get("retentionDays", ARCHIVE_RETENTION_DEFAULT_DAYS)),
+        "allowedDays": [0, 1, 7, 30],
+        "updatedAtMs": raw.get("updatedAtMs"),
+    }
+
+
+def _save_archive_settings(payload: dict):
+    days = _normalize_archive_retention_days(payload.get("retentionDays"))
+    if payload.get("retentionDays") not in (None, "", days, str(days)):
+        raise ValueError("Retenção inválida. Use 0, 1, 7 ou 30 dias.")
+    data = {"retentionDays": days, "updatedAtMs": int(time.time() * 1000)}
+    _write_json_file(ARCHIVE_SETTINGS_FILE, data)
+    removed = _archive_cleanup(retention_days=days)
+    return {**_archive_settings(), "removedPackets": removed}
+
+
+def _history_ts_ms(value, fallback=0):
+    if value in (None, ""):
+        return int(fallback or 0)
+    try:
+        num = float(value)
+        if not num:
+            return int(fallback or 0)
+        return int(num * 1000) if abs(num) < 10_000_000_000 else int(num)
+    except (TypeError, ValueError):
+        pass
+    try:
+        raw = str(value).strip().replace("Z", "+00:00")
+        return int(datetime.fromisoformat(raw).timestamp() * 1000)
+    except Exception:
+        return int(fallback or 0)
+
+
+def _history_valid_position(lat, lon):
+    try:
+        lat = float(lat); lon = float(lon)
+    except (TypeError, ValueError):
+        return False
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return False
+    return not (abs(lat) < 0.01 and abs(lon) < 0.01)
+
+
+def _history_node_seen_ms(node: dict, fallback_ms: int):
+    vals = [
+        _history_ts_ms(node.get("lastHeard")),
+        _history_ts_ms(node.get("updatedAt")),
+        _history_ts_ms(node.get("positionTimestamp")),
+        _history_ts_ms(node.get("nodeStatusUpdatedAt")),
+    ]
+    best = max(vals or [0])
+    return best or int(fallback_ms or time.time() * 1000)
+
+
+def _history_node_position_ms(node: dict, fallback_ms: int):
+    return (
+        _history_ts_ms(node.get("positionTimestamp"))
+        or _history_ts_ms(node.get("updatedAt"))
+        or _history_ts_ms(node.get("lastHeard"))
+        or int(fallback_ms or time.time() * 1000)
+    )
+
+
+def _history_node_id(node_num: int):
+    return f"!{int(node_num) & 0xffffffff:08x}"
+
+
+def _history_merge_node_json(old: dict, new: dict, seen_ms: int, old_position_ms=0):
+    merged = dict(old or {})
+    new = dict(new or {})
+    state_rank = {"route-only": 0, "stub": 1, "identified": 2}
+    old_state = str(merged.get("state") or "route-only")
+    new_state = str(new.get("state") or "route-only")
+    for key, value in new.items():
+        if key in {"latitude", "longitude", "altitude", "positionSource"}:
+            continue
+        if value is None or value == "":
+            continue
+        if key == "state":
+            if state_rank.get(new_state, 0) >= state_rank.get(old_state, 0):
+                merged[key] = new_state
+            continue
+        if key in {"publicKey", "routeParticipant", "hasPKC", "isStoreForwardServer"}:
+            merged[key] = bool(merged.get(key)) or bool(value)
+            continue
+        if key == "lastHeard":
+            previous = _history_ts_ms(merged.get(key))
+            current = _history_ts_ms(value)
+            merged[key] = max(previous, current) if max(previous, current) else value
+            continue
+        merged[key] = value
+    pos_ms = int(old_position_ms or 0)
+    if _history_valid_position(new.get("latitude"), new.get("longitude")):
+        candidate_pos_ms = _history_node_position_ms(new, seen_ms)
+        if candidate_pos_ms >= pos_ms:
+            merged["latitude"] = float(new.get("latitude"))
+            merged["longitude"] = float(new.get("longitude"))
+            merged["altitude"] = new.get("altitude")
+            merged["positionSource"] = new.get("positionSource") or "observed"
+            pos_ms = candidate_pos_ms
+    return merged, pos_ms
+
+
+def _topology_store_node(conn, source_id: str, node: dict, seen_ms: int):
+    try:
+        node_num = int(node.get("nodeNum")) & 0xffffffff
+    except Exception:
+        return
+    if node_num in {0, 1, 2, 3, 255, 65535, 0xffffffff}:
+        return
+    row = conn.execute(
+        "SELECT first_seen_ms,last_seen_ms,position_seen_ms,node_json FROM topology_nodes WHERE source_id=? AND node_num=?",
+        (source_id, node_num),
+    ).fetchone()
+    old = {}
+    first_seen = int(seen_ms)
+    last_seen = int(seen_ms)
+    old_position_ms = 0
+    if row:
+        try:
+            old = json.loads(row["node_json"] or "{}")
+        except Exception:
+            old = {}
+        first_seen = min(int(row["first_seen_ms"] or seen_ms), int(seen_ms))
+        last_seen = max(int(row["last_seen_ms"] or 0), int(seen_ms))
+        old_position_ms = int(row["position_seen_ms"] or 0)
+    merged, position_ms = _history_merge_node_json(old, node, seen_ms, old_position_ms)
+    merged["nodeNum"] = node_num
+    merged["nodeId"] = merged.get("nodeId") or _history_node_id(node_num)
+    merged["name"] = merged.get("name") or merged.get("longName") or merged.get("shortName") or merged["nodeId"]
+    merged["firstSeenMs"] = first_seen
+    merged["lastSeenMs"] = last_seen
+    conn.execute(
+        """INSERT INTO topology_nodes(source_id,node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json)
+           VALUES(?,?,?,?,?,?)
+           ON CONFLICT(source_id,node_num) DO UPDATE SET
+             first_seen_ms=excluded.first_seen_ms,
+             last_seen_ms=excluded.last_seen_ms,
+             position_seen_ms=excluded.position_seen_ms,
+             node_json=excluded.node_json""",
+        (source_id, node_num, first_seen, last_seen, position_ms or None, json.dumps(merged, ensure_ascii=False, separators=(",", ":"))),
+    )
+
+
+def _topology_event_key(source_id, edge_id, timestamp_ms, leg, trace_id, snr, transport, occurrence=0):
+    raw = "|".join([
+        str(source_id), str(edge_id), str(int(timestamp_ms or 0)), str(leg or ""),
+        str(trace_id or ""), "" if snr is None else f"{float(snr):.6f}",
+        str(transport or ""), str(int(occurrence or 0)),
+    ])
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _topology_history_ingest(topology: dict):
+    if not isinstance(topology, dict):
+        return {"nodes": 0, "events": 0}
+    source_id = str(topology.get("sourceId") or MM_SOURCE)
+    generated_ms = _history_ts_ms(topology.get("generatedAtMs"), int(time.time() * 1000))
+    node_count = 0
+    event_count = 0
+    # Nós que existem apenas por participação em rota não devem parecer
+    # "vistos agora" a cada regeneração. Usa a observação real mais recente
+    # dos enlaces/traceroutes como fallback do lastSeen histórico.
+    route_seen = {}
+    for edge in topology.get("edges", []) or []:
+        if not isinstance(edge, dict):
+            continue
+        ts = _history_ts_ms(edge.get("lastSeenMs"))
+        if not ts:
+            for ev in edge.get("events", []) or []:
+                if isinstance(ev, dict):
+                    ts = max(ts, _history_ts_ms(ev.get("timestampMs")))
+        for key in ("a", "b"):
+            try:
+                num = int(edge.get(key)) & 0xffffffff
+            except Exception:
+                continue
+            if ts:
+                route_seen[num] = max(int(route_seen.get(num) or 0), ts)
+    for tr in topology.get("traces", []) or []:
+        if not isinstance(tr, dict):
+            continue
+        ts = _history_ts_ms(tr.get("timestampMs") or tr.get("timestamp") or tr.get("createdAt"))
+        for key in ("fromNodeNum", "toNodeNum"):
+            try:
+                num = int(tr.get(key)) & 0xffffffff
+            except Exception:
+                continue
+            if ts:
+                route_seen[num] = max(int(route_seen.get(num) or 0), ts)
+        for path_key in ("forwardPath", "returnPath"):
+            for point in tr.get(path_key, []) or []:
+                if not isinstance(point, dict):
+                    continue
+                try:
+                    num = int(point.get("nodeNum")) & 0xffffffff
+                except Exception:
+                    continue
+                if ts:
+                    route_seen[num] = max(int(route_seen.get(num) or 0), ts)
+    with _archive_connect() as conn:
+        for node in topology.get("nodes", []) or []:
+            if not isinstance(node, dict):
+                continue
+            try:
+                node_num = int(node.get("nodeNum")) & 0xffffffff
+            except Exception:
+                continue
+            explicit_seen = max(
+                _history_ts_ms(node.get("lastHeard")),
+                _history_ts_ms(node.get("updatedAt")),
+                _history_ts_ms(node.get("positionTimestamp")),
+                _history_ts_ms(node.get("nodeStatusUpdatedAt")),
+            )
+            seen_ms = explicit_seen or int(route_seen.get(node_num) or 0) or generated_ms
+            _topology_store_node(conn, source_id, node, seen_ms)
+            node_count += 1
+        for edge in topology.get("edges", []) or []:
+            if not isinstance(edge, dict):
+                continue
+            try:
+                a = int(edge.get("a")) & 0xffffffff
+                b = int(edge.get("b")) & 0xffffffff
+            except Exception:
+                continue
+            lo, hi = sorted((a, b))
+            edge_id = f"{lo}:{hi}"
+            events = edge.get("events") if isinstance(edge.get("events"), list) else []
+            if not events:
+                events = [{
+                    "timestampMs": edge.get("lastSeenMs") or generated_ms,
+                    "leg": edge.get("latestLeg"),
+                    "snr": edge.get("avgSnr"),
+                    "traceId": edge.get("latestTraceId"),
+                    "transport": edge.get("transportClass") or "mqtt",
+                    "_count": max(1, int(edge.get("observations") or 1)),
+                }]
+            occurrences = {}
+            for ev in events:
+                if not isinstance(ev, dict):
+                    continue
+                ts = _history_ts_ms(ev.get("timestampMs"), generated_ms)
+                leg = str(ev.get("leg") or "")
+                snr = ev.get("snr")
+                try:
+                    snr = float(snr) if snr is not None else None
+                except (TypeError, ValueError):
+                    snr = None
+                transport = "rf" if str(ev.get("transport") or "").lower() == "rf" and snr is not None else "mqtt"
+                trace_id = ev.get("traceId")
+                sig = (ts, leg, trace_id, snr, transport)
+                occurrence = occurrences.get(sig, 0)
+                occurrences[sig] = occurrence + 1
+                event_key = _topology_event_key(source_id, edge_id, ts, leg, trace_id, snr, transport, occurrence)
+                before = conn.total_changes
+                conn.execute(
+                    """INSERT OR IGNORE INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,observation_count,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        event_key, source_id, edge_id, lo, hi, ts, leg, snr, transport,
+                        None if trace_id is None else str(trace_id),
+                        None if edge.get("latestPacketId") is None else str(edge.get("latestPacketId")),
+                        edge.get("latestChannel"),
+                        max(1, int(ev.get("_count") or ev.get("count") or 1)),
+                        int(time.time() * 1000),
+                    ),
+                )
+                event_count += conn.total_changes - before
+    return {"nodes": node_count, "events": event_count}
+
+
+def _topology_history_ingest_current():
+    try:
+        raw = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            return _topology_history_ingest(raw)
+    except Exception:
+        pass
+    return {"nodes": 0, "events": 0}
+
+
+def _topology_history_drain_queue(limit=200):
+    processed = 0
+    inserted_events = 0
+    try:
+        TOPOLOGY_HISTORY_QUEUE_DIR.mkdir(parents=True, exist_ok=True)
+        paths = sorted(TOPOLOGY_HISTORY_QUEUE_DIR.glob("topology-*.json"))[:max(1, int(limit))]
+    except Exception:
+        return {"processed": 0, "events": 0}
+    for path in paths:
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            result = _topology_history_ingest(raw if isinstance(raw, dict) else {})
+            inserted_events += int(result.get("events") or 0)
+            path.unlink(missing_ok=True)
+            processed += 1
+        except Exception:
+            # Mantém o arquivo para uma tentativa futura; não perde observações.
+            continue
+    return {"processed": processed, "events": inserted_events}
+
+
+def _history_array(value):
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+    return []
+
+
+def _history_trace_payload(metadata):
+    if not isinstance(metadata, dict):
+        return None
+    if any(k in metadata for k in ("route", "routeBack", "snrTowards", "snrBack", "routePositions")):
+        return metadata
+    for value in metadata.values():
+        if isinstance(value, dict):
+            found = _history_trace_payload(value)
+            if found:
+                return found
+    return None
+
+
+def _history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
+    mids = []
+    for value in _history_array(mids_raw):
+        try:
+            mids.append(int(value) & 0xffffffff)
+        except Exception:
+            mids.append(0xffffffff)
+    snrs = _history_array(snr_raw)
+    entries = [(start_num, None)]
+    for idx, n in enumerate(mids):
+        entries.append((n, snrs[idx] if idx < len(snrs) else None))
+    entries.append((end_num, snrs[len(mids)] if len(mids) < len(snrs) else None))
+    out = []
+    invalid = {0, 1, 2, 3, 255, 65535, 0xffffffff}
+    for idx in range(len(entries) - 1):
+        a = entries[idx][0]; b, raw_snr = entries[idx + 1]
+        if a in invalid or b in invalid:
+            continue
+        snr = None
+        if raw_snr is not None:
+            try:
+                snr = float(raw_snr) / 4.0
+                if abs(snr + 32.0) < 1e-9:
+                    snr = None
+            except Exception:
+                snr = None
+        out.append((a, b, leg, snr, idx))
+    return out
+
+
+def _topology_history_recover_from_archive():
+    """Best-effort one-time recovery of old links from archived traceroute packet metadata."""
+    meta_key = f"topology-recovery-v1:{MM_SOURCE}"
+    with _archive_connect() as conn:
+        done = conn.execute("SELECT meta_value FROM topology_history_meta WHERE meta_key=?", (meta_key,)).fetchone()
+        if done:
+            return {"recovered": 0, "skipped": True}
+        oldest = conn.execute(
+            "SELECT MIN(timestamp_ms) AS ts FROM topology_edge_events WHERE source_id=?", (MM_SOURCE,)
+        ).fetchone()
+        oldest_ts = int(oldest["ts"]) if oldest and oldest["ts"] is not None else None
+        params = [MM_SOURCE]
+        sql = """SELECT packet_id,timestamp,from_node,from_node_id,from_node_long_name,
+                        to_node,to_node_id,to_node_long_name,channel,metadata
+                 FROM packets
+                 WHERE source_id=? AND portnum_name='TRACEROUTE_APP' AND metadata IS NOT NULL"""
+        if oldest_ts is not None:
+            sql += " AND timestamp < ?"
+            params.append(oldest_ts)
+        sql += " ORDER BY timestamp ASC"
+        rows = conn.execute(sql, params).fetchall()
+        recovered = 0
+        for row in rows:
+            try:
+                metadata = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+            except Exception:
+                continue
+            trace = _history_trace_payload(metadata)
+            if not trace:
+                continue
+            try:
+                from_num = int(trace.get("fromNodeNum") or row["from_node"]) & 0xffffffff
+                to_num = int(trace.get("toNodeNum") or row["to_node"]) & 0xffffffff
+            except Exception:
+                continue
+            ts = _history_ts_ms(trace.get("timestamp") or trace.get("createdAt") or row["timestamp"])
+            for num, nid, name in (
+                (from_num, row["from_node_id"], row["from_node_long_name"]),
+                (to_num, row["to_node_id"], row["to_node_long_name"]),
+            ):
+                _topology_store_node(conn, MM_SOURCE, {
+                    "nodeNum": num,
+                    "nodeId": nid or _history_node_id(num),
+                    "name": name or nid or _history_node_id(num),
+                    "longName": name,
+                    "state": "stub" if name else "route-only",
+                    "routeParticipant": True,
+                }, ts)
+            positions = trace.get("routePositions")
+            if isinstance(positions, str):
+                try:
+                    positions = json.loads(positions)
+                except Exception:
+                    positions = {}
+            if isinstance(positions, dict):
+                for key, pos in positions.items():
+                    if not isinstance(pos, dict):
+                        continue
+                    try:
+                        n = int(key) & 0xffffffff
+                    except Exception:
+                        continue
+                    lat = pos.get("lat"); lon = pos.get("lng", pos.get("lon"))
+                    if _history_valid_position(lat, lon):
+                        _topology_store_node(conn, MM_SOURCE, {
+                            "nodeNum": n, "nodeId": _history_node_id(n), "name": _history_node_id(n),
+                            "state": "route-only", "routeParticipant": True,
+                            "latitude": float(lat), "longitude": float(lon), "altitude": pos.get("alt"),
+                            "positionSource": "archive-traceroute",
+                        }, ts)
+            legs = []
+            if trace.get("route") not in (None, "", "[]", []):
+                legs += _history_trace_links(from_num, trace.get("route"), to_num, trace.get("snrTowards"), "forward")
+            if trace.get("routeBack") not in (None, "", "[]", []) or trace.get("snrBack") not in (None, "", "[]", []):
+                legs += _history_trace_links(to_num, trace.get("routeBack"), from_num, trace.get("snrBack"), "return")
+            occurrences = {}
+            trace_id = trace.get("id") or row["packet_id"]
+            for a0, b0, leg, snr, hop_idx in legs:
+                lo, hi = sorted((a0, b0)); edge_id = f"{lo}:{hi}"
+                transport = "rf" if snr is not None else "mqtt"
+                sig = (edge_id, ts, leg, trace_id, snr, transport)
+                occurrence = occurrences.get(sig, 0); occurrences[sig] = occurrence + 1
+                key = _topology_event_key(MM_SOURCE, edge_id, ts, leg, trace_id, snr, transport, occurrence)
+                before = conn.total_changes
+                conn.execute(
+                    """INSERT OR IGNORE INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,observation_count,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?)""",
+                    (key, MM_SOURCE, edge_id, lo, hi, ts, leg, snr, transport,
+                     None if trace_id is None else str(trace_id),
+                     None if row["packet_id"] is None else str(row["packet_id"]),
+                     row["channel"], int(time.time() * 1000)),
+                )
+                recovered += conn.total_changes - before
+        conn.execute(
+            "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+            (meta_key, json.dumps({"completedAtMs": int(time.time() * 1000), "recovered": recovered}, separators=(",", ":"))),
+        )
+        return {"recovered": recovered, "skipped": False}
+
+
+def _topology_history_merge(raw: dict):
+    if not isinstance(raw, dict):
+        return {}
+    try:
+        _topology_history_ingest(raw)
+        source_id = str(raw.get("sourceId") or MM_SOURCE)
+        current_nums = set()
+        for n in raw.get("nodes", []) or []:
+            try:
+                current_nums.add(int(n.get("nodeNum")) & 0xffffffff)
+            except Exception:
+                pass
+        with _archive_connect() as conn:
+            node_rows = conn.execute(
+                "SELECT node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json FROM topology_nodes WHERE source_id=?",
+                (source_id,),
+            ).fetchall()
+            nodes = []
+            coord = {}
+            for row in node_rows:
+                try:
+                    node = json.loads(row["node_json"] or "{}")
+                except Exception:
+                    node = {}
+                num = int(row["node_num"])
+                node["nodeNum"] = num
+                node["nodeId"] = node.get("nodeId") or _history_node_id(num)
+                node["name"] = node.get("name") or node.get("longName") or node.get("shortName") or node["nodeId"]
+                node["firstSeenMs"] = int(row["first_seen_ms"] or 0)
+                node["lastSeenMs"] = int(row["last_seen_ms"] or 0)
+                node["historical"] = num not in current_nums
+                node["currentlyInMeshMonitor"] = num in current_nums
+                if node["historical"] and _history_valid_position(node.get("latitude"), node.get("longitude")):
+                    node["positionSource"] = "history-last-known"
+                if _history_valid_position(node.get("latitude"), node.get("longitude")):
+                    coord[num] = (float(node["latitude"]), float(node["longitude"]))
+                nodes.append(node)
+            # Mantém compatibilidade com entradas correntes que deliberadamente
+            # não entram na memória histórica (IDs reservados/diagnósticos).
+            stored_nums = {int(n.get("nodeNum")) for n in nodes if n.get("nodeNum") is not None}
+            for current in raw.get("nodes", []) or []:
+                if not isinstance(current, dict):
+                    continue
+                try:
+                    num = int(current.get("nodeNum")) & 0xffffffff
+                except Exception:
+                    continue
+                if num in stored_nums:
+                    continue
+                node = dict(current)
+                node["historical"] = False
+                node["currentlyInMeshMonitor"] = True
+                if _history_valid_position(node.get("latitude"), node.get("longitude")):
+                    coord[num] = (float(node["latitude"]), float(node["longitude"]))
+                nodes.append(node)
+                stored_nums.add(num)
+
+            group_rows = conn.execute(
+                """SELECT edge_id,a,b,
+                          SUM(observation_count) AS observations,
+                          SUM(CASE WHEN leg='forward' THEN observation_count ELSE 0 END) AS forward_obs,
+                          SUM(CASE WHEN leg='return' THEN observation_count ELSE 0 END) AS return_obs,
+                          SUM(CASE WHEN transport='rf' THEN observation_count ELSE 0 END) AS rf_obs,
+                          SUM(CASE WHEN transport!='rf' THEN observation_count ELSE 0 END) AS nonrf_obs,
+                          MIN(timestamp_ms) AS first_seen,
+                          MAX(timestamp_ms) AS last_seen,
+                          SUM(CASE WHEN snr IS NOT NULL THEN snr*observation_count ELSE 0 END) AS snr_sum,
+                          SUM(CASE WHEN snr IS NOT NULL THEN observation_count ELSE 0 END) AS snr_count,
+                          MIN(snr) AS min_snr, MAX(snr) AS max_snr
+                   FROM topology_edge_events WHERE source_id=? GROUP BY edge_id,a,b""",
+                (source_id,),
+            ).fetchall()
+            latest_rows = conn.execute(
+                """SELECT e.* FROM topology_edge_events e
+                   JOIN (
+                     SELECT edge_id,MAX(timestamp_ms) AS max_ts
+                     FROM topology_edge_events WHERE source_id=? GROUP BY edge_id
+                   ) m ON e.edge_id=m.edge_id AND e.timestamp_ms=m.max_ts
+                   WHERE e.source_id=? ORDER BY e.edge_id,e.event_key""",
+                (source_id, source_id),
+            ).fetchall()
+            latest = {}
+            for row in latest_rows:
+                latest.setdefault(str(row["edge_id"]), row)
+            recent_cutoff = int(time.time() * 1000) - 32 * 86400 * 1000
+            recent_rows = conn.execute(
+                """SELECT edge_id,timestamp_ms,leg,snr,transport,trace_id,observation_count
+                   FROM topology_edge_events
+                   WHERE source_id=? AND timestamp_ms>=?
+                   ORDER BY timestamp_ms ASC,event_key ASC""",
+                (source_id, recent_cutoff),
+            ).fetchall()
+            recent = {}
+            for row in recent_rows:
+                recent.setdefault(str(row["edge_id"]), []).append({
+                    "timestampMs": int(row["timestamp_ms"]),
+                    "leg": row["leg"],
+                    "snr": row["snr"],
+                    "traceId": row["trace_id"],
+                    "transport": row["transport"],
+                    "count": int(row["observation_count"] or 1),
+                })
+            by_num = {int(n["nodeNum"]): n for n in nodes}
+            edges = []
+            for row in group_rows:
+                a = int(row["a"]); b = int(row["b"]); edge_id = str(row["edge_id"])
+                latest_row = latest.get(edge_id)
+                obs = int(row["observations"] or 0)
+                rf = int(row["rf_obs"] or 0)
+                nonrf = int(row["nonrf_obs"] or 0)
+                snr_count = int(row["snr_count"] or 0)
+                geometry = [[*coord[a]], [*coord[b]]] if a in coord and b in coord else None
+                edges.append({
+                    "id": edge_id, "a": a, "b": b,
+                    "aId": _history_node_id(a), "bId": _history_node_id(b),
+                    "aName": (by_num.get(a) or {}).get("name") or _history_node_id(a),
+                    "bName": (by_num.get(b) or {}).get("name") or _history_node_id(b),
+                    "observations": obs,
+                    "forwardObservations": int(row["forward_obs"] or 0),
+                    "returnObservations": int(row["return_obs"] or 0),
+                    "rfObservations": rf,
+                    "mqttObservations": nonrf,
+                    "nonRfObservations": nonrf,
+                    "transportClass": "rf" if rf > 0 else "mqtt",
+                    "firstSeenMs": int(row["first_seen"] or 0),
+                    "lastSeenMs": int(row["last_seen"] or 0),
+                    "avgSnr": round(float(row["snr_sum"] or 0) / snr_count, 2) if snr_count else None,
+                    "minSnr": row["min_snr"], "maxSnr": row["max_snr"],
+                    "latestTraceId": latest_row["trace_id"] if latest_row else None,
+                    "latestPacketId": latest_row["packet_id"] if latest_row else None,
+                    "latestChannel": latest_row["channel"] if latest_row else None,
+                    "latestLeg": latest_row["leg"] if latest_row else None,
+                    "geometry": geometry,
+                    "events": recent.get(edge_id, []),
+                    "historyPersistent": True,
+                })
+            edges.sort(key=lambda e: (int(e.get("lastSeenMs") or 0), int(e.get("observations") or 0)), reverse=True)
+            nodes.sort(key=lambda n: (str(n.get("state") or "") != "identified", str(n.get("name") or "").lower()))
+
+        merged = dict(raw)
+        summary = dict(raw.get("summary") or {})
+        summary["persistentNodes"] = len(nodes)
+        summary["historicalNodes"] = sum(1 for n in nodes if n.get("historical"))
+        summary["observedEdges"] = len(edges)
+        summary["mappableEdges"] = sum(1 for e in edges if e.get("geometry"))
+        summary["mappableNodes"] = sum(1 for n in nodes if _history_valid_position(n.get("latitude"), n.get("longitude")))
+        merged["summary"] = summary
+        merged["nodes"] = nodes
+        merged["edges"] = edges
+        merged["persistentHistory"] = True
+        merged["historyRetention"] = "until-database-reset"
+        merged["disclaimer"] = (
+            "Nós e enlaces observados são preservados historicamente no traffic.db até o banco ser apagado/resetado. "
+            "Os filtros temporais alteram somente a visualização. Linha contínua exige evidência RF válida; "
+            "linha tracejada representa MQTT/não-RF."
+        )
+        return merged
+    except Exception:
+        return raw
 
 
 def _access_init():
@@ -7131,14 +7898,24 @@ def _archive_last_timestamp():
         return int(row["ts"]) if row and row["ts"] is not None else None
 
 
-def _archive_cleanup():
-    if ARCHIVE_RETENTION_DAYS <= 0:
+def _archive_cleanup(retention_days=None):
+    days = _normalize_archive_retention_days(
+        _archive_settings().get("retentionDays") if retention_days is None else retention_days
+    )
+    if days <= 0:
         return 0
-    cutoff = int(time.time() * 1000) - ARCHIVE_RETENTION_DAYS * 86400 * 1000
+    cutoff = int(time.time() * 1000) - days * 86400 * 1000
     with _archive_connect() as conn:
         cur = conn.execute("DELETE FROM packets WHERE timestamp < ?", (cutoff,))
+        removed_packets = max(0, cur.rowcount or 0)
         conn.execute("DELETE FROM positions WHERE timestamp < ?", (cutoff,))
-        return max(0, cur.rowcount or 0)
+    if removed_packets:
+        print(
+            f"Retenção do tráfego: removidos {removed_packets} pacote(s) com mais de {days} dia(s). "
+            "Nós e enlaces históricos foram preservados.",
+            flush=True,
+        )
+    return removed_packets
 
 
 def _archive_sync_pass(since):
@@ -7185,7 +7962,14 @@ def _archive_worker():
         try:
             # Na primeira sincronização, pagina tudo o que ainda está retido no
             # Packet Monitor. Depois trabalha apenas sobre uma janela sobreposta.
-            inserted = _archive_sync_once(full=not first_success)
+            was_first = not first_success
+            inserted = _archive_sync_once(full=was_first)
+            _topology_history_drain_queue()
+            _topology_history_ingest_current()
+            if was_first:
+                recovery = _topology_history_recover_from_archive()
+                if recovery.get("recovered"):
+                    print(f"Topologia histórica: {recovery['recovered']} observação(ões) de enlace recuperada(s) do arquivo de tráfego.", flush=True)
             first_success = True
             with _archive_status_lock:
                 _archive_status.update({
@@ -7209,11 +7993,21 @@ def _archive_status_snapshot():
     try:
         with _archive_connect() as conn:
             row = conn.execute("SELECT COUNT(*) AS n, MIN(timestamp) AS first_ts, MAX(timestamp) AS last_ts FROM packets").fetchone()
+            topo_nodes = conn.execute("SELECT COUNT(*) AS n FROM topology_nodes WHERE source_id=?", (MM_SOURCE,)).fetchone()
+            topo_edges = conn.execute("SELECT COUNT(DISTINCT edge_id) AS n FROM topology_edge_events WHERE source_id=?", (MM_SOURCE,)).fetchone()
             count = int(row["n"] or 0)
             first_ts = row["first_ts"]
             last_ts = row["last_ts"]
+            persistent_nodes = int(topo_nodes["n"] or 0)
+            persistent_edges = int(topo_edges["n"] or 0)
     except Exception:
-        count, first_ts, last_ts = 0, None, None
+        count, first_ts, last_ts, persistent_nodes, persistent_edges = 0, None, None, 0, 0
+    db_bytes = 0
+    for p in (TRAFFIC_ARCHIVE_DB, Path(str(TRAFFIC_ARCHIVE_DB) + "-wal"), Path(str(TRAFFIC_ARCHIVE_DB) + "-shm")):
+        try:
+            db_bytes += p.stat().st_size
+        except Exception:
+            pass
     with _archive_status_lock:
         status = dict(_archive_status)
     return {
@@ -7221,8 +8015,11 @@ def _archive_status_snapshot():
         "packets": count,
         "firstTimestamp": first_ts,
         "lastTimestamp": last_ts,
-        "retentionDays": ARCHIVE_RETENTION_DAYS,
-        "schemaVersion": 1,
+        "retentionDays": _archive_settings().get("retentionDays", ARCHIVE_RETENTION_DEFAULT_DAYS),
+        "persistentNodes": persistent_nodes,
+        "persistentEdges": persistent_edges,
+        "dbBytes": db_bytes,
+        "schemaVersion": 2,
         **status,
     }
 
@@ -7375,8 +8172,11 @@ def _archive_export(query, fmt="jsonl"):
 
 def _load_topology_safe():
     try:
+        _topology_history_drain_queue()
         raw = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
-        return raw if isinstance(raw, dict) else {}
+        if not isinstance(raw, dict):
+            return {}
+        return _topology_history_merge(raw)
     except Exception:
         return {}
 
@@ -8168,7 +8968,9 @@ def _refresh_topology_now():
             detail = (proc.stderr or proc.stdout or "falha sem detalhes").strip()
             raise RuntimeError(detail[-1800:])
         updated_ms = int(TOPOLOGY_FILE.stat().st_mtime * 1000) if TOPOLOGY_FILE.exists() else int(time.time()*1000)
-        return {"success": True, "updatedAtMs": updated_ms, "message": "Topologia atualizada."}
+        _topology_history_drain_queue()
+        _topology_history_ingest_current()
+        return {"success": True, "updatedAtMs": updated_ms, "message": "Topologia atualizada e memória histórica preservada."}
     finally:
         _topology_refresh_lock.release()
 
@@ -8326,8 +9128,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path in ("/api/topology", "/topology.json"):
             try:
-                raw = TOPOLOGY_FILE.read_bytes()
-                json.loads(raw.decode("utf-8"))
+                if not TOPOLOGY_FILE.exists():
+                    raise FileNotFoundError(str(TOPOLOGY_FILE))
+                body = _load_topology_safe()
+                if not body:
+                    raise RuntimeError("topology.json inválido ou memória histórica indisponível")
+                raw = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", raw)
             except FileNotFoundError:
                 self._send(503, "application/json; charset=utf-8", json.dumps({
@@ -8451,6 +9257,10 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/archive/"):
             try:
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                if path == "/api/archive/settings":
+                    body = {"success": True, "settings": _archive_settings(), "status": _archive_status_snapshot()}
+                    self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+                    return
                 if path == "/api/archive/status":
                     body = {"success": True, **_archive_status_snapshot()}
                     self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
@@ -8557,6 +9367,22 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Corpo da requisição inválido")
                 body = _save_ui_defaults(payload)
                 self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, **body}, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/archive/settings":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 4096:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                settings = _save_archive_settings(payload)
+                body = {"success": True, "settings": settings, "status": _archive_status_snapshot()}
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except ValueError as e:
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
