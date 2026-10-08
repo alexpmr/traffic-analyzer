@@ -9145,6 +9145,10 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/archive/"):
             try:
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                if path == "/api/archive/settings":
+                    body = {"success": True, "settings": _archive_settings(), "status": _archive_status_snapshot()}
+                    self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+                    return
                 if path == "/api/archive/status":
                     body = {"success": True, **_archive_status_snapshot()}
                     self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
@@ -9251,6 +9255,22 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Corpo da requisição inválido")
                 body = _save_ui_defaults(payload)
                 self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, **body}, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/archive/settings":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 4096:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                settings = _save_archive_settings(payload)
+                body = {"success": True, "settings": settings, "status": _archive_status_snapshot()}
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except ValueError as e:
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
