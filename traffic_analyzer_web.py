@@ -4625,11 +4625,12 @@ async function loadStatistics(force=false){
       fetch('/api/archive/stats?x=1'+q,{cache:'no-store'}),
       fetch('/api/archive/nodes?x=1'+q,{cache:'no-store'}),
       fetch('/api/archive/links?x=1'+q,{cache:'no-store'}),
-      fetch('/api/archive/packets?limit=5000'+q,{cache:'no-store'})
+      fetch('/api/archive/packets?limit=5000'+q,{cache:'no-store'}),
+      fetch('/api/archive/rf-longest-links?x=1'+q,{cache:'no-store'})
     ]);
     for(const r of rs) if(!r.ok) throw new Error('HTTP '+r.status);
     const body=await Promise.all(rs.map(r=>r.json()));
-    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[]};
+    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[],longestRfLinks:body[4].data||[]};
     statisticsLoadedAt=Date.now();renderStatistics();
     document.getElementById('statsUpdated').textContent='atualizado '+new Date().toLocaleTimeString(uiLocale());
   }catch(e){
