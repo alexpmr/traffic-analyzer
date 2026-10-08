@@ -7713,14 +7713,24 @@ def _archive_last_timestamp():
         return int(row["ts"]) if row and row["ts"] is not None else None
 
 
-def _archive_cleanup():
-    if ARCHIVE_RETENTION_DAYS <= 0:
+def _archive_cleanup(retention_days=None):
+    days = _normalize_archive_retention_days(
+        _archive_settings().get("retentionDays") if retention_days is None else retention_days
+    )
+    if days <= 0:
         return 0
-    cutoff = int(time.time() * 1000) - ARCHIVE_RETENTION_DAYS * 86400 * 1000
+    cutoff = int(time.time() * 1000) - days * 86400 * 1000
     with _archive_connect() as conn:
         cur = conn.execute("DELETE FROM packets WHERE timestamp < ?", (cutoff,))
+        removed_packets = max(0, cur.rowcount or 0)
         conn.execute("DELETE FROM positions WHERE timestamp < ?", (cutoff,))
-        return max(0, cur.rowcount or 0)
+    if removed_packets:
+        print(
+            f"Retenção do tráfego: removidos {removed_packets} pacote(s) com mais de {days} dia(s). "
+            "Nós e enlaces históricos foram preservados.",
+            flush=True,
+        )
+    return removed_packets
 
 
 def _archive_sync_pass(since):
@@ -7767,7 +7777,13 @@ def _archive_worker():
         try:
             # Na primeira sincronização, pagina tudo o que ainda está retido no
             # Packet Monitor. Depois trabalha apenas sobre uma janela sobreposta.
-            inserted = _archive_sync_once(full=not first_success)
+            was_first = not first_success
+            inserted = _archive_sync_once(full=was_first)
+            _topology_history_ingest_current()
+            if was_first:
+                recovery = _topology_history_recover_from_archive()
+                if recovery.get("recovered"):
+                    print(f"Topologia histórica: {recovery['recovered']} observação(ões) de enlace recuperada(s) do arquivo de tráfego.", flush=True)
             first_success = True
             with _archive_status_lock:
                 _archive_status.update({
@@ -7791,11 +7807,21 @@ def _archive_status_snapshot():
     try:
         with _archive_connect() as conn:
             row = conn.execute("SELECT COUNT(*) AS n, MIN(timestamp) AS first_ts, MAX(timestamp) AS last_ts FROM packets").fetchone()
+            topo_nodes = conn.execute("SELECT COUNT(*) AS n FROM topology_nodes WHERE source_id=?", (MM_SOURCE,)).fetchone()
+            topo_edges = conn.execute("SELECT COUNT(DISTINCT edge_id) AS n FROM topology_edge_events WHERE source_id=?", (MM_SOURCE,)).fetchone()
             count = int(row["n"] or 0)
             first_ts = row["first_ts"]
             last_ts = row["last_ts"]
+            persistent_nodes = int(topo_nodes["n"] or 0)
+            persistent_edges = int(topo_edges["n"] or 0)
     except Exception:
-        count, first_ts, last_ts = 0, None, None
+        count, first_ts, last_ts, persistent_nodes, persistent_edges = 0, None, None, 0, 0
+    db_bytes = 0
+    for p in (TRAFFIC_ARCHIVE_DB, Path(str(TRAFFIC_ARCHIVE_DB) + "-wal"), Path(str(TRAFFIC_ARCHIVE_DB) + "-shm")):
+        try:
+            db_bytes += p.stat().st_size
+        except Exception:
+            pass
     with _archive_status_lock:
         status = dict(_archive_status)
     return {
@@ -7803,8 +7829,11 @@ def _archive_status_snapshot():
         "packets": count,
         "firstTimestamp": first_ts,
         "lastTimestamp": last_ts,
-        "retentionDays": ARCHIVE_RETENTION_DAYS,
-        "schemaVersion": 1,
+        "retentionDays": _archive_settings().get("retentionDays", ARCHIVE_RETENTION_DEFAULT_DAYS),
+        "persistentNodes": persistent_nodes,
+        "persistentEdges": persistent_edges,
+        "dbBytes": db_bytes,
+        "schemaVersion": 2,
         **status,
     }
 
