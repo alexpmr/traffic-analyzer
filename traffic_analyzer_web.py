@@ -1086,7 +1086,7 @@ const I18N_PAIRS=[
   ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
-  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.','Only direct RF hops with valid SNR and known positions at both endpoints. Routes with intermediate nodes are not treated as end-to-end links.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],
+  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.','Only direct RF hops with valid SNR and known positions at both endpoints. Routes with intermediate nodes are not treated as end-to-end links.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],['Clique para mostrar somente este enlace no mapa','Click to show only this link on the map'],['Mostrar todos os nós e enlaces','Show all nodes and links'],['Este enlace não está disponível na topologia atual.','This link is not available in the current topology.'],['Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.','This link cannot be framed because one endpoint has no valid position.'],
   ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
   ['Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.','Solid line only when the hop has physical RF evidence, currently a valid SNR. Mixed RF and MQTT/non-RF observations remain solid and the popup shows the composition.'],
   ['Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.','Dashed line when there is no physical RF evidence for the hop. Without a valid SNR, the observation is treated as MQTT/non-RF even if the traceroute record reached MeshMonitor over RF.'],
@@ -4572,8 +4572,13 @@ function renderStatistics(){
     healthCard(fmtNum(links.filter(x=>Number(x.packets||0)>=10).length),'Enlaces recorrentes','10+ pacotes')
   ].join('');
   document.getElementById('statsRfLongestRows').innerHTML=longestRf.slice(0,10).map((x,i)=>
-    '<tr><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td>'+fmtNum(x.rfObservations)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>'
+    '<tr class="clickableStatRow" tabindex="0" role="button" data-edge-id="'+esc(x.edgeId||'')+'" title="'+esc(tr('Clique para mostrar somente este enlace no mapa'))+'"><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td>'+fmtNum(x.rfObservations)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>'
   ).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
+  document.querySelectorAll('#statsRfLongestRows tr[data-edge-id]').forEach(row=>{
+    const activate=()=>isolateStatsRfLink(row.dataset.edgeId);
+    row.addEventListener('click',activate);
+    row.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();activate();}});
+  });
   document.getElementById('statsRfRows').innerHTML=links.slice(0,40).map(x=>
     '<tr><td><b>'+esc(statsNodeName(x.fromNode,x.fromNodeId))+'</b></td><td>'+esc(statsNodeName(x.toNode,x.toNodeId))+'</td><td>'+fmtNum(x.packets)+'</td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.avgRssi==null?'—':fmtNum(x.avgRssi,0)+' dBm')+'</td><td>'+(x.lastSeen?esc(humanAge(Number(x.lastSeen))):'—')+'</td></tr>'
   ).join('')||'<tr><td colspan="6" class="emptyPanel">Sem enlaces no período.</td></tr>';
@@ -4649,6 +4654,29 @@ async function loadStatistics(force=false){
     document.getElementById('statsUpdated').textContent='erro';
   }
 }
+function isolateStatsRfLink(edgeId){
+  const edge=(topology?.edges||[]).find(e=>String(e.id||'')===String(edgeId||''));
+  if(!edge){alert(tr('Este enlace não está disponível na topologia atual.'));return;}
+  const nodeMap=new Map((topology?.nodes||[]).map(n=>[Number(n.nodeNum),n]));
+  const a=nodeMap.get(Number(edge.a)),b=nodeMap.get(Number(edge.b));
+  if(!nodeHasValidMapPosition(a)||!nodeHasValidMapPosition(b)){
+    alert(tr('Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.'));
+    return;
+  }
+  isolatedEdgeId=String(edge.id||edgeId);
+  closeNodeWindow();
+  setView('map');
+  render();
+  setTimeout(()=>fitMapTight(),80);
+}
+function clearStatsRfLinkIsolation(){
+  if(!isolatedEdgeId)return;
+  isolatedEdgeId=null;
+  isolatedEdgeNodes=new Set();
+  render();
+}
+document.getElementById('clearLinkIsolation').addEventListener('click',clearStatsRfLinkIsolation);
+
 function setStatisticsTab(name){
   document.querySelectorAll('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===name));
   document.querySelectorAll('.statsPanel').forEach(p=>p.classList.remove('active'));
