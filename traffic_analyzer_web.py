@@ -5317,6 +5317,7 @@ document.getElementById('archiveRetentionDays').addEventListener('change',async(
   catch(e){alert(tr('Erro')+': '+e);await loadArchiveRetentionSettings();}
 });
 
+const PAGE_VERSION='__APP_VERSION__';
 let versionCheckTimer=null;
 let versionCheckIntervalMinutes=15;
 function normalizeVersionCheckInterval(value){
@@ -5346,6 +5347,10 @@ function renderUpdateStatus(data){
   const intervalInput=document.getElementById('versionCheckInterval');if(intervalInput)intervalInput.value=String(interval);
   scheduleVersionChecks(interval);
   const state=String(data?.state||'idle');
+  const runtimeVersion=String(data?.localVersion||PAGE_VERSION);
+  if(runtimeVersion!==PAGE_VERSION && ['success','no_change','idle'].includes(state)){
+    setTimeout(()=>window.location.reload(),800);
+  }
   const target=data?.targetVersion?`v${esc(data.targetVersion)}`:'—';
   const previous=data?.previousVersion?`v${esc(data.previousVersion)}`:'—';
   const completed=data?.completedAtMs?new Date(Number(data.completedAtMs)).toLocaleString(uiLocale()):tr('Nunca');
@@ -8866,12 +8871,13 @@ def _normalize_version_check_interval_minutes(value):
 
 def _update_settings():
     raw = _read_json_file(UPDATE_SETTINGS_FILE, {
-        "enabled": False,
+        "enabled": True,
         "rollbackEnabled": True,
         "checkIntervalMinutes": VERSION_CHECK_DEFAULT_MINUTES,
     })
     return {
-        "enabled": bool(raw.get("enabled", False)),
+        # A partir da v1.48.0, updates estáveis oficiais são sempre automáticos.
+        "enabled": True,
         "rollbackEnabled": bool(raw.get("rollbackEnabled", True)),
         "checkIntervalMinutes": _normalize_version_check_interval_minutes(raw.get("checkIntervalMinutes")),
     }
@@ -8880,7 +8886,7 @@ def _update_settings():
 def _save_update_settings(payload: dict):
     current = _update_settings()
     data = {
-        "enabled": bool(payload.get("enabled", False)),
+        "enabled": True,
         "rollbackEnabled": bool(payload.get("rollbackEnabled", True)),
         "checkIntervalMinutes": _normalize_version_check_interval_minutes(payload.get("checkIntervalMinutes", current["checkIntervalMinutes"])),
         "updatedAtMs": int(time.time() * 1000),
@@ -8960,7 +8966,7 @@ def _request_update(version_data=None, reason: str = "manual"):
 
 def _maybe_request_auto_update(version_data: dict):
     settings = _update_settings()
-    if not settings.get("enabled") or not version_data.get("updateAvailable") or not version_data.get("stable", True):
+    if not version_data.get("updateAvailable") or not version_data.get("stable", True):
         return
     target = str(version_data.get("latestVersion") or "")
     status = _read_json_file(UPDATE_STATUS_FILE, {})
@@ -8983,6 +8989,22 @@ def _maybe_request_auto_update(version_data: dict):
             "requestedBy": "automatic",
             "message": str(exc),
         })
+
+
+def _automatic_update_watch_worker():
+    """Detecta releases estáveis em background, sem depender de navegador/login."""
+    if _update_watch_stop.wait(15):
+        return
+    while not _update_watch_stop.is_set():
+        try:
+            version_data = _version_status(force=False)
+            _maybe_request_auto_update(version_data)
+        except Exception as exc:
+            print(f"Monitor de atualização automática: {exc}", flush=True)
+        minutes = _update_settings().get("checkIntervalMinutes", VERSION_CHECK_DEFAULT_MINUTES)
+        wait_seconds = max(60, _normalize_version_check_interval_minutes(minutes) * 60)
+        if _update_watch_stop.wait(wait_seconds):
+            break
 
 
 def _version_tuple(value: str):
@@ -9198,8 +9220,7 @@ class Handler(BaseHTTPRequestHandler):
                 query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
                 force = (query.get("force") or ["0"])[0] in {"1", "true", "yes"}
                 body = _version_status(force=force)
-                if not AUTH_ENABLED or _auth_session(self):
-                    _maybe_request_auto_update(body)
+                _maybe_request_auto_update(body)
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "status": "unavailable", "localVersion": APP_VERSION, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
@@ -9619,6 +9640,8 @@ def main():
     archive_thread.start()
     notice_thread = threading.Thread(target=_automatic_notice_worker, name="automatic-notices", daemon=True)
     notice_thread.start()
+    update_thread = threading.Thread(target=_automatic_update_watch_worker, name="automatic-update-watch", daemon=True)
+    update_thread.start()
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
     print(f"Traffic Analyzer v{APP_VERSION} ouvindo em http://{BIND}:{PORT}/", flush=True)
     print(f"Topologia: {TOPOLOGY_FILE}", flush=True)
@@ -9632,6 +9655,7 @@ def main():
         _archive_stop.set()
         _notice_stop.set()
         _notice_wakeup.set()
+        _update_watch_stop.set()
         httpd.server_close()
 
 
