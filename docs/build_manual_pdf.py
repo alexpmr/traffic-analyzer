@@ -111,12 +111,12 @@ def main() -> None:
               P("O Traffic Analyzer usa a API do MeshMonitor como fonte de dados e mantém histórico próprio para análise. Ele não assume a conexão serial/TCP do rádio."),
               P("Principais áreas", "TA_H2")]
     for item in [
-        "<b>Mapa:</b> topologia e traceroutes observados, reprodução Histórica/Ao vivo, enquadramento, distinção visual entre enlaces RF confirmados e MQTT/não-RF e Cobertura RF em mapa de calor.",
+        "<b>Mapa:</b> topologia e traceroutes observados, memória permanente de nós/enlaces, reprodução Histórica/Ao vivo, enquadramento, distinção visual entre enlaces RF confirmados e MQTT/não-RF e Cobertura RF em mapa de calor.",
         "<b>Tráfego:</b> pacotes RX/TX, filtros, payload amigável e dados técnicos.",
         "<b>Mensagens:</b> canal primário, respostas estruturadas, emojis, reações/tapbacks e localização de nós com @.",
         "<b>Saúde da Rede:</b> indicadores de atividade, links, hops e chat.",
         "<b>Anomalias:</b> heurísticas para silêncio, SNR, hops e assimetria de rotas.",
-        "<b>Configurações:</b> aparência, mapa e controles independentes de cor/espessura para enlaces RF e MQTT/não-RF, além de temas sonoros e leitura do chat. Visitantes podem personalizar esses itens somente no próprio navegador; atualizações e padrões globais continuam administrativos.",
+        "<b>Configurações:</b> aparência, mapa, controles independentes de cor/espessura para enlaces RF e MQTT/não-RF, retenção do tráfego bruto, temas sonoros e leitura do chat. Visitantes podem personalizar itens visuais somente no próprio navegador; retenção, atualizações e padrões globais continuam administrativos.",
         "<b>Ajuda/Help:</b> instruções incorporadas à própria interface.",
     ]:
         story.append(bullet(item))
@@ -134,8 +134,13 @@ def main() -> None:
               P("Em Configurações > Mapa e topologia, cor e espessura podem ser ajustadas separadamente para RF e MQTT/não-RF. Visitantes alteram apenas o próprio navegador; o administrador pode salvar esses valores no padrão global."),
               P("Mapa-base e provedores de tiles", "TA_H2"),
               P("O modo Ruas usa o endpoint oficial atual do OpenStreetMap: https://tile.openstreetmap.org/{z}/{x}/{y}.png. A interface envia uma política de Referer compatível com requisições web cross-origin. Se os tiles OSM falharem repetidamente, o Traffic Analyzer troca temporariamente para o mapa Claro (CARTO) para evitar uma tela em branco. A troca manual de mapa-base continua disponível em Configurações. Na v1.46.0, o mapa usa zoom fracionário mais gradual e sensibilidade reduzida na roda do mouse/touchpad para oferecer níveis intermediários de enquadramento."),
+              P("Memória permanente de nós e enlaces", "TA_H2"),
+              P("A partir da v1.47.0, cada nó e enlace realmente observado é consolidado em tabelas históricas do traffic.db. A memória não expira por idade, retenção do MeshMonitor, limite de traceroutes, reinício ou regeneração da topologia. Um nó ou enlace histórico só é removido quando o banco é explicitamente apagado/resetado. As janelas de tempo do mapa apenas filtram a visualização."),
+              P("O sistema mantém uma fila durável de snapshots de topologia. Se o serviço web estiver temporariamente parado enquanto o coletor continua ativo, os snapshots pendentes são consolidados no banco quando a interface retornar. Na atualização para a v1.47.0, o Traffic Analyzer também tenta recuperar enlaces antigos a partir de metadata de traceroutes já presente no arquivo bruto, quando houver informação suficiente."),
               P("Estatísticas", "TA_H2"),
               P("O período padrão da aba Estatísticas é Todo, portanto a primeira carga usa todo o histórico disponível. O usuário continua podendo restringir a análise para 1 h, 6 h, 24 h, 7 dias ou 30 dias e combinar o período com o filtro por nó."),
+              P("Retenção do banco de tráfego", "TA_H2"),
+              P("Em Configurações > Banco de tráfego, o administrador escolhe a retenção dos pacotes e posições brutas: 1 dia, 1 semana, 1 mês ou Nunca apagar. O padrão é Nunca apagar. Essa limpeza não remove a memória histórica de nós e enlaces; primeira/última observação, última posição conhecida e evidências agregadas necessárias à topologia permanecem até o banco inteiro ser apagado/resetado."),
               P("Posições históricas", "TA_H2"),
               P("A coleta de posições recebidas continua preservada internamente em traffic.db para relatórios e análises futuras. A v1.27.0 remove a aba Tracklog e deixa de expor esse histórico por endpoint público."),
               P("Mensagens, respostas e reações", "TA_H2"),
