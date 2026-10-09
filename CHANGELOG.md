@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.52.0 - 2026-10-08
+
+- Corrige o critério do **Top 10 enlaces RF diretos mais longos**.
+- SNR válido isoladamente não confirma mais que dois nós tiveram enlace direto.
+- O Ranking exige `direct_evidence=1`: adjacência explícita dentro de uma rota observada ou confirmação independente de zero saltos.
+- Rotas vazias (`route=[]`) sem `hop_start == hop_limit` ficam fora do Ranking.
+- Adiciona `direct_evidence` e `direct_evidence_kind` ao histórico de enlaces, com migração automática do `traffic.db` existente.
+- Faz backfill best-effort de evidências diretas a partir de pacotes `TRACEROUTE_APP` já arquivados.
+- Mantém enlaces ambíguos na topologia histórica, mas não os apresenta como recordes de RF direto.
+- Adiciona regressões para rota vazia com SNR e hops > 0, rota vazia confirmada com zero hops e adjacências explícitas em rota multihop.
+- Fecha a issue #43.
+
 ## 1.51.0 - 2026-10-08
 
 - Cria a subaba **Estatísticas → Ranking** e move para ela o Top 10 de enlaces RF diretos mais longos.
