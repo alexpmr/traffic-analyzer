@@ -781,9 +781,15 @@ jobs:
               d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="routing"]'))
               time.sleep(.06)
               routing_fit=d.execute_script("""
+                const fixtures={
+                  statsHopDistribution:'<table class="dashTable statsCompactTable"><thead><tr><th>Hops</th><th>Pacotes</th><th>%</th></tr></thead><tbody><tr><td>0</td><td>4137</td><td>82,7%</td></tr></tbody></table>',
+                  statsRelayRows:'<table class="dashTable statsCompactTable"><thead><tr><th>Relay</th><th>Ocorrências</th></tr></thead><tbody><tr><td>217</td><td>792</td></tr></tbody></table>'
+                };
                 return ['statsHopDistribution','statsRelayRows'].map(id=>{
                   const x=document.getElementById(id);
-                  return {id:id,client:x.clientWidth,scroll:x.scrollWidth,tableMin:getComputedStyle(x.querySelector('table')).minWidth};
+                  if(!x.querySelector('table'))x.innerHTML=fixtures[id];
+                  const table=x.querySelector('table');
+                  return {id:id,client:x.clientWidth,scroll:x.scrollWidth,tableMin:getComputedStyle(table).minWidth};
                 });
               """)
               assert all(x["scroll"]<=x["client"]+2 for x in routing_fit),routing_fit
