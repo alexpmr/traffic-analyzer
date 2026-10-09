@@ -202,7 +202,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.50.0
+      - name: Validar backlog v1.51.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -247,6 +247,13 @@ jobs:
           grep -Fq 'function normalizeObservedTimestampMs' traffic_analyzer_web.py
           grep -Fq 'n?.lastSeenMs' traffic_analyzer_web.py
           grep -Fq 'id="statsRfLongestRows"' traffic_analyzer_web.py
+          grep -Fq 'data-stats-tab="ranking"' traffic_analyzer_web.py
+          grep -Fq 'id="statsPanelRanking"' traffic_analyzer_web.py
+          grep -Fq 'statsFitTable' traffic_analyzer_web.py
+          grep -Fq '#statsPanelRouting .dashTable{min-width:0;table-layout:fixed}' traffic_analyzer_web.py
+          grep -Fq '#viewHealth,#viewAnomalies,#viewAccess{overflow:visible' traffic_analyzer_web.py
+          grep -Fq 'data-stats-tab="anomalies">Pontos de atenção</button>' traffic_analyzer_web.py
+          grep -Fq '<h2>Pontos de atenção</h2>' traffic_analyzer_web.py
           grep -Fq 'id="clearLinkIsolation"' traffic_analyzer_web.py
           grep -Fq 'function isolateStatsRfLink' traffic_analyzer_web.py
           grep -Fq 'clickableStatRow' traffic_analyzer_web.py
@@ -258,7 +265,8 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após esta release: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.51.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
           grep -Fq 'def _automatic_update_watch_worker' traffic_analyzer_web.py
@@ -905,7 +913,7 @@ jobs:
               stats=d.find_element(By.CSS_SELECTOR, '.navbtn[data-view="statistics"]')
               d.execute_script("arguments[0].click()", stats)
               time.sleep(.15)
-              for tab in ["overview","network","rf","routing","traffic","queries","chat","energy","anomalies","access"]:
+              for tab in ["overview","network","rf","ranking","routing","traffic","queries","chat","energy","anomalies","access"]:
                   b=d.find_element(By.CSS_SELECTOR, f'.statsTab[data-stats-tab="{tab}"]')
                   d.execute_script("arguments[0].click()", b)
                   time.sleep(.08)
@@ -922,6 +930,61 @@ jobs:
               d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="rf"]'))
               time.sleep(.08)
               assert "open" not in access_controls.get_attribute("class"),access_controls.get_attribute("class")
+
+              # Regressão v1.51.0: Ranking separado, tabelas fluidas e
+              # Pontos de atenção com navegação sticky.
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="ranking"]'))
+              time.sleep(.08)
+              assert d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="ranking"]').text=="Ranking"
+              ranking_panel=d.find_element(By.ID,"statsPanelRanking")
+              assert ranking_panel.find_element(By.ID,"statsRfLongestRows")
+              assert not d.find_element(By.ID,"statsPanelRf").find_elements(By.ID,"statsRfLongestRows")
+              fit=d.execute_script("""
+                const bodies=[
+                  document.querySelector('#statsPanelRanking .statsFitBody'),
+                  document.querySelector('#statsPanelRf .statsFitBody')
+                ];
+                return bodies.map(x=>({client:x.clientWidth,scroll:x.scrollWidth}));
+              """)
+              assert all(x["scroll"]<=x["client"]+2 for x in fit),fit
+
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="routing"]'))
+              time.sleep(.08)
+              routing_fit=d.execute_script("""
+                return ['statsHopDistribution','statsRelayRows'].map(id=>{
+                  const x=document.getElementById(id);
+                  return {id:id,client:x.clientWidth,scroll:x.scrollWidth,tableMin:getComputedStyle(x.querySelector('table')).minWidth};
+                });
+              """)
+              assert all(x["scroll"]<=x["client"]+2 for x in routing_fit),routing_fit
+              assert all(x["tableMin"] in ("0px","0") for x in routing_fit),routing_fit
+
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="anomalies"]'))
+              time.sleep(.08)
+              assert d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="anomalies"]').text=="Pontos de atenção"
+              assert d.find_element(By.CSS_SELECTOR,'#statsPanelAnomalies h2').text=="Pontos de atenção"
+              sticky=d.execute_script("""
+                const view=document.getElementById('viewStatistics');
+                const list=document.getElementById('anomalyList');
+                const filler=document.createElement('div');
+                filler.id='stickyTestFiller';
+                filler.style.height='1800px';
+                list.appendChild(filler);
+                view.scrollTop=view.scrollHeight;
+                const top=document.querySelector('.statsTopbar');
+                const result={
+                  viewTop:view.getBoundingClientRect().top,
+                  barTop:top.getBoundingClientRect().top,
+                  barBottom:top.getBoundingClientRect().bottom,
+                  viewBottom:view.getBoundingClientRect().bottom,
+                  innerOverflow:getComputedStyle(document.getElementById('viewAnomalies')).overflowY
+                };
+                filler.remove();view.scrollTop=0;
+                return result;
+              """)
+              assert abs(float(sticky["barTop"])-float(sticky["viewTop"]))<3,sticky
+              assert float(sticky["barBottom"])<float(sticky["viewBottom"]),sticky
+              assert sticky["innerOverflow"] in ("visible","clip"),sticky
 
               # Regressão v1.50.0: o botão Tudo deve despachar a rodada inteira
               # sem esperar resposta/timeout entre as consultas.
