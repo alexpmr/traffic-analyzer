@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.54.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.55.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.54.0"
+APP_VERSION = "1.55.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -96,6 +96,11 @@ ARCHIVE_OVERLAP_MS = max(1000, int(os.getenv("ARCHIVE_OVERLAP_MS", "10000")))
 TRACEROUTE_HISTORY_PAGE_SIZE = max(100, min(int(os.getenv("TA_TRACEROUTE_HISTORY_PAGE_SIZE", "2000")), 2000))
 TRACEROUTE_HISTORY_FALLBACK_LIMIT = max(5000, min(int(os.getenv("TA_TRACEROUTE_HISTORY_FALLBACK_LIMIT", "50000")), 250000))
 TRACEROUTE_HISTORY_MAX_RECORDS = max(0, int(os.getenv("TA_TRACEROUTE_HISTORY_MAX_RECORDS", "0")))
+TRACEROUTE_HISTORY_INITIAL_LIMIT = max(1000, min(int(os.getenv("TA_TRACEROUTE_HISTORY_INITIAL_LIMIT", "5000")), 50000))
+TRACEROUTE_HISTORY_MAX_LIMIT = max(
+    TRACEROUTE_HISTORY_INITIAL_LIMIT,
+    min(int(os.getenv("TA_TRACEROUTE_HISTORY_MAX_LIMIT", "250000")), 1000000),
+)
 ARCHIVE_RETENTION_ALLOWED_DAYS = {0, 1, 7, 30}
 try:
     _archive_retention_env = int(os.getenv("ARCHIVE_RETENTION_DAYS", "0"))
@@ -747,7 +752,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
     <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
-    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.</div></div>
+    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado pela API v1 autenticada, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.</div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody statsFitBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody statsFitBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -1103,7 +1108,7 @@ const I18N_PAIRS=[
   ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
-  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.','Only trusted adjacencies from the MeshMonitor traceroute API, with valid SNR and known positions at both endpoints. The All period includes revalidated history, including offline nodes; evidence remains in traffic.db until an explicit reset.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],['Clique para mostrar somente este enlace no mapa','Click to show only this link on the map'],['Mostrar todos os nós e enlaces','Show all nodes and links'],['Este enlace não está disponível na topologia atual.','This link is not available in the current topology.'],['Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.','This link cannot be framed because one endpoint has no valid position.'],
+  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.','Only trusted adjacencies from the MeshMonitor traceroute API, with valid SNR and known positions at both endpoints. The All period includes history revalidated through the authenticated v1 API, including offline nodes; evidence remains in traffic.db until an explicit reset.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],['Clique para mostrar somente este enlace no mapa','Click to show only this link on the map'],['Mostrar todos os nós e enlaces','Show all nodes and links'],['Este enlace não está disponível na topologia atual.','This link is not available in the current topology.'],['Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.','This link cannot be framed because one endpoint has no valid position.'],
   ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
   ['Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.','Solid line only when the hop has physical RF evidence, currently a valid SNR. Mixed RF and MQTT/non-RF observations remain solid and the popup shows the composition.'],
   ['Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.','Dashed line when there is no physical RF evidence for the hop. Without a valid SNR, the observation is treated as MQTT/non-RF even if the traceroute record reached MeshMonitor over RF.'],
@@ -7559,15 +7564,20 @@ def _store_trusted_analysis_traceroute(conn, row):
     return inserted
 
 
-def _topology_direct_history_backfill_v3(force=False):
-    """Recupera TODO o histórico confiável, inclusive nós hoje offline.
+def _topology_direct_history_backfill_v4(force=False):
+    """Recupera histórico confiável pela API v1 autenticada por Bearer token.
 
-    Prioriza /api/analysis/traceroutes, que possui paginação por cursor e
-    permite percorrer o histórico completo. Em MeshMonitor antigo que não
-    exponha esse endpoint, usa a API v1 com um limite alto como fallback.
-    Evidência gravada aqui permanece no traffic.db até reset explícito.
+    A v1.54 usava /api/analysis/traceroutes, cuja optionalAuth não resolve o
+    MM_API_TOKEN Bearer. Uma resposta anônima vazia podia ser marcada como
+    backfill completo. A v1.55 usa exclusivamente a API v1, que exige e valida
+    o token, e aumenta progressivamente o limit até alcançar o início do
+    histórico ou o teto de segurança configurado.
+
+    O endpoint v1 retorna os N traceroutes mais recentes. Por isso somente a
+    resposta mais ampla bem-sucedida precisa ser processada; event_key mantém
+    a operação idempotente.
     """
-    meta_key = f"topology-direct-history-v3:{MM_SOURCE}"
+    meta_key = f"topology-direct-history-v4:{MM_SOURCE}"
     with _archive_connect() as conn:
         previous = conn.execute(
             "SELECT meta_value FROM topology_history_meta WHERE meta_key=?",
@@ -7581,80 +7591,76 @@ def _topology_direct_history_backfill_v3(force=False):
             if status.get("complete") is True:
                 return {**status, "skipped": True}
 
-    processed = 0
-    inserted = 0
-    pages = 0
+    source = urllib.parse.quote(MM_SOURCE, safe="")
+    max_limit = TRACEROUTE_HISTORY_MAX_LIMIT
+    if TRACEROUTE_HISTORY_MAX_RECORDS > 0:
+        max_limit = min(max_limit, TRACEROUTE_HISTORY_MAX_RECORDS)
+    max_limit = max(TRACEROUTE_HISTORY_INITIAL_LIMIT, max_limit)
+
+    limit = min(TRACEROUTE_HISTORY_INITIAL_LIMIT, max_limit)
+    attempts = []
+    final_rows = None
+    final_limit = 0
     complete = False
-    method = "analysis-paginated"
+    truncated = False
     last_error = None
 
-    try:
-        cursor = None
-        while True:
-            params = {
-                "sources": MM_SOURCE,
-                "since": "0",
-                "pageSize": str(TRACEROUTE_HISTORY_PAGE_SIZE),
-            }
-            if cursor:
-                params["cursor"] = cursor
-            path = "/api/analysis/traceroutes?" + urllib.parse.urlencode(params)
-            body = _mm_api_get(path)
-            if not isinstance(body, dict) or not isinstance(body.get("items"), list):
-                raise RuntimeError("Resposta inesperada de /api/analysis/traceroutes")
-            rows = body.get("items") or []
-            if TRACEROUTE_HISTORY_MAX_RECORDS > 0:
-                remaining = TRACEROUTE_HISTORY_MAX_RECORDS - processed
-                if remaining <= 0:
-                    break
-                rows = rows[:remaining]
-            with _archive_connect() as conn:
-                for row in rows:
-                    inserted += _store_trusted_analysis_traceroute(conn, row)
-            processed += len(rows)
-            pages += 1
-
-            if TRACEROUTE_HISTORY_MAX_RECORDS > 0 and processed >= TRACEROUTE_HISTORY_MAX_RECORDS:
-                complete = not bool(body.get("hasMore"))
-                break
-            if not body.get("hasMore"):
-                complete = True
-                break
-            cursor = body.get("nextCursor")
-            if not cursor:
-                raise RuntimeError("Histórico indica hasMore sem nextCursor")
-            if pages >= 100000:
-                raise RuntimeError("Proteção contra paginação infinita acionada")
-    except Exception as exc:
-        last_error = str(exc)
-        method = "v1-high-limit-fallback"
+    while True:
         try:
-            source = urllib.parse.quote(MM_SOURCE, safe="")
-            limit = TRACEROUTE_HISTORY_FALLBACK_LIMIT
             body = _mm_api_get(f"/api/v1/sources/{source}/traceroutes?limit={limit}")
-            rows = body.get("data", []) if isinstance(body, dict) else []
-            if not isinstance(rows, list):
+            if not isinstance(body, dict):
                 raise RuntimeError("Resposta inesperada da API v1 de traceroutes")
-            with _archive_connect() as conn:
-                for row in rows:
-                    inserted += _store_trusted_analysis_traceroute(conn, row)
-            processed = max(processed, len(rows))
-            pages = max(pages, 1)
-            # A API v1 não pagina. Só declaramos completo quando retornou menos
-            # que o limite solicitado; se saturou, tentaremos novamente em
-            # próximo restart/update e registramos a recuperação como parcial.
-            complete = len(rows) < limit
-        except Exception as fallback_exc:
-            last_error = f"{last_error}; fallback: {fallback_exc}"
+            if body.get("success") is False:
+                raise RuntimeError(str(body.get("message") or body.get("error") or "Falha na API v1 de traceroutes"))
+            rows = body.get("data")
+            if not isinstance(rows, list):
+                raise RuntimeError("API v1 de traceroutes não retornou lista em data")
+        except Exception as exc:
+            last_error = str(exc)
+            attempts.append({"limit": limit, "ok": False, "error": last_error})
+            break
+
+        final_rows = rows
+        final_limit = limit
+        count = len(rows)
+        attempts.append({"limit": limit, "ok": True, "count": count})
+
+        # Menos registros que o solicitado prova que chegamos ao início.
+        if count < limit:
+            complete = True
+            break
+
+        # Resposta cheia: ainda pode haver histórico mais antigo.
+        if limit >= max_limit:
+            truncated = True
+            break
+
+        next_limit = min(max_limit, limit * 2)
+        if next_limit <= limit:
+            truncated = True
+            break
+        limit = next_limit
+
+    inserted = 0
+    processed = 0
+    if final_rows is not None:
+        processed = len(final_rows)
+        with _archive_connect() as conn:
+            for row in final_rows:
+                inserted += _store_trusted_analysis_traceroute(conn, row)
 
     result = {
         "completedAtMs": int(time.time() * 1000),
         "processed": processed,
         "inserted": inserted,
-        "pages": pages,
         "complete": bool(complete),
-        "method": method,
-        "error": None if complete else last_error,
+        "truncated": bool(truncated),
+        "method": "v1-authenticated-progressive-limit",
+        "initialLimit": TRACEROUTE_HISTORY_INITIAL_LIMIT,
+        "finalLimit": final_limit,
+        "maxLimit": max_limit,
+        "attempts": attempts[-16:],
+        "error": last_error,
         "skipped": False,
     }
     with _archive_connect() as conn:
@@ -7663,7 +7669,6 @@ def _topology_direct_history_backfill_v3(force=False):
             (meta_key, json.dumps(result, ensure_ascii=False, separators=(",", ":"))),
         )
     return result
-
 
 
 def _topology_history_merge(raw: dict):
@@ -8429,13 +8434,14 @@ def _archive_worker():
                         "foram invalidadas; somente /traceroutes pode revalidá-las.",
                         flush=True,
                     )
-                history = _topology_direct_history_backfill_v3()
+                history = _topology_direct_history_backfill_v4()
                 if not history.get("skipped"):
                     state = "completo" if history.get("complete") else "parcial"
                     print(
-                        "Ranking RF v1.54: backfill histórico "
+                        "Ranking RF v1.55: backfill histórico autenticado "
                         f"{state}; {int(history.get('processed') or 0)} traceroute(s) processado(s), "
                         f"{int(history.get('inserted') or 0)} evidência(s) inserida(s), "
+                        f"limit final={int(history.get('finalLimit') or 0)}, "
                         f"método={history.get('method')}.",
                         flush=True,
                     )

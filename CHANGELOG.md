@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.55.0 - 2026-10-09
+
+- Corrige o backfill histórico do Ranking RF introduzido na v1.54.0.
+- Remove o uso de `/api/analysis/traceroutes` para recuperação histórica, pois essa rota pode ignorar o `MM_API_TOKEN` Bearer e cair para usuário anônimo.
+- Usa a API v1 autenticada `/api/v1/sources/{source}/traceroutes?limit=N` como única fonte do backfill.
+- Implementa expansão progressiva do limite: 5k, 10k, 20k, 40k etc., até alcançar o início do histórico.
+- Adiciona `TA_TRACEROUTE_HISTORY_INITIAL_LIMIT` e `TA_TRACEROUTE_HISTORY_MAX_LIMIT` (padrão 250.000).
+- Cria a migração `topology-direct-history-v4`, ignorando o falso `complete=true` eventualmente gravado pela v1.54.0.
+- Mantém evidências históricas válidas no `traffic.db`, inclusive para nós offline.
+- Mantém proteção contra pacotes brutos, TTL e evidence kinds legados.
+- Fecha a issue #49.
+
 ## 1.54.0 - 2026-10-09
 
 - Corrige a regressão que removia do Ranking enlaces RF diretos antigos de nós offline.
