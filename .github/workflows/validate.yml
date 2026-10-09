@@ -461,7 +461,7 @@ jobs:
                       {"nodeNum":30,"nodeId":"!0000001e","name":"C","state":"identified","latitude":-16.80,"longitude":-48.90,"lastHeard":now},
                   ],
                   "edges":[
-                      {"id":"20:30","a":20,"b":30,"events":[{"timestampMs":now-500,"leg":"forward","snr":4.0,"traceId":200,"transport":"rf"}]},
+                      {"id":"20:30","a":20,"b":30,"events":[{"timestampMs":now-500,"leg":"forward","snr":4.0,"traceId":200,"transport":"rf","directEvidence":True,"directEvidenceKind":"route-adjacency"}]},
                       {"id":"10:30","a":10,"b":30,"events":[{"timestampMs":now-400,"leg":"forward","snr":None,"traceId":201,"transport":"mqtt"}]},
                   ],"traces":[]
               }
