@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.50.0** (2026-10-08).
+Estado consolidado da release **v1.51.0** (2026-10-08).
 
-Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.51.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -11,7 +11,7 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 | 3 | Nós não podem desaparecer do mapa por registro histórico incompleto | Concluído | Validação de posição impede `Invalid LatLng` sem eliminar nós válidos. |
 | 4 | Diferenciar visualmente nós recentes/antigos | Concluído | Idade normalizada por `lastHeard`/telemetria/`lastSeenMs`; verde, amarelo/laranja, vermelho e cinza. |
 | 5 | Retenção do tráfego: 1 dia, 1 semana, 1 mês ou nunca | Concluído | `archiveRetentionDays`; padrão **Nunca apagar**; não remove memória de nós/enlaces. |
-| 6 | Top 10 enlaces RF mais longos | Concluído | Estatísticas → RF e endpoint `/api/archive/rf-longest-links`. |
+| 6 | Top 10 enlaces RF mais longos | Concluído | Estatísticas → **Ranking** e endpoint `/api/archive/rf-longest-links`. |
 | 7 | Ranking considerar somente hop RF direto | Concluído | Exige evidência RF/SNR válido e consolida A↔B; não inventa A↔C em rota A→B→C. |
 | 8 | Aba Nós abrir detalhes completos do nó | Concluído | Clique na linha abre `openNodeDetailsModal`, reutilizando o mesmo conteúdo/lógica do popup. |
 | 9 | Detalhes: identificação, posição, RF, routing, traceroute, firmware e energia | Concluído | Visão compartilhada de metadados e consultas do nó. |
@@ -29,13 +29,13 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 | 21 | Download simples da versão em ZIP | Concluído | `traffic-analyzer-latest.zip` e ZIP versionado publicados automaticamente. |
 | 22 | Instalação documentada sem exigir Git | Concluído | README contém download, descompactação e instalação pelo ZIP. |
 | 23 | Issue #37 — Acessos na mesma faixa do cabeçalho de Estatísticas | Concluído na v1.50.0 | Controles contextuais de Acessos ficam em `.statsHeader`; a segunda barra horizontal foi removida. |
-| 24 | Issue #39 — Ajustar os dois blocos de Estatísticas/RF para eliminar rolagem horizontal | Pendente | Top 10 enlaces RF diretos e Enlaces observados com maior atividade devem usar largura justificada/responsiva, sem barra horizontal em desktop normal. |
-| 25 | Issue #39 — Criar subaba Ranking em Estatísticas | Pendente | Adicionar a subaba **Ranking** e mover para ela o **Top 10 enlaces RF diretos mais longos**, preservando ordenação, critério RF direto e clique para isolamento no mapa. |
-| 26 | Issue #39 — Ajustar os dois blocos de Estatísticas/Routing para eliminar rolagem horizontal | Pendente | **Distribuição por hops** e **Nós intermediários observados** devem ocupar a largura do bloco, sem barra horizontal inferior em desktop; manter os dois lado a lado e empilhar responsivamente quando necessário. |
-| 27 | Issue #40 — Estatísticas: renomear Anomalias para Pontos de atenção | Pendente | Trocar a nomenclatura visível da subaba e dos textos relacionados para **Pontos de atenção**, preservando a lógica atual de detecção, severidade, filtros e dados. |
-| 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Pendente | A barra de subabas deve permanecer visível/sticky ao rolar conteúdos longos, especialmente **Pontos de atenção**, permitindo trocar de subaba sem voltar ao topo. |
+| 24 | Issue #39 — Ajustar os dois blocos de Estatísticas/RF para eliminar rolagem horizontal | Concluído na v1.51.0 | Ranking e enlaces observados usam tabelas fluidas sem largura mínima forçada, eliminando overflow horizontal em desktop normal. |
+| 25 | Issue #39 — Criar subaba Ranking em Estatísticas | Concluído na v1.51.0 | Subaba **Ranking** criada; Top 10 movido de RF, mantendo ordenação, critério RF direto e clique para isolamento no mapa. |
+| 26 | Issue #39 — Ajustar os dois blocos de Estatísticas/Routing para eliminar rolagem horizontal | Concluído na v1.51.0 | **Distribuição por hops** e **Nós intermediários observados** usam tabelas fluidas, sem barra inferior em desktop, e empilham responsivamente em telas menores. |
+| 27 | Issue #40 — Estatísticas: renomear Anomalias para Pontos de atenção | Concluído na v1.51.0 | A interface passa a exibir **Pontos de atenção** nos rótulos, títulos, cartões, resumo e ajuda, mantendo algoritmo, severidades, filtros e dados. |
+| 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Concluído na v1.51.0 | Estatísticas usa um único contêiner de rolagem e mantém a barra superior sticky, inclusive em **Pontos de atenção** com conteúdo longo. |
 
-## Política após v1.50.0
+## Política após v1.51.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -43,4 +43,4 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.50.0: 5 itens funcionais pendentes, registrados nas issues #39, #40 e #41.**
+**Backlog conhecido após a v1.51.0: nenhum item funcional pendente nesta matriz.**
