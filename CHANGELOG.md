@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.53.0 - 2026-10-09
+
+- Corrige falso positivo remanescente no **Top 10 enlaces RF diretos mais longos**.
+- Remove o uso de pacotes brutos `TRACEROUTE_APP` e de `hop_start/hop_limit` como prova de enlace direto.
+- Confia somente em adjacências produzidas pelo endpoint `/traceroutes` do MeshMonitor.
+- Mantém a semântica correta do MeshMonitor: `route`/`routeBack` contêm somente nós intermediários.
+- `route=[]` da API representa uma perna sem intermediários; `route=[B]` em A→C produz A↔B e B↔C.
+- Adiciona o evidence kind confiável `route-adjacency-api`.
+- Migração `topology-direct-evidence-v2` invalida evidências legadas da v1.52.0 sem apagar a topologia histórica.
+- Snapshots/filas antigos com `zero-hop-packet` ou `route-adjacency` legado deixam de promover o Ranking.
+- O endpoint do Ranking passa a retornar IDs de traceroute/pacote de evidência, exibidos no tooltip da interface.
+- Fecha a issue #45.
+
 ## 1.52.0 - 2026-10-08
 
 - Corrige o critério do **Top 10 enlaces RF diretos mais longos**.
