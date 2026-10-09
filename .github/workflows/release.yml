@@ -366,7 +366,7 @@ jobs:
               web._history_source_cache=None
               web._mm_api_get=fake_get
               try:
-                  result=web._topology_direct_pair_reconcile_v5(force=True)
+                  result=web._topology_direct_pair_reconcile_v6(force=True)
               finally:
                   web._mm_api_get=saved
 
@@ -381,7 +381,7 @@ jobs:
               assert "1972747747" in direct["evidenceTraceIds"],direct
               audit=web._archive_rf_ranking_audit_query({})
               excluded={x["edgeId"]:x for x in audit["data"] if not x.get("eligible")}
-              assert excluded["10:30"]["reason"]=="sem_evidencia_direta",audit
+              assert excluded["10:30"]["reason"]=="multihop_confirmado",audit
           PY
 
       - name: Validar scripts shell
@@ -486,7 +486,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.57.0
+      - name: Validar backlog v1.57.1
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -531,8 +531,8 @@ jobs:
           grep -Fq 'function normalizeObservedTimestampMs' traffic_analyzer_web.py
           grep -Fq 'return Math.max(archived,heard);' traffic_analyzer_web.py
           ! grep -Fq 'return Math.max(archived,heard,historical);' traffic_analyzer_web.py
-          grep -Fq 'def _topology_direct_pair_reconcile_v5' traffic_analyzer_web.py
-          grep -Fq 'topology-direct-pair-reconcile-v5:' traffic_analyzer_web.py
+          grep -Fq 'def _topology_direct_pair_reconcile_v6' traffic_analyzer_web.py
+          grep -Fq 'topology-direct-pair-reconcile-v6:' traffic_analyzer_web.py
           grep -Fq '/api/traceroutes/history/' traffic_analyzer_web.py
           grep -Fq 'def _resolve_concrete_history_source_id' traffic_analyzer_web.py
           grep -Fq '/api/v1/sources/{source}/traceroutes?limit=1' traffic_analyzer_web.py
