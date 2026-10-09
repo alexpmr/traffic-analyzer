@@ -1,6 +1,19 @@
-# Traffic Analyzer v1.49.0
+# Traffic Analyzer v1.50.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.50.0
+
+- **Backlog funcional fechado:** os itens de persistência, retenção, mapa, detalhes de nós, mensagens, consultas, estatísticas, atualização e distribuição passam a ter validação explícita no pipeline.
+- **Consultas → Tudo:** as consultas ao nó são disparadas na mesma rodada com `Promise.allSettled`, sem aguardar resposta ou timeout de uma consulta para iniciar a seguinte. Cada consulta conserva progresso, correlação, resposta e timeout independentes.
+- **Estatísticas → Acessos:** os controles específicos de Acessos passam para a mesma faixa do cabeçalho principal de Estatísticas; a segunda barra horizontal foi removida. Em telas menores os controles quebram de forma responsiva.
+- **Relatório / PDF:** Estatísticas passa a gerar um relatório estruturado em nova janela, com resumo executivo, Top 10 RF direto, nós mais ativos, chat e anomalias, pronto para **Imprimir / Salvar como PDF** no navegador.
+- **Exportar CSV:** Estatísticas passa a exportar diretamente o tráfego correspondente ao período e nó selecionados.
+- Corrige a Ajuda da aba **Nós**, que ainda descrevia o comportamento antigo; clicar em uma linha abre a visualização ampliada de **Detalhes do nó**.
+- Remove duplicações introduzidas no texto do manual PDF.
+- Atualiza testes de regressão e o registro formal de backlog em `BACKLOG.md`.
+- Fecha a issue **#37** sobre o cabeçalho de Estatísticas → Acessos.
+- Preserva integralmente os recursos da v1.49.0.
 
 ## Novidades da v1.49.0
 
@@ -703,7 +716,9 @@ Traffic Analyzer
   `- arquivo persistente traffic.db
         |
         v
-Gerador de relatórios externo
+Relatórios e exportações
+  |- Estatísticas -> Relatório / PDF
+  |- Estatísticas -> Exportar CSV
   `- /api/archive/*
 ```
 
@@ -719,10 +734,10 @@ O token `mm_v1_...` permanece no processo servidor. Ele não é enviado ao naveg
 
 ## Download rápido (ZIP)
 
-A v1.17.0 publica dois pacotes prontos no próprio repositório:
+A v1.50.0 publica dois pacotes prontos no próprio repositório:
 
 - [Baixar ZIP da versão mais recente](./traffic-analyzer-latest.zip)
-- [Baixar ZIP da v1.17.0](./traffic-analyzer-v1.17.0.zip)
+- [Baixar ZIP da v1.50.0](./traffic-analyzer-v1.50.0.zip)
 
 Quando o repositório estiver **público**, qualquer usuário poderá baixar o pacote sem conta, token ou chave SSH.
 
