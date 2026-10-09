@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.54.0** (2026-10-09).
+Estado consolidado da release **v1.55.0** (2026-10-09).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.54.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.55.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -36,10 +36,10 @@ Esta matriz registra o fechamento do backlog funcional até a v1.54.0. Um item s
 | 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Concluído na v1.51.0 | Estatísticas usa um único contêiner de rolagem e mantém a barra superior sticky, inclusive em **Pontos de atenção** com conteúdo longo. |
 | 29 | Issue #43 — Ranking RF: exigir evidência real de zero saltos | Concluído na v1.52.0 | O Top 10 exige `direct_evidence=1`: **adjacência explícita** na rota ou confirmação independente de **zero saltos**. `transport='rf'` + SNR não basta e `route=[]` ambígua é excluída. |
 | 30 | Issue #45 — Ranking RF: corrigir evidência histórica falsa | Concluído na v1.53.0 | O Ranking confia somente em `route-adjacency-api` gerado pela API `/traceroutes`; pacotes brutos TX/RX e TTL não promovem enlaces. Evidências legadas da v1.52.0 são invalidadas automaticamente sem apagar a topologia. |
-| 31 | Issue #47 — Ranking RF: incluir enlaces históricos válidos de nós offline | Concluído na v1.54.0 | O período **Todo** usa backfill paginado do histórico completo via `/api/analysis/traceroutes`, preserva evidências revalidadas no `traffic.db` e mantém nós offline elegíveis com a última posição válida conhecida. |
-| 32 | Issue #49 — Ranking RF: backfill v1.54 usa endpoint que ignora MM_API_TOKEN | Pendente | O backfill histórico deve usar a API v1 autenticada por Bearer token, expandindo progressivamente o `limit` até cobrir todo o histórico; criar nova migração para desfazer o falso `complete=true` gravado pela v1.54.0. |
+| 31 | Issue #47 — Ranking RF: incluir enlaces históricos válidos de nós offline | Corrigido definitivamente na v1.55.0 | A v1.54.0 tentou recuperar o histórico via `/api/analysis/traceroutes`, mas a autenticação Bearer dessa rota era inadequada. A v1.55.0 usa a API v1 autenticada com expansão progressiva do limite e preserva evidências revalidadas no `traffic.db`. |
+| 32 | Issue #49 — Ranking RF: backfill v1.54 usa endpoint que ignora MM_API_TOKEN | Concluído na v1.55.0 | O backfill usa `/api/v1/sources/{source}/traceroutes` autenticado por Bearer token, expande progressivamente o `limit` e usa a migração `topology-direct-history-v4` para repetir a recuperação mesmo após falso `complete=true` da v1.54.0. |
 
-## Política após v1.54.0
+## Política após v1.55.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -47,4 +47,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.54.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.54.0: 1 item funcional pendente, registrado na issue #49.**
+**Backlog conhecido após a v1.55.0: nenhum item funcional pendente nesta matriz.**
