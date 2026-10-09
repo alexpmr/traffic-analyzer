@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.51.0 - 2026-10-08
+
+- Cria a subaba **Estatísticas → Ranking** e move para ela o Top 10 de enlaces RF diretos mais longos.
+- Mantém o ranking por distância, usando apenas hops RF diretos confirmados e preservando o isolamento interativo no mapa.
+- Torna fluidas as tabelas do Ranking e de RF para eliminar rolagem horizontal desnecessária.
+- Torna fluidos os blocos **Distribuição por hops** e **Nós intermediários observados** em Routing.
+- Mantém os dois blocos de Routing lado a lado em desktop e permite empilhamento responsivo em telas menores.
+- Renomeia a apresentação visível de **Anomalias** para **Pontos de atenção**, sem alterar a lógica analítica.
+- Mantém a barra de Estatísticas e suas subabas visíveis durante rolagem de conteúdo longo.
+- Remove rolagem vertical interna de Saúde da Rede, Pontos de atenção e Acessos para usar um único contêiner de rolagem.
+- Fecha as issues #39, #40 e #41.
+- Atualiza documentação, manual PDF, backlog e smoke tests.
+
 ## 1.50.0 - 2026-10-08
 
 - Fecha o backlog funcional consolidado do Traffic Analyzer.

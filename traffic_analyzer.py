@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.50.0
+Traffic Analyzer v1.51.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
