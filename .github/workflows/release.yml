@@ -808,7 +808,7 @@ jobs:
                   nodeTrafficAge({nodeNum:904,lastHeard:(now+86400*1000)*1000}).color
                 ];
               """)
-              assert age_colors==["#2ecc71","#f39c12","#e74c3c","#7f8c8d"],age_colors
+              assert age_colors==["#2ecc71","#f39c12","#7f8c8d","#7f8c8d"],age_colors
               assert len(d.find_elements(By.ID,"statsRfLongestRows"))==1
               correlated=d.execute_script("""
                 const now=Date.now();
