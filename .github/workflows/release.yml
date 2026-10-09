@@ -227,6 +227,9 @@ jobs:
           grep -Fq 'statsFitTable' traffic_analyzer_web.py
           grep -Fq '#statsPanelRouting .dashTable{min-width:0;table-layout:fixed}' traffic_analyzer_web.py
           grep -Fq '#viewHealth,#viewAnomalies,#viewAccess{overflow:visible' traffic_analyzer_web.py
+          grep -Fq 'id="statsContent"' traffic_analyzer_web.py
+          grep -Fq '.statsContent{flex:1;min-height:0;overflow:auto' traffic_analyzer_web.py
+          grep -Fq '#viewStatistics{overflow:hidden' traffic_analyzer_web.py
           grep -Fq 'data-stats-tab="anomalies">Pontos de atenção</button>' traffic_analyzer_web.py
           grep -Fq '<h2>Pontos de atenção</h2>' traffic_analyzer_web.py
           grep -Fq 'id="clearLinkIsolation"' traffic_analyzer_web.py
@@ -801,12 +804,13 @@ jobs:
               assert d.find_element(By.CSS_SELECTOR,'#statsPanelAnomalies h2').text=="Pontos de atenção"
               sticky=d.execute_script("""
                 const view=document.getElementById('viewStatistics');
+                const content=document.getElementById('statsContent');
                 const list=document.getElementById('anomalyList');
                 const filler=document.createElement('div');
                 filler.id='stickyTestFiller';
                 filler.style.height='1800px';
                 list.appendChild(filler);
-                view.scrollTop=view.scrollHeight;
+                content.scrollTop=content.scrollHeight;
                 const top=document.querySelector('.statsTopbar');
                 const result={
                   viewTop:view.getBoundingClientRect().top,
@@ -815,7 +819,7 @@ jobs:
                   viewBottom:view.getBoundingClientRect().bottom,
                   innerOverflow:getComputedStyle(document.getElementById('viewAnomalies')).overflowY
                 };
-                filler.remove();view.scrollTop=0;
+                filler.remove();content.scrollTop=0;
                 return result;
               """)
               assert abs(float(sticky["barTop"])-float(sticky["viewTop"]))<3,sticky
