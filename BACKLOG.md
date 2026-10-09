@@ -39,6 +39,7 @@ Esta matriz registra o fechamento do backlog funcional até a v1.55.0. Um item s
 | 31 | Issue #47 — Ranking RF: incluir enlaces históricos válidos de nós offline | Corrigido definitivamente na v1.55.0 | A v1.54.0 tentou recuperar o histórico via `/api/analysis/traceroutes`, mas a autenticação Bearer dessa rota era inadequada. A v1.55.0 usa a API v1 autenticada com expansão progressiva do limite e preserva evidências revalidadas no `traffic.db`. |
 | 32 | Issue #49 — Ranking RF: backfill v1.54 usa endpoint que ignora MM_API_TOKEN | Concluído na v1.55.0 | O backfill usa `/api/v1/sources/{source}/traceroutes` autenticado por Bearer token, expande progressivamente o `limit` e usa a migração `topology-direct-history-v4` para repetir a recuperação mesmo após falso `complete=true` da v1.54.0. |
 | 33 | Issue #51 — Mapa: cor dos nós deve refletir tráfego real | Pendente | A cor e o campo **Último tráfego** devem usar apenas tráfego realmente originado pelo nó/`lastHeard`; `lastSeenMs`, `updatedAt`, `nodeStatusUpdatedAt`, regeneração da topologia e backfill não podem renovar artificialmente a atividade. |
+| 34 | Issue #52 — Ranking RF: alguns enlaces históricos diretos válidos ainda ficam de fora | Pendente | Auditar divergência entre enlaces RF históricos mostrados no mapa e eventos com `route-adjacency-api`. O Ranking deve incluir todo hop direto comprovado, inclusive histórico/offline, e informar o motivo de exclusão quando um enlace RF do mapa não for elegível. |
 
 ## Política após v1.55.0
 
@@ -48,4 +49,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.55.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.55.0: 1 item funcional pendente, registrado na issue #51.**
+**Backlog conhecido após a v1.55.0: 2 itens funcionais pendentes, registrados nas issues #51 e #52.**
