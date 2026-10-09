@@ -8567,6 +8567,13 @@ def _archive_worker():
                         f"método={history.get('method')}.",
                         flush=True,
                     )
+            # Evidências históricas confiáveis e snapshots atuais coexistem.
+            # Uma vez gravadas no traffic.db, não dependem de o nó estar online.
+            _topology_history_drain_queue()
+            _topology_history_ingest_current()
+            if was_first:
+                # Reconciliar depois de drenar snapshots antigos garante que
+                # todo par RF já conhecido esteja disponível para a busca por par.
                 pairs = _topology_direct_pair_reconcile_v5()
                 if not pairs.get("skipped"):
                     state = "completo" if pairs.get("complete") else "parcial"
@@ -8577,10 +8584,6 @@ def _archive_worker():
                         f"{int(pairs.get('unresolvedPairs') or 0)} sem prova direta.",
                         flush=True,
                     )
-            # Evidências históricas confiáveis e snapshots atuais coexistem.
-            # Uma vez gravadas no traffic.db, não dependem de o nó estar online.
-            _topology_history_drain_queue()
-            _topology_history_ingest_current()
             first_success = True
             with _archive_status_lock:
                 _archive_status.update({
