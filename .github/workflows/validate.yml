@@ -63,43 +63,32 @@ jobs:
           assert no_signal_edge["transportClass"]=="mqtt",no_signal_edge
           assert no_signal_edge["events"][0]["transport"]=="mqtt",no_signal_edge
 
-          # Regressão v1.52.0: SNR sozinho NÃO comprova enlace direto.
-          ambiguous=[{
+          # Regressão v1.53.0: a prova de adjacência vem da API
+          # /traceroutes, não de TTL/hop_start de pacote bruto.
+          direct_api=[{
             "id":3,"packetId":125,"fromNodeNum":10,"toNodeNum":30,
             "fromNodeId":"!0000000a","toNodeId":"!0000001e",
             "route":"[]","snrTowards":"[20]","routeBack":None,"snrBack":None,
             "channel":0,"timestamp":1700000002000,"createdAt":1700000002000,
+            # Mesmo com campos TTL contraditórios, o coletor não os usa.
             "hopStart":3,"hopLimit":2,
           }]
-          ambiguous_top=ta.build_topology(nodes,ambiguous,1700000002000)
-          ambiguous_edge=ambiguous_top["edges"][0]
-          assert ambiguous_edge["rfObservations"]==1,ambiguous_edge
-          assert ambiguous_edge["directObservations"]==0,ambiguous_edge
-          assert ambiguous_edge["events"][0]["directEvidence"] is False,ambiguous_edge
+          direct_top=ta.build_topology(nodes,direct_api,1700000002000)
+          direct_edge=direct_top["edges"][0]
+          assert direct_edge["rfObservations"]==1,direct_edge
+          assert direct_edge["directObservations"]==1,direct_edge
+          assert direct_edge["events"][0]["directEvidence"] is True,direct_edge
+          assert direct_edge["events"][0]["directEvidenceKind"]=="route-adjacency-api",direct_edge
 
-          # Rota vazia só vira enlace direto com zero hops confirmado.
-          zero_hop=[{
-            "id":4,"packetId":126,"fromNodeNum":10,"toNodeNum":30,
-            "fromNodeId":"!0000000a","toNodeId":"!0000001e",
-            "route":"[]","snrTowards":"[20]","routeBack":None,"snrBack":None,
-            "channel":0,"timestamp":1700000003000,"createdAt":1700000003000,
-            "hopStart":3,"hopLimit":3,
-          }]
-          zero_top=ta.build_topology(nodes,zero_hop,1700000003000)
-          zero_edge=zero_top["edges"][0]
-          assert zero_edge["directObservations"]==1,zero_edge
-          assert zero_edge["events"][0]["directEvidence"] is True,zero_edge
-          assert zero_edge["events"][0]["directEvidenceKind"]=="zero-hop-packet",zero_edge
-
-          # Em A→B→C, os dois pares adjacentes são diretos; A↔C não é criado.
+          # A→B→C, onde route=[B], cria somente adjacências consecutivas.
           assert ab["directObservations"]==1,ab
           assert bv["directObservations"]==1,bv
-          assert ab["events"][0]["directEvidenceKind"]=="route-adjacency",ab
-          assert bv["events"][0]["directEvidenceKind"]=="route-adjacency",bv
+          assert ab["events"][0]["directEvidenceKind"]=="route-adjacency-api",ab
+          assert bv["events"][0]["directEvidenceKind"]=="route-adjacency-api",bv
           assert frozenset((10,30)) not in edges,edges
           PY
 
-      - name: Validar ranking RF com evidência direta
+      - name: Validar ranking RF com evidência confiável
         run: |
           python - <<'PY'
           import json, tempfile
@@ -111,8 +100,8 @@ jobs:
               web.ARCHIVE_SETTINGS_FILE=Path(tmp)/"archive-settings.json"
               web.MM_SOURCE="default"
               web._archive_init()
+              now=1700000000000
               with web._archive_connect() as conn:
-                  now=1700000000000
                   for num,name,lat,lon in [
                       (10,"A",-15.80,-47.90),
                       (20,"B",-15.81,-47.89),
@@ -123,31 +112,70 @@ jobs:
                           "INSERT INTO topology_nodes(source_id,node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json) VALUES(?,?,?,?,?,?)",
                           ("default",num,now,now,now,json.dumps(node)),
                       )
-                  # Enlace mais longo, mas ambíguo: RF+SNR sem direct_evidence.
-                  conn.execute(
-                      """INSERT INTO topology_edge_events(
-                           event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
-                           observation_count,direct_evidence,direct_evidence_kind,archived_at
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      ("amb","default","10:30",10,30,now,"forward",5.0,"rf","3","125",0,1,0,None,now),
-                  )
-                  # Enlace comprovado por adjacência explícita.
-                  conn.execute(
-                      """INSERT INTO topology_edge_events(
-                           event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
-                           observation_count,direct_evidence,direct_evidence_kind,archived_at
-                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                      ("direct","default","10:20",10,20,now+1,"forward",4.0,"rf","1","123",0,1,1,"route-adjacency",now+1),
-                  )
+                  # Evidências legadas da v1.52.0: devem ser invalidadas.
+                  for key,edge,a,b,kind in [
+                      ("legacy-zero","10:30",10,30,"zero-hop-packet"),
+                      ("legacy-route","20:30",20,30,"route-adjacency"),
+                  ]:
+                      conn.execute(
+                          """INSERT INTO topology_edge_events(
+                               event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                               observation_count,direct_evidence,direct_evidence_kind,archived_at
+                             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                          (key,"default",edge,a,b,now,"forward",5.0,"rf","legacy","legacy",0,1,1,kind,now),
+                      )
+
+              correction=web._topology_direct_evidence_rebuild_v2()
+              assert correction["invalidated"]==2,correction
+              assert web._archive_rf_longest_links_query({})["count"]==0
+
+              # Snapshot antigo/queue da v1.52.0 não pode reativar zero-hop-packet.
+              old_snapshot={
+                  "sourceId":"default","generatedAtMs":now+1,
+                  "nodes":[],
+                  "edges":[{
+                      "id":"10:30","a":10,"b":30,"latestPacketId":"oldpkt",
+                      "events":[{
+                          "timestampMs":now+1,"leg":"forward","snr":5.0,"traceId":"oldtrace",
+                          "transport":"rf","directEvidence":True,"directEvidenceKind":"zero-hop-packet"
+                      }]
+                  }],"traces":[]
+              }
+              web._topology_history_ingest(old_snapshot)
+              assert web._archive_rf_longest_links_query({})["count"]==0
+
+              # Pacote bruto arquivado nunca promove evidência direta.
+              raw_links=web._history_trace_links(10,"[]",30,"[20]","forward")
+              assert len(raw_links)==1,raw_links
+              assert raw_links[0][5] is False and raw_links[0][6] is None,raw_links
+
+              # Somente snapshot do coletor v1.53, derivado de /traceroutes,
+              # usa o evidence kind confiável.
+              trusted={
+                  "sourceId":"default","generatedAtMs":now+2,
+                  "nodes":[],
+                  "edges":[{
+                      "id":"10:20","a":10,"b":20,"latestPacketId":"123",
+                      "events":[{
+                          "timestampMs":now+2,"leg":"forward","snr":4.0,"traceId":"1",
+                          "transport":"rf","directEvidence":True,"directEvidenceKind":"route-adjacency-api"
+                      }]
+                  }],"traces":[]
+              }
+              web._topology_history_ingest(trusted)
               ranked=web._archive_rf_longest_links_query({})
               assert ranked["count"]==1,ranked
-              assert ranked["data"][0]["edgeId"]=="10:20",ranked
-              assert ranked["data"][0]["directEvidence"] is True,ranked
-              assert "route-adjacency" in ranked["data"][0]["directEvidenceKinds"],ranked
+              row=ranked["data"][0]
+              assert row["edgeId"]=="10:20",ranked
+              assert row["directEvidence"] is True,row
+              assert row["directEvidenceKinds"]==["route-adjacency-api"],row
+              assert "1" in row["evidenceTraceIds"],row
+              assert "123" in row["evidencePacketIds"],row
 
-              with web._archive_connect() as conn:
-                  cols={row["name"] for row in conn.execute("PRAGMA table_info(topology_edge_events)")}
-                  assert "direct_evidence" in cols and "direct_evidence_kind" in cols,cols
+              # A migração é idempotente e não zera evidência v1.53 em novo boot.
+              again=web._topology_direct_evidence_rebuild_v2()
+              assert again["skipped"] is True,again
+              assert web._archive_rf_longest_links_query({})["count"]==1
           PY
 
       - name: Validar shell
@@ -288,7 +316,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.52.0
+      - name: Validar backlog v1.53.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -338,9 +366,13 @@ jobs:
           grep -Fq "e.direct_evidence = 1" traffic_analyzer_web.py
           grep -Fq 'direct_evidence INTEGER NOT NULL DEFAULT 0' traffic_analyzer_web.py
           grep -Fq 'direct_evidence_kind TEXT' traffic_analyzer_web.py
-          grep -Fq 'def _topology_direct_evidence_backfill' traffic_analyzer_web.py
-          grep -Fq '"directEvidence": bool(link.get("direct_evidence"))' traffic_analyzer.py
-          grep -Fq 'traceroute_zero_hop' traffic_analyzer.py
+          grep -Fq 'def _topology_direct_evidence_rebuild_v2' traffic_analyzer_web.py
+          grep -Fq "e.direct_evidence_kind = 'route-adjacency-api'" traffic_analyzer_web.py
+          grep -Fq '"direct_evidence_kind": "route-adjacency-api"' traffic_analyzer.py
+          grep -Fq 'API traceroute' traffic_analyzer_web.py
+          ! grep -Fq 'def _topology_direct_evidence_backfill' traffic_analyzer_web.py
+          ! grep -Fq 'traceroute_zero_hop' traffic_analyzer.py
+          ! grep -Fq 'zero-hop-packet' traffic_analyzer_web.py
           grep -Fq 'statsFitTable' traffic_analyzer_web.py
           grep -Fq '#statsPanelRouting .dashTable{min-width:0;table-layout:fixed}' traffic_analyzer_web.py
           grep -Fq '#viewHealth,#viewAnomalies,#viewAccess{overflow:visible' traffic_analyzer_web.py
@@ -360,7 +392,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.52.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.53.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
@@ -451,27 +483,6 @@ jobs:
                   assert conn.execute("SELECT COUNT(*) FROM topology_nodes").fetchone()[0]>=2
                   assert conn.execute("SELECT COUNT(*) FROM topology_edge_events").fetchone()[0]>=1
               assert ta._save_archive_settings({"retentionDays":0})["retentionDays"]==0
-              # Top 10 usa somente hops RF diretos: A-C sem SNR não pode entrar.
-              raw_long={
-                  "sourceId":"test-source","generatedAtMs":now,
-                  "summary":{"nodesInApi":3},
-                  "nodes":[
-                      {"nodeNum":10,"nodeId":"!0000000a","name":"A","state":"identified","latitude":-15.80,"longitude":-47.90,"lastHeard":now},
-                      {"nodeNum":20,"nodeId":"!00000014","name":"B","state":"identified","latitude":-15.81,"longitude":-47.89,"lastHeard":now},
-                      {"nodeNum":30,"nodeId":"!0000001e","name":"C","state":"identified","latitude":-16.80,"longitude":-48.90,"lastHeard":now},
-                  ],
-                  "edges":[
-                      {"id":"20:30","a":20,"b":30,"events":[{"timestampMs":now-500,"leg":"forward","snr":4.0,"traceId":200,"transport":"rf","directEvidence":True,"directEvidenceKind":"route-adjacency"}]},
-                      {"id":"10:30","a":10,"b":30,"events":[{"timestampMs":now-400,"leg":"forward","snr":None,"traceId":201,"transport":"mqtt"}]},
-                  ],"traces":[]
-              }
-              ta._topology_history_ingest(raw_long)
-              longest=ta._archive_rf_longest_links_query({})
-              ids=[x["edgeId"] for x in longest["data"]]
-              assert "20:30" in ids,longest
-              assert "10:30" not in ids,longest
-              assert all(x["rfObservations"]>=1 and x["avgSnr"] is not None for x in longest["data"]),longest
-              assert longest["data"]==sorted(longest["data"],key=lambda x:(-x["distanceKm"],-x["rfObservations"],-x["lastRfSeenMs"]))
           prefs=ta._sanitize_ui_defaults({
               "weatherRadarEnabled": True,
               "rfCoverageEnabled": True,
