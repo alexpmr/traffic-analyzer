@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.57.0 - 2026-10-09
+
+- Alinha o **Top 10 enlaces RF diretos mais longos** com a classificação usada no mapa.
+- O Ranking passa a considerar todo hop persistido em `topology_edge_events` com `transport='rf'`, SNR válido e posições válidas nos dois extremos.
+- `route-adjacency-api` continua sendo preservado como evidência auditável quando o traceroute existe, mas deixa de ser requisito para o hop permanecer elegível.
+- Corrige enlaces históricos RF confirmados que apareciam no mapa, mas desapareciam do Ranking após o traceroute caducar no MeshMonitor.
+- A interface passa a indicar a origem da evidência: **RF observado no hop**, **API traceroute** ou **mista**.
+- A auditoria de elegibilidade usa o mesmo critério RF do mapa, eliminando divergência entre as duas telas.
+- Mantém consolidação A↔B como um único enlace e ordenação por distância geodésica decrescente.
+
 ## 1.56.0 - 2026-10-09
 
 - Corrige a cor de atividade dos nós para usar somente tráfego real originado pelo nó e `lastHeard`; `lastSeenMs` não influencia mais a cor nem o campo Último tráfego.
