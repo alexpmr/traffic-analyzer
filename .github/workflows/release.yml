@@ -368,22 +368,29 @@ jobs:
               calls=[]
               def fake_get(path):
                   calls.append(path)
-                  assert "sourceId=default" in path and "limit=1000" in path,path
+                  if path=="/api/v1/sources":
+                      return {"success":True,"count":1,"data":[{"id":"uuid-primary","name":"Primary","enabled":True,"isPrimary":True}]}
+                  if path=="/api/v1/sources/uuid-primary/traceroutes?limit=1":
+                      return {"success":True,"count":0,"data":[]}
+                  assert "sourceId=uuid-primary" in path and "limit=1000" in path,path
                   if "/history/10/20?" in path:
                       return [{
-                          "id":1972747747,"fromNodeNum":10,"toNodeNum":20,
+                          "id":1972747747,"sourceId":"uuid-primary",
+                          "fromNodeNum":10,"toNodeNum":20,
                           "route":"[]","routeBack":None,"snrTowards":"[-39.2]","snrBack":None,
                           "timestamp":old,"createdAt":old,"packetId":1972747747,
                       }]
                   if "/history/10/30?" in path:
                       return [{
-                          "id":222,"fromNodeNum":10,"toNodeNum":30,
+                          "id":222,"sourceId":"uuid-primary",
+                          "fromNodeNum":10,"toNodeNum":30,
                           "route":"[20]","routeBack":None,"snrTowards":"[20,18]","snrBack":None,
                           "timestamp":old+1,"createdAt":old+1,"packetId":222,
                       }]
                   raise AssertionError(path)
 
               saved=web._mm_api_get
+              web._history_source_cache=None
               web._mm_api_get=fake_get
               try:
                   result=web._topology_direct_pair_reconcile_v5(force=True)
@@ -393,6 +400,7 @@ jobs:
               assert result["checkedPairs"]==2,result
               assert result["recoveredPairs"]==1,result
               assert result["unresolvedPairs"]==1,result
+              assert result["historySourceId"]=="uuid-primary",result
               ranked=web._archive_rf_longest_links_query({})
               edges={x["edgeId"] for x in ranked["data"]}
               assert "10:20" in edges and "10:30" not in edges,ranked
@@ -553,6 +561,8 @@ jobs:
           grep -Fq 'def _topology_direct_pair_reconcile_v5' traffic_analyzer_web.py
           grep -Fq 'topology-direct-pair-reconcile-v5:' traffic_analyzer_web.py
           grep -Fq '/api/traceroutes/history/' traffic_analyzer_web.py
+          grep -Fq 'def _resolve_concrete_history_source_id' traffic_analyzer_web.py
+          grep -Fq '/api/v1/sources/{source}/traceroutes?limit=1' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_ranking_audit_query' traffic_analyzer_web.py
           grep -Fq '/api/archive/rf-ranking-audit' traffic_analyzer_web.py
           grep -Fq 'id="statsRankingAuditRows"' traffic_analyzer_web.py
