@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.56.0** (2026-10-09).
+Estado consolidado da release **v1.57.0** (2026-10-09).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.56.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.57.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -40,8 +40,9 @@ Esta matriz registra o fechamento do backlog funcional até a v1.56.0. Um item s
 | 32 | Issue #49 — Ranking RF: backfill v1.54 usa endpoint que ignora MM_API_TOKEN | Concluído na v1.55.0 | O backfill usa `/api/v1/sources/{source}/traceroutes` autenticado por Bearer token, expande progressivamente o `limit` e usa a migração `topology-direct-history-v4` para repetir a recuperação mesmo após falso `complete=true` da v1.54.0. |
 | 33 | Issue #51 — Mapa: cor dos nós deve refletir tráfego real | Concluído na v1.56.0 | `nodeLastTrafficMs()` usa somente tráfego arquivado realmente originado pelo nó e `lastHeard`; `lastSeenMs` e atualizações administrativas da topologia não renovam cor/Último tráfego. |
 | 34 | Issue #52 — Ranking RF: alguns enlaces históricos diretos válidos ainda ficam de fora | Concluído na v1.56.0 | Pares RF sem evidência confiável são reconciliados individualmente pela API autenticada de histórico do par; Ranking inclui todo hop direto comprovado e a nova auditoria informa o motivo de exclusão dos demais. |
+| 35 | Ranking RF: usar o mesmo critério RF confirmado do mapa | Concluído na v1.57.0 | Todo hop persistido com `transport='rf'` + SNR válido entra no Ranking quando há posição nos dois extremos; `route-adjacency-api` permanece como evidência adicional, não como requisito. Corrige casos como Perseverance ↔ PT2TSP-3. |
 
-## Política após v1.56.0
+## Política após v1.57.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.

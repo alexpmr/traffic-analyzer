@@ -88,7 +88,7 @@ jobs:
           assert frozenset((10,30)) not in edges,edges
           PY
 
-      - name: Validar ranking RF com evidência confiável
+      - name: Validar ranking RF alinhado ao mapa
         run: |
           python - <<'PY'
           import json, tempfile
@@ -112,70 +112,43 @@ jobs:
                           "INSERT INTO topology_nodes(source_id,node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json) VALUES(?,?,?,?,?,?)",
                           ("default",num,now,now,now,json.dumps(node)),
                       )
-                  # Evidências legadas da v1.52.0: devem ser invalidadas.
-                  for key,edge,a,b,kind in [
-                      ("legacy-zero","10:30",10,30,"zero-hop-packet"),
-                      ("legacy-route","20:30",20,30,"route-adjacency"),
-                  ]:
-                      conn.execute(
-                          """INSERT INTO topology_edge_events(
-                               event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
-                               observation_count,direct_evidence,direct_evidence_kind,archived_at
-                             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                          (key,"default",edge,a,b,now,"forward",5.0,"rf","legacy","legacy",0,1,1,kind,now),
-                      )
+                  conn.execute(
+                      """INSERT INTO topology_edge_events(
+                           event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                           observation_count,direct_evidence,direct_evidence_kind,archived_at
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      ("rf-hop","default","10:20",10,20,now,"forward",-12.0,"rf","old-trace","old-packet",0,2,0,None,now),
+                  )
+                  conn.execute(
+                      """INSERT INTO topology_edge_events(
+                           event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                           observation_count,direct_evidence,direct_evidence_kind,archived_at
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      ("trusted","default","20:30",20,30,now+1,"forward",-8.0,"rf","77","88",0,1,1,"route-adjacency-api",now+1),
+                  )
+                  conn.execute(
+                      """INSERT INTO topology_edge_events(
+                           event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                           observation_count,direct_evidence,direct_evidence_kind,archived_at
+                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                      ("mqtt-only","default","10:30",10,30,now+2,"forward",None,"mqtt","99","100",0,1,0,None,now+2),
+                  )
 
-              correction=web._topology_direct_evidence_rebuild_v2()
-              assert correction["invalidated"]==2,correction
-              assert web._archive_rf_longest_links_query({})["count"]==0
-
-              # Snapshot antigo/queue da v1.52.0 não pode reativar zero-hop-packet.
-              old_snapshot={
-                  "sourceId":"default","generatedAtMs":now+1,
-                  "nodes":[],
-                  "edges":[{
-                      "id":"10:30","a":10,"b":30,"latestPacketId":"oldpkt",
-                      "events":[{
-                          "timestampMs":now+1,"leg":"forward","snr":5.0,"traceId":"oldtrace",
-                          "transport":"rf","directEvidence":True,"directEvidenceKind":"zero-hop-packet"
-                      }]
-                  }],"traces":[]
-              }
-              web._topology_history_ingest(old_snapshot)
-              assert web._archive_rf_longest_links_query({})["count"]==0
-
-              # Pacote bruto arquivado nunca promove evidência direta.
-              raw_links=web._history_trace_links(10,"[]",30,"[20]","forward")
-              assert len(raw_links)==1,raw_links
-              assert raw_links[0][5] is False and raw_links[0][6] is None,raw_links
-
-              # Somente snapshot do coletor v1.53, derivado de /traceroutes,
-              # usa o evidence kind confiável.
-              trusted={
-                  "sourceId":"default","generatedAtMs":now+2,
-                  "nodes":[],
-                  "edges":[{
-                      "id":"10:20","a":10,"b":20,"latestPacketId":"123",
-                      "events":[{
-                          "timestampMs":now+2,"leg":"forward","snr":4.0,"traceId":"1",
-                          "transport":"rf","directEvidence":True,"directEvidenceKind":"route-adjacency-api"
-                      }]
-                  }],"traces":[]
-              }
-              web._topology_history_ingest(trusted)
               ranked=web._archive_rf_longest_links_query({})
-              assert ranked["count"]==1,ranked
-              row=ranked["data"][0]
-              assert row["edgeId"]=="10:20",ranked
-              assert row["directEvidence"] is True,row
-              assert row["directEvidenceKinds"]==["route-adjacency-api"],row
-              assert "1" in row["evidenceTraceIds"],row
-              assert "123" in row["evidencePacketIds"],row
+              by_edge={x["edgeId"]:x for x in ranked["data"]}
+              assert "10:20" in by_edge,ranked
+              assert by_edge["10:20"]["evidenceSource"]=="topology-rf-hop",by_edge["10:20"]
+              assert by_edge["10:20"]["rfObservations"]==2,by_edge["10:20"]
+              assert by_edge["10:20"]["trustedDirectObservations"]==0,by_edge["10:20"]
+              assert "20:30" in by_edge,ranked
+              assert by_edge["20:30"]["evidenceSource"]=="api-traceroute",by_edge["20:30"]
+              assert by_edge["20:30"]["trustedDirectObservations"]==1,by_edge["20:30"]
+              assert "10:30" not in by_edge,ranked
 
-              # A migração é idempotente e não zera evidência v1.53 em novo boot.
-              again=web._topology_direct_evidence_rebuild_v2()
-              assert again["skipped"] is True,again
-              assert web._archive_rf_longest_links_query({})["count"]==1
+              audit=web._archive_rf_ranking_audit_query({})
+              audit_by_edge={x["edgeId"]:x for x in audit["data"]}
+              assert audit_by_edge["10:20"]["eligible"] is True,audit_by_edge["10:20"]
+              assert audit_by_edge["10:20"]["directObservations"]==2,audit_by_edge["10:20"]
           PY
 
       - name: Validar backfill histórico autenticado do Ranking RF
@@ -556,7 +529,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.56.0
+      - name: Validar backlog v1.57.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
