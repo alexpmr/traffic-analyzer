@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.54.0 - 2026-10-09
+
+- Corrige a regressão que removia do Ranking enlaces RF diretos antigos de nós offline.
+- Adiciona backfill histórico paginado por cursor via `/api/analysis/traceroutes`.
+- O backfill percorre todo o histórico por padrão; `TA_TRACEROUTE_HISTORY_MAX_RECORDS=0` significa sem teto artificial.
+- Mantém fallback compatível com a API v1 usando `TA_TRACEROUTE_HISTORY_FALLBACK_LIMIT` (padrão 50.000).
+- Revalida cada linha com a mesma política segura `route-adjacency-api` da v1.53.0.
+- Evidências revalidadas persistem em `traffic.db` e não dependem de os nós permanecerem online.
+- Preserva a última posição válida conhecida dos nós históricos para cálculo da distância.
+- Mantém proteção contra falsos positivos provenientes de pacotes brutos TX/RX, TTL ou evidence kinds legados.
+- Corrige textos de Ajuda de Estatísticas → RF para Estatísticas → Ranking.
+- Fecha a issue #47.
+
 ## 1.53.0 - 2026-10-09
 
 - Corrige falso positivo remanescente no **Top 10 enlaces RF diretos mais longos**.
