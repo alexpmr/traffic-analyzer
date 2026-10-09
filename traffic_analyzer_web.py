@@ -7499,7 +7499,14 @@ def _trusted_history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
 
 
 def _store_trusted_analysis_traceroute(conn, row):
-    """Persiste uma linha histórica orientada sem depender de nós online."""
+    """Persiste uma linha histórica orientada sem depender de nós online.
+
+    A API v1 normaliza o alias "default" para o UUID concreto e pode devolver
+    esse UUID em row.sourceId. O Traffic Analyzer, porém, indexa o histórico
+    pelo MM_SOURCE configurado (frequentemente "default"). Como a chamada HTTP
+    já foi source-scoped e autenticada, armazenamos sob a chave lógica local
+    em vez de descartar uma linha só porque ela carrega o UUID concreto.
+    """
     if not isinstance(row, dict):
         return 0
     try:
@@ -7511,9 +7518,7 @@ def _store_trusted_analysis_traceroute(conn, row):
     if from_num in invalid or to_num in invalid:
         return 0
 
-    source_id = str(row.get("sourceId") or MM_SOURCE)
-    if source_id != MM_SOURCE:
-        return 0
+    source_id = MM_SOURCE
     ts = _history_ts_ms(row.get("timestamp") or row.get("createdAt"))
     if not ts:
         return 0
@@ -7682,6 +7687,45 @@ def _topology_direct_history_backfill_v4(force=False):
     return result
 
 
+_history_source_cache = None
+
+
+def _resolve_concrete_history_source_id():
+    """Resolve MM_SOURCE para um UUID concreto quando ele é o alias default.
+
+    A rota legada /api/traceroutes/history recebe sourceId via query e NÃO
+    passa pelo attachSource da API v1; portanto "default" não é normalizado
+    ali. Descobrimos, em ordem de criação, a primeira fonte visível na qual o
+    token realmente consegue ler traceroutes — a mesma semântica prática do
+    alias default para esse recurso.
+    """
+    global _history_source_cache
+    if _history_source_cache:
+        return _history_source_cache
+    if MM_SOURCE != "default":
+        _history_source_cache = MM_SOURCE
+        return _history_source_cache
+
+    body = _mm_api_get("/api/v1/sources")
+    rows = body.get("data", []) if isinstance(body, dict) else []
+    if not isinstance(rows, list):
+        rows = []
+    for item in rows:
+        source_id = str((item or {}).get("id") or "").strip()
+        if not source_id:
+            continue
+        try:
+            source = urllib.parse.quote(source_id, safe="")
+            # A leitura abaixo testa especificamente traceroute:read. Uma lista
+            # vazia ainda é sucesso e identifica corretamente a fonte.
+            _mm_api_get(f"/api/v1/sources/{source}/traceroutes?limit=1")
+            _history_source_cache = source_id
+            return _history_source_cache
+        except Exception:
+            continue
+    raise RuntimeError("Não foi possível resolver o alias MM_SOURCE=default para uma fonte com traceroute:read")
+
+
 def _topology_direct_pair_reconcile_v5(force=False):
     """Revalida pares RF históricos individualmente pela API autenticada.
 
@@ -7726,7 +7770,7 @@ def _topology_direct_pair_reconcile_v5(force=False):
         candidates = candidates[:TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS]
         truncated = True
 
-    source = urllib.parse.quote(MM_SOURCE, safe="")
+    concrete_source_id = _resolve_concrete_history_source_id()
     checked = 0
     recovered_pairs = 0
     inserted = 0
@@ -7737,7 +7781,7 @@ def _topology_direct_pair_reconcile_v5(force=False):
         a = int(row["a"]); b = int(row["b"])
         path = (
             f"/api/traceroutes/history/{a}/{b}?"
-            + urllib.parse.urlencode({"sourceId": MM_SOURCE, "limit": TRACEROUTE_PAIR_HISTORY_LIMIT})
+            + urllib.parse.urlencode({"sourceId": concrete_source_id, "limit": TRACEROUTE_PAIR_HISTORY_LIMIT})
         )
         try:
             body = _mm_api_get(path)
@@ -7783,6 +7827,7 @@ def _topology_direct_pair_reconcile_v5(force=False):
         "truncated": truncated,
         "complete": complete,
         "method": "pair-history-authenticated-v5",
+        "historySourceId": concrete_source_id,
         "skipped": False,
     }
     with _archive_connect() as conn:
