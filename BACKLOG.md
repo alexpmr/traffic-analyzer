@@ -51,4 +51,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.57.1. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.56.0: nenhum item funcional pendente nesta matriz.**
+**Backlog conhecido após a v1.57.1: nenhum item funcional pendente nesta matriz.**
