@@ -177,7 +177,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.49.0
+      - name: Validar backlog v1.50.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -225,6 +225,15 @@ jobs:
           grep -Fq 'id="clearLinkIsolation"' traffic_analyzer_web.py
           grep -Fq 'function isolateStatsRfLink' traffic_analyzer_web.py
           grep -Fq 'clickableStatRow' traffic_analyzer_web.py
+          grep -Fq 'id="statsAccessControls"' traffic_analyzer_web.py
+          grep -Fq "classList.toggle('open',name==='access')" traffic_analyzer_web.py
+          ! grep -Fq '<div class="dashboardToolbar"><h2>Acessos</h2>' traffic_analyzer_web.py
+          grep -Fq 'Promise.allSettled(actions.map(action=>sendNodeQuery(nodeNum,action,true)))' traffic_analyzer_web.py
+          grep -Fq 'id="statsReport"' traffic_analyzer_web.py
+          grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
+          grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
+          grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
+          grep -Fq 'Backlog conhecido após esta release: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
           grep -Fq 'def _automatic_update_watch_worker' traffic_analyzer_web.py
@@ -732,6 +741,51 @@ jobs:
                   time.sleep(.06)
                   panel_id="statsPanel"+tab[:1].upper()+tab[1:]
                   assert "active" in d.find_element(By.ID,panel_id).get_attribute("class")
+
+              # Regressão v1.50.0: controles de Acessos permanecem na faixa
+              # principal de Estatísticas, sem segunda toolbar.
+              access_controls=d.find_element(By.ID,"statsAccessControls")
+              assert "open" in access_controls.get_attribute("class"),access_controls.get_attribute("class")
+              assert access_controls.find_element(By.ID,"accessDays")
+              assert access_controls.find_element(By.ID,"accessReload")
+              assert access_controls.find_element(By.ID,"accessDownload")
+              d.execute_script("arguments[0].click()",d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="rf"]'))
+              time.sleep(.06)
+              assert "open" not in access_controls.get_attribute("class"),access_controls.get_attribute("class")
+
+              # Regressão v1.50.0: Tudo é uma rodada concorrente.
+              parallel=d.execute_async_script("""
+                const done=arguments[arguments.length-1];
+                const savedSend=sendNodeQuery;
+                const run=nodeQueryRun(987654321);
+                run.details={node:{hopsAway:0}};
+                const calls=[];
+                sendNodeQuery=async (nodeNum,action,fromAll)=>{
+                  calls.push({action:action,t:performance.now()});
+                  const st=nodeQueryRun(nodeNum).states[action];
+                  st.state='received';st.message='ok';
+                  await new Promise(resolve=>setTimeout(resolve,80));
+                };
+                runAllNodeQueries(987654321).then(()=>{
+                  sendNodeQuery=savedSend;done(calls);
+                }).catch(e=>{
+                  sendNodeQuery=savedSend;done({error:String(e)});
+                });
+              """)
+              assert isinstance(parallel,list),parallel
+              assert len(parallel)==8,parallel
+              times=[float(x["t"]) for x in parallel]
+              assert max(times)-min(times)<100,parallel
+
+              report_ok=d.execute_script("""
+                statisticsPayload={stats:{total:1,rx:1,tx:0},nodes:[],links:[],packets:[],longestRfLinks:[]};
+                anomalyPayload={summary:{total:0,critical:0},data:[]};
+                healthPayload={chatInteractions:[]};
+                const html=statisticsReportHtml();
+                return html.includes('Traffic Analyzer') && html.includes('Imprimir / Salvar como PDF');
+              """)
+              assert report_ok
+
               d.execute_script("arguments[0].click()",d.find_element(By.ID,"versionBadge"))
               assert d.find_element(By.ID,"versionContinue").text=="Continuar"
               assert not d.find_elements(By.CSS_SELECTOR,"#versionModalBackdrop .updateCmd")
@@ -839,6 +893,7 @@ jobs:
             VERSION \
             README.md \
             CHANGELOG.md \
+            BACKLOG.md \
             traffic-analyzer.env.example \
             traffic-analyzer-map.env.example \
             traffic-analyzer.service \
