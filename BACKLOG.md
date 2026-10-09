@@ -34,6 +34,7 @@ Esta matriz registra o fechamento do backlog funcional até a v1.51.0. Um item s
 | 26 | Issue #39 — Ajustar os dois blocos de Estatísticas/Routing para eliminar rolagem horizontal | Concluído na v1.51.0 | **Distribuição por hops** e **Nós intermediários observados** usam tabelas fluidas, sem barra inferior em desktop, e empilham responsivamente em telas menores. |
 | 27 | Issue #40 — Estatísticas: renomear Anomalias para Pontos de atenção | Concluído na v1.51.0 | A interface passa a exibir **Pontos de atenção** nos rótulos, títulos, cartões, resumo e ajuda, mantendo algoritmo, severidades, filtros e dados. |
 | 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Concluído na v1.51.0 | Estatísticas usa um único contêiner de rolagem e mantém a barra superior sticky, inclusive em **Pontos de atenção** com conteúdo longo. |
+| 29 | Issue #43 — Ranking RF: exigir evidência real de zero saltos | Pendente | O Top 10 só pode aceitar enlace com evidência inequívoca de **zero saltos/adjacência explícita**; `transport='rf'` + SNR não basta. `route=[]` sem confirmação independente de `hop_start == hop_limit` deve ser tratado como ambíguo e excluído do ranking. |
 
 ## Política após v1.51.0
 
@@ -43,4 +44,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.51.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.51.0: nenhum item funcional pendente nesta matriz.**
+**Backlog conhecido após a v1.51.0: 1 item funcional pendente, registrado na issue #43.**
