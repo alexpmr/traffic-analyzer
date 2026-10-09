@@ -1,6 +1,18 @@
-# Traffic Analyzer v1.52.0
+# Traffic Analyzer v1.53.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.53.0
+
+- **Ranking RF corrigido novamente:** a v1.52.0 ainda podia promover evidência direta a partir de pacotes `TRACEROUTE_APP` brutos arquivados.
+- **Pacotes brutos nunca promovem mais o Ranking.** Nem TX, nem RX, nem `hop_start/hop_limit` são usados como prova de enlace direto.
+- A única fonte aceita para `direct_evidence` passa a ser o **endpoint `/traceroutes` do MeshMonitor**, que entrega os traceroutes orientados requester-first.
+- `route` e `routeBack` são tratados corretamente como arrays de **nós intermediários**: `A + [B] + C` produz somente A↔B e B↔C.
+- `route=[]` vindo da API de traceroutes representa uma perna sem intermediários e pode confirmar A↔C quando há SNR válido no hop.
+- Na primeira execução da v1.53.0, todas as evidências diretas legadas da v1.52.0 são invalidadas automaticamente, **sem apagar eventos, nós, enlaces, SNR ou topologia**.
+- O Ranking é reconstruído somente com snapshots confiáveis gerados pelo coletor v1.53.0.
+- As linhas do Ranking agora expõem no tooltip os IDs de traceroute/pacote usados como auditoria.
+- Fecha a issue **#45**.
 
 ## Novidades da v1.52.0
 
