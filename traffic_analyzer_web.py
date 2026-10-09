@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.55.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.56.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.55.0"
+APP_VERSION = "1.56.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -101,6 +101,8 @@ TRACEROUTE_HISTORY_MAX_LIMIT = max(
     TRACEROUTE_HISTORY_INITIAL_LIMIT,
     min(int(os.getenv("TA_TRACEROUTE_HISTORY_MAX_LIMIT", "250000")), 1000000),
 )
+TRACEROUTE_PAIR_HISTORY_LIMIT = max(10, min(int(os.getenv("TA_TRACEROUTE_PAIR_HISTORY_LIMIT", "1000")), 1000))
+TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS = max(0, int(os.getenv("TA_TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS", "0")))
 ARCHIVE_RETENTION_ALLOWED_DAYS = {0, 1, 7, 30}
 try:
     _archive_retention_env = int(os.getenv("ARCHIVE_RETENTION_DAYS", "0"))
@@ -752,7 +754,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
     <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
-    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado pela API v1 autenticada, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.</div></div>
+    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado pela API v1 autenticada, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.</div><div class="dashSection"><h3>Diagnóstico de elegibilidade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Nó A</th><th>Nó B</th><th>Distância</th><th>RF</th><th>Diretas</th><th>Motivo</th></tr></thead><tbody id="statsRankingAuditRows"></tbody></table></div></div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody statsFitBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody statsFitBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -2028,8 +2030,10 @@ function normalizeObservedTimestampMs(value){
 function nodeLastTrafficMs(n){
   const archived=normalizeObservedTimestampMs(nodeTrafficLastSeen.get(Number(n.nodeNum)));
   const heard=normalizeObservedTimestampMs(n?.lastHeard);
-  const historical=normalizeObservedTimestampMs(n?.lastSeenMs);
-  return Math.max(archived,heard,historical);
+  // lastSeenMs pertence à memória/topologia persistente e pode avançar por
+  // NodeInfo, posição, status, backfill ou regeneração sem o nó transmitir.
+  // Cor e "Último tráfego" representam somente tráfego real originado pelo nó.
+  return Math.max(archived,heard);
 }
 function humanAge(ms){
   if(!ms) return 'sem registro';
@@ -4663,6 +4667,12 @@ function renderStatistics(){
     const title=tr('Clique para mostrar somente este enlace no mapa')+' · '+audit;
     return '<tr class="clickableStatRow" tabindex="0" role="button" data-edge-id="'+esc(x.edgeId||'')+'" title="'+esc(title)+'"><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td title="'+esc(audit)+'">'+fmtNum(x.rfObservations)+'<br><span class="settingDesc">API traceroute</span></td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>';
   }).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
+  const rankingAudit=(p.rankingAudit||[]).filter(x=>x.reason!=='elegivel').slice(0,20);
+  const reasonLabel=x=>x==='sem_evidencia_direta'?'Sem evidência direta':x==='sem_posicao'?'Sem posição válida':x==='fora_top10'?'Elegível, fora do Top 10':x;
+  document.getElementById('statsRankingAuditRows').innerHTML=rankingAudit.map(x=>
+    '<tr><td><b>'+esc(x.aName||String(x.a))+'</b></td><td><b>'+esc(x.bName||String(x.b))+'</b></td><td>'+(x.distanceKm==null?'—':fmtNum(x.distanceKm,1)+' km')+'</td><td>'+fmtNum(x.rfObservations||0)+'</td><td>'+fmtNum(x.directObservations||0)+'</td><td>'+esc(reasonLabel(x.reason))+'</td></tr>'
+  ).join('')||'<tr><td colspan="6" class="emptyPanel">Nenhum enlace RF excluído pelos critérios atuais.</td></tr>';
+
   document.querySelectorAll('#statsRfLongestRows tr[data-edge-id]').forEach(row=>{
     const activate=()=>isolateStatsRfLink(row.dataset.edgeId);
     row.addEventListener('click',activate);
@@ -4731,11 +4741,12 @@ async function loadStatistics(force=false){
       fetch('/api/archive/nodes?x=1'+q,{cache:'no-store'}),
       fetch('/api/archive/links?x=1'+q,{cache:'no-store'}),
       fetch('/api/archive/packets?limit=5000'+q,{cache:'no-store'}),
-      fetch('/api/archive/rf-longest-links?x=1'+q,{cache:'no-store'})
+      fetch('/api/archive/rf-longest-links?x=1'+q,{cache:'no-store'}),
+      fetch('/api/archive/rf-ranking-audit?x=1'+q,{cache:'no-store'})
     ]);
     for(const r of rs) if(!r.ok) throw new Error('HTTP '+r.status);
     const body=await Promise.all(rs.map(r=>r.json()));
-    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[],longestRfLinks:body[4].data||[]};
+    statisticsPayload={stats:body[0],nodes:body[1].data||[],links:body[2].data||[],packets:body[3].data||[],longestRfLinks:body[4].data||[],rankingAudit:body[5].data||[],rankingAuditSummary:body[5].summary||{}};
     statisticsLoadedAt=Date.now();renderStatistics();
     document.getElementById('statsUpdated').textContent='atualizado '+new Date().toLocaleTimeString(uiLocale());
   }catch(e){
@@ -7488,7 +7499,14 @@ def _trusted_history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
 
 
 def _store_trusted_analysis_traceroute(conn, row):
-    """Persiste uma linha histórica orientada sem depender de nós online."""
+    """Persiste uma linha histórica orientada sem depender de nós online.
+
+    A API v1 normaliza o alias "default" para o UUID concreto e pode devolver
+    esse UUID em row.sourceId. O Traffic Analyzer, porém, indexa o histórico
+    pelo MM_SOURCE configurado (frequentemente "default"). Como a chamada HTTP
+    já foi source-scoped e autenticada, armazenamos sob a chave lógica local
+    em vez de descartar uma linha só porque ela carrega o UUID concreto.
+    """
     if not isinstance(row, dict):
         return 0
     try:
@@ -7500,9 +7518,7 @@ def _store_trusted_analysis_traceroute(conn, row):
     if from_num in invalid or to_num in invalid:
         return 0
 
-    source_id = str(row.get("sourceId") or MM_SOURCE)
-    if source_id != MM_SOURCE:
-        return 0
+    source_id = MM_SOURCE
     ts = _history_ts_ms(row.get("timestamp") or row.get("createdAt"))
     if not ts:
         return 0
@@ -7661,6 +7677,157 @@ def _topology_direct_history_backfill_v4(force=False):
         "maxLimit": max_limit,
         "attempts": attempts[-16:],
         "error": last_error,
+        "skipped": False,
+    }
+    with _archive_connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+            (meta_key, json.dumps(result, ensure_ascii=False, separators=(",", ":"))),
+        )
+    return result
+
+
+_history_source_cache = None
+
+
+def _resolve_concrete_history_source_id():
+    """Resolve MM_SOURCE para um UUID concreto quando ele é o alias default.
+
+    A rota legada /api/traceroutes/history recebe sourceId via query e NÃO
+    passa pelo attachSource da API v1; portanto "default" não é normalizado
+    ali. Descobrimos, em ordem de criação, a primeira fonte visível na qual o
+    token realmente consegue ler traceroutes — a mesma semântica prática do
+    alias default para esse recurso.
+    """
+    global _history_source_cache
+    if _history_source_cache:
+        return _history_source_cache
+    if MM_SOURCE != "default":
+        _history_source_cache = MM_SOURCE
+        return _history_source_cache
+
+    body = _mm_api_get("/api/v1/sources")
+    rows = body.get("data", []) if isinstance(body, dict) else []
+    if not isinstance(rows, list):
+        rows = []
+    for item in rows:
+        source_id = str((item or {}).get("id") or "").strip()
+        if not source_id:
+            continue
+        try:
+            source = urllib.parse.quote(source_id, safe="")
+            # A leitura abaixo testa especificamente traceroute:read. Uma lista
+            # vazia ainda é sucesso e identifica corretamente a fonte.
+            _mm_api_get(f"/api/v1/sources/{source}/traceroutes?limit=1")
+            _history_source_cache = source_id
+            return _history_source_cache
+        except Exception:
+            continue
+    raise RuntimeError("Não foi possível resolver o alias MM_SOURCE=default para uma fonte com traceroute:read")
+
+
+def _topology_direct_pair_reconcile_v5(force=False):
+    """Revalida pares RF históricos individualmente pela API autenticada.
+
+    O backfill global pode não reencontrar um traceroute antigo (retenção,
+    volume ou janela da fonte). O mapa, porém, preserva o par RF no traffic.db.
+    Para cada par RF sem evidência direta confiável, consultamos o histórico
+    específico do par, que o MeshMonitor resolve por colunas indexadas e aceita
+    Bearer token via requirePermission. Só pares consecutivos de uma rota
+    orientada são promovidos por _store_trusted_analysis_traceroute().
+    """
+    meta_key = f"topology-direct-pair-reconcile-v5:{MM_SOURCE}"
+    with _archive_connect() as conn:
+        previous = conn.execute(
+            "SELECT meta_value FROM topology_history_meta WHERE meta_key=?",
+            (meta_key,),
+        ).fetchone()
+        if previous and not force:
+            try:
+                status = json.loads(previous["meta_value"] or "{}")
+            except Exception:
+                status = {}
+            if status.get("complete") is True:
+                return {**status, "skipped": True}
+
+        rows = conn.execute(
+            """SELECT edge_id,a,b,
+                      SUM(CASE WHEN transport='rf' AND snr IS NOT NULL THEN observation_count ELSE 0 END) AS rf_obs,
+                      SUM(CASE WHEN direct_evidence=1 AND direct_evidence_kind='route-adjacency-api'
+                               THEN observation_count ELSE 0 END) AS direct_obs,
+                      MAX(timestamp_ms) AS last_seen
+               FROM topology_edge_events
+               WHERE source_id=?
+               GROUP BY edge_id,a,b
+               HAVING rf_obs>0 AND direct_obs=0
+               ORDER BY last_seen DESC""",
+            (MM_SOURCE,),
+        ).fetchall()
+
+    candidates = [dict(row) for row in rows]
+    truncated = False
+    if TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS > 0 and len(candidates) > TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS:
+        candidates = candidates[:TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS]
+        truncated = True
+
+    concrete_source_id = _resolve_concrete_history_source_id()
+    checked = 0
+    recovered_pairs = 0
+    inserted = 0
+    errors = []
+    unresolved = []
+
+    for row in candidates:
+        a = int(row["a"]); b = int(row["b"])
+        path = (
+            f"/api/traceroutes/history/{a}/{b}?"
+            + urllib.parse.urlencode({"sourceId": concrete_source_id, "limit": TRACEROUTE_PAIR_HISTORY_LIMIT})
+        )
+        try:
+            body = _mm_api_get(path)
+            if not isinstance(body, list):
+                raise RuntimeError("Histórico por par não retornou uma lista")
+            checked += 1
+            with _archive_connect() as conn:
+                before = conn.total_changes
+                for trace in body:
+                    inserted += _store_trusted_analysis_traceroute(conn, trace)
+                direct = conn.execute(
+                    """SELECT COALESCE(SUM(observation_count),0) AS n
+                       FROM topology_edge_events
+                       WHERE source_id=? AND edge_id=? AND transport='rf' AND snr IS NOT NULL
+                         AND direct_evidence=1 AND direct_evidence_kind='route-adjacency-api'""",
+                    (MM_SOURCE, str(row["edge_id"])),
+                ).fetchone()
+                _ = conn.total_changes - before
+            if direct and int(direct["n"] or 0) > 0:
+                recovered_pairs += 1
+            else:
+                unresolved.append({
+                    "edgeId": str(row["edge_id"]), "a": a, "b": b,
+                    "rfObservations": int(row["rf_obs"] or 0),
+                    "lastSeenMs": int(row["last_seen"] or 0),
+                    "traceroutesReturned": len(body),
+                })
+        except Exception as exc:
+            errors.append({
+                "edgeId": str(row["edge_id"]), "a": a, "b": b, "error": str(exc)
+            })
+
+    complete = not truncated and not errors
+    result = {
+        "completedAtMs": int(time.time() * 1000),
+        "candidatePairs": len(rows),
+        "checkedPairs": checked,
+        "recoveredPairs": recovered_pairs,
+        "inserted": inserted,
+        "unresolvedPairs": len(unresolved),
+        "unresolvedSample": unresolved[:50],
+        "errors": errors[:50],
+        "truncated": truncated,
+        "complete": complete,
+        "method": "pair-history-authenticated-v5",
+        "historySourceId": concrete_source_id,
         "skipped": False,
     }
     with _archive_connect() as conn:
@@ -8449,6 +8616,19 @@ def _archive_worker():
             # Uma vez gravadas no traffic.db, não dependem de o nó estar online.
             _topology_history_drain_queue()
             _topology_history_ingest_current()
+            if was_first:
+                # Reconciliar depois de drenar snapshots antigos garante que
+                # todo par RF já conhecido esteja disponível para a busca por par.
+                pairs = _topology_direct_pair_reconcile_v5()
+                if not pairs.get("skipped"):
+                    state = "completo" if pairs.get("complete") else "parcial"
+                    print(
+                        "Ranking RF v1.56: reconciliação histórica por par "
+                        f"{state}; {int(pairs.get('checkedPairs') or 0)} par(es) consultado(s), "
+                        f"{int(pairs.get('recoveredPairs') or 0)} recuperado(s), "
+                        f"{int(pairs.get('unresolvedPairs') or 0)} sem prova direta.",
+                        flush=True,
+                    )
             first_success = True
             with _archive_status_lock:
                 _archive_status.update({
@@ -8726,6 +8906,105 @@ def _archive_rf_longest_links_query(query):
         })
     data.sort(key=lambda x: (-float(x["distanceKm"]), -int(x["rfObservations"]), -int(x["lastRfSeenMs"])))
     return {"success": True, "count": min(10, len(data)), "data": data[:10]}
+
+
+def _archive_rf_ranking_audit_query(query):
+    """Explica por que cada enlace RF histórico entra ou fica fora do Ranking."""
+    clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL"]
+    params = [MM_SOURCE]
+    raw_since = (query.get("since") or [None])[0]
+    raw_until = (query.get("until") or [None])[0]
+    if raw_since not in (None, ""):
+        clauses.append("e.timestamp_ms >= ?")
+        params.append(int(raw_since))
+    if raw_until not in (None, ""):
+        clauses.append("e.timestamp_ms <= ?")
+        params.append(int(raw_until))
+
+    with _archive_connect() as conn:
+        rows = conn.execute(
+            f"""SELECT e.edge_id,e.a,e.b,
+                       SUM(e.observation_count) AS rfObservations,
+                       SUM(CASE WHEN e.direct_evidence=1 AND e.direct_evidence_kind='route-adjacency-api'
+                                THEN e.observation_count ELSE 0 END) AS directObservations,
+                       AVG(e.snr) AS avgSnr,MAX(e.timestamp_ms) AS lastRfSeenMs,
+                       GROUP_CONCAT(DISTINCT CASE WHEN e.direct_evidence=1 THEN e.trace_id END) AS directTraceIds
+                FROM topology_edge_events e
+                WHERE {' AND '.join(clauses)}
+                GROUP BY e.edge_id,e.a,e.b""",
+            params,
+        ).fetchall()
+        node_rows = conn.execute(
+            "SELECT node_num,node_json FROM topology_nodes WHERE source_id=?",
+            (MM_SOURCE,),
+        ).fetchall()
+
+    node_map = {}
+    for row in node_rows:
+        try:
+            node = json.loads(row["node_json"] or "{}")
+        except Exception:
+            node = {}
+        node["nodeNum"] = int(row["node_num"])
+        node_map[int(row["node_num"])] = node
+
+    data = []
+    eligible = []
+    for row in rows:
+        a = int(row["a"]); b = int(row["b"])
+        na = node_map.get(a, {}); nb = node_map.get(b, {})
+        has_pos = (
+            _history_valid_position(na.get("latitude"), na.get("longitude"))
+            and _history_valid_position(nb.get("latitude"), nb.get("longitude"))
+        )
+        distance_km = None
+        if has_pos:
+            distance_km = round(_haversine_m(
+                float(na["latitude"]), float(na["longitude"]),
+                float(nb["latitude"]), float(nb["longitude"]),
+            ) / 1000.0, 3)
+        direct_obs = int(row["directObservations"] or 0)
+        item = {
+            "edgeId": str(row["edge_id"]), "a": a, "b": b,
+            "aName": na.get("name") or na.get("longName") or na.get("shortName") or na.get("nodeId") or _history_node_id(a),
+            "bName": nb.get("name") or nb.get("longName") or nb.get("shortName") or nb.get("nodeId") or _history_node_id(b),
+            "distanceKm": distance_km,
+            "rfObservations": int(row["rfObservations"] or 0),
+            "directObservations": direct_obs,
+            "avgSnr": round(float(row["avgSnr"]), 2) if row["avgSnr"] is not None else None,
+            "lastRfSeenMs": int(row["lastRfSeenMs"] or 0),
+            "directTraceIds": [x for x in str(row["directTraceIds"] or "").split(",") if x][:12],
+        }
+        if direct_obs <= 0:
+            item["eligible"] = False
+            item["reason"] = "sem_evidencia_direta"
+        elif not has_pos:
+            item["eligible"] = False
+            item["reason"] = "sem_posicao"
+        else:
+            item["eligible"] = True
+            item["reason"] = "elegivel"
+            eligible.append(item)
+        data.append(item)
+
+    eligible.sort(key=lambda x: (-float(x["distanceKm"]), -int(x["rfObservations"]), -int(x["lastRfSeenMs"])))
+    top_ids = {x["edgeId"] for x in eligible[:10]}
+    for item in data:
+        if item.get("eligible") and item["edgeId"] not in top_ids:
+            item["reason"] = "fora_top10"
+    data.sort(key=lambda x: (
+        0 if x["reason"] not in ("elegivel", "fora_top10") else 1,
+        -(float(x["distanceKm"]) if x["distanceKm"] is not None else -1),
+        -int(x["lastRfSeenMs"]),
+    ))
+    summary = {
+        "rfEdges": len(data),
+        "eligible": sum(1 for x in data if x.get("eligible")),
+        "inTop10": sum(1 for x in data if x["edgeId"] in top_ids),
+        "withoutDirectEvidence": sum(1 for x in data if x["reason"] == "sem_evidencia_direta"),
+        "withoutPosition": sum(1 for x in data if x["reason"] == "sem_posicao"),
+    }
+    return {"success": True, "summary": summary, "count": len(data), "data": data[:200]}
 
 
 def _archive_export(query, fmt="jsonl"):
@@ -9884,6 +10163,10 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 if path == "/api/archive/rf-longest-links":
                     body = _archive_rf_longest_links_query(query)
+                    self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+                    return
+                if path == "/api/archive/rf-ranking-audit":
+                    body = _archive_rf_ranking_audit_query(query)
                     self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
                     return
                 if path == "/api/archive/export":

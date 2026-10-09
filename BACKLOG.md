@@ -1,15 +1,15 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.55.0** (2026-10-09).
+Estado consolidado da release **v1.56.0** (2026-10-09).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.55.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.56.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
 | 1 | Persistência permanente dos nós | Concluído | `topology_nodes` mantém nós observados até reset explícito do banco. |
 | 2 | Persistência permanente dos enlaces | Concluído | `topology_edge_events` e agregados históricos preservam hops observados até reset do banco. |
 | 3 | Nós não podem desaparecer do mapa por registro histórico incompleto | Concluído | Validação de posição impede `Invalid LatLng` sem eliminar nós válidos. |
-| 4 | Diferenciar visualmente nós recentes/antigos | Concluído | Idade normalizada por `lastHeard`/telemetria/`lastSeenMs`; verde, amarelo/laranja, vermelho e cinza. |
+| 4 | Diferenciar visualmente nós recentes/antigos | Corrigido na v1.56.0 | Idade baseada em tráfego realmente originado pelo nó e `lastHeard`; `lastSeenMs` de topologia não renova atividade. Verde, amarelo/laranja, vermelho e cinza preservados. |
 | 5 | Retenção do tráfego: 1 dia, 1 semana, 1 mês ou nunca | Concluído | `archiveRetentionDays`; padrão **Nunca apagar**; não remove memória de nós/enlaces. |
 | 6 | Top 10 enlaces RF mais longos | Concluído | Estatísticas → **Ranking** e endpoint `/api/archive/rf-longest-links`. |
 | 7 | Ranking considerar somente hop RF direto | Concluído | Exige evidência RF/SNR válido e consolida A↔B; não inventa A↔C em rota A→B→C. |
@@ -38,10 +38,10 @@ Esta matriz registra o fechamento do backlog funcional até a v1.55.0. Um item s
 | 30 | Issue #45 — Ranking RF: corrigir evidência histórica falsa | Concluído na v1.53.0 | O Ranking confia somente em `route-adjacency-api` gerado pela API `/traceroutes`; pacotes brutos TX/RX e TTL não promovem enlaces. Evidências legadas da v1.52.0 são invalidadas automaticamente sem apagar a topologia. |
 | 31 | Issue #47 — Ranking RF: incluir enlaces históricos válidos de nós offline | Corrigido definitivamente na v1.55.0 | A v1.54.0 tentou recuperar o histórico via `/api/analysis/traceroutes`, mas a autenticação Bearer dessa rota era inadequada. A v1.55.0 usa a API v1 autenticada com expansão progressiva do limite e preserva evidências revalidadas no `traffic.db`. |
 | 32 | Issue #49 — Ranking RF: backfill v1.54 usa endpoint que ignora MM_API_TOKEN | Concluído na v1.55.0 | O backfill usa `/api/v1/sources/{source}/traceroutes` autenticado por Bearer token, expande progressivamente o `limit` e usa a migração `topology-direct-history-v4` para repetir a recuperação mesmo após falso `complete=true` da v1.54.0. |
-| 33 | Issue #51 — Mapa: cor dos nós deve refletir tráfego real | Pendente | A cor e o campo **Último tráfego** devem usar apenas tráfego realmente originado pelo nó/`lastHeard`; `lastSeenMs`, `updatedAt`, `nodeStatusUpdatedAt`, regeneração da topologia e backfill não podem renovar artificialmente a atividade. |
-| 34 | Issue #52 — Ranking RF: alguns enlaces históricos diretos válidos ainda ficam de fora | Pendente | Auditar divergência entre enlaces RF históricos mostrados no mapa e eventos com `route-adjacency-api`. O Ranking deve incluir todo hop direto comprovado, inclusive histórico/offline, e informar o motivo de exclusão quando um enlace RF do mapa não for elegível. |
+| 33 | Issue #51 — Mapa: cor dos nós deve refletir tráfego real | Concluído na v1.56.0 | `nodeLastTrafficMs()` usa somente tráfego arquivado realmente originado pelo nó e `lastHeard`; `lastSeenMs` e atualizações administrativas da topologia não renovam cor/Último tráfego. |
+| 34 | Issue #52 — Ranking RF: alguns enlaces históricos diretos válidos ainda ficam de fora | Concluído na v1.56.0 | Pares RF sem evidência confiável são reconciliados individualmente pela API autenticada de histórico do par; Ranking inclui todo hop direto comprovado e a nova auditoria informa o motivo de exclusão dos demais. |
 
-## Política após v1.55.0
+## Política após v1.56.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -49,4 +49,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.55.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.55.0: 2 itens funcionais pendentes, registrados nas issues #51 e #52.**
+**Backlog conhecido após a v1.56.0: nenhum item funcional pendente nesta matriz.**

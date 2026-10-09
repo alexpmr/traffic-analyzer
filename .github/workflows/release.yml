@@ -326,6 +326,91 @@ jobs:
               assert partial["finalLimit"]==8,partial
           PY
 
+      - name: Validar reconciliação histórica por par
+        run: |
+          python - <<'PY'
+          import json, tempfile
+          from pathlib import Path
+          import traffic_analyzer_web as web
+
+          with tempfile.TemporaryDirectory() as tmp:
+              web.TRAFFIC_ARCHIVE_DB=Path(tmp)/"traffic.db"
+              web.ARCHIVE_SETTINGS_FILE=Path(tmp)/"archive-settings.json"
+              web.MM_SOURCE="default"
+              web.TRACEROUTE_PAIR_HISTORY_LIMIT=1000
+              web.TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS=0
+              web._archive_init()
+              old=1600000000000
+
+              with web._archive_connect() as conn:
+                  for num,name,lat,lon in [
+                      (10,"Perseverance",-15.80,-47.90),
+                      (20,"PT2CRC-1",-15.60,-47.70),
+                      (30,"Relay",-15.70,-47.80),
+                  ]:
+                      node={"nodeNum":num,"nodeId":f"!{num:08x}","name":name,"latitude":lat,"longitude":lon}
+                      conn.execute(
+                          "INSERT INTO topology_nodes(source_id,node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json) VALUES(?,?,?,?,?,?)",
+                          ("default",num,old,old,old,json.dumps(node)),
+                      )
+                  for key,edge,a,b,snr,trace in [
+                      ("old-direct","10:20",10,20,-9.8,"1972747747"),
+                      ("old-multihop","10:30",10,30,8.5,"false-direct"),
+                  ]:
+                      conn.execute(
+                          """INSERT INTO topology_edge_events(
+                               event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                               observation_count,direct_evidence,direct_evidence_kind,archived_at
+                             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                          (key,"default",edge,a,b,old,"forward",snr,"rf",trace,trace,0,1,0,None,old),
+                      )
+
+              calls=[]
+              def fake_get(path):
+                  calls.append(path)
+                  if path=="/api/v1/sources":
+                      return {"success":True,"count":1,"data":[{"id":"uuid-primary","name":"Primary","enabled":True,"isPrimary":True}]}
+                  if path=="/api/v1/sources/uuid-primary/traceroutes?limit=1":
+                      return {"success":True,"count":0,"data":[]}
+                  assert "sourceId=uuid-primary" in path and "limit=1000" in path,path
+                  if "/history/10/20?" in path:
+                      return [{
+                          "id":1972747747,"sourceId":"uuid-primary",
+                          "fromNodeNum":10,"toNodeNum":20,
+                          "route":"[]","routeBack":None,"snrTowards":"[-39.2]","snrBack":None,
+                          "timestamp":old,"createdAt":old,"packetId":1972747747,
+                      }]
+                  if "/history/10/30?" in path:
+                      return [{
+                          "id":222,"sourceId":"uuid-primary",
+                          "fromNodeNum":10,"toNodeNum":30,
+                          "route":"[20]","routeBack":None,"snrTowards":"[20,18]","snrBack":None,
+                          "timestamp":old+1,"createdAt":old+1,"packetId":222,
+                      }]
+                  raise AssertionError(path)
+
+              saved=web._mm_api_get
+              web._history_source_cache=None
+              web._mm_api_get=fake_get
+              try:
+                  result=web._topology_direct_pair_reconcile_v5(force=True)
+              finally:
+                  web._mm_api_get=saved
+
+              assert result["checkedPairs"]==2,result
+              assert result["recoveredPairs"]==1,result
+              assert result["unresolvedPairs"]==1,result
+              assert result["historySourceId"]=="uuid-primary",result
+              ranked=web._archive_rf_longest_links_query({})
+              edges={x["edgeId"] for x in ranked["data"]}
+              assert "10:20" in edges and "10:30" not in edges,ranked
+              direct=next(x for x in ranked["data"] if x["edgeId"]=="10:20")
+              assert "1972747747" in direct["evidenceTraceIds"],direct
+              audit=web._archive_rf_ranking_audit_query({})
+              excluded={x["edgeId"]:x for x in audit["data"] if not x.get("eligible")}
+              assert excluded["10:30"]["reason"]=="sem_evidencia_direta",audit
+          PY
+
       - name: Validar scripts shell
         shell: bash
         run: bash -n install.sh update.sh
@@ -428,7 +513,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.55.0
+      - name: Validar backlog v1.56.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -471,7 +556,16 @@ jobs:
           grep -Fq 'id="archiveRetentionDays"' traffic_analyzer_web.py
           grep -Fq 'function nodeHasValidMapPosition' traffic_analyzer_web.py
           grep -Fq 'function normalizeObservedTimestampMs' traffic_analyzer_web.py
-          grep -Fq 'n?.lastSeenMs' traffic_analyzer_web.py
+          grep -Fq 'return Math.max(archived,heard);' traffic_analyzer_web.py
+          ! grep -Fq 'return Math.max(archived,heard,historical);' traffic_analyzer_web.py
+          grep -Fq 'def _topology_direct_pair_reconcile_v5' traffic_analyzer_web.py
+          grep -Fq 'topology-direct-pair-reconcile-v5:' traffic_analyzer_web.py
+          grep -Fq '/api/traceroutes/history/' traffic_analyzer_web.py
+          grep -Fq 'def _resolve_concrete_history_source_id' traffic_analyzer_web.py
+          grep -Fq '/api/v1/sources/{source}/traceroutes?limit=1' traffic_analyzer_web.py
+          grep -Fq 'def _archive_rf_ranking_audit_query' traffic_analyzer_web.py
+          grep -Fq '/api/archive/rf-ranking-audit' traffic_analyzer_web.py
+          grep -Fq 'id="statsRankingAuditRows"' traffic_analyzer_web.py
           grep -Fq 'id="statsRfLongestRows"' traffic_analyzer_web.py
           grep -Fq 'data-stats-tab="ranking"' traffic_analyzer_web.py
           grep -Fq 'id="statsPanelRanking"' traffic_analyzer_web.py
@@ -514,7 +608,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.55.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.56.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
@@ -714,7 +808,7 @@ jobs:
                   nodeTrafficAge({nodeNum:904,lastHeard:(now+86400*1000)*1000}).color
                 ];
               """)
-              assert age_colors==["#2ecc71","#f39c12","#e74c3c","#7f8c8d"],age_colors
+              assert age_colors==["#2ecc71","#f39c12","#7f8c8d","#7f8c8d"],age_colors
               assert len(d.find_elements(By.ID,"statsRfLongestRows"))==1
               correlated=d.execute_script("""
                 const now=Date.now();
@@ -1021,7 +1115,18 @@ jobs:
               assert d.find_element(By.CSS_SELECTOR,'.statsTab[data-stats-tab="ranking"]').text=="Ranking"
               ranking_panel=d.find_element(By.ID,"statsPanelRanking")
               assert ranking_panel.find_element(By.ID,"statsRfLongestRows")
+              assert ranking_panel.find_element(By.ID,"statsRankingAuditRows")
               assert not d.find_element(By.ID,"statsPanelRf").find_elements(By.ID,"statsRfLongestRows")
+
+              activity=d.execute_script("""
+                const now=Date.now(), old=now-3*24*3600*1000;
+                nodeTrafficLastSeen.set(424242,old);
+                const node={nodeNum:424242,lastHeard:old,lastSeenMs:now};
+                const age=nodeTrafficAge(node);
+                return {last:nodeLastTrafficMs(node),old:old,className:age.className};
+              """)
+              assert abs(float(activity["last"])-float(activity["old"]))<5,activity
+              assert activity["className"]=="trafficOld",activity
               fit=d.execute_script("""
                 const bodies=[
                   document.querySelector('#statsPanelRanking .statsFitBody'),

@@ -1,6 +1,18 @@
-# Traffic Analyzer v1.55.0
+# Traffic Analyzer v1.56.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.56.0
+
+- **Cor dos nós corrigida:** verde/amarelo/vermelho passam a refletir somente tráfego realmente originado pelo nó (`/api/archive/nodes`) e `lastHeard`; `lastSeenMs` da topologia deixa de renovar artificialmente a atividade.
+- Atualizações de NodeInfo, posição, status, backfill ou regeneração da topologia não tornam um nó antigo verde.
+- **Ranking RF reconciliado por par:** todo enlace RF histórico conhecido, mas sem `route-adjacency-api`, é consultado individualmente pelo endpoint autenticado `/api/traceroutes/history/{a}/{b}`.
+- A busca por par não depende do enlace ainda estar dentro do limite do backfill global e funciona para nós offline.
+- Um par só é promovido se o histórico do MeshMonitor demonstrar que os dois nós são consecutivos em uma rota; SNR isolado continua insuficiente.
+- Nova migração **`topology-direct-pair-reconcile-v5`** força a reconciliação nas instalações atualizadas.
+- **Diagnóstico do Ranking:** Estatísticas → Ranking passa a listar enlaces RF excluídos e o motivo: sem evidência direta, sem posição válida ou simplesmente fora do Top 10.
+- Mantidas todas as proteções contra falsos positivos como PT2PA ↔ PT2VHF-0.
+- Fecha as issues **#51 e #52**.
 
 ## Novidades da v1.55.0
 
