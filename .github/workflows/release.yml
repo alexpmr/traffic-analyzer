@@ -189,6 +189,112 @@ jobs:
               assert web._archive_rf_longest_links_query({})["count"]==1
           PY
 
+      - name: Validar backfill histórico do Ranking RF
+        run: |
+          python - <<'PY'
+          import json, tempfile, urllib.parse
+          from pathlib import Path
+          import traffic_analyzer_web as web
+
+          with tempfile.TemporaryDirectory() as tmp:
+              web.TRAFFIC_ARCHIVE_DB=Path(tmp)/"traffic.db"
+              web.ARCHIVE_SETTINGS_FILE=Path(tmp)/"archive-settings.json"
+              web.MM_SOURCE="default"
+              web.TRACEROUTE_HISTORY_PAGE_SIZE=2000
+              web.TRACEROUTE_HISTORY_MAX_RECORDS=0
+              web._archive_init()
+
+              old=1600000000000
+              with web._archive_connect() as conn:
+                  for num,name,lat,lon in [
+                      (10,"Perseverance",-15.80,-47.90),
+                      (20,"PT2CRC-1",-15.60,-47.70),
+                      (30,"Relay antigo",-15.70,-47.80),
+                  ]:
+                      node={
+                          "nodeNum":num,"nodeId":f"!{num:08x}","name":name,
+                          "latitude":lat,"longitude":lon,
+                          "historical":True,"currentlyInMeshMonitor":False,
+                      }
+                      conn.execute(
+                          "INSERT INTO topology_nodes(source_id,node_num,first_seen_ms,last_seen_ms,position_seen_ms,node_json) VALUES(?,?,?,?,?,?)",
+                          ("default",num,old,old,old,json.dumps(node)),
+                      )
+
+              calls=[]
+              def fake_get(path):
+                  calls.append(path)
+                  q=urllib.parse.parse_qs(urllib.parse.urlparse(path).query)
+                  cursor=(q.get("cursor") or [None])[0]
+                  def junk(base):
+                      return [{
+                          "id":base+i,"fromNodeNum":0,"toNodeNum":1,"sourceId":"default",
+                          "route":"[]","routeBack":None,"snrTowards":"[20]","snrBack":None,
+                          "timestamp":old+100000+base+i,"createdAt":old+100000+base+i,
+                          "packetId":base+i,
+                      } for i in range(2000)]
+                  if cursor is None:
+                      return {"items":junk(1),"pageSize":2000,"hasMore":True,"nextCursor":"c1"}
+                  if cursor=="c1":
+                      return {"items":junk(2001),"pageSize":2000,"hasMore":True,"nextCursor":"c2"}
+                  if cursor=="c2":
+                      return {"items":junk(4001),"pageSize":2000,"hasMore":True,"nextCursor":"c3"}
+                  assert cursor=="c3",cursor
+                  return {
+                      "items":[
+                          # Pending/ambíguo: nunca promove 10↔30.
+                          {"id":7000,"fromNodeNum":10,"toNodeNum":30,"sourceId":"default",
+                           "route":None,"routeBack":None,"snrTowards":"[32]","snrBack":None,
+                           "timestamp":old,"createdAt":old,"packetId":7000},
+                          # Enlace direto histórico válido, nós hoje offline.
+                          {"id":7001,"fromNodeNum":10,"toNodeNum":20,"sourceId":"default",
+                           "route":"[]","routeBack":None,"snrTowards":"[20]","snrBack":None,
+                           "timestamp":old+1,"createdAt":old+1,"packetId":7001},
+                          # A→B→C: apenas 10↔20 e 20↔30.
+                          {"id":7002,"fromNodeNum":10,"toNodeNum":30,"sourceId":"default",
+                           "route":"[20]","routeBack":None,"snrTowards":"[16,12]","snrBack":None,
+                           "timestamp":old+2,"createdAt":old+2,"packetId":7002},
+                      ],
+                      "pageSize":2000,"hasMore":False,"nextCursor":None,
+                  }
+
+              saved=web._mm_api_get
+              web._mm_api_get=fake_get
+              try:
+                  result=web._topology_direct_history_backfill_v3(force=True)
+              finally:
+                  web._mm_api_get=saved
+
+              assert result["complete"] is True,result
+              assert result["method"]=="analysis-paginated",result
+              assert result["pages"]==4,result
+              assert result["processed"]==6003,result
+              assert len(calls)==4,calls
+
+              ranked=web._archive_rf_longest_links_query({})
+              edges={x["edgeId"] for x in ranked["data"]}
+              assert "10:20" in edges,ranked
+              assert "20:30" in edges,ranked
+              assert "10:30" not in edges,ranked
+              row=next(x for x in ranked["data"] if x["edgeId"]=="10:20")
+              assert row["directEvidence"] is True,row
+              assert row["directEvidenceKinds"]==["route-adjacency-api"],row
+              assert "7001" in row["evidenceTraceIds"],row
+
+              # O período Todo vê o enlace antigo; filtro temporal posterior não.
+              filtered=web._archive_rf_longest_links_query({"since":[str(old+10)]})
+              assert all(x["edgeId"]!="10:20" for x in filtered["data"]),filtered
+
+              # Backfill completo é persistente/idempotente.
+              saved=web._mm_api_get
+              web._mm_api_get=lambda path: (_ for _ in ()).throw(AssertionError("não deveria consultar novamente"))
+              try:
+                  again=web._topology_direct_history_backfill_v3()
+              finally:
+                  web._mm_api_get=saved
+              assert again["skipped"] is True,again
+          PY
+
       - name: Validar scripts shell
         shell: bash
         run: bash -n install.sh update.sh
@@ -291,7 +397,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.53.0
+      - name: Validar backlog v1.54.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -342,6 +448,11 @@ jobs:
           grep -Fq 'direct_evidence INTEGER NOT NULL DEFAULT 0' traffic_analyzer_web.py
           grep -Fq 'direct_evidence_kind TEXT' traffic_analyzer_web.py
           grep -Fq 'def _topology_direct_evidence_rebuild_v2' traffic_analyzer_web.py
+          grep -Fq 'def _topology_direct_history_backfill_v3' traffic_analyzer_web.py
+          grep -Fq '/api/analysis/traceroutes?' traffic_analyzer_web.py
+          grep -Fq 'TRACEROUTE_HISTORY_PAGE_SIZE' traffic_analyzer_web.py
+          grep -Fq 'TRACEROUTE_HISTORY_MAX_RECORDS' traffic_analyzer_web.py
+          grep -Fq 'TA_TRACEROUTE_HISTORY_FALLBACK_LIMIT' traffic-analyzer-map.env.example
           grep -Fq "e.direct_evidence_kind = 'route-adjacency-api'" traffic_analyzer_web.py
           grep -Fq '"direct_evidence_kind": "route-adjacency-api"' traffic_analyzer.py
           grep -Fq 'API traceroute' traffic_analyzer_web.py
@@ -367,7 +478,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.53.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.54.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.53.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.54.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.53.0"
+APP_VERSION = "1.54.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -93,6 +93,9 @@ _access_geo_cache = {}
 ARCHIVE_POLL_SECONDS = max(1.0, float(os.getenv("ARCHIVE_POLL_SECONDS", "2")))
 ARCHIVE_PAGE_SIZE = max(100, min(int(os.getenv("ARCHIVE_PAGE_SIZE", "500")), 1000))
 ARCHIVE_OVERLAP_MS = max(1000, int(os.getenv("ARCHIVE_OVERLAP_MS", "10000")))
+TRACEROUTE_HISTORY_PAGE_SIZE = max(100, min(int(os.getenv("TA_TRACEROUTE_HISTORY_PAGE_SIZE", "2000")), 2000))
+TRACEROUTE_HISTORY_FALLBACK_LIMIT = max(5000, min(int(os.getenv("TA_TRACEROUTE_HISTORY_FALLBACK_LIMIT", "50000")), 250000))
+TRACEROUTE_HISTORY_MAX_RECORDS = max(0, int(os.getenv("TA_TRACEROUTE_HISTORY_MAX_RECORDS", "0")))
 ARCHIVE_RETENTION_ALLOWED_DAYS = {0, 1, 7, 30}
 try:
     _archive_retention_env = int(os.getenv("ARCHIVE_RETENTION_DAYS", "0"))
@@ -744,7 +747,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
     <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
-    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências extraídas da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. Pacotes brutos, TX/RX arquivados e TTL/hop_start não promovem enlaces ao Ranking.</div></div>
+    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.</div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody statsFitBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody statsFitBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -1100,7 +1103,7 @@ const I18N_PAIRS=[
   ['Apresentação padrão para visitantes','Default presentation for visitors'],['Usar minha configuração visual atual como padrão dos visitantes','Use my current visual settings as the visitor default'],
   ['Grava no servidor o visual atual como ponto de partida para novos navegadores. Preferências locais já salvas por cada visitante continuam prevalecendo.','Stores the current visual setup on the server as the starting point for new browsers. Existing local visitor preferences continue to take precedence.'],
   ['Carregando padrão global...','Loading global default...'],['Padrão global salvo.','Global default saved.'],['Padrão global ainda não definido; usando os padrões de fábrica.','No global default has been defined yet; factory defaults are being used.'],['Padrão global carregado.','Global default loaded.'],
-  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente adjacências extraídas da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. Pacotes brutos, TX/RX arquivados e TTL/hop_start não promovem enlaces ao Ranking.','Only adjacencies extracted from the MeshMonitor traceroute API, with valid SNR and known positions at both endpoints. Raw archived TX/RX packets and hop TTL never promote links into the Ranking.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],['Clique para mostrar somente este enlace no mapa','Click to show only this link on the map'],['Mostrar todos os nós e enlaces','Show all nodes and links'],['Este enlace não está disponível na topologia atual.','This link is not available in the current topology.'],['Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.','This link cannot be framed because one endpoint has no valid position.'],
+  ['10 enlaces RF diretos mais longos','10 longest direct RF links'],['Distância','Distance'],['Obs. RF','RF obs.'],['Última RF','Last RF'],['Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.','Only trusted adjacencies from the MeshMonitor traceroute API, with valid SNR and known positions at both endpoints. The All period includes revalidated history, including offline nodes; evidence remains in traffic.db until an explicit reset.'],['Sem enlaces RF diretos com posição válida no período.','No direct RF links with valid positions in the selected period.'],['Clique para mostrar somente este enlace no mapa','Click to show only this link on the map'],['Mostrar todos os nós e enlaces','Show all nodes and links'],['Este enlace não está disponível na topologia atual.','This link is not available in the current topology.'],['Este enlace não pode ser enquadrado porque um dos nós não possui posição válida.','This link cannot be framed because one endpoint has no valid position.'],
   ['Enlaces RF confirmados','Confirmed RF links'],['Enlaces MQTT / não-RF','MQTT / non-RF links'],['Cor:','Color:'],['Espessura:','Thickness:'],
   ['Linha contínua somente quando existir evidência física RF no hop, atualmente SNR válido. Se houver observações RF e MQTT/não-RF no período, a linha permanece contínua e o popup mostra a composição.','Solid line only when the hop has physical RF evidence, currently a valid SNR. Mixed RF and MQTT/non-RF observations remain solid and the popup shows the composition.'],
   ['Linha tracejada quando não houver evidência física RF no hop. Sem SNR válido, a observação é tratada como MQTT/não-RF, mesmo que o registro de traceroute tenha chegado ao MeshMonitor por RF.','Dashed line when there is no physical RF evidence for the hop. Without a valid SNR, the observation is treated as MQTT/non-RF even if the traceroute record reached MeshMonitor over RF.'],
@@ -1236,7 +1239,7 @@ function renderHelp(){
       <h4>Reply</h4><p>Use <b>Reply</b> or double-click a message. Traffic Analyzer uses the native Meshtastic/MeshMonitor <code>replyId</code> and shows a reference to the original message in the reply bubble.</p>
       <h4>Emoji and reactions</h4><p>The emoji button inserts emoji into normal message text. On received messages, <b>React</b> offers larger 👍 👎 ❤️ 😂 😮 😢 controls. Traffic Analyzer first attempts the native Meshtastic tapback (<code>emoji=1</code> + <code>replyId</code>). If MeshMonitor denies only that endpoint with HTTP 403, it automatically sends an emoji reply with <code>replyId</code> as a compatibility fallback.</p><h4>Scrolling</h4><p>When you scroll up to read older messages, automatic refresh preserves your position. New messages do not pull the view to the bottom; a <b>↓ New messages</b> button appears. Clicking it - or manually returning to the bottom - restores auto-scroll. <b>Load older</b> also preserves the reading position.</p>
       <h4>Node mentions</h4><p>Type <code>@</code> and start entering a short name, full name, or node ID. Use the arrow keys and Enter/Tab, or click a suggestion. The <code>@</code> character is only the autocomplete trigger; selecting a result inserts the full node name without <code>@</code>.</p>
-      <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p><p>Under <b>Statistics → RF</b>, the <b>10 longest direct RF links</b> ranking uses only confirmed RF hops with valid SNR and known positions at both endpoints. A route A→B→C contributes A↔B and B↔C only; it never invents A↔C.</p>
+      <h3>5. Network Health</h3><p>This tab summarizes recent node activity, packet volume, observed links, traceroute completeness, hop counts, chat interactions, and nodes that deserve attention. These indicators prioritize investigation; they are not proof of a hardware or RF fault.</p><p>Under <b>Statistics → Ranking</b>, the <b>10 longest direct RF links</b> ranking uses only trusted traceroute API adjacencies with valid SNR and known positions at both endpoints. The All period also includes revalidated historical links from nodes that are currently offline. A route A→B→C contributes A↔B and B↔C only; it never invents A↔C.</p>
       <h3>6. Points of attention</h3><p>Points of attention use heuristics such as prolonged silence, SNR degradation, relevant hop-count changes, and asymmetric traceroutes. Always interpret each indication together with RF conditions, node role, power state, and the observation point.</p>
       <h3>7. Access</h3><p>The Access tab is restricted to the administrator when authentication is enabled. It summarizes page views by day, countries, cities, unique IP addresses, browsers, operating systems, and login success/failure counts. Raw access events are also written as JSON Lines to <code>access.log</code> next to <code>traffic.db</code>. Public IP geolocation is not sent to any external service by default: country/city come from trusted reverse-proxy/CDN headers, local/private addresses, or an explicitly configured server-side GeoIP endpoint.</p>
       <h3>8. Settings</h3><div class="helpGrid"><div class="helpMini"><b>Appearance</b>Choose Dark or Light interface theme. The base-map style is independent.</div><div class="helpMini"><b>Map and topology</b>Control time window, minimum observations, map style, line visibility, node labels, heat map, Auto Zoom, and independent color/thickness for confirmed RF versus MQTT/non-RF links.</div><div class="helpMini"><b>Traffic database</b>The administrator can retain raw packets/positions for 1 day, 1 week, 1 month, or never delete them. The default is Never delete. This cleanup never removes the permanent node/link memory.</div><div class="helpMini"><b>Sound</b>Choose 1970s Pinball, Formal, Radio / Telecom, or Silent and tune density, volume, and event types.</div><div class="helpMini"><b>Real-time activity</b>Configure source/response and observed-relay pulses.</div><div class="helpMini"><b>Messages</b>Adjust size, font family, bold, italic, underline, line height, and spacing - interface only.</div><div class="helpMini"><b>Privacy</b>NodeInfo flow uses observed evidence and never invents intermediate hops.</div></div>
@@ -1258,7 +1261,7 @@ function renderHelp(){
       <h4>Responder</h4><p>Use <b>Responder</b> ou dê duplo clique em uma mensagem. O Traffic Analyzer usa o <code>replyId</code> nativo do Meshtastic/MeshMonitor e mostra no novo balão uma referência à mensagem original.</p>
       <h4>Emojis e reações</h4><p>O botão de emoji insere emojis normalmente no texto. Em mensagens recebidas, <b>Reagir</b> oferece 👍 👎 ❤️ 😂 😮 😢 em tamanho ampliado. O Traffic Analyzer tenta primeiro o tapback Meshtastic nativo (<code>emoji=1</code> + <code>replyId</code>). Se o MeshMonitor negar somente esse endpoint com HTTP 403, usa automaticamente uma resposta emoji compatível com <code>replyId</code>, sem perder a ação.</p><h4>Rolagem</h4><p>Ao subir para ler mensagens antigas, as consultas automáticas preservam a posição. Mensagens novas não puxam a tela para o fim; aparece o botão <b>↓ Novas mensagens</b>. Ao clicar nele - ou ao rolar manualmente até o final - o auto-scroll é reativado. <b>Carregar anteriores</b> também preserva o ponto de leitura.</p>
       <h4>Menções de nós</h4><p>Digite <code>@</code> e comece a escrever o short name, nome completo ou node ID. Use as setas e Enter/Tab ou clique em uma sugestão. O <code>@</code> funciona somente como gatilho da busca; ao selecionar, o campo recebe o nome completo do nó sem o caractere <code>@</code>.</p>
-      <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p><p>Em <b>Estatísticas → RF</b>, o ranking <b>10 enlaces RF diretos mais longos</b> usa somente hops RF confirmados com SNR válido e posição conhecida nos dois extremos. Uma rota A→B→C contribui apenas com A↔B e B↔C; o sistema nunca inventa A↔C.</p>
+      <h3>5. Saúde da Rede</h3><p>Resume atividade recente dos nós, volume de pacotes, enlaces observados, completude dos traceroutes, quantidade de hops, interações por chat e nós que merecem atenção. Os indicadores priorizam investigação; não são prova de defeito de hardware ou RF.</p><p>Em <b>Estatísticas → Ranking</b>, o ranking <b>10 enlaces RF diretos mais longos</b> usa somente adjacências confiáveis da API de traceroutes, com SNR válido e posição conhecida nos dois extremos. O período Todo também inclui enlaces históricos revalidados de nós atualmente offline. Uma rota A→B→C contribui apenas com A↔B e B↔C; o sistema nunca inventa A↔C.</p>
       <h3>6. Pontos de atenção</h3><p>Os pontos de atenção usam heurísticas como silêncio prolongado, degradação de SNR, mudanças relevantes de hops e traceroutes assimétricos. Interprete cada indicação junto das condições de RF, role, alimentação do nó e ponto de observação.</p>
       <h3>7. Acessos</h3><p>A aba Acessos fica restrita ao administrador quando a autenticação estiver ativada. Ela resume acessos por dia, países, cidades, IPs únicos, navegadores, sistemas operacionais e sucessos/falhas de login. Os eventos brutos também são gravados em formato JSON Lines no arquivo <code>access.log</code>, ao lado do <code>traffic.db</code>. Por padrão, IPs públicos não são enviados a nenhum serviço externo de geolocalização: país/cidade vêm de cabeçalhos confiáveis do proxy/CDN, de endereços locais/privados ou de um endpoint GeoIP configurado explicitamente no servidor.</p>
       <h3>8. Configurações</h3><div class="helpGrid"><div class="helpMini"><b>Aparência</b>Escolha tema Escuro ou Claro. O mapa-base é independente.</div><div class="helpMini"><b>Mapa e topologia</b>Controle janela temporal, mínimo de observações, mapa-base, linhas, nomes, mapa de calor, Auto Zoom e cor/espessura independentes para enlaces RF confirmados e MQTT/não-RF.</div><div class="helpMini"><b>Banco de tráfego</b>O administrador pode reter pacotes/posições brutas por 1 dia, 1 semana, 1 mês ou Nunca apagar. O padrão é Nunca apagar. Essa limpeza nunca remove a memória permanente de nós/enlaces.</div><div class="helpMini"><b>Som</b>Escolha Fliperama anos 70, Formal, Rádio / Telecom ou Silencioso e ajuste densidade, volume e tipos de evento.</div><div class="helpMini"><b>Atividade ao vivo</b>Configure pulsos de origem/resposta e relay observado.</div><div class="helpMini"><b>Mensagens</b>Ajuste tamanho, família da fonte, negrito, itálico, sublinhado, altura de linha e espaçamento - somente na interface.</div><div class="helpMini"><b>Privacidade</b>O fluxo NodeInfo usa evidência observada e não inventa hops intermediários.</div></div>
@@ -4530,13 +4533,13 @@ function statisticsReportHtml(){
     packets:'Packets',rx:'RX',tx:'TX',active:'Active nodes',known:'known',anomalies:'Points of attention',critical:'critical',
     longest:'10 longest direct RF links',rank:'#',a:'Node A',b:'Node B',distance:'Distance',observations:'RF observations',snr:'Average SNR',
     activeNodes:'Most active nodes',messages:'Chat interactions',issues:'Points of attention',severity:'Severity',subject:'Subject',description:'Description',
-    print:'Print / Save as PDF',note:'Direct RF ranking trusts only adjacency reconstructed from MeshMonitor traceroute API rows, plus valid SNR. Raw archived TX/RX packets and hop TTL never promote a ranking link.'
+    print:'Print / Save as PDF',note:'Direct RF ranking trusts only MeshMonitor traceroute API adjacency plus valid SNR. The All period includes revalidated historical links, including offline nodes, and keeps that evidence until the Traffic Analyzer database is explicitly reset.'
   }:{
     title:'Traffic Analyzer - Relatório de Estatísticas',generated:'Gerado em',period:'Período',node:'Nó',summary:'Resumo executivo',
     packets:'Pacotes',rx:'RX',tx:'TX',active:'Nós ativos',known:'conhecidos',anomalies:'Pontos de atenção',critical:'críticos',
     longest:'10 enlaces RF diretos mais longos',rank:'#',a:'Nó A',b:'Nó B',distance:'Distância',observations:'Observações RF',snr:'SNR médio',
     activeNodes:'Nós mais ativos',messages:'Interações por chat',issues:'Pontos de atenção',severity:'Severidade',subject:'Assunto',description:'Descrição',
-    print:'Imprimir / Salvar como PDF',note:'O ranking RF confia somente em adjacências reconstruídas das linhas da API de traceroutes do MeshMonitor, além de SNR válido. Pacotes brutos TX/RX e TTL de hops nunca promovem um enlace ao Ranking.'
+    print:'Imprimir / Salvar como PDF',note:'O ranking RF confia somente em adjacências da API de traceroutes do MeshMonitor com SNR válido. O período Todo inclui enlaces históricos revalidados, inclusive nós offline, e preserva essa evidência até reset explícito do banco do Traffic Analyzer.'
   };
   const rfRows=longest.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.aName||x.aId||String(x.a||'—'))}</td><td>${esc(x.bName||x.bId||String(x.b||'—'))}</td><td>${esc(fmtNum(x.distanceKm,1))} km</td><td>${esc(fmtNum(x.rfObservations))}</td><td>${x.avgSnr==null?'—':esc(fmtNum(x.avgSnr,1))+' dB'}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
   const nodeRows=nodes.slice(0,10).map(x=>`<tr><td>${esc(statsNodeName(x.nodeNum,x.nodeId))}</td><td>${esc(fmtNum(x.packets))}</td><td>${x.avgSnr==null?'—':esc(fmtNum(x.avgSnr,1))+' dB'}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
@@ -7440,6 +7443,229 @@ def _topology_direct_evidence_rebuild_v2():
         return {"invalidated": invalidated, "skipped": False}
 
 
+
+def _trusted_history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
+    """Adjacências confiáveis de uma linha orientada da API de análise.
+
+    O MeshMonitor define route/routeBack como arrays de intermediários e a
+    API /api/analysis/traceroutes entrega cada linha requester-first.
+    route=[] é uma resposta válida sem intermediários; route=NULL é pending.
+    """
+    mids = []
+    invalid = {0, 1, 2, 3, 255, 65535, 0xffffffff}
+    for value in _history_array(mids_raw):
+        try:
+            n = int(value) & 0xffffffff
+        except Exception:
+            n = 0xffffffff
+        mids.append(n)
+    snrs = _history_array(snr_raw)
+    entries = [(int(start_num) & 0xffffffff, None)]
+    for pos, n in enumerate(mids):
+        entries.append((n, snrs[pos] if pos < len(snrs) else None))
+    entries.append((int(end_num) & 0xffffffff, snrs[len(mids)] if len(mids) < len(snrs) else None))
+    out = []
+    for pos in range(len(entries) - 1):
+        a = entries[pos][0]
+        b, raw_snr = entries[pos + 1]
+        if a in invalid or b in invalid:
+            continue
+        snr = None
+        if raw_snr is not None:
+            try:
+                snr = float(raw_snr) / 4.0
+                if abs(snr + 32.0) < 1e-9:
+                    snr = None
+            except Exception:
+                snr = None
+        out.append((a, b, leg, snr, pos))
+    return out
+
+
+def _store_trusted_analysis_traceroute(conn, row):
+    """Persiste uma linha histórica orientada sem depender de nós online."""
+    if not isinstance(row, dict):
+        return 0
+    try:
+        from_num = int(row.get("fromNodeNum")) & 0xffffffff
+        to_num = int(row.get("toNodeNum")) & 0xffffffff
+    except Exception:
+        return 0
+    invalid = {0, 1, 2, 3, 255, 65535, 0xffffffff}
+    if from_num in invalid or to_num in invalid:
+        return 0
+
+    source_id = str(row.get("sourceId") or MM_SOURCE)
+    if source_id != MM_SOURCE:
+        return 0
+    ts = _history_ts_ms(row.get("timestamp") or row.get("createdAt"))
+    if not ts:
+        return 0
+    trace_id = row.get("id")
+    packet_id = row.get("packetId")
+
+    # Mantém participantes históricos mesmo que já estejam offline. O merge de
+    # node_json preserva a última posição válida previamente conhecida.
+    for num in (from_num, to_num):
+        _topology_store_node(conn, source_id, {
+            "nodeNum": num,
+            "nodeId": _history_node_id(num),
+            "name": _history_node_id(num),
+            "state": "route-only",
+            "routeParticipant": True,
+        }, ts)
+
+    legs = []
+    route = row.get("route")
+    if route not in (None, "", "null"):
+        legs += _trusted_history_trace_links(from_num, route, to_num, row.get("snrTowards"), "forward")
+
+    route_back = row.get("routeBack")
+    snr_back = row.get("snrBack")
+    has_return = bool(_history_array(route_back))
+    if not has_return and snr_back not in (None, "", "null", "[]", []):
+        has_return = bool(_history_array(snr_back))
+    if has_return:
+        legs += _trusted_history_trace_links(to_num, route_back, from_num, snr_back, "return")
+
+    inserted = 0
+    occurrences = {}
+    for a0, b0, leg, snr, hop_idx in legs:
+        lo, hi = sorted((a0, b0))
+        edge_id = f"{lo}:{hi}"
+        transport = "rf" if snr is not None else "mqtt"
+        sig = (edge_id, ts, leg, trace_id, snr, transport)
+        occurrence = occurrences.get(sig, 0)
+        occurrences[sig] = occurrence + 1
+        event_key = _topology_event_key(source_id, edge_id, ts, leg, trace_id, snr, transport, occurrence)
+        before = conn.total_changes
+        conn.execute(
+            """INSERT INTO topology_edge_events(
+                 event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                 observation_count,direct_evidence,direct_evidence_kind,archived_at
+               ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,1,'route-adjacency-api',?)
+               ON CONFLICT(event_key) DO UPDATE SET
+                 direct_evidence=1,
+                 direct_evidence_kind='route-adjacency-api'""",
+            (
+                event_key, source_id, edge_id, lo, hi, ts, leg, snr, transport,
+                None if trace_id is None else str(trace_id),
+                None if packet_id is None else str(packet_id),
+                None,
+                int(time.time() * 1000),
+            ),
+        )
+        inserted += conn.total_changes - before
+    return inserted
+
+
+def _topology_direct_history_backfill_v3(force=False):
+    """Recupera TODO o histórico confiável, inclusive nós hoje offline.
+
+    Prioriza /api/analysis/traceroutes, que possui paginação por cursor e
+    permite percorrer o histórico completo. Em MeshMonitor antigo que não
+    exponha esse endpoint, usa a API v1 com um limite alto como fallback.
+    Evidência gravada aqui permanece no traffic.db até reset explícito.
+    """
+    meta_key = f"topology-direct-history-v3:{MM_SOURCE}"
+    with _archive_connect() as conn:
+        previous = conn.execute(
+            "SELECT meta_value FROM topology_history_meta WHERE meta_key=?",
+            (meta_key,),
+        ).fetchone()
+        if previous and not force:
+            try:
+                status = json.loads(previous["meta_value"] or "{}")
+            except Exception:
+                status = {}
+            if status.get("complete") is True:
+                return {**status, "skipped": True}
+
+    processed = 0
+    inserted = 0
+    pages = 0
+    complete = False
+    method = "analysis-paginated"
+    last_error = None
+
+    try:
+        cursor = None
+        while True:
+            params = {
+                "sources": MM_SOURCE,
+                "since": "0",
+                "pageSize": str(TRACEROUTE_HISTORY_PAGE_SIZE),
+            }
+            if cursor:
+                params["cursor"] = cursor
+            path = "/api/analysis/traceroutes?" + urllib.parse.urlencode(params)
+            body = _mm_api_get(path)
+            if not isinstance(body, dict) or not isinstance(body.get("items"), list):
+                raise RuntimeError("Resposta inesperada de /api/analysis/traceroutes")
+            rows = body.get("items") or []
+            if TRACEROUTE_HISTORY_MAX_RECORDS > 0:
+                remaining = TRACEROUTE_HISTORY_MAX_RECORDS - processed
+                if remaining <= 0:
+                    break
+                rows = rows[:remaining]
+            with _archive_connect() as conn:
+                for row in rows:
+                    inserted += _store_trusted_analysis_traceroute(conn, row)
+            processed += len(rows)
+            pages += 1
+
+            if TRACEROUTE_HISTORY_MAX_RECORDS > 0 and processed >= TRACEROUTE_HISTORY_MAX_RECORDS:
+                complete = not bool(body.get("hasMore"))
+                break
+            if not body.get("hasMore"):
+                complete = True
+                break
+            cursor = body.get("nextCursor")
+            if not cursor:
+                raise RuntimeError("Histórico indica hasMore sem nextCursor")
+            if pages >= 100000:
+                raise RuntimeError("Proteção contra paginação infinita acionada")
+    except Exception as exc:
+        last_error = str(exc)
+        method = "v1-high-limit-fallback"
+        try:
+            source = urllib.parse.quote(MM_SOURCE, safe="")
+            limit = TRACEROUTE_HISTORY_FALLBACK_LIMIT
+            body = _mm_api_get(f"/api/v1/sources/{source}/traceroutes?limit={limit}")
+            rows = body.get("data", []) if isinstance(body, dict) else []
+            if not isinstance(rows, list):
+                raise RuntimeError("Resposta inesperada da API v1 de traceroutes")
+            with _archive_connect() as conn:
+                for row in rows:
+                    inserted += _store_trusted_analysis_traceroute(conn, row)
+            processed = max(processed, len(rows))
+            pages = max(pages, 1)
+            # A API v1 não pagina. Só declaramos completo quando retornou menos
+            # que o limite solicitado; se saturou, tentaremos novamente em
+            # próximo restart/update e registramos a recuperação como parcial.
+            complete = len(rows) < limit
+        except Exception as fallback_exc:
+            last_error = f"{last_error}; fallback: {fallback_exc}"
+
+    result = {
+        "completedAtMs": int(time.time() * 1000),
+        "processed": processed,
+        "inserted": inserted,
+        "pages": pages,
+        "complete": bool(complete),
+        "method": method,
+        "error": None if complete else last_error,
+        "skipped": False,
+    }
+    with _archive_connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+            (meta_key, json.dumps(result, ensure_ascii=False, separators=(",", ":"))),
+        )
+    return result
+
+
+
 def _topology_history_merge(raw: dict):
     if not isinstance(raw, dict):
         return {}
@@ -8203,8 +8429,18 @@ def _archive_worker():
                         "foram invalidadas; somente /traceroutes pode revalidá-las.",
                         flush=True,
                     )
-            # Somente depois da invalidação aceitamos snapshots. O ingest
-            # ignora evidence kinds antigos e confia apenas em route-adjacency-api.
+                history = _topology_direct_history_backfill_v3()
+                if not history.get("skipped"):
+                    state = "completo" if history.get("complete") else "parcial"
+                    print(
+                        "Ranking RF v1.54: backfill histórico "
+                        f"{state}; {int(history.get('processed') or 0)} traceroute(s) processado(s), "
+                        f"{int(history.get('inserted') or 0)} evidência(s) inserida(s), "
+                        f"método={history.get('method')}.",
+                        flush=True,
+                    )
+            # Evidências históricas confiáveis e snapshots atuais coexistem.
+            # Uma vez gravadas no traffic.db, não dependem de o nó estar online.
             _topology_history_drain_queue()
             _topology_history_ingest_current()
             first_success = True
