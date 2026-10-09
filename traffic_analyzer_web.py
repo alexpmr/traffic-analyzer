@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.56.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.57.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.56.0"
+APP_VERSION = "1.57.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -754,7 +754,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
     <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
-    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente adjacências confiáveis da API de traceroutes do MeshMonitor, com SNR válido e posição conhecida nos dois extremos. O período Todo inclui o histórico revalidado pela API v1 autenticada, inclusive nós offline; evidências permanecem no traffic.db até reset explícito.</div><div class="dashSection"><h3>Diagnóstico de elegibilidade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Nó A</th><th>Nó B</th><th>Distância</th><th>RF</th><th>Diretas</th><th>Motivo</th></tr></thead><tbody id="statsRankingAuditRows"></tbody></table></div></div></div>
+    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Usa a mesma classificação RF confirmada do mapa: cada aresta A↔B representa um hop observado e entra quando há SNR válido nesse hop e posição conhecida nos dois extremos. Traceroutes revalidados pela API continuam sendo mostrados como evidência adicional, mas não são requisito; assim, enlaces históricos não somem do ranking quando o traceroute original caduca no MeshMonitor.</div><div class="dashSection"><h3>Diagnóstico de elegibilidade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Nó A</th><th>Nó B</th><th>Distância</th><th>RF</th><th>Diretas</th><th>Motivo</th></tr></thead><tbody id="statsRankingAuditRows"></tbody></table></div></div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody statsFitBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody statsFitBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -4663,12 +4663,13 @@ function renderStatistics(){
   document.getElementById('statsRfLongestRows').innerHTML=longestRf.slice(0,10).map((x,i)=>{
     const traces=(x.evidenceTraceIds||[]).join(', ')||'—';
     const packets=(x.evidencePacketIds||[]).join(', ')||'—';
-    const audit='Evidência: rota da API /traceroutes · traceroute(s): '+traces+' · pacote(s): '+packets;
+    const source=x.evidenceSource==='api-traceroute'?'API traceroute':(x.evidenceSource==='mixed'?'RF observado + API traceroute':'RF observado no hop');
+    const audit='Evidência: '+source+' · traceroute(s): '+traces+' · pacote(s): '+packets;
     const title=tr('Clique para mostrar somente este enlace no mapa')+' · '+audit;
-    return '<tr class="clickableStatRow" tabindex="0" role="button" data-edge-id="'+esc(x.edgeId||'')+'" title="'+esc(title)+'"><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td title="'+esc(audit)+'">'+fmtNum(x.rfObservations)+'<br><span class="settingDesc">API traceroute</span></td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>';
+    return '<tr class="clickableStatRow" tabindex="0" role="button" data-edge-id="'+esc(x.edgeId||'')+'" title="'+esc(title)+'"><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td title="'+esc(audit)+'">'+fmtNum(x.rfObservations)+'<br><span class="settingDesc">'+esc(source)+'</span></td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>';
   }).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
   const rankingAudit=(p.rankingAudit||[]).filter(x=>x.reason!=='elegivel').slice(0,20);
-  const reasonLabel=x=>x==='sem_evidencia_direta'?'Sem evidência direta':x==='sem_posicao'?'Sem posição válida':x==='fora_top10'?'Elegível, fora do Top 10':x;
+  const reasonLabel=x=>x==='sem_posicao'?'Sem posição válida':x==='fora_top10'?'Elegível, fora do Top 10':x;
   document.getElementById('statsRankingAuditRows').innerHTML=rankingAudit.map(x=>
     '<tr><td><b>'+esc(x.aName||String(x.a))+'</b></td><td><b>'+esc(x.bName||String(x.b))+'</b></td><td>'+(x.distanceKm==null?'—':fmtNum(x.distanceKm,1)+' km')+'</td><td>'+fmtNum(x.rfObservations||0)+'</td><td>'+fmtNum(x.directObservations||0)+'</td><td>'+esc(reasonLabel(x.reason))+'</td></tr>'
   ).join('')||'<tr><td colspan="6" class="emptyPanel">Nenhum enlace RF excluído pelos critérios atuais.</td></tr>';
@@ -8803,12 +8804,19 @@ def _archive_links_query(query):
 
 
 def _archive_rf_longest_links_query(query):
+    """Top 10 por distância usando a mesma classificação RF do mapa.
+
+    topology_edge_events já representa adjacências (hops) da topologia.
+    Portanto, uma observação com transport='rf' e SNR válido é evidência do
+    hop RF A↔B. Quando a API de traceroutes ainda está disponível, mantemos a
+    marca route-adjacency-api para auditoria, mas ela não é requisito para o
+    ranking. Isso preserva enlaces históricos legítimos cujo traceroute já
+    caducou no MeshMonitor, como acontece com nós offline/antigos.
+    """
     clauses = [
         "e.source_id = ?",
         "e.transport = 'rf'",
         "e.snr IS NOT NULL",
-        "e.direct_evidence = 1",
-        "e.direct_evidence_kind = 'route-adjacency-api'",
     ]
     params = [MM_SOURCE]
     raw_since = (query.get("since") or [None])[0]
@@ -8851,9 +8859,11 @@ def _archive_rf_longest_links_query(query):
         rows = conn.execute(
             f"""SELECT e.edge_id,e.a,e.b,
                        SUM(e.observation_count) AS rfObservations,
+                       SUM(CASE WHEN e.direct_evidence=1 AND e.direct_evidence_kind='route-adjacency-api'
+                                THEN e.observation_count ELSE 0 END) AS trustedDirectObservations,
                        SUM(e.snr*e.observation_count)/NULLIF(SUM(e.observation_count),0) AS avgSnr,
                        MAX(e.timestamp_ms) AS lastRfSeenMs,
-                       GROUP_CONCAT(DISTINCT e.direct_evidence_kind) AS directEvidenceKinds,
+                       GROUP_CONCAT(DISTINCT CASE WHEN e.direct_evidence=1 THEN e.direct_evidence_kind END) AS directEvidenceKinds,
                        GROUP_CONCAT(DISTINCT e.trace_id) AS evidenceTraceIds,
                        GROUP_CONCAT(DISTINCT e.packet_id) AS evidencePacketIds
                 FROM topology_edge_events e
@@ -8887,6 +8897,17 @@ def _archive_rf_longest_links_query(query):
             float(na["latitude"]), float(na["longitude"]),
             float(nb["latitude"]), float(nb["longitude"]),
         ) / 1000.0
+        rf_observations = int(row["rfObservations"] or 0)
+        trusted_observations = int(row["trustedDirectObservations"] or 0)
+        kinds = [x for x in str(row["directEvidenceKinds"] or "").split(",") if x]
+        if trusted_observations < rf_observations:
+            kinds.append("rf-hop-observed")
+        if trusted_observations and trusted_observations < rf_observations:
+            evidence_source = "mixed"
+        elif trusted_observations:
+            evidence_source = "api-traceroute"
+        else:
+            evidence_source = "topology-rf-hop"
         data.append({
             "edgeId": str(row["edge_id"]),
             "a": a,
@@ -8896,11 +8917,13 @@ def _archive_rf_longest_links_query(query):
             "aName": na.get("name") or na.get("longName") or na.get("shortName") or na.get("nodeId") or _history_node_id(a),
             "bName": nb.get("name") or nb.get("longName") or nb.get("shortName") or nb.get("nodeId") or _history_node_id(b),
             "distanceKm": round(distance_km, 3),
-            "rfObservations": int(row["rfObservations"] or 0),
+            "rfObservations": rf_observations,
+            "trustedDirectObservations": trusted_observations,
             "avgSnr": round(float(row["avgSnr"]), 2) if row["avgSnr"] is not None else None,
             "lastRfSeenMs": int(row["lastRfSeenMs"] or 0),
             "directEvidence": True,
-            "directEvidenceKinds": [x for x in str(row["directEvidenceKinds"] or "").split(",") if x],
+            "directEvidenceKinds": list(dict.fromkeys(kinds)),
+            "evidenceSource": evidence_source,
             "evidenceTraceIds": [x for x in str(row["evidenceTraceIds"] or "").split(",") if x][:12],
             "evidencePacketIds": [x for x in str(row["evidencePacketIds"] or "").split(",") if x][:12],
         })
@@ -8909,7 +8932,7 @@ def _archive_rf_longest_links_query(query):
 
 
 def _archive_rf_ranking_audit_query(query):
-    """Explica por que cada enlace RF histórico entra ou fica fora do Ranking."""
+    """Explica a elegibilidade usando exatamente o mesmo critério RF do mapa."""
     clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL"]
     params = [MM_SOURCE]
     raw_since = (query.get("since") or [None])[0]
@@ -8926,8 +8949,9 @@ def _archive_rf_ranking_audit_query(query):
             f"""SELECT e.edge_id,e.a,e.b,
                        SUM(e.observation_count) AS rfObservations,
                        SUM(CASE WHEN e.direct_evidence=1 AND e.direct_evidence_kind='route-adjacency-api'
-                                THEN e.observation_count ELSE 0 END) AS directObservations,
-                       AVG(e.snr) AS avgSnr,MAX(e.timestamp_ms) AS lastRfSeenMs,
+                                THEN e.observation_count ELSE 0 END) AS trustedDirectObservations,
+                       SUM(e.snr*e.observation_count)/NULLIF(SUM(e.observation_count),0) AS avgSnr,
+                       MAX(e.timestamp_ms) AS lastRfSeenMs,
                        GROUP_CONCAT(DISTINCT CASE WHEN e.direct_evidence=1 THEN e.trace_id END) AS directTraceIds
                 FROM topology_edge_events e
                 WHERE {' AND '.join(clauses)}
@@ -8963,22 +8987,22 @@ def _archive_rf_ranking_audit_query(query):
                 float(na["latitude"]), float(na["longitude"]),
                 float(nb["latitude"]), float(nb["longitude"]),
             ) / 1000.0, 3)
-        direct_obs = int(row["directObservations"] or 0)
+        rf_obs = int(row["rfObservations"] or 0)
+        trusted_obs = int(row["trustedDirectObservations"] or 0)
         item = {
             "edgeId": str(row["edge_id"]), "a": a, "b": b,
             "aName": na.get("name") or na.get("longName") or na.get("shortName") or na.get("nodeId") or _history_node_id(a),
             "bName": nb.get("name") or nb.get("longName") or nb.get("shortName") or nb.get("nodeId") or _history_node_id(b),
             "distanceKm": distance_km,
-            "rfObservations": int(row["rfObservations"] or 0),
-            "directObservations": direct_obs,
+            "rfObservations": rf_obs,
+            "directObservations": rf_obs,
+            "trustedDirectObservations": trusted_obs,
             "avgSnr": round(float(row["avgSnr"]), 2) if row["avgSnr"] is not None else None,
             "lastRfSeenMs": int(row["lastRfSeenMs"] or 0),
             "directTraceIds": [x for x in str(row["directTraceIds"] or "").split(",") if x][:12],
+            "evidenceSource": "api-traceroute" if trusted_obs >= rf_obs else ("mixed" if trusted_obs else "topology-rf-hop"),
         }
-        if direct_obs <= 0:
-            item["eligible"] = False
-            item["reason"] = "sem_evidencia_direta"
-        elif not has_pos:
+        if not has_pos:
             item["eligible"] = False
             item["reason"] = "sem_posicao"
         else:
@@ -9001,7 +9025,8 @@ def _archive_rf_ranking_audit_query(query):
         "rfEdges": len(data),
         "eligible": sum(1 for x in data if x.get("eligible")),
         "inTop10": sum(1 for x in data if x["edgeId"] in top_ids),
-        "withoutDirectEvidence": sum(1 for x in data if x["reason"] == "sem_evidencia_direta"),
+        "withoutDirectEvidence": 0,
+        "withoutTrustedTrace": sum(1 for x in data if int(x.get("trustedDirectObservations") or 0) <= 0),
         "withoutPosition": sum(1 for x in data if x["reason"] == "sem_posicao"),
     }
     return {"success": True, "summary": summary, "count": len(data), "data": data[:200]}
