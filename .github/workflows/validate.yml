@@ -368,7 +368,7 @@ jobs:
           grep -Fq 'direct_evidence_kind TEXT' traffic_analyzer_web.py
           grep -Fq 'def _topology_direct_evidence_rebuild_v2' traffic_analyzer_web.py
           grep -Fq "e.direct_evidence_kind = 'route-adjacency-api'" traffic_analyzer_web.py
-          grep -Fq 'directEvidenceKind": "route-adjacency-api"' traffic_analyzer.py
+          grep -Fq '"direct_evidence_kind": "route-adjacency-api"' traffic_analyzer.py
           grep -Fq 'API traceroute' traffic_analyzer_web.py
           ! grep -Fq 'def _topology_direct_evidence_backfill' traffic_analyzer_web.py
           ! grep -Fq 'traceroute_zero_hop' traffic_analyzer.py
