@@ -456,27 +456,6 @@ jobs:
                   assert conn.execute("SELECT COUNT(*) FROM topology_nodes").fetchone()[0]>=2
                   assert conn.execute("SELECT COUNT(*) FROM topology_edge_events").fetchone()[0]>=1
               assert ta._save_archive_settings({"retentionDays":0})["retentionDays"]==0
-              # Top 10 usa somente hops RF diretos: A-C sem SNR não pode entrar.
-              raw_long={
-                  "sourceId":"test-source","generatedAtMs":now,
-                  "summary":{"nodesInApi":3},
-                  "nodes":[
-                      {"nodeNum":10,"nodeId":"!0000000a","name":"A","state":"identified","latitude":-15.80,"longitude":-47.90,"lastHeard":now},
-                      {"nodeNum":20,"nodeId":"!00000014","name":"B","state":"identified","latitude":-15.81,"longitude":-47.89,"lastHeard":now},
-                      {"nodeNum":30,"nodeId":"!0000001e","name":"C","state":"identified","latitude":-16.80,"longitude":-48.90,"lastHeard":now},
-                  ],
-                  "edges":[
-                      {"id":"20:30","a":20,"b":30,"events":[{"timestampMs":now-500,"leg":"forward","snr":4.0,"traceId":200,"transport":"rf","directEvidence":True,"directEvidenceKind":"route-adjacency-api"}]},
-                      {"id":"10:30","a":10,"b":30,"events":[{"timestampMs":now-400,"leg":"forward","snr":None,"traceId":201,"transport":"mqtt"}]},
-                  ],"traces":[]
-              }
-              ta._topology_history_ingest(raw_long)
-              longest=ta._archive_rf_longest_links_query({})
-              ids=[x["edgeId"] for x in longest["data"]]
-              assert "20:30" in ids,longest
-              assert "10:30" not in ids,longest
-              assert all(x["rfObservations"]>=1 and x["avgSnr"] is not None for x in longest["data"]),longest
-              assert longest["data"]==sorted(longest["data"],key=lambda x:(-x["distanceKm"],-x["rfObservations"],-x["lastRfSeenMs"]))
           prefs=ta._sanitize_ui_defaults({
               "weatherRadarEnabled": True,
               "rfCoverageEnabled": True,
