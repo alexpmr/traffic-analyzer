@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.56.0 - 2026-10-09
+
+- Corrige a cor de atividade dos nós para usar somente tráfego real originado pelo nó e `lastHeard`; `lastSeenMs` não influencia mais a cor nem o campo Último tráfego.
+- Adiciona reconciliação histórica por par via `/api/traceroutes/history/{from}/{to}?sourceId=...&limit=1000`.
+- A reconciliação consulta somente pares RF sem evidência direta confiável e promove apenas adjacências realmente demonstradas pelo traceroute.
+- Executa a reconciliação depois de ingerir filas/snapshots históricos, evitando perder pares antigos que só existiam na memória local.
+- Adiciona a migração `topology-direct-pair-reconcile-v5` e opções `TA_TRACEROUTE_PAIR_HISTORY_LIMIT` / `TA_TRACEROUTE_PAIR_RECONCILE_MAX_PAIRS`.
+- Adiciona `/api/archive/rf-ranking-audit` e a tabela Diagnóstico de elegibilidade em Estatísticas → Ranking.
+- O diagnóstico explica `sem evidência direta`, `sem posição válida` e `fora do Top 10`.
+- Mantém o backfill autenticado v4 e as proteções contra falso direto por SNR/TTL/pacote bruto.
+- Fecha as issues #51 e #52.
+
 ## 1.55.0 - 2026-10-09
 
 - Corrige o backfill histórico do Ranking RF introduzido na v1.54.0.
