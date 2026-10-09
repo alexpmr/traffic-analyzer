@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.50.0 - 2026-10-08
+
+- Fecha o backlog funcional consolidado do Traffic Analyzer.
+- Corrige o botão **Tudo** das consultas ao nó para disparar a rodada inteira em paralelo, sem serializar por resposta/timeout.
+- Mantém estado, barra de progresso, correlação, resposta, erro e timeout independentes para cada consulta.
+- Resolve a issue #37: em **Estatísticas → Acessos**, os controles específicos passam para a mesma faixa do cabeçalho principal e a segunda barra horizontal é removida.
+- Adiciona **Relatório / PDF** em Estatísticas, com visão estruturada pronta para impressão/salvamento em PDF.
+- Adiciona **Exportar CSV** em Estatísticas respeitando o período e o filtro por nó atuais.
+- Corrige a Ajuda da aba Nós para refletir a abertura da visualização ampliada de Detalhes do nó.
+- Remove trechos duplicados do manual PDF.
+- Adiciona `BACKLOG.md` com matriz de fechamento e critérios de aceite.
+- Amplia validações do pipeline para consultas paralelas, controles contextuais de Acessos, relatório/exportação e fechamento do backlog.
+- Preserva memória permanente de nós/enlaces, retenção configurável de tráfego, ranking RF direto, isolamento no mapa e atualização automática das versões estáveis.
+
 ## 1.49.0 - 2026-10-08
 
 - Torna interativo o ranking dos 10 enlaces RF diretos mais longos em Estatísticas → RF.
