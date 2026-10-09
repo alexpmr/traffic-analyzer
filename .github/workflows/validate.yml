@@ -359,7 +359,7 @@ jobs:
               web._history_source_cache=None
               web._mm_api_get=fake_get
               try:
-                  result=web._topology_direct_pair_reconcile_v5(force=True)
+                  result=web._topology_direct_pair_reconcile_v6(force=True)
               finally:
                   web._mm_api_get=saved
 
@@ -379,13 +379,13 @@ jobs:
 
               audit=web._archive_rf_ranking_audit_query({})
               excluded={x["edgeId"]:x for x in audit["data"] if not x.get("eligible")}
-              assert excluded["10:30"]["reason"]=="sem_evidencia_direta",audit
+              assert excluded["10:30"]["reason"]=="multihop_confirmado",audit
 
               # Migração completa não repete chamadas em novo boot.
               saved=web._mm_api_get
               web._mm_api_get=lambda path: (_ for _ in ()).throw(AssertionError("não deveria consultar novamente"))
               try:
-                  again=web._topology_direct_pair_reconcile_v5()
+                  again=web._topology_direct_pair_reconcile_v6()
               finally:
                   web._mm_api_get=saved
               assert again["skipped"] is True,again
@@ -529,7 +529,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.57.0
+      - name: Validar backlog v1.57.1
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -574,8 +574,8 @@ jobs:
           grep -Fq 'function normalizeObservedTimestampMs' traffic_analyzer_web.py
           grep -Fq 'return Math.max(archived,heard);' traffic_analyzer_web.py
           ! grep -Fq 'return Math.max(archived,heard,historical);' traffic_analyzer_web.py
-          grep -Fq 'def _topology_direct_pair_reconcile_v5' traffic_analyzer_web.py
-          grep -Fq 'topology-direct-pair-reconcile-v5:' traffic_analyzer_web.py
+          grep -Fq 'def _topology_direct_pair_reconcile_v6' traffic_analyzer_web.py
+          grep -Fq 'topology-direct-pair-reconcile-v6:' traffic_analyzer_web.py
           grep -Fq '/api/traceroutes/history/' traffic_analyzer_web.py
           grep -Fq 'def _resolve_concrete_history_source_id' traffic_analyzer_web.py
           grep -Fq '/api/v1/sources/{source}/traceroutes?limit=1' traffic_analyzer_web.py
@@ -585,7 +585,7 @@ jobs:
           grep -Fq 'id="statsRfLongestRows"' traffic_analyzer_web.py
           grep -Fq 'data-stats-tab="ranking"' traffic_analyzer_web.py
           grep -Fq 'id="statsPanelRanking"' traffic_analyzer_web.py
-          grep -Fq "e.direct_evidence = 1" traffic_analyzer_web.py
+          grep -Fq 'trustedDirectObservations' traffic_analyzer_web.py
           grep -Fq 'direct_evidence INTEGER NOT NULL DEFAULT 0' traffic_analyzer_web.py
           grep -Fq 'direct_evidence_kind TEXT' traffic_analyzer_web.py
           grep -Fq 'def _topology_direct_evidence_rebuild_v2' traffic_analyzer_web.py
@@ -599,7 +599,7 @@ jobs:
           grep -Fq 'TA_TRACEROUTE_HISTORY_MAX_LIMIT=250000' traffic-analyzer-map.env.example
           ! grep -Fq 'def _topology_direct_history_backfill_v3' traffic_analyzer_web.py
           ! grep -Fq '/api/analysis/traceroutes?' traffic_analyzer_web.py
-          grep -Fq "e.direct_evidence_kind = 'route-adjacency-api'" traffic_analyzer_web.py
+          grep -Fq 'topology-rf-multihop-v1:' traffic_analyzer_web.py
           grep -Fq '"direct_evidence_kind": "route-adjacency-api"' traffic_analyzer.py
           grep -Fq 'API traceroute' traffic_analyzer_web.py
           ! grep -Fq 'def _topology_direct_evidence_backfill' traffic_analyzer_web.py
@@ -624,7 +624,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.56.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.57.1: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
