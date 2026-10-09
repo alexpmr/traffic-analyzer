@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.57.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.57.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.57.0"
+APP_VERSION = "1.57.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -4669,7 +4669,7 @@ function renderStatistics(){
     return '<tr class="clickableStatRow" tabindex="0" role="button" data-edge-id="'+esc(x.edgeId||'')+'" title="'+esc(title)+'"><td><b>'+(i+1)+'</b></td><td><b>'+esc(x.aName||x.aId||String(x.a))+'</b>'+(x.aId?'<br><span class="settingDesc">'+esc(x.aId)+'</span>':'')+'</td><td><b>'+esc(x.bName||x.bId||String(x.b))+'</b>'+(x.bId?'<br><span class="settingDesc">'+esc(x.bId)+'</span>':'')+'</td><td><b>'+fmtNum(x.distanceKm,1)+' km</b></td><td title="'+esc(audit)+'">'+fmtNum(x.rfObservations)+'<br><span class="settingDesc">'+esc(source)+'</span></td><td>'+(x.avgSnr==null?'—':fmtNum(x.avgSnr,1)+' dB')+'</td><td>'+(x.lastRfSeenMs?esc(humanAge(Number(x.lastRfSeenMs))):'—')+'</td></tr>';
   }).join('')||'<tr><td colspan="7" class="emptyPanel">Sem enlaces RF diretos com posição válida no período.</td></tr>';
   const rankingAudit=(p.rankingAudit||[]).filter(x=>x.reason!=='elegivel').slice(0,20);
-  const reasonLabel=x=>x==='sem_posicao'?'Sem posição válida':x==='fora_top10'?'Elegível, fora do Top 10':x;
+  const reasonLabel=x=>x==='multihop_confirmado'?'Multi-hop confirmado pela API':x==='sem_posicao'?'Sem posição válida':x==='fora_top10'?'Elegível, fora do Top 10':x;
   document.getElementById('statsRankingAuditRows').innerHTML=rankingAudit.map(x=>
     '<tr><td><b>'+esc(x.aName||String(x.a))+'</b></td><td><b>'+esc(x.bName||String(x.b))+'</b></td><td>'+(x.distanceKm==null?'—':fmtNum(x.distanceKm,1)+' km')+'</td><td>'+fmtNum(x.rfObservations||0)+'</td><td>'+fmtNum(x.directObservations||0)+'</td><td>'+esc(reasonLabel(x.reason))+'</td></tr>'
   ).join('')||'<tr><td colspan="6" class="emptyPanel">Nenhum enlace RF excluído pelos critérios atuais.</td></tr>';
@@ -7727,7 +7727,7 @@ def _resolve_concrete_history_source_id():
     raise RuntimeError("Não foi possível resolver o alias MM_SOURCE=default para uma fonte com traceroute:read")
 
 
-def _topology_direct_pair_reconcile_v5(force=False):
+def _topology_direct_pair_reconcile_v6(force=False):
     """Revalida pares RF históricos individualmente pela API autenticada.
 
     O backfill global pode não reencontrar um traceroute antigo (retenção,
@@ -7737,7 +7737,7 @@ def _topology_direct_pair_reconcile_v5(force=False):
     Bearer token via requirePermission. Só pares consecutivos de uma rota
     orientada são promovidos por _store_trusted_analysis_traceroute().
     """
-    meta_key = f"topology-direct-pair-reconcile-v5:{MM_SOURCE}"
+    meta_key = f"topology-direct-pair-reconcile-v6:{MM_SOURCE}"
     with _archive_connect() as conn:
         previous = conn.execute(
             "SELECT meta_value FROM topology_history_meta WHERE meta_key=?",
@@ -7801,14 +7801,37 @@ def _topology_direct_pair_reconcile_v5(force=False):
                     (MM_SOURCE, str(row["edge_id"])),
                 ).fetchone()
                 _ = conn.total_changes - before
+            negative_meta_key = f"topology-rf-multihop-v1:{MM_SOURCE}:{row['edge_id']}"
             if direct and int(direct["n"] or 0) > 0:
                 recovered_pairs += 1
+                # Evidência positiva mais forte invalida uma eventual marca
+                # negativa antiga para o mesmo par.
+                with _archive_connect() as conn:
+                    conn.execute("DELETE FROM topology_history_meta WHERE meta_key=?", (negative_meta_key,))
             else:
+                # Só marcamos o par como comprovadamente NÃO direto quando a
+                # consulta devolveu traceroutes do próprio par e nenhum deles
+                # mostrou A↔B como adjacência. Resposta vazia significa apenas
+                # ausência de histórico suficiente e não deve apagar um hop RF
+                # confirmado no mapa.
+                if body:
+                    with _archive_connect() as conn:
+                        conn.execute(
+                            "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+                            (negative_meta_key, json.dumps({
+                                "checkedAtMs": int(time.time() * 1000),
+                                "edgeId": str(row["edge_id"]),
+                                "a": a, "b": b,
+                                "traceroutesReturned": len(body),
+                                "reason": "pair-history-shows-multihop-only",
+                            }, separators=(",", ":"))),
+                        )
                 unresolved.append({
                     "edgeId": str(row["edge_id"]), "a": a, "b": b,
                     "rfObservations": int(row["rf_obs"] or 0),
                     "lastSeenMs": int(row["last_seen"] or 0),
                     "traceroutesReturned": len(body),
+                    "negativeEvidence": bool(body),
                 })
         except Exception as exc:
             errors.append({
@@ -7827,7 +7850,7 @@ def _topology_direct_pair_reconcile_v5(force=False):
         "errors": errors[:50],
         "truncated": truncated,
         "complete": complete,
-        "method": "pair-history-authenticated-v5",
+        "method": "pair-history-authenticated-v6",
         "historySourceId": concrete_source_id,
         "skipped": False,
     }
@@ -8620,11 +8643,11 @@ def _archive_worker():
             if was_first:
                 # Reconciliar depois de drenar snapshots antigos garante que
                 # todo par RF já conhecido esteja disponível para a busca por par.
-                pairs = _topology_direct_pair_reconcile_v5()
+                pairs = _topology_direct_pair_reconcile_v6()
                 if not pairs.get("skipped"):
                     state = "completo" if pairs.get("complete") else "parcial"
                     print(
-                        "Ranking RF v1.56: reconciliação histórica por par "
+                        "Ranking RF v1.57.1: reconciliação histórica por par "
                         f"{state}; {int(pairs.get('checkedPairs') or 0)} par(es) consultado(s), "
                         f"{int(pairs.get('recoveredPairs') or 0)} recuperado(s), "
                         f"{int(pairs.get('unresolvedPairs') or 0)} sem prova direta.",
@@ -8877,6 +8900,13 @@ def _archive_rf_longest_links_query(query):
             (MM_SOURCE,),
         ).fetchall()
 
+        negative_prefix = f"topology-rf-multihop-v1:{MM_SOURCE}:"
+        negative_rows = conn.execute(
+            "SELECT meta_key FROM topology_history_meta WHERE meta_key LIKE ?",
+            (negative_prefix + "%",),
+        ).fetchall()
+        negative_edges = {str(r["meta_key"])[len(negative_prefix):] for r in negative_rows}
+
     node_map = {}
     for row in node_rows:
         try:
@@ -8888,6 +8918,8 @@ def _archive_rf_longest_links_query(query):
 
     data = []
     for row in rows:
+        if str(row["edge_id"]) in negative_edges:
+            continue
         a = int(row["a"]); b = int(row["b"])
         na = node_map.get(a, {}); nb = node_map.get(b, {})
         if not (_history_valid_position(na.get("latitude"), na.get("longitude")) and
@@ -8963,6 +8995,13 @@ def _archive_rf_ranking_audit_query(query):
             (MM_SOURCE,),
         ).fetchall()
 
+        negative_prefix = f"topology-rf-multihop-v1:{MM_SOURCE}:"
+        negative_rows = conn.execute(
+            "SELECT meta_key FROM topology_history_meta WHERE meta_key LIKE ?",
+            (negative_prefix + "%",),
+        ).fetchall()
+        negative_edges = {str(r["meta_key"])[len(negative_prefix):] for r in negative_rows}
+
     node_map = {}
     for row in node_rows:
         try:
@@ -9002,7 +9041,10 @@ def _archive_rf_ranking_audit_query(query):
             "directTraceIds": [x for x in str(row["directTraceIds"] or "").split(",") if x][:12],
             "evidenceSource": "api-traceroute" if trusted_obs >= rf_obs else ("mixed" if trusted_obs else "topology-rf-hop"),
         }
-        if not has_pos:
+        if str(row["edge_id"]) in negative_edges:
+            item["eligible"] = False
+            item["reason"] = "multihop_confirmado"
+        elif not has_pos:
             item["eligible"] = False
             item["reason"] = "sem_posicao"
         else:
@@ -9027,6 +9069,7 @@ def _archive_rf_ranking_audit_query(query):
         "inTop10": sum(1 for x in data if x["edgeId"] in top_ids),
         "withoutDirectEvidence": 0,
         "withoutTrustedTrace": sum(1 for x in data if int(x.get("trustedDirectObservations") or 0) <= 0),
+        "confirmedMultihop": sum(1 for x in data if x["reason"] == "multihop_confirmado"),
         "withoutPosition": sum(1 for x in data if x["reason"] == "sem_posicao"),
     }
     return {"success": True, "summary": summary, "count": len(data), "data": data[:200]}
