@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.57.1 - 2026-10-09
+
+- Refina o Ranking RF alinhado ao mapa para não reintroduzir pares historicamente comprovados como multi-hop.
+- Hops com `transport='rf'` e SNR válido podem permanecer elegíveis mesmo sem traceroute histórico positivo.
+- A reconciliação por par passa a registrar evidência negativa somente quando a API retorna traceroutes e nenhum deles mostra A↔B como adjacência direta.
+- Histórico vazio não exclui o hop RF.
+- Pares com histórico explícito de multi-hop ficam fora do Top 10 e aparecem na auditoria como `multihop_confirmado`.
+- A migração/reconciliação passa para `topology-direct-pair-reconcile-v6`.
+
 ## 1.57.0 - 2026-10-09
 
 - Alinha o **Top 10 enlaces RF diretos mais longos** com a classificação usada no mapa.
