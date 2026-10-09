@@ -31,6 +31,7 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 | 23 | Issue #37 — Acessos na mesma faixa do cabeçalho de Estatísticas | Concluído na v1.50.0 | Controles contextuais de Acessos ficam em `.statsHeader`; a segunda barra horizontal foi removida. |
 | 24 | Issue #39 — Ajustar os dois blocos de Estatísticas/RF para eliminar rolagem horizontal | Pendente | Top 10 enlaces RF diretos e Enlaces observados com maior atividade devem usar largura justificada/responsiva, sem barra horizontal em desktop normal. |
 | 25 | Issue #39 — Criar subaba Ranking em Estatísticas | Pendente | Adicionar a subaba **Ranking** e mover para ela o **Top 10 enlaces RF diretos mais longos**, preservando ordenação, critério RF direto e clique para isolamento no mapa. |
+| 26 | Issue #39 — Ajustar os dois blocos de Estatísticas/Routing para eliminar rolagem horizontal | Pendente | **Distribuição por hops** e **Nós intermediários observados** devem ocupar a largura do bloco, sem barra horizontal inferior em desktop; manter os dois lado a lado e empilhar responsivamente quando necessário. |
 
 ## Política após v1.50.0
 
@@ -40,4 +41,4 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.50.0: 2 itens funcionais pendentes, ambos registrados na issue #39.**
+**Backlog conhecido após a v1.50.0: 3 itens funcionais pendentes, todos registrados na issue #39.**
