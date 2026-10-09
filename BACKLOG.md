@@ -36,6 +36,7 @@ Esta matriz registra o fechamento do backlog funcional até a v1.53.0. Um item s
 | 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Concluído na v1.51.0 | Estatísticas usa um único contêiner de rolagem e mantém a barra superior sticky, inclusive em **Pontos de atenção** com conteúdo longo. |
 | 29 | Issue #43 — Ranking RF: exigir evidência real de zero saltos | Concluído na v1.52.0 | O Top 10 exige `direct_evidence=1`: **adjacência explícita** na rota ou confirmação independente de **zero saltos**. `transport='rf'` + SNR não basta e `route=[]` ambígua é excluída. |
 | 30 | Issue #45 — Ranking RF: corrigir evidência histórica falsa | Concluído na v1.53.0 | O Ranking confia somente em `route-adjacency-api` gerado pela API `/traceroutes`; pacotes brutos TX/RX e TTL não promovem enlaces. Evidências legadas da v1.52.0 são invalidadas automaticamente sem apagar a topologia. |
+| 31 | Issue #47 — Ranking RF: incluir enlaces históricos válidos de nós offline | Pendente | O Ranking em período **Todo** deve preservar enlaces diretos historicamente comprovados mesmo quando os nós estiverem offline. A recuperação inicial não pode ficar limitada aos 5.000 traceroutes mais recentes; evidências confiáveis revalidadas devem persistir no `traffic.db` até reset explícito. |
 
 ## Política após v1.53.0
 
@@ -45,4 +46,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.53.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.53.0: nenhum item funcional pendente nesta matriz.**
+**Backlog conhecido após a v1.53.0: 1 item funcional pendente, registrado na issue #47.**
