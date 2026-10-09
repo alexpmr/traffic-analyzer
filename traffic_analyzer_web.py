@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.51.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.52.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.51.0"
+APP_VERSION = "1.52.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -744,7 +744,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="statsPanelOverview" class="statsPanel active dashboardWrap"><div id="statsOverviewCards" class="dashGrid"><div class="dashCard"><div class="label">Carregando...</div></div></div><div id="statsOverviewText" class="statsOverviewText">Calculando resumo da rede...</div><div class="statsSplit"><div class="dashSection"><h3>Tipos de tráfego</h3><div id="statsOverviewTypes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Nós mais ativos</h3><div id="statsOverviewNodes" class="dashSectionBody"></div></div></div></div>
     <div id="statsPanelNetwork" class="statsPanel"><div id="viewHealth"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Saúde da Rede</h2><span id="healthUpdated" class="settingDesc"></span><button id="healthReload">Atualizar</button></div><div id="healthCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade dos últimos 7 dias</h3><div class="dashSectionBody"><div id="healthDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Traceroutes e roteamento</h3><div id="healthRoutes" class="dashSectionBody"></div></div><div class="dashSection"><h3>Interações por chat no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações</th></tr></thead><tbody id="healthChatRows"></tbody></table></div></div><div class="dashSection"><h3>Nós que merecem atenção</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Último tráfego</th><th>Tempo sem ouvir</th><th>Pacotes 7d</th><th>SNR médio 7d</th></tr></thead><tbody id="healthSilentRows"></tbody></table></div></div></div></div></div>
     <div id="statsPanelRf" class="statsPanel dashboardWrap"><div id="statsRfCards" class="dashGrid"></div><div class="dashSection"><h3>Enlaces observados com maior atividade</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>Origem</th><th>Destino</th><th>Pacotes</th><th>SNR médio</th><th>RSSI médio</th><th>Última observação</th></tr></thead><tbody id="statsRfRows"></tbody></table></div></div><div class="methodNote">Pares origem-destino observados não significam, isoladamente, enlace RF físico permanente.</div></div>
-    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente hops RF diretos com SNR válido e posição conhecida nos dois extremos. Rotas com intermediários não são tratadas como enlace ponta a ponta.</div></div>
+    <div id="statsPanelRanking" class="statsPanel dashboardWrap"><div class="dashSection"><h3>10 enlaces RF diretos mais longos</h3><div class="dashSectionBody statsFitBody"><table class="dashTable statsCompactTable statsFitTable"><thead><tr><th>#</th><th>Nó A</th><th>Nó B</th><th>Distância</th><th>Obs. RF</th><th>SNR médio</th><th>Última RF</th></tr></thead><tbody id="statsRfLongestRows"></tbody></table></div></div><div class="methodNote">Somente enlaces com evidência comprovada de adjacência direta/zero saltos, SNR válido e posição conhecida nos dois extremos. SNR sozinho não confirma enlace direto; rota vazia sem confirmação de zero hops é excluída.</div></div>
     <div id="statsPanelRouting" class="statsPanel dashboardWrap"><div id="statsRoutingCards" class="dashGrid"></div><div class="statsSplit"><div class="dashSection"><h3>Distribuição por hops</h3><div id="statsHopDistribution" class="dashSectionBody statsFitBody"></div></div><div class="dashSection"><h3>Nós intermediários observados</h3><div id="statsRelayRows" class="dashSectionBody statsFitBody"></div></div></div></div>
     <div id="statsPanelTraffic" class="statsPanel dashboardWrap"><div id="statsTrafficCards" class="dashGrid"></div><div class="dashSection"><h3>Volume por tipo</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>Pacotes</th><th>Participação</th></tr></thead><tbody id="statsTrafficTypeRows"></tbody></table></div></div></div>
     <div id="statsPanelQueries" class="statsPanel dashboardWrap"><div id="statsQueryCards" class="dashGrid"></div><div class="dashSection"><h3>Atividade de consultas observada</h3><div class="dashSectionBody"><table class="dashTable statsCompactTable"><thead><tr><th>Tipo</th><th>TX</th><th>RX</th><th>Total observado</th></tr></thead><tbody id="statsQueryRows"></tbody></table></div></div><div class="methodNote">ACK, resposta efetiva, timeout e indisponibilidade continuam sendo estados distintos no popup do nó.</div></div>
@@ -4530,13 +4530,13 @@ function statisticsReportHtml(){
     packets:'Packets',rx:'RX',tx:'TX',active:'Active nodes',known:'known',anomalies:'Points of attention',critical:'critical',
     longest:'10 longest direct RF links',rank:'#',a:'Node A',b:'Node B',distance:'Distance',observations:'RF observations',snr:'Average SNR',
     activeNodes:'Most active nodes',messages:'Chat interactions',issues:'Points of attention',severity:'Severity',subject:'Subject',description:'Description',
-    print:'Print / Save as PDF',note:'Direct RF ranking uses only confirmed RF hops with valid SNR; multi-hop routes are not converted into end-to-end links.'
+    print:'Print / Save as PDF',note:'Direct RF ranking requires explicit route adjacency or independently confirmed zero hops, plus valid SNR. SNR alone is not accepted; ambiguous empty routes are excluded.'
   }:{
     title:'Traffic Analyzer - Relatório de Estatísticas',generated:'Gerado em',period:'Período',node:'Nó',summary:'Resumo executivo',
     packets:'Pacotes',rx:'RX',tx:'TX',active:'Nós ativos',known:'conhecidos',anomalies:'Pontos de atenção',critical:'críticos',
     longest:'10 enlaces RF diretos mais longos',rank:'#',a:'Nó A',b:'Nó B',distance:'Distância',observations:'Observações RF',snr:'SNR médio',
     activeNodes:'Nós mais ativos',messages:'Interações por chat',issues:'Pontos de atenção',severity:'Severidade',subject:'Assunto',description:'Descrição',
-    print:'Imprimir / Salvar como PDF',note:'O ranking RF considera somente hops físicos confirmados com SNR válido; rotas multihop não são convertidas em enlaces ponta a ponta.'
+    print:'Imprimir / Salvar como PDF',note:'O ranking RF exige adjacência explícita na rota ou zero saltos confirmado de forma independente, além de SNR válido. SNR sozinho não é aceito; rotas vazias ambíguas são excluídas.'
   };
   const rfRows=longest.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.aName||x.aId||String(x.a||'—'))}</td><td>${esc(x.bName||x.bId||String(x.b||'—'))}</td><td>${esc(fmtNum(x.distanceKm,1))} km</td><td>${esc(fmtNum(x.rfObservations))}</td><td>${x.avgSnr==null?'—':esc(fmtNum(x.avgSnr,1))+' dB'}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
   const nodeRows=nodes.slice(0,10).map(x=>`<tr><td>${esc(statsNodeName(x.nodeNum,x.nodeId))}</td><td>${esc(fmtNum(x.packets))}</td><td>${x.avgSnr==null?'—':esc(fmtNum(x.avgSnr,1))+' dB'}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
@@ -6876,6 +6876,8 @@ def _archive_init():
           packet_id TEXT,
           channel INTEGER,
           observation_count INTEGER NOT NULL DEFAULT 1,
+          direct_evidence INTEGER NOT NULL DEFAULT 0,
+          direct_evidence_kind TEXT,
           archived_at INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_topology_edge_time ON topology_edge_events(source_id,timestamp_ms);
@@ -6886,6 +6888,14 @@ def _archive_init():
           meta_value TEXT
         );
         """)
+        edge_cols = {str(row["name"]) for row in conn.execute("PRAGMA table_info(topology_edge_events)").fetchall()}
+        if "direct_evidence" not in edge_cols:
+            conn.execute("ALTER TABLE topology_edge_events ADD COLUMN direct_evidence INTEGER NOT NULL DEFAULT 0")
+        if "direct_evidence_kind" not in edge_cols:
+            conn.execute("ALTER TABLE topology_edge_events ADD COLUMN direct_evidence_kind TEXT")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_topology_edge_direct ON topology_edge_events(source_id,direct_evidence,transport,timestamp_ms)"
+        )
     _tracklog_backfill()
 
 
@@ -7150,21 +7160,32 @@ def _topology_history_ingest(topology: dict):
                     snr = None
                 transport = "rf" if str(ev.get("transport") or "").lower() == "rf" and snr is not None else "mqtt"
                 trace_id = ev.get("traceId")
+                direct_evidence = 1 if ev.get("directEvidence") is True else 0
+                direct_evidence_kind = str(ev.get("directEvidenceKind") or "").strip() or None
                 sig = (ts, leg, trace_id, snr, transport)
                 occurrence = occurrences.get(sig, 0)
                 occurrences[sig] = occurrence + 1
                 event_key = _topology_event_key(source_id, edge_id, ts, leg, trace_id, snr, transport, occurrence)
                 before = conn.total_changes
                 conn.execute(
-                    """INSERT OR IGNORE INTO topology_edge_events(
-                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,observation_count,archived_at
-                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    """INSERT INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                         observation_count,direct_evidence,direct_evidence_kind,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                       ON CONFLICT(event_key) DO UPDATE SET
+                         direct_evidence=MAX(topology_edge_events.direct_evidence,excluded.direct_evidence),
+                         direct_evidence_kind=CASE
+                           WHEN topology_edge_events.direct_evidence=1 AND topology_edge_events.direct_evidence_kind IS NOT NULL
+                             THEN topology_edge_events.direct_evidence_kind
+                           ELSE COALESCE(excluded.direct_evidence_kind,topology_edge_events.direct_evidence_kind)
+                         END""",
                     (
                         event_key, source_id, edge_id, lo, hi, ts, leg, snr, transport,
                         None if trace_id is None else str(trace_id),
                         None if edge.get("latestPacketId") is None else str(edge.get("latestPacketId")),
                         edge.get("latestChannel"),
                         max(1, int(ev.get("_count") or ev.get("count") or 1)),
+                        direct_evidence, direct_evidence_kind,
                         int(time.time() * 1000),
                     ),
                 )
@@ -7228,7 +7249,7 @@ def _history_trace_payload(metadata):
     return None
 
 
-def _history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
+def _history_trace_links(start_num, mids_raw, end_num, snr_raw, leg, zero_hop_confirmed=False):
     mids = []
     for value in _history_array(mids_raw):
         try:
@@ -7254,8 +7275,25 @@ def _history_trace_links(start_num, mids_raw, end_num, snr_raw, leg):
                     snr = None
             except Exception:
                 snr = None
-        out.append((a, b, leg, snr, idx))
+        explicit_adjacency = bool(mids)
+        direct_evidence = explicit_adjacency or (not mids and bool(zero_hop_confirmed))
+        direct_kind = "route-adjacency" if explicit_adjacency else ("zero-hop-packet" if direct_evidence else None)
+        out.append((a, b, leg, snr, idx, direct_evidence, direct_kind))
     return out
+
+
+def _history_zero_hop(row):
+    try:
+        start = row["hop_start"]
+        limit = row["hop_limit"]
+    except Exception:
+        return False
+    if start is None or limit is None:
+        return False
+    try:
+        return int(start) - int(limit) == 0
+    except (TypeError, ValueError):
+        return False
 
 
 def _topology_history_recover_from_archive():
@@ -7271,7 +7309,7 @@ def _topology_history_recover_from_archive():
         oldest_ts = int(oldest["ts"]) if oldest and oldest["ts"] is not None else None
         params = [MM_SOURCE]
         sql = """SELECT packet_id,timestamp,from_node,from_node_id,from_node_long_name,
-                        to_node,to_node_id,to_node_long_name,channel,metadata
+                        to_node,to_node_id,to_node_long_name,channel,hop_start,hop_limit,metadata
                  FROM packets
                  WHERE source_id=? AND portnum_name='TRACEROUTE_APP' AND metadata IS NOT NULL"""
         if oldest_ts is not None:
@@ -7329,13 +7367,20 @@ def _topology_history_recover_from_archive():
                             "positionSource": "archive-traceroute",
                         }, ts)
             legs = []
-            if trace.get("route") not in (None, "", "[]", []):
-                legs += _history_trace_links(from_num, trace.get("route"), to_num, trace.get("snrTowards"), "forward")
-            if trace.get("routeBack") not in (None, "", "[]", []) or trace.get("snrBack") not in (None, "", "[]", []):
-                legs += _history_trace_links(to_num, trace.get("routeBack"), from_num, trace.get("snrBack"), "return")
+            zero_hop = _history_zero_hop(row)
+            if trace.get("route") not in (None, ""):
+                legs += _history_trace_links(
+                    from_num, trace.get("route"), to_num, trace.get("snrTowards"), "forward",
+                    zero_hop_confirmed=zero_hop,
+                )
+            if trace.get("routeBack") not in (None, "") or trace.get("snrBack") not in (None, "", "[]", []):
+                legs += _history_trace_links(
+                    to_num, trace.get("routeBack"), from_num, trace.get("snrBack"), "return",
+                    zero_hop_confirmed=zero_hop,
+                )
             occurrences = {}
             trace_id = trace.get("id") or row["packet_id"]
-            for a0, b0, leg, snr, hop_idx in legs:
+            for a0, b0, leg, snr, hop_idx, direct_evidence, direct_kind in legs:
                 lo, hi = sorted((a0, b0)); edge_id = f"{lo}:{hi}"
                 transport = "rf" if snr is not None else "mqtt"
                 sig = (edge_id, ts, leg, trace_id, snr, transport)
@@ -7343,13 +7388,17 @@ def _topology_history_recover_from_archive():
                 key = _topology_event_key(MM_SOURCE, edge_id, ts, leg, trace_id, snr, transport, occurrence)
                 before = conn.total_changes
                 conn.execute(
-                    """INSERT OR IGNORE INTO topology_edge_events(
-                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,observation_count,archived_at
-                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?)""",
+                    """INSERT INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                         observation_count,direct_evidence,direct_evidence_kind,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?)
+                       ON CONFLICT(event_key) DO UPDATE SET
+                         direct_evidence=MAX(topology_edge_events.direct_evidence,excluded.direct_evidence),
+                         direct_evidence_kind=COALESCE(topology_edge_events.direct_evidence_kind,excluded.direct_evidence_kind)""",
                     (key, MM_SOURCE, edge_id, lo, hi, ts, leg, snr, transport,
                      None if trace_id is None else str(trace_id),
                      None if row["packet_id"] is None else str(row["packet_id"]),
-                     row["channel"], int(time.time() * 1000)),
+                     row["channel"], 1 if direct_evidence else 0, direct_kind, int(time.time() * 1000)),
                 )
                 recovered += conn.total_changes - before
         conn.execute(
@@ -7357,6 +7406,110 @@ def _topology_history_recover_from_archive():
             (meta_key, json.dumps({"completedAtMs": int(time.time() * 1000), "recovered": recovered}, separators=(",", ":"))),
         )
         return {"recovered": recovered, "skipped": False}
+
+
+def _topology_direct_evidence_backfill():
+    """Reclassifica histórico existente sem assumir que SNR significa zero hops."""
+    meta_key = f"topology-direct-evidence-v1:{MM_SOURCE}"
+    with _archive_connect() as conn:
+        done = conn.execute("SELECT meta_value FROM topology_history_meta WHERE meta_key=?", (meta_key,)).fetchone()
+        if done:
+            return {"confirmed": 0, "inserted": 0, "skipped": True}
+
+        rows = conn.execute(
+            """SELECT packet_id,timestamp,from_node,to_node,channel,hop_start,hop_limit,metadata
+               FROM packets
+               WHERE source_id=? AND portnum_name='TRACEROUTE_APP' AND metadata IS NOT NULL
+               ORDER BY timestamp ASC""",
+            (MM_SOURCE,),
+        ).fetchall()
+        confirmed = 0
+        inserted = 0
+        for row in rows:
+            try:
+                metadata = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+            except Exception:
+                continue
+            trace = _history_trace_payload(metadata)
+            if not trace:
+                continue
+            try:
+                from_num = int(trace.get("fromNodeNum") or row["from_node"]) & 0xffffffff
+                to_num = int(trace.get("toNodeNum") or row["to_node"]) & 0xffffffff
+            except Exception:
+                continue
+            ts = _history_ts_ms(trace.get("timestamp") or trace.get("createdAt") or row["timestamp"])
+            trace_id = trace.get("id") or row["packet_id"]
+            zero_hop = _history_zero_hop(row)
+            legs = []
+            if trace.get("route") not in (None, ""):
+                legs += _history_trace_links(
+                    from_num, trace.get("route"), to_num, trace.get("snrTowards"), "forward",
+                    zero_hop_confirmed=zero_hop,
+                )
+            if trace.get("routeBack") not in (None, "") or trace.get("snrBack") not in (None, "", "[]", []):
+                legs += _history_trace_links(
+                    to_num, trace.get("routeBack"), from_num, trace.get("snrBack"), "return",
+                    zero_hop_confirmed=zero_hop,
+                )
+
+            occurrences = {}
+            for a0, b0, leg, snr, hop_idx, direct_evidence, direct_kind in legs:
+                if not direct_evidence:
+                    continue
+                lo, hi = sorted((a0, b0))
+                edge_id = f"{lo}:{hi}"
+                before = conn.total_changes
+                ids = []
+                params = [direct_kind, MM_SOURCE, edge_id]
+                if trace_id is not None:
+                    ids.append("trace_id=?")
+                    params.append(str(trace_id))
+                if row["packet_id"] is not None:
+                    ids.append("packet_id=?")
+                    params.append(str(row["packet_id"]))
+                if ids:
+                    conn.execute(
+                        f"""UPDATE topology_edge_events
+                            SET direct_evidence=1,
+                                direct_evidence_kind=COALESCE(direct_evidence_kind,?)
+                            WHERE source_id=? AND edge_id=? AND ({' OR '.join(ids)})""",
+                        params,
+                    )
+                updated = conn.total_changes - before
+                confirmed += updated
+                if updated:
+                    continue
+
+                transport = "rf" if snr is not None else "mqtt"
+                sig = (edge_id, ts, leg, trace_id, snr, transport)
+                occurrence = occurrences.get(sig, 0)
+                occurrences[sig] = occurrence + 1
+                key = _topology_event_key(MM_SOURCE, edge_id, ts, leg, trace_id, snr, transport, occurrence)
+                before = conn.total_changes
+                conn.execute(
+                    """INSERT OR IGNORE INTO topology_edge_events(
+                         event_key,source_id,edge_id,a,b,timestamp_ms,leg,snr,transport,trace_id,packet_id,channel,
+                         observation_count,direct_evidence,direct_evidence_kind,archived_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,1,1,?,?)""",
+                    (
+                        key, MM_SOURCE, edge_id, lo, hi, ts, leg, snr, transport,
+                        None if trace_id is None else str(trace_id),
+                        None if row["packet_id"] is None else str(row["packet_id"]),
+                        row["channel"], direct_kind, int(time.time() * 1000),
+                    ),
+                )
+                inserted += conn.total_changes - before
+
+        conn.execute(
+            "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+            (meta_key, json.dumps({
+                "completedAtMs": int(time.time() * 1000),
+                "confirmed": confirmed,
+                "inserted": inserted,
+            }, separators=(",", ":"))),
+        )
+        return {"confirmed": confirmed, "inserted": inserted, "skipped": False}
 
 
 def _topology_history_merge(raw: dict):
@@ -7422,6 +7575,7 @@ def _topology_history_merge(raw: dict):
                           SUM(CASE WHEN leg='forward' THEN observation_count ELSE 0 END) AS forward_obs,
                           SUM(CASE WHEN leg='return' THEN observation_count ELSE 0 END) AS return_obs,
                           SUM(CASE WHEN transport='rf' THEN observation_count ELSE 0 END) AS rf_obs,
+                          SUM(CASE WHEN direct_evidence=1 THEN observation_count ELSE 0 END) AS direct_obs,
                           SUM(CASE WHEN transport!='rf' THEN observation_count ELSE 0 END) AS nonrf_obs,
                           MIN(timestamp_ms) AS first_seen,
                           MAX(timestamp_ms) AS last_seen,
@@ -7445,7 +7599,7 @@ def _topology_history_merge(raw: dict):
                 latest.setdefault(str(row["edge_id"]), row)
             recent_cutoff = int(time.time() * 1000) - 32 * 86400 * 1000
             recent_rows = conn.execute(
-                """SELECT edge_id,timestamp_ms,leg,snr,transport,trace_id,observation_count
+                """SELECT edge_id,timestamp_ms,leg,snr,transport,trace_id,observation_count,direct_evidence,direct_evidence_kind
                    FROM topology_edge_events
                    WHERE source_id=? AND timestamp_ms>=?
                    ORDER BY timestamp_ms ASC,event_key ASC""",
@@ -7459,6 +7613,8 @@ def _topology_history_merge(raw: dict):
                     "snr": row["snr"],
                     "traceId": row["trace_id"],
                     "transport": row["transport"],
+                    "directEvidence": bool(row["direct_evidence"]),
+                    "directEvidenceKind": row["direct_evidence_kind"],
                     "count": int(row["observation_count"] or 1),
                 })
             by_num = {int(n["nodeNum"]): n for n in nodes}
@@ -7480,6 +7636,7 @@ def _topology_history_merge(raw: dict):
                     "forwardObservations": int(row["forward_obs"] or 0),
                     "returnObservations": int(row["return_obs"] or 0),
                     "rfObservations": rf,
+                    "directObservations": int(row["direct_obs"] or 0),
                     "mqttObservations": nonrf,
                     "nonRfObservations": nonrf,
                     "transportClass": "rf" if rf > 0 else "mqtt",
@@ -8112,6 +8269,14 @@ def _archive_worker():
                 recovery = _topology_history_recover_from_archive()
                 if recovery.get("recovered"):
                     print(f"Topologia histórica: {recovery['recovered']} observação(ões) de enlace recuperada(s) do arquivo de tráfego.", flush=True)
+                direct = _topology_direct_evidence_backfill()
+                if direct.get("confirmed") or direct.get("inserted"):
+                    print(
+                        "Ranking RF: evidência direta recuperada para "
+                        f"{int(direct.get('confirmed') or 0)} evento(s) existente(s) e "
+                        f"{int(direct.get('inserted') or 0)} evento(s) histórico(s).",
+                        flush=True,
+                    )
             first_success = True
             with _archive_status_lock:
                 _archive_status.update({
@@ -8286,7 +8451,7 @@ def _archive_links_query(query):
 
 
 def _archive_rf_longest_links_query(query):
-    clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL"]
+    clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL", "e.direct_evidence = 1"]
     params = [MM_SOURCE]
     raw_since = (query.get("since") or [None])[0]
     raw_until = (query.get("until") or [None])[0]
@@ -8329,7 +8494,8 @@ def _archive_rf_longest_links_query(query):
             f"""SELECT e.edge_id,e.a,e.b,
                        SUM(e.observation_count) AS rfObservations,
                        SUM(e.snr*e.observation_count)/NULLIF(SUM(e.observation_count),0) AS avgSnr,
-                       MAX(e.timestamp_ms) AS lastRfSeenMs
+                       MAX(e.timestamp_ms) AS lastRfSeenMs,
+                       GROUP_CONCAT(DISTINCT e.direct_evidence_kind) AS directEvidenceKinds
                 FROM topology_edge_events e
                 WHERE {' AND '.join(clauses)}
                 GROUP BY e.edge_id,e.a,e.b""",
@@ -8373,6 +8539,8 @@ def _archive_rf_longest_links_query(query):
             "rfObservations": int(row["rfObservations"] or 0),
             "avgSnr": round(float(row["avgSnr"]), 2) if row["avgSnr"] is not None else None,
             "lastRfSeenMs": int(row["lastRfSeenMs"] or 0),
+            "directEvidence": True,
+            "directEvidenceKinds": [x for x in str(row["directEvidenceKinds"] or "").split(",") if x],
         })
     data.sort(key=lambda x: (-float(x["distanceKm"]), -int(x["rfObservations"]), -int(x["lastRfSeenMs"])))
     return {"success": True, "count": min(10, len(data)), "data": data[:10]}

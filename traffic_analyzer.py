@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Traffic Analyzer v1.51.0
+Traffic Analyzer v1.52.0
 
 - Analisa traceroutes do MeshMonitor e descobre nós intermediários.
 - Solicita NodeInfo de nós desconhecidos/incompletos com cooldown.
@@ -371,6 +371,40 @@ def has_return_path(route_back_raw, snr_back_raw):
     return False
 
 
+def traceroute_hops_used(tr):
+    """Retorna a contagem de saltos do pacote quando o MeshMonitor a expõe.
+
+    Suporta nomenclaturas camelCase/snake_case e alguns envelopes de metadata.
+    Um valor zero é a única prova aceita para transformar uma rota vazia em
+    enlace direto no ranking; ausência do dado permanece ambígua.
+    """
+    containers = [tr]
+    for key in ("metadata", "packet", "rawPacket", "meshPacket"):
+        value = tr.get(key) if isinstance(tr, dict) else None
+        if isinstance(value, dict):
+            containers.append(value)
+    for obj in containers:
+        for start_key, limit_key in (
+            ("hopStart", "hopLimit"),
+            ("hop_start", "hop_limit"),
+        ):
+            start = obj.get(start_key)
+            limit = obj.get(limit_key)
+            if start is None or limit is None:
+                continue
+            try:
+                used = int(start) - int(limit)
+            except (TypeError, ValueError):
+                continue
+            if used >= 0:
+                return used
+    return None
+
+
+def traceroute_zero_hop(tr):
+    return traceroute_hops_used(tr) == 0
+
+
 def traceroute_record_transport(tr):
     """Classifica como o registro de traceroute chegou ao MeshMonitor."""
     via_mqtt = tr.get("viaMqtt")
@@ -404,8 +438,13 @@ def link_transport_class(tr, link):
     return "mqtt"
 
 
-def build_leg_links(start_num, raw_intermediate, end_num, snr_raw, leg):
-    """Replica a semântica de adjacency do MeshMonitor: SNR pertence ao receptor."""
+def build_leg_links(start_num, raw_intermediate, end_num, snr_raw, leg, zero_hop_confirmed=False):
+    """Replica adjacency do MeshMonitor e marca evidência de enlace direto.
+
+    Quando a rota contém nós intermediários, cada par adjacente é uma
+    adjacência explícita. Quando a rota está vazia, origem↔destino só é
+    considerada direta se houver confirmação independente de zero saltos.
+    """
     raw_hops = []
     for item in parse_route(raw_intermediate, filter_invalid=False):
         raw_hops.append(item)
@@ -437,12 +476,20 @@ def build_leg_links(start_num, raw_intermediate, end_num, snr_raw, leg):
                     snr_db = None
             except Exception:
                 snr_db = None
+        explicit_adjacency = bool(raw_hops)
+        direct_evidence = explicit_adjacency or (not raw_hops and bool(zero_hop_confirmed))
+        direct_evidence_kind = (
+            "route-adjacency" if explicit_adjacency
+            else ("zero-hop-packet" if direct_evidence else None)
+        )
         links.append({
             "from": a,
             "to": b,
             "leg": leg,
             "snr_db": snr_db,
             "snr_unknown": snr_unknown,
+            "direct_evidence": direct_evidence,
+            "direct_evidence_kind": direct_evidence_kind,
         })
     return links
 
@@ -560,6 +607,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
         route_node_nums.update((from_num, to_num))
 
         links = []
+        zero_hop_confirmed = traceroute_zero_hop(tr)
         if has_forward_route_data(tr.get("route")):
             links.extend(build_leg_links(
                 from_num,
@@ -567,6 +615,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
                 to_num,
                 tr.get("snrTowards"),
                 "forward",
+                zero_hop_confirmed=zero_hop_confirmed,
             ))
         if has_return_path(tr.get("routeBack"), tr.get("snrBack")):
             links.extend(build_leg_links(
@@ -575,6 +624,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
                 from_num,
                 tr.get("snrBack"),
                 "return",
+                zero_hop_confirmed=zero_hop_confirmed,
             ))
 
         for link in links:
@@ -592,6 +642,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
                     "forwardObservations": 0,
                     "returnObservations": 0,
                     "rfObservations": 0,
+                    "directObservations": 0,
                     "mqttObservations": 0,
                     "nonRfObservations": 0,
                     "firstSeenMs": ts,
@@ -606,6 +657,8 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
                 edge_acc[key] = acc
             acc["observations"] += 1
             transport = link_transport_class(tr, link)
+            if link.get("direct_evidence"):
+                acc["directObservations"] += 1
             if transport == "rf":
                 acc["rfObservations"] += 1
             elif transport == "mqtt":
@@ -632,6 +685,8 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
                 "snr": link["snr_db"],
                 "traceId": tr.get("id"),
                 "transport": transport,
+                "directEvidence": bool(link.get("direct_evidence")),
+                "directEvidenceKind": link.get("direct_evidence_kind"),
             })
 
     all_node_nums = set(nodes.keys()) | route_node_nums | set(snapshots_by_node.keys())
@@ -737,6 +792,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
             "forwardObservations": acc["forwardObservations"],
             "returnObservations": acc["returnObservations"],
             "rfObservations": acc["rfObservations"],
+            "directObservations": acc["directObservations"],
             "mqttObservations": acc["mqttObservations"],
             "nonRfObservations": acc["nonRfObservations"],
             "transportClass": "rf" if acc["rfObservations"] > 0 else ("mqtt" if acc["mqttObservations"] > 0 else "non-rf"),
@@ -759,7 +815,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
 
     mappable_nodes = sum(1 for n in topo_nodes if n["latitude"] is not None and n["longitude"] is not None)
     return {
-        "version": "1.38.0",
+        "version": "1.52.0",
         "generatedAtMs": now_ms,
         "sourceId": MM_SOURCE,
         "localNodeNum": local_node_num,
@@ -783,6 +839,7 @@ def build_topology(nodes, traceroutes, now_ms, local_node_num=None):
             "As linhas representam adjacências observadas nos traceroutes carregados e filtrados na interface. "
             "Linha contínua indica ao menos uma observação RF no período; tracejado indica apenas MQTT/não-RF. "
             "Somente hops com SNR válido são confirmados como RF; sem evidência de sinal o trecho é tratado como MQTT/não-RF. "
+            "Para o Ranking, SNR não basta: a adjacência deve estar explícita na rota ou ter confirmação independente de zero saltos. "
             "Não são enlaces permanentes nem prova de conectividade bidirecional atual."
         ),
     }

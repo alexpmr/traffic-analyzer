@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.51.0** (2026-10-08).
+Estado consolidado da release **v1.52.0** (2026-10-08).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.51.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.52.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -34,9 +34,9 @@ Esta matriz registra o fechamento do backlog funcional até a v1.51.0. Um item s
 | 26 | Issue #39 — Ajustar os dois blocos de Estatísticas/Routing para eliminar rolagem horizontal | Concluído na v1.51.0 | **Distribuição por hops** e **Nós intermediários observados** usam tabelas fluidas, sem barra inferior em desktop, e empilham responsivamente em telas menores. |
 | 27 | Issue #40 — Estatísticas: renomear Anomalias para Pontos de atenção | Concluído na v1.51.0 | A interface passa a exibir **Pontos de atenção** nos rótulos, títulos, cartões, resumo e ajuda, mantendo algoritmo, severidades, filtros e dados. |
 | 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Concluído na v1.51.0 | Estatísticas usa um único contêiner de rolagem e mantém a barra superior sticky, inclusive em **Pontos de atenção** com conteúdo longo. |
-| 29 | Issue #43 — Ranking RF: exigir evidência real de zero saltos | Pendente | O Top 10 só pode aceitar enlace com evidência inequívoca de **zero saltos/adjacência explícita**; `transport='rf'` + SNR não basta. `route=[]` sem confirmação independente de `hop_start == hop_limit` deve ser tratado como ambíguo e excluído do ranking. |
+| 29 | Issue #43 — Ranking RF: exigir evidência real de zero saltos | Concluído na v1.52.0 | O Top 10 exige `direct_evidence=1`: **adjacência explícita** na rota ou confirmação independente de **zero saltos**. `transport='rf'` + SNR não basta e `route=[]` ambígua é excluída. |
 
-## Política após v1.51.0
+## Política após v1.52.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -44,4 +44,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.51.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.51.0: 1 item funcional pendente, registrado na issue #43.**
+**Backlog conhecido após a v1.52.0: nenhum item funcional pendente nesta matriz.**
