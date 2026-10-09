@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.49.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.50.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.49.0"
+APP_VERSION = "1.50.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -389,6 +389,7 @@ HTML = r'''<!doctype html>
   .statsShell{width:100%;box-sizing:border-box;min-height:100%}
   .statsTopbar{position:sticky;top:0;z-index:20;background:#101b26;border-bottom:1px solid #304353;padding:10px 14px;box-shadow:0 5px 14px rgba(0,0,0,.18)}
   .statsHeader{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.statsHeader h2{margin:0 auto 0 0;font-size:18px}
+  .statsAccessControls{display:none;align-items:center;gap:7px;flex-wrap:wrap;padding-left:9px;border-left:1px solid #405668}.statsAccessControls.open{display:flex}.statsContextLabel{font-weight:800;color:#e9d46d}
   .statsTabs{display:flex;gap:5px;flex-wrap:wrap}.statsTab{font-weight:700;font-size:12px;padding:6px 9px}.statsTab.active{background:#e4b800;color:#101820;border-color:#ffe34d}
   .clickableStatRow{cursor:pointer}.clickableStatRow:hover,.clickableStatRow:focus{outline:none;background:rgba(228,184,0,.12)}
   .statsPanel{display:none}.statsPanel.active{display:block}
@@ -724,6 +725,13 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
         <label>Período: <select id="statsPeriod"><option value="1">1 h</option><option value="6">6 h</option><option value="24">24 h</option><option value="168">7 dias</option><option value="720">30 dias</option><option value="all" selected>Todo</option></select></label>
         <label>Nó: <select id="statsNodeFilter"><option value="">Todos</option></select></label>
         <button id="statsReload" type="button">Atualizar tudo</button><span id="statsUpdated" class="settingDesc"></span>
+        <button id="statsReport" type="button" title="Abre um relatório estruturado pronto para imprimir ou salvar como PDF">Relatório / PDF</button>
+        <button id="statsExportCsv" type="button" title="Exporta o tráfego do período/filtro atual em CSV">Exportar CSV</button>
+        <span id="statsAccessControls" class="statsAccessControls">
+          <span class="statsContextLabel">Acessos</span><span id="accessUpdated" class="settingDesc"></span>
+          <label>Período: <select id="accessDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="365">1 ano</option></select></label>
+          <button id="accessReload">Atualizar</button><button id="accessDownload">Baixar log</button>
+        </span>
       </div>
       <div class="statsTabs">
         <button class="statsTab active" data-stats-tab="overview">Visão Geral</button><button class="statsTab" data-stats-tab="network">Rede</button><button class="statsTab" data-stats-tab="rf">RF</button><button class="statsTab" data-stats-tab="routing">Routing</button><button class="statsTab" data-stats-tab="traffic">Tráfego</button><button class="statsTab" data-stats-tab="queries">Consultas</button><button class="statsTab" data-stats-tab="chat">Chat</button><button class="statsTab" data-stats-tab="energy">Energia</button><button class="statsTab" data-stats-tab="anomalies">Anomalias</button><button class="statsTab" data-stats-tab="access">Acessos</button>
@@ -738,7 +746,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div id="statsPanelChat" class="statsPanel dashboardWrap"><div id="statsChatCards" class="dashGrid"></div><div class="dashSection"><h3>Nós com mais interações no canal primário</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Interações acumuladas</th></tr></thead><tbody id="statsChatRows"></tbody></table></div></div></div>
     <div id="statsPanelEnergy" class="statsPanel dashboardWrap"><div id="statsEnergyCards" class="dashGrid"></div><div class="dashSection"><h3>Bateria e energia dos nós</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Nó</th><th>Bateria</th><th>Tensão</th><th>Última interação</th></tr></thead><tbody id="statsEnergyRows"></tbody></table></div></div></div>
     <div id="statsPanelAnomalies" class="statsPanel"><div id="viewAnomalies"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Detecção de Anomalias</h2><span id="anomalyUpdated" class="settingDesc"></span><label>Severidade: <select id="anomalySeverity"><option value="all" selected>Todas</option><option value="critical">Crítica</option><option value="warning">Atenção</option><option value="info">Informativa</option></select></label><button id="anomalyReload">Reanalisar</button></div><div id="anomalyCards" class="dashGrid"></div><div class="dashSection"><h3>Ocorrências detectadas</h3><div id="anomalyList"></div></div><div class="dashSection"><h3>Como interpretar</h3><div class="dashSectionBody methodNote">As anomalias são heurísticas e servem para priorizar investigação; não constituem prova isolada de falha.</div></div></div></div></div>
-    <div id="statsPanelAccess" class="statsPanel"><div id="viewAccess"><div class="dashboardWrap"><div class="dashboardToolbar"><h2>Acessos</h2><span id="accessUpdated" class="settingDesc"></span><label>Período: <select id="accessDays"><option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option><option value="365">1 ano</option></select></label><button id="accessReload">Atualizar</button><button id="accessDownload">Baixar log</button></div><div id="accessLocked" class="readOnlyBanner" style="display:none">🔒 Faça login como administrador para visualizar os registros de acesso.</div><div id="accessContent"><div id="accessCards" class="dashGrid"></div><div class="dashSection"><h3>Acessos por dia</h3><div class="dashSectionBody"><div id="accessDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Países</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCountryRows"></tbody></table></div></div><div class="dashSection"><h3>Cidades</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Cidade</th><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCityRows"></tbody></table></div></div><div class="dashSection"><h3>IPs</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>IP</th><th>Cidade / País</th><th>Acessos</th><th>Primeiro acesso</th><th>Último acesso</th><th>Navegador</th></tr></thead><tbody id="accessIpRows"></tbody></table></div></div><div class="dashSection"><h3>Navegadores e sistemas</h3><div id="accessClients" class="dashSectionBody"></div></div><div id="accessNote" class="methodNote"></div></div></div></div></div>
+    <div id="statsPanelAccess" class="statsPanel"><div id="viewAccess"><div class="dashboardWrap"><div id="accessLocked" class="readOnlyBanner" style="display:none">🔒 Faça login como administrador para visualizar os registros de acesso.</div><div id="accessContent"><div id="accessCards" class="dashGrid"></div><div class="dashSection"><h3>Acessos por dia</h3><div class="dashSectionBody"><div id="accessDaily" class="miniBars"></div></div></div><div class="dashSection"><h3>Países</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCountryRows"></tbody></table></div></div><div class="dashSection"><h3>Cidades</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>Cidade</th><th>País</th><th>Acessos</th><th>IPs únicos</th></tr></thead><tbody id="accessCityRows"></tbody></table></div></div><div class="dashSection"><h3>IPs</h3><div class="dashSectionBody"><table class="dashTable"><thead><tr><th>IP</th><th>Cidade / País</th><th>Acessos</th><th>Primeiro acesso</th><th>Último acesso</th><th>Navegador</th></tr></thead><tbody id="accessIpRows"></tbody></table></div></div><div class="dashSection"><h3>Navegadores e sistemas</h3><div id="accessClients" class="dashSectionBody"></div></div><div id="accessNote" class="methodNote"></div></div></div></div></div>
   </div>
 </section>
 
@@ -1015,7 +1023,7 @@ function updateLanguageMenu(){
 const I18N_PAIRS=[
   ['Resumo','Summary'],['Informações do nó','Node info'],['Consultas ao nó','Node queries'],['Últimos metadados recebidos','Latest metadata received'],['Posição','Position'],['Dispositivo','Device'],['Ambiente','Environment'],['Qualidade do ar','Air quality'],['Energia','Power'],['Vizinhos','Neighbors'],['Expandir','Expand'],['Restaurar','Restore'],['Reposicionar','Reset position'],['As consultas ativas usam o Virtual Node do MeshMonitor quando disponível. As respostas confirmadas atualizam este popup.','Active queries use the MeshMonitor Virtual Node when available. Confirmed responses update this popup.'],['não consultado','not queried'],['enviando…','sending…'],['aguardando resposta','waiting for response'],['respondido','answered'],['sem resposta / timeout','no response / timeout'],['sem resposta inicial','no initial response'],['aguardando possível retry do MM','waiting for a possible MM retry'],['retry 1 do MM observado','MM retry 1 observed'],['aguardando segunda tentativa do MM','waiting for MM second attempt'],['retry 2 do MM observado','MM retry 2 observed'],['sem retry observado','no retry observed'],['janela do MM','MM window'],['sem resposta após 90 s','no response after 90 s'],['sem resposta correlacionada','no correlated response'],['aguardando resposta correlacionada','waiting for a correlated response'],['aguardando vez no Virtual Node','waiting for the Virtual Node'],['conectando ao Virtual Node','connecting to the Virtual Node'],['TX observado','TX observed'],['TX observados','TX observed'],['resposta tardia','late response'],['destino respondeu','destination replied'],['o nó recebeu a solicitação, mas não forneceu esse dado','the node received the request but did not provide this data'],['não foi encontrada rota até o nó','no route to the node was found'],['canal não disponível para a solicitação','channel unavailable for the request'],['solicitação não autorizada nesse canal','request not authorized on this channel'],['erro','error'],['não suportado / não aplicável','unsupported / not applicable'],['somente nó local ou 0-hop','local or 0-hop nodes only'],['sem informação','no information'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Métricas de energia','Power metrics'],['Informações de vizinhos','Neighbor info'],
   ['Filtrar:','Filter:'],['Limpar filtro','Clear filter'],['nome, ID, hardware...','name, ID, hardware...'],['VHF3 sem posição','VHF3 has no position'],['Nó sem posição conhecida; não é possível focalizá-lo no mapa.','Node has no known position; it cannot be focused on the map.'],
-  ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
+  ['Período:','Period:'],['7 dias','7 days'],['30 dias','30 days'],['90 dias','90 days'],['1 ano','1 year'],['Baixar log','Download log'],['Relatório / PDF','Report / PDF'],['Exportar CSV','Export CSV'],['Abre um relatório estruturado pronto para imprimir ou salvar como PDF','Opens a structured report ready to print or save as PDF'],['Exporta o tráfego do período/filtro atual em CSV','Exports traffic for the current period/filter as CSV'],['Acessos por dia','Access by day'],['Países','Countries'],['País','Country'],['Cidades','Cities'],['Cidade','City'],['IPs únicos','Unique IPs'],['Primeiro acesso','First access'],['Último acesso','Last access'],['Navegador','Browser'],['Navegadores e sistemas','Browsers and systems'],['Acessos hoje','Access today'],['Acessos - 7 dias','Access - 7 days'],['Acessos - 30 dias','Access - 30 days'],['IPs únicos - 30 dias','Unique IPs - 30 days'],['Logins com sucesso - 30 dias','Successful logins - 30 days'],['Falhas de login - 30 dias','Login failures - 30 days'],['Faça login como administrador para visualizar os registros de acesso.','Sign in as administrator to view access records.'],['Não informado','Not provided'],['Rede local','Local network'],['Local','Local'],
   ['Mapa','Map'],['Nós','Nodes'],['Tráfego','Traffic'],['Mensagens','Messages'],['Saúde da Rede','Network Health'],['Anomalias','Anomalies'],['Acessos','Access'],['Configurações','Settings'],['Ajuda','Help'],
   ['Colunas','Columns'],['Nome longo','Long name'],['Nome curto','Short name'],['Saltos','Hops'],['Distância','Distance'],['Última interação','Last interaction'],['Última posição','Last position'],['Detalhes do nó','Node details'],['Estado','State'],['Arraste para mover','Drag to move'],['arraste','drag'],
   ['Idioma:','Language:'],['Idioma da interface','Interface language'],['Português','Portuguese'],
@@ -1216,7 +1224,7 @@ function renderHelp(){
       <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
       <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Starting with v1.47.0, every observed node and link is kept in Traffic Analyzer's own historical memory until traffic.db is explicitly deleted/reset; MeshMonitor retention no longer makes an already-known link disappear. Time windows only filter the view. Node popups can be dragged by their header to avoid covering legends or map controls, while their internal content remains scrollable. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. The RF Coverage layer composes archived receptions into a heatmap: overlapping receptions accumulate visually and each point is weighted by SNR, with RSSI as fallback. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
       <ul><li><b>History:</b> replays traceroutes on their observed timeline and allows several packets to move simultaneously. Long windows are proportionally time-compressed.</li><li><b>Live:</b> each new complete traceroute starts independently without waiting for earlier animations to finish.</li><li><b>No artificial limit:</b> there is no functional cap on packets in transit; all observed events are kept.</li><li><b>Pause:</b> freezes every visual animation. Collection and processing continue, and waiting events are released on resume.</li><li><b>Speed:</b> also affects packets already moving and the History timeline.</li><li><b>Auto Zoom:</b> can follow all nodes involved in simultaneous traceroute animations.</li></ul>
-      <h3>2. Nodes</h3><p>The Nodes tab inventories every node known to the configured MeshMonitor source. The filter narrows the list character by character. Click any column heading to sort ascending or descending. Last interaction is color-coded: green up to 1 hour, yellow from more than 1 hour through 12 hours, and red above 12 hours. Battery percentage is green at 50% or above, yellow from 20% to 49.9%, and red below 20%. Distance is calculated specifically from VHF3 when both nodes have a known position. The Columns menu can reveal RSSI, channel utilization, Air Util TX, Node ID, PKC and state. Clicking a row switches to the map, centers that node with a closer zoom, and does not open the popup; click the marker when you want details.</p>
+      <h3>2. Nodes</h3><p>The Nodes tab inventories every node known to the configured MeshMonitor source. The filter narrows the list character by character. Click any column heading to sort ascending or descending. Last interaction is color-coded: green up to 1 hour, yellow from more than 1 hour through 12 hours, and red above 12 hours. Battery percentage is green at 50% or above, yellow from 20% to 49.9%, and red below 20%. Distance is calculated specifically from VHF3 when both nodes have a known position. The Columns menu can reveal RSSI, channel utilization, Air Util TX, Node ID, PKC and state. Clicking a row opens the expanded <b>Node details</b> view, reusing the same data and query logic as the map popup. The panel shows identification, position, telemetry, RF, routing, traceroute, firmware, and power information when available.</p>
       <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
       <h3>4. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
       <h4>Reply</h4><p>Use <b>Reply</b> or double-click a message. Traffic Analyzer uses the native Meshtastic/MeshMonitor <code>replyId</code> and shows a reference to the original message in the reply bubble.</p>
@@ -1238,7 +1246,7 @@ function renderHelp(){
       <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
       <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A partir da v1.47.0, cada nó e enlace observado fica na memória histórica própria do Traffic Analyzer até o traffic.db ser explicitamente apagado/resetado; a retenção do MeshMonitor não faz mais um enlace já conhecido desaparecer. As janelas de tempo apenas filtram a visualização. O popup de cada nó pode ser arrastado pelo cabeçalho para não encobrir a legenda ou outros controles, mantendo a rolagem interna do conteúdo. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. A camada Cobertura RF compõe as recepções arquivadas em um mapa de calor: recepções sobrepostas se acumulam visualmente e cada ponto é ponderado por SNR, com RSSI como fallback. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
       <ul><li><b>Histórico:</b> reproduz traceroutes em ordem temporal e permite vários pacotes simultaneamente. Janelas longas têm a escala de tempo comprimida proporcionalmente.</li><li><b>Ao vivo:</b> novos traceroutes completos iniciam sua própria animação sem esperar os anteriores terminarem.</li><li><b>Sem limite artificial:</b> não há teto funcional de pacotes em trânsito; a interface acompanha todos os eventos observados.</li><li><b>Pausa:</b> congela todas as animações visuais. Coleta e processamento continuam, e o que ficou aguardando é liberado ao retomar.</li><li><b>Velocidade:</b> afeta também os pacotes que já estão se movendo e a linha do tempo do Histórico.</li><li><b>Auto Zoom:</b> opcionalmente acompanha em conjunto os nós envolvidos nas animações simultâneas.</li></ul>
-      <h3>2. Nós</h3><p>A aba Nós lista todos os nós conhecidos pela fonte MeshMonitor configurada. O filtro reduz a lista caractere por caractere enquanto você digita. Clique em qualquer título de coluna para alternar entre ordem crescente e decrescente. A última interação usa cores: verde até 1 hora, amarelo acima de 1 hora até 12 horas e vermelho acima de 12 horas. O percentual da bateria fica verde a partir de 50%, amarelo de 20% a 49,9% e vermelho abaixo de 20%. A distância é calculada especificamente em relação ao VHF3 quando os dois nós possuem posição conhecida. O menu Colunas permite exibir RSSI, utilização do canal, Air Util TX, Node ID, PKC e estado. Ao clicar em uma linha, a aplicação muda para o mapa, centraliza o nó com zoom mais próximo e não abre o popup; clique no marcador quando quiser os detalhes.</p>
+      <h3>2. Nós</h3><p>A aba Nós lista todos os nós conhecidos pela fonte MeshMonitor configurada. O filtro reduz a lista caractere por caractere enquanto você digita. Clique em qualquer título de coluna para alternar entre ordem crescente e decrescente. A última interação usa cores: verde até 1 hora, amarelo acima de 1 hora até 12 horas e vermelho acima de 12 horas. O percentual da bateria fica verde a partir de 50%, amarelo de 20% a 49,9% e vermelho abaixo de 20%. A distância é calculada especificamente em relação ao VHF3 quando os dois nós possuem posição conhecida. O menu Colunas permite exibir RSSI, utilização do canal, Air Util TX, Node ID, PKC e estado. Ao clicar em uma linha, a aplicação abre a visualização ampliada de <b>Detalhes do nó</b>, reutilizando os mesmos dados e consultas do popup do mapa. O painel mostra identificação, posição, telemetria, RF, routing, traceroute, firmware e energia conforme disponíveis.</p>
       <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
       <h3>4. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
       <h4>Responder</h4><p>Use <b>Responder</b> ou dê duplo clique em uma mensagem. O Traffic Analyzer usa o <code>replyId</code> nativo do Meshtastic/MeshMonitor e mostra no novo balão uma referência à mensagem original.</p>
@@ -2670,12 +2678,12 @@ async function runAllNodeQueries(nodeNum){
     run.allOrder=order;
     run.allTotal=order.length;
     renderNodePopupData(nodeNum,run.details);
-    for(let i=0;i<order.length;i++){
-      const action=order[i];
-      if(run.states[action]?.state!=='unsupported')await sendNodeQuery(nodeNum,action,true);
-      renderNodePopupData(nodeNum,run.details);
-      if(i<order.length-1)await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_STAGGER_MS));
-    }
+    const actions=order.filter(action=>run.states[action]?.state!=='unsupported');
+    // "Tudo" dispara a rodada inteira sem aguardar resposta/timeout de uma
+    // consulta antes de iniciar as demais. Cada sendNodeQuery mantém estado,
+    // correlação e timeout próprios; o polling abaixo apenas acompanha respostas.
+    await Promise.allSettled(actions.map(action=>sendNodeQuery(nodeNum,action,true)));
+    renderNodePopupData(nodeNum,run.details);
     while(order.some(id=>['waiting','sending'].includes(run.states[id]?.state))){
       await new Promise(resolve=>setTimeout(resolve,NODE_QUERY_POLL_MS));
       try{await loadNodeDetails(nodeNum,true);}catch(e){console.warn('Falha ao acompanhar rodada de consultas:',e);}
@@ -4505,6 +4513,69 @@ function statisticsQuery(){
   if(node) q.set('node',node);
   return q.toString() ? '&'+q.toString() : '';
 }
+function statisticsReportHtml(){
+  const p=statisticsPayload||{}, s=p.stats||{}, nodes=p.nodes||[], longest=(p.longestRfLinks||[]).slice(0,10);
+  const anomalies=(anomalyPayload?.data||[]).slice(0,10), health=healthPayload||{};
+  const period=document.getElementById('statsPeriod')?.selectedOptions?.[0]?.textContent||'Todo';
+  const node=document.getElementById('statsNodeFilter')?.selectedOptions?.[0]?.textContent||'Todos';
+  const en=currentLang==='en';
+  const L=en?{
+    title:'Traffic Analyzer - Statistics Report',generated:'Generated',period:'Period',node:'Node',summary:'Executive summary',
+    packets:'Packets',rx:'RX',tx:'TX',active:'Active nodes',known:'known',anomalies:'Anomalies',critical:'critical',
+    longest:'10 longest direct RF links',rank:'#',a:'Node A',b:'Node B',distance:'Distance',observations:'RF observations',snr:'Average SNR',
+    activeNodes:'Most active nodes',messages:'Chat interactions',issues:'Detected anomalies',severity:'Severity',subject:'Subject',description:'Description',
+    print:'Print / Save as PDF',note:'Direct RF ranking uses only confirmed RF hops with valid SNR; multi-hop routes are not converted into end-to-end links.'
+  }:{
+    title:'Traffic Analyzer - Relatório de Estatísticas',generated:'Gerado em',period:'Período',node:'Nó',summary:'Resumo executivo',
+    packets:'Pacotes',rx:'RX',tx:'TX',active:'Nós ativos',known:'conhecidos',anomalies:'Anomalias',critical:'críticas',
+    longest:'10 enlaces RF diretos mais longos',rank:'#',a:'Nó A',b:'Nó B',distance:'Distância',observations:'Observações RF',snr:'SNR médio',
+    activeNodes:'Nós mais ativos',messages:'Interações por chat',issues:'Anomalias detectadas',severity:'Severidade',subject:'Assunto',description:'Descrição',
+    print:'Imprimir / Salvar como PDF',note:'O ranking RF considera somente hops físicos confirmados com SNR válido; rotas multihop não são convertidas em enlaces ponta a ponta.'
+  };
+  const rfRows=longest.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.aName||x.aId||String(x.a||'—'))}</td><td>${esc(x.bName||x.bId||String(x.b||'—'))}</td><td>${esc(fmtNum(x.distanceKm,1))} km</td><td>${esc(fmtNum(x.rfObservations))}</td><td>${x.avgSnr==null?'—':esc(fmtNum(x.avgSnr,1))+' dB'}</td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>';
+  const nodeRows=nodes.slice(0,10).map(x=>`<tr><td>${esc(statsNodeName(x.nodeNum,x.nodeId))}</td><td>${esc(fmtNum(x.packets))}</td><td>${x.avgSnr==null?'—':esc(fmtNum(x.avgSnr,1))+' dB'}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
+  const chatRows=(health.chatInteractions||[]).slice(0,10).map(x=>`<tr><td>${esc(x.name||x.nodeId||'—')}</td><td>${esc(fmtNum(x.interactions))}</td></tr>`).join('')||'<tr><td colspan="2">—</td></tr>';
+  const anomalyRows=anomalies.map(x=>`<tr><td>${esc(x.severity||'—')}</td><td>${esc(x.subject||x.title||'—')}</td><td>${esc(x.message||'—')}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>';
+  const totalKnown=(topology?.nodes||[]).length;
+  return `<!doctype html><html lang="${en?'en':'pt-BR'}"><head><meta charset="utf-8"><title>${esc(L.title)}</title><style>
+    @page{size:A4;margin:14mm}body{font-family:Arial,Helvetica,sans-serif;color:#17212b;font-size:11px;line-height:1.35;margin:0}
+    header{border-bottom:2px solid #17212b;margin-bottom:14px;padding-bottom:8px}h1{font-size:21px;margin:0 0 5px}h2{font-size:15px;margin:18px 0 6px}
+    .meta{color:#526575}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.kpi{border:1px solid #bcc8d1;border-radius:6px;padding:8px}.kpi b{font-size:18px;display:block}
+    table{width:100%;border-collapse:collapse;margin:5px 0 12px}th,td{border-bottom:1px solid #d6dde2;padding:5px;text-align:left;vertical-align:top}th{background:#eef2f5}
+    .note{font-size:10px;color:#526575}.toolbar{margin:0 0 12px}.toolbar button{padding:7px 11px;font-weight:700}@media print{.toolbar{display:none}h2{break-after:avoid}table{break-inside:auto}tr{break-inside:avoid}}
+  </style></head><body><div class="toolbar"><button onclick="window.print()">${esc(L.print)}</button></div>
+  <header><h1>${esc(L.title)}</h1><div class="meta">${esc(L.generated)}: ${esc(new Date().toLocaleString(uiLocale()))} · ${esc(L.period)}: ${esc(period)} · ${esc(L.node)}: ${esc(node)}</div></header>
+  <h2>${esc(L.summary)}</h2><div class="kpis">
+    <div class="kpi"><b>${esc(fmtNum(s.total||0))}</b>${esc(L.packets)}<br><span class="meta">${esc(fmtNum(s.rx||0))} ${esc(L.rx)} · ${esc(fmtNum(s.tx||0))} ${esc(L.tx)}</span></div>
+    <div class="kpi"><b>${esc(fmtNum(nodes.length))}</b>${esc(L.active)}<br><span class="meta">${esc(fmtNum(totalKnown))} ${esc(L.known)}</span></div>
+    <div class="kpi"><b>${esc(fmtNum(anomalyPayload?.summary?.total||0))}</b>${esc(L.anomalies)}<br><span class="meta">${esc(fmtNum(anomalyPayload?.summary?.critical||0))} ${esc(L.critical)}</span></div>
+  </div>
+  <h2>${esc(L.longest)}</h2><table><thead><tr><th>${esc(L.rank)}</th><th>${esc(L.a)}</th><th>${esc(L.b)}</th><th>${esc(L.distance)}</th><th>${esc(L.observations)}</th><th>${esc(L.snr)}</th></tr></thead><tbody>${rfRows}</tbody></table><div class="note">${esc(L.note)}</div>
+  <h2>${esc(L.activeNodes)}</h2><table><thead><tr><th>${esc(L.node)}</th><th>${esc(L.packets)}</th><th>${esc(L.snr)}</th></tr></thead><tbody>${nodeRows}</tbody></table>
+  <h2>${esc(L.messages)}</h2><table><thead><tr><th>${esc(L.node)}</th><th>${esc(L.messages)}</th></tr></thead><tbody>${chatRows}</tbody></table>
+  <h2>${esc(L.issues)}</h2><table><thead><tr><th>${esc(L.severity)}</th><th>${esc(L.subject)}</th><th>${esc(L.description)}</th></tr></thead><tbody>${anomalyRows}</tbody></table>
+  </body></html>`;
+}
+async function openStatisticsReport(){
+  const w=window.open('','_blank');
+  if(!w){alert(currentLang==='en'?'The browser blocked the report window. Allow pop-ups for this site.':'O navegador bloqueou a janela do relatório. Permita pop-ups para este site.');return;}
+  w.opener=null;
+  w.document.write('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:20px">Carregando relatório...</p>');
+  try{
+    if(!statisticsPayload)await loadStatistics(true);
+    if(!statisticsPayload)throw new Error('statistics unavailable');
+    w.document.open();w.document.write(statisticsReportHtml());w.document.close();
+  }catch(e){
+    w.document.open();w.document.write('<!doctype html><meta charset="utf-8"><p style="font-family:Arial;padding:20px">Falha ao gerar relatório: '+esc(String(e.message||e))+'</p>');w.document.close();
+  }
+}
+function exportStatisticsCsv(){
+  const q=statisticsQuery();
+  const a=document.createElement('a');
+  a.href='/api/archive/export?format=csv'+q;
+  a.download='traffic-analyzer-estatisticas-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();a.remove();
+}
 function statsPct(n,d){return d ? fmtNum(100*Number(n||0)/Number(d),1)+'%' : '—';}
 function statsAvg(arr){const a=(arr||[]).map(Number).filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;}
 function statsNodeName(num,id){
@@ -4682,12 +4753,15 @@ function setStatisticsTab(name){
   document.querySelectorAll('.statsPanel').forEach(p=>p.classList.remove('active'));
   const id='statsPanel'+name.charAt(0).toUpperCase()+name.slice(1);
   document.getElementById(id)?.classList.add('active');
+  document.getElementById('statsAccessControls')?.classList.toggle('open',name==='access');
   if(name==='network')loadNetworkHealth(false);
   if(name==='anomalies')loadAnomalies(false);
   if(name==='access')loadAccessStats(false);
 }
 document.querySelectorAll('.statsTab').forEach(b=>b.addEventListener('click',()=>setStatisticsTab(b.dataset.statsTab)));
 document.getElementById('statsReload').addEventListener('click',()=>loadStatistics(true));
+document.getElementById('statsReport').addEventListener('click',openStatisticsReport);
+document.getElementById('statsExportCsv').addEventListener('click',exportStatisticsCsv);
 document.getElementById('statsPeriod').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);});
 document.getElementById('statsNodeFilter').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);});
 
