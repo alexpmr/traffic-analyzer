@@ -33,6 +33,7 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 | 25 | Issue #39 — Criar subaba Ranking em Estatísticas | Pendente | Adicionar a subaba **Ranking** e mover para ela o **Top 10 enlaces RF diretos mais longos**, preservando ordenação, critério RF direto e clique para isolamento no mapa. |
 | 26 | Issue #39 — Ajustar os dois blocos de Estatísticas/Routing para eliminar rolagem horizontal | Pendente | **Distribuição por hops** e **Nós intermediários observados** devem ocupar a largura do bloco, sem barra horizontal inferior em desktop; manter os dois lado a lado e empilhar responsivamente quando necessário. |
 | 27 | Issue #40 — Estatísticas: renomear Anomalias para Pontos de atenção | Pendente | Trocar a nomenclatura visível da subaba e dos textos relacionados para **Pontos de atenção**, preservando a lógica atual de detecção, severidade, filtros e dados. |
+| 28 | Issue #41 — Estatísticas: manter barra de subabas visível durante rolagem | Pendente | A barra de subabas deve permanecer visível/sticky ao rolar conteúdos longos, especialmente **Pontos de atenção**, permitindo trocar de subaba sem voltar ao topo. |
 
 ## Política após v1.50.0
 
@@ -42,4 +43,4 @@ Esta matriz registra o fechamento do backlog funcional usado para a v1.50.0. Um 
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.50.0: 4 itens funcionais pendentes, registrados nas issues #39 e #40.**
+**Backlog conhecido após a v1.50.0: 5 itens funcionais pendentes, registrados nas issues #39, #40 e #41.**
