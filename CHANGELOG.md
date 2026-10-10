@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.58.0 - 2026-10-10
+
+- Remove a dependência de basemap CARTO que passou a exibir `API KEY REQUIRED`.
+- Mapas Claro e Escuro passam a reutilizar OpenStreetMap com filtros visuais locais, sem credenciais.
+- Adiciona lista de provedores por mapa e fallback automático após falhas repetidas de tiles.
+- Ruas usa OpenStreetMap com OpenTopoMap como fallback; Topográfico faz o inverso.
+- Satélite usa Esri World Imagery com OpenStreetMap como fallback.
+- A troca de fallback preserva o tipo de mapa selecionado, zoom, centro, nós, enlaces e demais camadas.
+- Erros de tiles e trocas de fallback são registrados no console do navegador para diagnóstico.
+- Adiciona validação de pipeline para impedir reintrodução de `cartocdn.com` e de mensagens de API key no mapa-base.
+
 ## 1.57.1 - 2026-10-09
 
 - Refina o Ranking RF alinhado ao mapa para não reintroduzir pares historicamente comprovados como multi-hop.
