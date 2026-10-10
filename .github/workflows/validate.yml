@@ -878,7 +878,7 @@ jobs:
               assert d.execute_script("return nodeQueryNeedsPolling('telemetry_device',{state:'timeout',sentAt:Date.now()-120000})") is True
               assert d.execute_script("return nodeQueryNeedsPolling('telemetry_device',{state:'timeout',sentAt:Date.now()-200000})") is False
 
-              osm_url=d.execute_script("return baseMaps.osm.url")
+              osm_url=d.execute_script("return baseMaps.osm.providers[0].url")
               assert osm_url=="https://tile.openstreetmap.org/{z}/{x}/{y}.png",osm_url
               zoom_cfg=d.execute_script("return {snap:map.options.zoomSnap,delta:map.options.zoomDelta,wheel:map.options.wheelPxPerZoomLevel,debounce:map.options.wheelDebounceTime,scroll:map.options.scrollWheelZoom};")
               assert abs(zoom_cfg["snap"]-.05)<1e-9,zoom_cfg
@@ -897,9 +897,11 @@ jobs:
                 document.getElementById('mapType').value='osm';
                 setBaseMap('osm');
                 for(let i=0;i<4;i++)baseLayer.fire('tileerror');
-                return document.getElementById('mapType').value;
+                return {type:document.getElementById('mapType').value,index:baseMapProviderIndex,name:baseMaps.osm.providers[baseMapProviderIndex].name};
               """)
-              assert fallback=="light",fallback
+              assert fallback["type"]=="osm",fallback
+              assert fallback["index"]==1,fallback
+              assert fallback["name"]=="OpenTopoMap",fallback
               d.execute_script("openNodeWindow(1)")
               WebDriverWait(d,10).until(lambda x: "open" in x.find_element(By.ID,"nodeWindow").get_attribute("class"))
               before=d.execute_script("const p=document.getElementById('nodeWindow').getBoundingClientRect();return {left:p.left,top:p.top,width:p.width,height:p.height};")
