@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.57.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.58.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -27,7 +27,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.57.1"
+APP_VERSION = "1.58.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -354,6 +354,8 @@ HTML = r'''<!doctype html>
   .navbtn{font-weight:700;padding:6px 10px}.navbtn.active{background:#e4b800;color:#101820;border-color:#ffe34d}
   .view{display:none;flex:1;min-height:0;min-width:0}.view.active{display:flex;flex-direction:column}
   #viewMap{position:relative;overflow:hidden}#viewMap #map{flex:1;min-height:0}
+  .basemapLightTile{filter:grayscale(.10) brightness(1.12) contrast(.92) saturate(.82)}
+  .basemapDarkTile{filter:grayscale(.18) invert(.88) hue-rotate(180deg) brightness(.58) contrast(1.18) saturate(.72)}
   #trafficToolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:9px 12px;background:#111c27;border-bottom:1px solid #293744}
   #trafficStats{display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#14202b;border-bottom:1px solid #293744}
   #trafficBody{display:grid;grid-template-columns:max-content minmax(360px,1fr);flex:1;min-height:0;min-width:0}
@@ -1324,30 +1326,88 @@ const map = L.map('map', {
 
 const baseMaps = {
   osm: {
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    options: {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}
+    label:'Ruas (OSM)',
+    providers:[
+      {
+        name:'OpenStreetMap',
+        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}
+      },
+      {
+        name:'OpenTopoMap',
+        url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:17,attribution:'Map data &copy; OpenStreetMap contributors, SRTM | Map style &copy; OpenTopoMap'}
+      }
+    ]
   },
   topo: {
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    options: {maxZoom:17, attribution:'Map data &copy; OpenStreetMap contributors, SRTM | Map style &copy; OpenTopoMap'}
+    label:'Topográfico',
+    providers:[
+      {
+        name:'OpenTopoMap',
+        url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:17,attribution:'Map data &copy; OpenStreetMap contributors, SRTM | Map style &copy; OpenTopoMap'}
+      },
+      {
+        name:'OpenStreetMap',
+        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}
+      }
+    ]
   },
   light: {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    options: {maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}
+    label:'Claro',
+    providers:[
+      {
+        name:'OpenStreetMap · tema claro local',
+        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:19,className:'basemapLightTile',attribution:'&copy; OpenStreetMap contributors'}
+      },
+      {
+        name:'OpenTopoMap · tema claro local',
+        url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:17,className:'basemapLightTile',attribution:'Map data &copy; OpenStreetMap contributors, SRTM | Map style &copy; OpenTopoMap'}
+      }
+    ]
   },
   dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    options: {maxZoom:20, subdomains:'abcd', attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}
+    label:'Escuro',
+    providers:[
+      {
+        name:'OpenStreetMap · tema escuro local',
+        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:19,className:'basemapDarkTile',attribution:'&copy; OpenStreetMap contributors'}
+      },
+      {
+        name:'OpenTopoMap · tema escuro local',
+        url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:17,className:'basemapDarkTile',attribution:'Map data &copy; OpenStreetMap contributors, SRTM | Map style &copy; OpenTopoMap'}
+      }
+    ]
   },
   satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    options: {maxZoom:19, attribution:'Tiles &copy; Esri'}
+    label:'Satélite',
+    providers:[
+      {
+        name:'Esri World Imagery',
+        url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        options:{maxZoom:19,attribution:'Tiles &copy; Esri'}
+      },
+      {
+        name:'OpenStreetMap',
+        url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options:{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}
+      }
+    ]
   }
 };
 
 let baseLayer = null;
 let baseMapTileErrors = 0;
 let baseMapFallbackActive = false;
+let baseMapProviderIndex = 0;
+let baseMapCurrentType = 'osm';
+let baseMapSwitchGeneration = 0;
 let weatherRadarLayer = null;
 let weatherRadarRefreshTimer = null;
 let weatherRadarLastFrame = null;
@@ -1522,28 +1582,55 @@ function restoreAdminDefaults(){
   localStorage.removeItem(PREF_KEY);
   location.reload();
 }
-function setBaseMap(type,{allowFallback=true}={}){
+function setBaseMap(type,{providerIndex=0,announceFallback=true}={}){
   const cfg=baseMaps[type]||baseMaps.osm;
   const normalized=baseMaps[type]?type:'osm';
+  const providers=Array.isArray(cfg.providers)&&cfg.providers.length?cfg.providers:baseMaps.osm.providers;
+  const safeIndex=Math.max(0,Math.min(Number(providerIndex)||0,providers.length-1));
+  const provider=providers[safeIndex];
   const settingsSelect=document.getElementById('mapType');
   const toolbarSelect=document.getElementById('mapToolbarType');
   if(settingsSelect)settingsSelect.value=normalized;
   if(toolbarSelect)toolbarSelect.value=normalized;
-  if(baseLayer)map.removeLayer(baseLayer);
+
+  const generation=++baseMapSwitchGeneration;
+  if(baseLayer){try{map.removeLayer(baseLayer);}catch{}}
   baseMapTileErrors=0;
-  baseMapFallbackActive=false;
-  baseLayer=L.tileLayer(cfg.url,cfg.options).addTo(map);
-  baseLayer.on('tileload',()=>{baseMapTileErrors=Math.max(0,baseMapTileErrors-1);});
-  baseLayer.on('tileerror',()=>{
+  baseMapProviderIndex=safeIndex;
+  baseMapCurrentType=normalized;
+  baseMapFallbackActive=safeIndex>0;
+
+  baseLayer=L.tileLayer(provider.url,{...provider.options,crossOrigin:false}).addTo(map);
+  baseLayer.on('tileload',()=>{
+    if(generation!==baseMapSwitchGeneration)return;
+    baseMapTileErrors=Math.max(0,baseMapTileErrors-1);
+  });
+  baseLayer.on('tileerror',ev=>{
+    if(generation!==baseMapSwitchGeneration)return;
     baseMapTileErrors++;
-    if(type==='osm'&&allowFallback&&baseMapTileErrors>=4&&!baseMapFallbackActive){
-      baseMapFallbackActive=true;
-      const select=document.getElementById('mapType');
-      const toolbar=document.getElementById('mapToolbarType');
-      if(select)select.value='light';
-      if(toolbar)toolbar.value='light';
-      flowToast('<b>Mapa OSM indisponível</b><div class="flowNote">O Traffic Analyzer mudou temporariamente para o mapa Claro (CARTO). Você pode trocar o mapa-base diretamente na barra do mapa ou em Configurações.</div>',true);
-      setBaseMap('light',{allowFallback:false});
+    if(baseMapTileErrors===1){
+      console.warn('[Traffic Analyzer] Falha ao carregar tile do mapa-base',{
+        mapType:normalized,provider:provider.name,url:ev?.tile?.src||provider.url
+      });
+    }
+    if(baseMapTileErrors<4)return;
+    const nextIndex=safeIndex+1;
+    if(nextIndex<providers.length){
+      const nextProvider=providers[nextIndex];
+      console.warn('[Traffic Analyzer] Mapa-base indisponível; ativando fallback',{
+        mapType:normalized,from:provider.name,to:nextProvider.name
+      });
+      if(announceFallback){
+        flowToast('<b>Mapa-base indisponível</b><div class="flowNote">'+esc(provider.name)+' não respondeu. Usando temporariamente '+esc(nextProvider.name)+'. Nenhuma chave de API é necessária.</div>',true);
+      }
+      setBaseMap(normalized,{providerIndex:nextIndex,announceFallback:false});
+      return;
+    }
+    console.error('[Traffic Analyzer] Todos os provedores do mapa-base falharam',{
+      mapType:normalized,provider:provider.name
+    });
+    if(announceFallback){
+      flowToast('<b>Falha no mapa-base</b><div class="flowNote">Não foi possível carregar os provedores sem chave disponíveis. Nós e enlaces continuam preservados.</div>',true);
     }
   });
   baseLayer.bringToBack();
