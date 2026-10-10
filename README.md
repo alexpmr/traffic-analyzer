@@ -1,6 +1,17 @@
-# Traffic Analyzer v1.57.1
+# Traffic Analyzer v1.58.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.58.0
+
+- **Corrige o mapa-base cinza com aviso de API key.**
+- Remove completamente a dependência do **CARTO** para os mapas **Claro** e **Escuro**.
+- Claro e Escuro passam a usar tiles do **OpenStreetMap**, com transformação visual local no navegador; não exigem chave de API.
+- Implementa fallback automático por tipo de mapa: OSM ↔ OpenTopoMap e Satélite Esri → OSM.
+- A seleção do usuário é preservada durante o fallback; apenas o provedor de tiles é trocado temporariamente.
+- Falhas de tiles são registradas no console de diagnóstico do navegador com mapa, provedor e URL afetados.
+- Após quatro erros de tiles consecutivos, o fallback é acionado automaticamente sem remover nós, enlaces, zoom ou posição do mapa.
+- O código e o pipeline passam a bloquear regressões que reintroduzam `cartocdn.com` ou a mensagem **API KEY REQUIRED**.
 
 ## Novidades da v1.57.1
 
