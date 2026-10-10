@@ -398,6 +398,14 @@ jobs:
         run: |
           grep -Fq "https://tile.openstreetmap.org/{z}/{x}/{y}.png" traffic_analyzer_web.py
           ! grep -Fq "https://{s}.tile.openstreetmap.org" traffic_analyzer_web.py
+          ! grep -Fq "cartocdn.com" traffic_analyzer_web.py
+          ! grep -Fq "API KEY REQUIRED" traffic_analyzer_web.py
+          grep -Fq "className:'basemapLightTile'" traffic_analyzer_web.py
+          grep -Fq "className:'basemapDarkTile'" traffic_analyzer_web.py
+          grep -Fq "OpenStreetMap · tema claro local" traffic_analyzer_web.py
+          grep -Fq "OpenStreetMap · tema escuro local" traffic_analyzer_web.py
+          grep -Fq "baseMapTileErrors<4" traffic_analyzer_web.py
+          grep -Fq "setBaseMap(normalized,{providerIndex:nextIndex,announceFallback:false})" traffic_analyzer_web.py
           grep -Fq 'Referrer-Policy", "strict-origin-when-cross-origin"' traffic_analyzer_web.py
           ! grep -Fq 'Referrer-Policy", "same-origin"' traffic_analyzer_web.py
 
@@ -529,7 +537,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.57.1
+      - name: Validar backlog v1.58.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -624,7 +632,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.57.1: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.58.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
