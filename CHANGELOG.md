@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.60.0 - 2026-10-13
+
+- Implementa roteamento por URL para todas as áreas principais e subabas de Estatísticas.
+- Refresh, favoritos, links compartilhados e navegação Voltar/Avançar preservam o contexto.
+- Adiciona URLs dedicadas para detalhes de nós na lista e no mapa.
+- Persiste filtros relevantes na query string.
+- Backend passa a responder com a SPA em rotas profundas suportadas.
+
 ## 1.59.4 - 2026-10-13
 
 - Corrige recepção de PING/CLIMA por RF quando `meshtastic.receive.text` não é emitido pela biblioteca.
