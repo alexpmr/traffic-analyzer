@@ -126,7 +126,7 @@ def validate_bot(bot, submitted, existing):
             raise ValueError("Identificação deve ter de 1 a 45 caracteres")
         value["label"] = label
         value["routeTimeoutSeconds"] = _integer(value["routeTimeoutSeconds"], "Timeout de rota", 5, 90)
-        value["template"] = _template(value["template"], PING_VARIABLES, "mensagem_padrao" if value["template"] == _DEFAULT_PING_TEMPLATE else "origem")
+        value["template"] = _template(value["template"], PING_VARIABLES, "mensagem_padrao" if "{{mensagem_padrao}}" in value["template"] else "origem")
     else:
         value["replyGapSeconds"] = _float(value["replyGapSeconds"], "Intervalo entre mensagens", 0, 60)
         value["apiUrl"] = _api_url(value["apiUrl"])
