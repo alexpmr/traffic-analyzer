@@ -468,6 +468,12 @@ jobs:
           }, FakeInterface())
           assert climate and climate["_command"]=="clima",climate
 
+          web.TRAFFIC_ARCHIVE_DB=__import__("pathlib").Path("/tmp/ta-mesh-command-test.db")
+          try:
+              web.TRAFFIC_ARCHIVE_DB.unlink()
+          except FileNotFoundError:
+              pass
+          web._archive_init()
           sent=[]
           web._mesh_command_stop.clear()
           web._mesh_command_route_text=lambda node_num: "sem resposta"
