@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.59.1 - 2026-10-12
+
+- Corrige PING e CLIMA integrados que não respondiam na rede real em algumas instalações.
+- O worker passa a detectar comandos tanto pelo endpoint de mensagens quanto pelos pacotes RX `TEXT_MESSAGE_APP` arquivados em `traffic.db`.
+- Deduplica comandos entre as duas fontes.
+- Adiciona logs de diagnóstico para inicialização, comando recebido, conclusão e falha.
+- O instalador passa a iniciar e habilitar `tempest-clima-api.service` quando a unidade existir.
+- Mantém os bots legados PING/CLIMA desativados.
+
 ## 1.59.0 - 2026-10-12
 
 - Migra os bots externos **PING** e **CLIMA** para o backend do Traffic Analyzer.
