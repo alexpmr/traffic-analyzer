@@ -109,6 +109,7 @@ function values(){
 }
 function showAutomationDetails(id,updateRoute=true){
  selected=(id==='ping'||id==='clima')?id:'';
+ window.automationSelectedBot=selected;
  const box=el('autoDetail');box.style.display=selected?'block':'none';
  if(selected&&data?.settings?.[selected]){
   box.innerHTML=formHtml(selected,data.settings[selected]);
