@@ -6448,6 +6448,9 @@ def _mesh_command_packet_text(packet: dict) -> str:
     decoded = packet.get("decoded") if isinstance(packet, dict) else {}
     decoded = decoded if isinstance(decoded, dict) else {}
     value = decoded.get("text")
+    # Algumas versões do cliente Python informam apenas payload no decode.
+    if value is None and str(decoded.get("portnum") or "") in ("TEXT_MESSAGE_APP", "1"):
+        value = decoded.get("payload")
     if value is None:
         value = packet.get("text") if isinstance(packet, dict) else None
     if isinstance(value, bytes):
@@ -6488,9 +6491,16 @@ def _mesh_command_live_row(packet: dict, interface=None):
     except (TypeError, ValueError):
         to_num = None
 
-    # Aceita broadcast ou mensagem direta destinada ao próprio Virtual Node.
-    if to_num not in (None, 0xFFFFFFFF, -1) and local_num is not None and to_num != local_num:
+    # Não responder a comandos transmitidos pelo próprio nó nem a DMs alheias.
+    try:
+        origin_num = int(packet.get("from")) if packet.get("from") is not None else None
+    except (TypeError, ValueError):
+        origin_num = None
+    if local_num is not None and origin_num == local_num:
         return None
+    if to_num not in (None, 0xFFFFFFFF, -1):
+        if local_num is None or to_num != local_num:
+            return None
 
     rx_time = packet.get("rxTime") or packet.get("rx_time") or packet.get("timestamp")
     try:
@@ -6527,6 +6537,17 @@ def _mesh_command_live_row(packet: dict, interface=None):
         "_source": "meshtastic-live",
         "_command": command,
     }
+
+
+def _mesh_command_receive_packet(packet, connection, dispatcher):
+    """Valida um comando RF e coloca na fila; sem I/O lento nem transmissão."""
+    pkt = packet if isinstance(packet, dict) else {}
+    decoded = pkt.get("decoded") if isinstance(pkt.get("decoded"), dict) else {}
+    port = str(decoded.get("portnum") or "")
+    if port not in ("TEXT_MESSAGE_APP", "1"):
+        return False
+    row = _mesh_command_live_row(pkt, interface=connection)
+    return bool(row and dispatcher.submit(row, row["_command"]))
 
 
 def _mesh_command_live_status():
@@ -6603,16 +6624,7 @@ def _mesh_command_live_worker():
                 if interface is not None and interface is not connection:
                     return
                 try:
-                    pkt = packet if isinstance(packet, dict) else {}
-                    decoded = pkt.get("decoded") if isinstance(pkt.get("decoded"), dict) else {}
-                    port = str(decoded.get("portnum") or "")
-                    if port != "TEXT_MESSAGE_APP" and not decoded.get("text"):
-                        return
-                    row = _mesh_command_live_row(pkt, interface=connection)
-                    if row is None:
-                        return
-                    command = row.get("_command")
-                    dispatcher.submit(row, command)
+                    _mesh_command_receive_packet(packet, connection, dispatcher)
                 except Exception as exc:
                     print(f"Falha no callback RF (parsing/fila): {exc}", flush=True)
 
