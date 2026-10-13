@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.60.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.61.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -25,11 +25,12 @@ import urllib.parse
 import urllib.request
 
 import mesh_commands as meshcmd
+import automation_manager as automgr
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.60.0"
+APP_VERSION = "1.61.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -134,6 +135,9 @@ NOTICE_SETTINGS_FILE = Path(os.getenv("TA_NOTICE_SETTINGS_FILE", str(TRAFFIC_ARC
 NOTICE_STATE_FILE = Path(os.getenv("TA_NOTICE_STATE_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automatic-notices-state.json")))
 NOTICE_POLL_SECONDS = max(300, min(int(os.getenv("TA_NOTICE_POLL_SECONDS", "600")), 86400))
 MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20")).strip()
+AUTOMATION_SETTINGS_FILE = Path(os.getenv("TA_AUTOMATION_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automations.json")))
+_automation_test_lock = threading.Lock()
+_automation_last_test_at = 0.0
 MESH_COMMANDS_ENABLED = str(os.getenv("TA_MESH_COMMANDS_ENABLED", "true")).strip().lower() in {"1","true","yes","on"}
 MESH_COMMAND_POLL_SECONDS = max(1.0, min(float(os.getenv("TA_MESH_COMMAND_POLL_SECONDS", "3")), 60.0))
 PING_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_PING_COOLDOWN_SECONDS", "30")), 86400))
@@ -6039,6 +6043,82 @@ def _send_primary_message(text: str, reply_id=None, emoji: bool = False):
 
 
 
+
+def _automation_defaults():
+    return automgr.defaults(
+        ping_label=MESH_COMMAND_NODE_LABEL, ping_cooldown=PING_COOLDOWN_SECONDS,
+        ping_route_timeout=PING_ROUTE_TIMEOUT_SECONDS, clima_cooldown=CLIMA_COOLDOWN_SECONDS,
+        clima_api_url=CLIMA_API_URL, clima_reply_gap=CLIMA_REPLY_GAP_SECONDS,
+    )
+
+
+def _automation_settings():
+    return automgr.load(AUTOMATION_SETTINGS_FILE, _automation_defaults())
+
+
+def _automation_events(limit=80, bot=None):
+    limit = max(1, min(int(limit), 200))
+    if bot not in (None, "", "ping", "clima"):
+        raise ValueError("Automação desconhecida")
+    with _archive_connect() as conn:
+        if bot:
+            rows = conn.execute(
+                """SELECT command,from_node,from_node_id,received_at,processed_at,status,detail
+                FROM mesh_command_events WHERE command=? ORDER BY processed_at DESC LIMIT ?""",
+                (bot, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT command,from_node,from_node_id,received_at,processed_at,status,detail
+                FROM mesh_command_events ORDER BY processed_at DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _automation_ping_sample(settings):
+    return meshcmd.format_ping_message(
+        destination_label=settings["label"], origin="Estação exemplo [TEST] (!00000001)",
+        message={"timestamp": int(time.time() * 1000), "hopStart": 3, "hopLimit": 2,
+                 "rxRssi": -92, "rxSnr": 5.5, "viaMqtt": False},
+        heard_nodes_24h=42, route_text="via VHF3",
+    )
+
+
+def _automation_preview(bot, settings=None):
+    if bot not in automgr.AUTOMATION_IDS:
+        raise ValueError("Automação desconhecida")
+    config = settings or _automation_settings()[bot]
+    if bot == "ping":
+        return automgr.preview(bot, config, default_ping_text=_automation_ping_sample(config))
+    return automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"]))
+
+
+def _automation_test_send(bot):
+    global _automation_last_test_at
+    if bot not in automgr.AUTOMATION_IDS:
+        raise ValueError("Automação desconhecida")
+    # Serialize tests and apply a global cooldown even on failed attempts.
+    if not _automation_test_lock.acquire(blocking=False):
+        raise ValueError("Outro teste de envio está em andamento")
+    try:
+        if time.monotonic() - _automation_last_test_at < 180:
+            raise ValueError("Aguarde 180 segundos entre testes reais de transmissão")
+        settings = _automation_settings()[bot]
+        result = _automation_preview(bot, settings)
+        parts = result["parts"]
+        if len(parts) > 4:
+            raise ValueError("Teste real limitado a quatro mensagens para proteger o canal")
+        _automation_last_test_at = time.monotonic()
+        sent = _mesh_command_send_parts(parts, send_func=_send_primary_message,
+                                        gap_seconds=1.5 if bot == "ping" else settings["replyGapSeconds"])
+        return {"success": True, "bot": bot, "sentParts": len(sent),
+                "transport": "MeshMonitor/canal primário; RF ou MQTT depende da configuração",
+                "delivered": False, "notice": "A API aceitou o envio; a entrega e o transporte RF não foram confirmados."}
+    finally:
+        _automation_test_lock.release()
+
+
 def _mesh_command_message_key(row: dict) -> str:
     for key in ("id", "requestId"):
         value = row.get(key)
@@ -6127,7 +6207,7 @@ def _mesh_command_record(row: dict, command: str, status: str, response_text="",
 
 
 def _mesh_command_cooldown_active(row: dict, command: str) -> int:
-    cooldown = PING_COOLDOWN_SECONDS if command == "ping" else CLIMA_COOLDOWN_SECONDS
+    cooldown = _automation_settings()[command]["cooldownSeconds"]
     if cooldown <= 0:
         return 0
     try:
@@ -6147,13 +6227,13 @@ def _mesh_command_cooldown_active(row: dict, command: str) -> int:
     return max(1, remaining)
 
 
-def _mesh_command_route_text(node_num: int) -> str:
+def _mesh_command_route_text(node_num: int, timeout_seconds=None) -> str:
     requested = int(time.time() * 1000)
     try:
         _request_node_query(node_num, "traceroute")
     except Exception:
         return "sem resposta"
-    deadline = time.time() + PING_ROUTE_TIMEOUT_SECONDS
+    deadline = time.time() + (PING_ROUTE_TIMEOUT_SECONDS if timeout_seconds is None else int(timeout_seconds))
     by_num, _ = _mesh_command_node_index()
     while time.time() < deadline and not _mesh_command_stop.is_set():
         try:
@@ -6218,6 +6298,10 @@ def _mesh_command_send_parts(parts, send_func=None, gap_seconds=None):
 
 
 def _mesh_command_handle(row: dict, command: str, send_func=None):
+    cfg = _automation_settings()[command]
+    if not cfg["enabled"]:
+        _mesh_command_record(row, command, "disabled", detail="Desativado em Automações")
+        return
     remaining = _mesh_command_cooldown_active(row, command)
     if remaining:
         _mesh_command_record(row, command, "cooldown", detail=f"{remaining}s restantes")
@@ -6228,28 +6312,26 @@ def _mesh_command_handle(row: dict, command: str, send_func=None):
         origin = meshcmd.node_identity(node, str(row.get("fromNodeId") or ""))
         try:
             node_num = int(row.get("fromNodeNum"))
-            route_text = _mesh_command_route_text(node_num)
+            route_text = _mesh_command_route_text(node_num, cfg["routeTimeoutSeconds"])
         except (TypeError, ValueError):
             route_text = "sem resposta"
         text = meshcmd.format_ping_message(
-            destination_label=MESH_COMMAND_NODE_LABEL,
+            destination_label=cfg["label"],
             origin=origin,
             message=row,
             heard_nodes_24h=_mesh_command_heard_nodes_24h(),
             route_text=route_text,
         )
-        parts = meshcmd.split_utf8(text, 200)
+        parts = automgr.preview("ping", cfg, default_ping_text=text)["parts"]
         sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=1.5)
         _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
         return
 
     if command == "clima":
         try:
-            responses = meshcmd.fetch_clima_responses(CLIMA_API_URL)
-            parts = []
-            for response in responses:
-                parts.extend(meshcmd.split_utf8(response, 200))
-            sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=CLIMA_REPLY_GAP_SECONDS)
+            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"])
+            parts = automgr.preview("clima", cfg, clima_responses=responses)["parts"]
+            sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=cfg["replyGapSeconds"])
             _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
         except Exception as exc:
             fallback = "CLIMA indisponível no momento."
@@ -10768,11 +10850,41 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
-        spa_roots = {"/", "/index.html", "/mapa", "/nos", "/trafego", "/mensagens", "/estatisticas", "/configuracoes", "/ajuda"}
-        spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/")
+        spa_roots = {"/", "/index.html", "/mapa", "/nos", "/trafego", "/mensagens", "/estatisticas", "/automacoes", "/configuracoes", "/ajuda"}
+        spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/", "/automacoes/")
         if path in spa_roots or path.startswith(spa_prefixes):
             _record_access_event(self, event="pageview", status=200, path=path)
             self._send(200, "text/html; charset=utf-8", HTML.encode("utf-8"))
+            return
+        if path == "/api/automations":
+            if AUTH_ENABLED and not _auth_session(self):
+                self._send(401, "application/json; charset=utf-8",
+                           json.dumps({"success": False, "message": "Faça login para revisar as automações."}).encode("utf-8"))
+                return
+            try:
+                body = {"success": True, "settings": _automation_settings(),
+                        "globalEnabled": MESH_COMMANDS_ENABLED,
+                        "items": [{"id": "ping", "name": "PING"}, {"id": "clima", "name": "CLIMA"}],
+                        "events": _automation_events(60)}
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/automations/events":
+            if AUTH_ENABLED and not _auth_session(self):
+                self._send(401, "application/json; charset=utf-8",
+                           json.dumps({"success": False, "message": "Faça login para consultar o histórico."}).encode("utf-8"))
+                return
+            try:
+                query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                bot = (query.get("bot") or [""])[0]
+                limit = int((query.get("limit") or ["80"])[0])
+                body = {"success": True, "events": _automation_events(limit, bot)}
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/auth/status":
             self._send(200, "application/json; charset=utf-8", json.dumps(_auth_status(self), ensure_ascii=False).encode("utf-8"))
@@ -11123,6 +11235,45 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "application/json; charset=utf-8", json.dumps({"success": True, "authenticated": False}, ensure_ascii=False).encode("utf-8"), {"Set-Cookie": _auth_set_cookie_header(self, "", 0)})
             return
         if not _auth_require_write(self):
+            return
+        if path in ("/api/automations", "/api/automations/preview", "/api/automations/test-send"):
+            try:
+                if "application/json" not in str(self.headers.get("Content-Type") or "").lower():
+                    raise ValueError("Content-Type application/json obrigatório")
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 8192:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                bot = str(payload.get("bot") or "").lower()
+                if bot not in automgr.AUTOMATION_IDS:
+                    raise ValueError("Automação desconhecida")
+                if path == "/api/automations":
+                    patch = payload.get("settings")
+                    if not isinstance(patch, dict):
+                        raise ValueError("Configurações inválidas")
+                    result = automgr.save(AUTOMATION_SETTINGS_FILE, _automation_defaults(),
+                                          bot, patch, username=AUTH_USER)
+                    body = {"success": True, "settings": result}
+                elif path == "/api/automations/preview":
+                    patch = payload.get("settings")
+                    config = _automation_settings()
+                    if patch is not None:
+                        config[bot] = automgr.validate_bot(bot, patch, config)
+                    body = {"success": True, **_automation_preview(bot, config[bot])}
+                else:
+                    if payload.get("confirm") is not True:
+                        raise ValueError("Confirmação explícita obrigatória antes do envio")
+                    body = _automation_test_send(bot)
+                self._send(200, "application/json; charset=utf-8",
+                           json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8",
+                           json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8",
+                           json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/ui-defaults":
             try:
