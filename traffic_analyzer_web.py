@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.58.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.59.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -23,11 +23,13 @@ from datetime import datetime
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import mesh_commands as meshcmd
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.58.0"
+APP_VERSION = "1.59.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -132,7 +134,16 @@ NOTICE_SETTINGS_FILE = Path(os.getenv("TA_NOTICE_SETTINGS_FILE", str(TRAFFIC_ARC
 NOTICE_STATE_FILE = Path(os.getenv("TA_NOTICE_STATE_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automatic-notices-state.json")))
 NOTICE_POLL_SECONDS = max(300, min(int(os.getenv("TA_NOTICE_POLL_SECONDS", "600")), 86400))
 MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20")).strip()
+MESH_COMMANDS_ENABLED = str(os.getenv("TA_MESH_COMMANDS_ENABLED", "true")).strip().lower() in {"1","true","yes","on"}
+MESH_COMMAND_POLL_SECONDS = max(1.0, min(float(os.getenv("TA_MESH_COMMAND_POLL_SECONDS", "3")), 60.0))
+PING_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_PING_COOLDOWN_SECONDS", "30")), 86400))
+CLIMA_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_CLIMA_COOLDOWN_SECONDS", "300")), 86400))
+CLIMA_API_URL = str(os.getenv("TA_CLIMA_API_URL", "http://127.0.0.1:8765/clima")).strip()
+CLIMA_REPLY_GAP_SECONDS = max(0.0, min(float(os.getenv("TA_CLIMA_REPLY_GAP_SECONDS", "8")), 60.0))
+MESH_COMMAND_NODE_LABEL = str(os.getenv("TA_MESH_COMMAND_NODE_LABEL", "VHF3")).strip() or "VHF3"
+PING_ROUTE_TIMEOUT_SECONDS = max(5, min(int(os.getenv("TA_PING_ROUTE_TIMEOUT_SECONDS", "20")), 90))
 _notice_stop = threading.Event()
+_mesh_command_stop = threading.Event()
 _notice_wakeup = threading.Event()
 _update_watch_stop = threading.Event()
 _notice_lock = threading.Lock()
@@ -5887,6 +5898,280 @@ def _send_primary_message(text: str, reply_id=None, emoji: bool = False):
     return _mm_api_post(f"/api/v1/sources/{source}/messages", payload)
 
 
+
+def _mesh_command_message_key(row: dict) -> str:
+    for key in ("id", "requestId"):
+        value = row.get(key)
+        if value not in (None, ""):
+            return f"{key}:{value}"
+    raw = "|".join(str(row.get(k) or "") for k in ("fromNodeNum","fromNodeId","timestamp","createdAt","text"))
+    return "sha256:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _mesh_command_timestamp_ms(row: dict) -> int:
+    for key in ("receivedAt","createdAt","timestamp"):
+        value = row.get(key)
+        try:
+            if value is not None:
+                n = float(value)
+                if n > 0:
+                    return int(n * 1000 if n < 100000000000 else n)
+        except (TypeError, ValueError):
+            pass
+    return int(time.time() * 1000)
+
+
+def _mesh_command_node_index():
+    try:
+        top = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        top = {}
+    by_num, by_id = {}, {}
+    for node in top.get("nodes", []) or []:
+        if not isinstance(node, dict):
+            continue
+        try:
+            by_num[int(node.get("nodeNum"))] = node
+        except Exception:
+            pass
+        node_id = str(node.get("nodeId") or "").strip()
+        if node_id:
+            by_id[node_id.lower()] = node
+    return by_num, by_id
+
+
+def _mesh_command_node_for_message(row: dict):
+    by_num, by_id = _mesh_command_node_index()
+    try:
+        node = by_num.get(int(row.get("fromNodeNum")))
+        if node:
+            return node
+    except Exception:
+        pass
+    return by_id.get(str(row.get("fromNodeId") or "").lower()) or {}
+
+
+def _mesh_command_heard_nodes_24h() -> int:
+    since = int(time.time() * 1000) - 24 * 3600 * 1000
+    with _archive_connect() as conn:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT from_node) AS n FROM packets WHERE timestamp>=? AND from_node IS NOT NULL AND COALESCE(direction,'rx')!='tx'",
+            (since,),
+        ).fetchone()
+    return int(row["n"] or 0) if row else 0
+
+
+def _mesh_command_seen(message_key: str) -> bool:
+    with _archive_connect() as conn:
+        row = conn.execute("SELECT 1 FROM mesh_command_events WHERE message_key=?", (message_key,)).fetchone()
+    return bool(row)
+
+
+def _mesh_command_record(row: dict, command: str, status: str, response_text="", detail=""):
+    key = _mesh_command_message_key(row)
+    try:
+        from_node = int(row.get("fromNodeNum")) if row.get("fromNodeNum") is not None else None
+    except (TypeError, ValueError):
+        from_node = None
+    with _archive_connect() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO mesh_command_events(
+                 message_key,command,from_node,from_node_id,received_at,processed_at,status,response_text,detail
+               ) VALUES(?,?,?,?,?,?,?,?,?)""",
+            (
+                key, str(command), from_node, str(row.get("fromNodeId") or "") or None,
+                _mesh_command_timestamp_ms(row), int(time.time()*1000), str(status),
+                str(response_text or "")[:4000], str(detail or "")[:4000],
+            ),
+        )
+
+
+def _mesh_command_cooldown_active(row: dict, command: str) -> int:
+    cooldown = PING_COOLDOWN_SECONDS if command == "ping" else CLIMA_COOLDOWN_SECONDS
+    if cooldown <= 0:
+        return 0
+    try:
+        from_node = int(row.get("fromNodeNum"))
+    except (TypeError, ValueError):
+        return 0
+    cutoff = int(time.time()*1000) - cooldown * 1000
+    with _archive_connect() as conn:
+        last = conn.execute(
+            """SELECT MAX(processed_at) AS ts FROM mesh_command_events
+               WHERE from_node=? AND command=? AND status='sent' AND processed_at>=?""",
+            (from_node, command, cutoff),
+        ).fetchone()
+    if not last or not last["ts"]:
+        return 0
+    remaining = cooldown - int((int(time.time()*1000) - int(last["ts"])) / 1000)
+    return max(1, remaining)
+
+
+def _mesh_command_route_text(node_num: int) -> str:
+    requested = int(time.time() * 1000)
+    try:
+        _request_node_query(node_num, "traceroute")
+    except Exception:
+        return "sem resposta"
+    deadline = time.time() + PING_ROUTE_TIMEOUT_SECONDS
+    by_num, _ = _mesh_command_node_index()
+    while time.time() < deadline and not _mesh_command_stop.is_set():
+        try:
+            traces = _live_traceroutes(120)
+        except Exception:
+            traces = []
+        for trace in traces:
+            try:
+                if int(trace.get("toNodeNum")) != int(node_num):
+                    continue
+            except (TypeError, ValueError):
+                continue
+            ts = 0
+            for key in ("createdAt","timestamp"):
+                try:
+                    value = float(trace.get(key))
+                    if value > 0:
+                        ts = int(value * 1000 if value < 100000000000 else value)
+                        break
+                except (TypeError, ValueError):
+                    pass
+            if ts and ts + 2000 < requested:
+                continue
+            route = trace.get("route")
+            if isinstance(route, str):
+                try:
+                    route = json.loads(route)
+                except Exception:
+                    route = []
+            route = route if isinstance(route, list) else []
+            if not route:
+                return "direto"
+            names = []
+            for value in route:
+                try:
+                    n = int(value)
+                except (TypeError, ValueError):
+                    continue
+                node = by_num.get(n, {})
+                label = str(node.get("shortName") or node.get("longName") or node.get("name") or _node_hex_id(n))
+                names.append(label)
+            return "via " + " → ".join(names) if names else "respondido"
+        _mesh_command_stop.wait(1.0)
+    return "sem resposta"
+
+
+def _mesh_command_send_parts(parts):
+    sent = []
+    for idx, part in enumerate(parts):
+        if _mesh_command_stop.is_set():
+            break
+        clean = str(part or "").strip()
+        if not clean:
+            continue
+        body = _send_primary_message(clean)
+        sent.append(clean)
+        if idx < len(parts)-1 and CLIMA_REPLY_GAP_SECONDS > 0:
+            _mesh_command_stop.wait(CLIMA_REPLY_GAP_SECONDS)
+    return sent
+
+
+def _mesh_command_handle(row: dict, command: str):
+    remaining = _mesh_command_cooldown_active(row, command)
+    if remaining:
+        _mesh_command_record(row, command, "cooldown", detail=f"{remaining}s restantes")
+        return
+
+    if command == "ping":
+        node = _mesh_command_node_for_message(row)
+        origin = meshcmd.node_identity(node, str(row.get("fromNodeId") or ""))
+        try:
+            node_num = int(row.get("fromNodeNum"))
+            route_text = _mesh_command_route_text(node_num)
+        except (TypeError, ValueError):
+            route_text = "sem resposta"
+        text = meshcmd.format_ping_message(
+            destination_label=MESH_COMMAND_NODE_LABEL,
+            origin=origin,
+            message=row,
+            heard_nodes_24h=_mesh_command_heard_nodes_24h(),
+            route_text=route_text,
+        )
+        parts = meshcmd.split_utf8(text, 200)
+        sent = _mesh_command_send_parts(parts)
+        _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
+        return
+
+    if command == "clima":
+        try:
+            responses = meshcmd.fetch_clima_responses(CLIMA_API_URL)
+            parts = []
+            for response in responses:
+                parts.extend(meshcmd.split_utf8(response, 200))
+            sent = _mesh_command_send_parts(parts)
+            _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
+        except Exception as exc:
+            fallback = "CLIMA indisponível no momento."
+            try:
+                _send_primary_message(fallback)
+            except Exception:
+                pass
+            _mesh_command_record(row, command, "error", response_text=fallback, detail=str(exc))
+        return
+
+
+def _mesh_command_worker():
+    if not MESH_COMMANDS_ENABLED:
+        print("Comandos da malha integrados: desativados.", flush=True)
+        return
+    print(
+        f"Comandos da malha integrados: PING e CLIMA ativos no canal primário; "
+        f"clima={CLIMA_API_URL}",
+        flush=True,
+    )
+    meta_key = f"mesh-commands-initialized-v1:{MM_SOURCE}"
+    while not _mesh_command_stop.is_set():
+        try:
+            body = _primary_messages(300)
+            rows = body.get("data", []) if isinstance(body, dict) else []
+            rows = [r for r in rows if isinstance(r, dict)]
+            rows.sort(key=_mesh_command_timestamp_ms)
+
+            with _archive_connect() as conn:
+                initialized = conn.execute(
+                    "SELECT meta_value FROM topology_history_meta WHERE meta_key=?",
+                    (meta_key,),
+                ).fetchone()
+            if not initialized:
+                for row in rows:
+                    command = meshcmd.normalize_command(row.get("text"))
+                    if command and not row.get("mine"):
+                        _mesh_command_record(row, command, "baseline")
+                with _archive_connect() as conn:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
+                        (meta_key, json.dumps({"initializedAtMs":int(time.time()*1000)})),
+                    )
+                _mesh_command_stop.wait(MESH_COMMAND_POLL_SECONDS)
+                continue
+
+            for row in rows:
+                if row.get("mine") or row.get("emoji"):
+                    continue
+                command = meshcmd.normalize_command(row.get("text"))
+                if not command:
+                    continue
+                key = _mesh_command_message_key(row)
+                if _mesh_command_seen(key):
+                    continue
+                try:
+                    _mesh_command_handle(row, command)
+                except Exception as exc:
+                    _mesh_command_record(row, command, "error", detail=str(exc))
+                    print(f"Comando {command} falhou: {exc}", flush=True)
+        except Exception as exc:
+            print(f"Worker de comandos da malha: {exc}", flush=True)
+        _mesh_command_stop.wait(MESH_COMMAND_POLL_SECONDS)
+
 def _automatic_notice_settings():
     raw = _read_json_file(NOTICE_SETTINGS_FILE, {})
     return {
@@ -6961,6 +7246,21 @@ def _archive_init():
         );
         CREATE INDEX IF NOT EXISTS idx_auto_notices_time ON automatic_notices(detected_at);
         CREATE INDEX IF NOT EXISTS idx_auto_notices_source ON automatic_notices(source);
+
+        CREATE TABLE IF NOT EXISTS mesh_command_events (
+          command_event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          message_key TEXT NOT NULL UNIQUE,
+          command TEXT NOT NULL,
+          from_node INTEGER,
+          from_node_id TEXT,
+          received_at INTEGER,
+          processed_at INTEGER NOT NULL,
+          status TEXT NOT NULL,
+          response_text TEXT,
+          detail TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_mesh_command_time ON mesh_command_events(processed_at);
+        CREATE INDEX IF NOT EXISTS idx_mesh_command_sender ON mesh_command_events(from_node,command,processed_at);
 
         CREATE TABLE IF NOT EXISTS topology_nodes (
           source_id TEXT NOT NULL,
@@ -10547,6 +10847,8 @@ def main():
     archive_thread.start()
     notice_thread = threading.Thread(target=_automatic_notice_worker, name="automatic-notices", daemon=True)
     notice_thread.start()
+    command_thread = threading.Thread(target=_mesh_command_worker, name="mesh-commands", daemon=True)
+    command_thread.start()
     update_thread = threading.Thread(target=_automatic_update_watch_worker, name="automatic-update-watch", daemon=True)
     update_thread.start()
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
@@ -10562,6 +10864,7 @@ def main():
         _archive_stop.set()
         _notice_stop.set()
         _notice_wakeup.set()
+        _mesh_command_stop.set()
         _update_watch_stop.set()
         httpd.server_close()
 
