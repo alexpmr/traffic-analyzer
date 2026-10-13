@@ -488,7 +488,7 @@ jobs:
           web._archive_init()
           sent=[]
           web._mesh_command_stop.clear()
-          web._mesh_command_route_text=lambda node_num: "sem resposta"
+          web._mesh_command_route_text=lambda node_num, timeout_seconds=None: "sem resposta"
           web._mesh_command_heard_nodes_24h=lambda: 32
           web._mesh_command_node_for_message=lambda row: node
           web._mesh_command_record=lambda *args,**kwargs: None
