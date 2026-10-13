@@ -4027,6 +4027,7 @@ const TA_ROUTE_PATHS={map:'/mapa',nodes:'/nos',traffic:'/trafego',messages:'/men
 const TA_ROUTE_VIEWS={mapa:'map',nos:'nodes',trafego:'traffic',mensagens:'messages',estatisticas:'statistics',configuracoes:'settings',ajuda:'help'};
 let taRouteApplying=false;
 let taCurrentStatsTab='overview';
+let taPendingStatsNode='';
 
 function taActiveView(){
   const btn=document.querySelector('.navbtn.active');
@@ -4049,6 +4050,7 @@ function taRouteUrl(view=taActiveView()){
     if(dir!=='all')params.set('direcao',dir);
     if(type!=='all')params.set('tipo',type);
     if(q)params.set('busca',q);
+    if(selectedPacketId)params.set('pacote',selectedPacketId);
   }else if(view==='statistics'){
     path+='/'+encodeURIComponent(taCurrentStatsTab||'overview');
     const period=document.getElementById('statsPeriod')?.value;
@@ -4087,8 +4089,11 @@ function taApplyRoute(){
       const node=url.searchParams.get('no');
       const days=url.searchParams.get('dias');
       if(period && document.getElementById('statsPeriod'))document.getElementById('statsPeriod').value=period;
-      if(node && document.getElementById('statsNodeFilter'))document.getElementById('statsNodeFilter').value=node;
+      taPendingStatsNode=node||'';
+      if(node && document.getElementById('statsNodeFilter') && [...document.getElementById('statsNodeFilter').options].some(o=>o.value===node))document.getElementById('statsNodeFilter').value=node;
       if(days && document.getElementById('accessDays'))document.getElementById('accessDays').value=days;
+      statisticsPayload=null;
+      loadStatistics(true);
     }else if(view==='nodes'){
       const filter=url.searchParams.get('filtro')||'';
       const order=url.searchParams.get('ordem');
@@ -4101,9 +4106,10 @@ function taApplyRoute(){
       if(seg[1]){
         const nodeNum=Number(decodeURIComponent(seg[1]));
         if(Number.isFinite(nodeNum)){
+          let tries=0;
           const openWhenReady=()=>{
             if((topology?.nodes||[]).some(n=>Number(n.nodeNum)===nodeNum))openNodeDetailsModal(nodeNum,false);
-            else setTimeout(openWhenReady,400);
+            else if(++tries<30)setTimeout(openWhenReady,400);
           };
           setTimeout(openWhenReady,50);
         }
@@ -4116,15 +4122,25 @@ function taApplyRoute(){
       if(type && document.getElementById('trafficType'))document.getElementById('trafficType').value=type;
       if(document.getElementById('trafficSearch'))document.getElementById('trafficSearch').value=q;
       renderTraffic();
+      const packet=url.searchParams.get('pacote');
+      if(packet){
+        let tries=0;
+        const selectWhenReady=()=>{
+          if(trafficPackets.some(x=>trafficKey(x)===packet))selectPacket(packet,false);
+          else if(++tries<30)setTimeout(selectWhenReady,350);
+        };
+        setTimeout(selectWhenReady,100);
+      }
     }else if(view==='map'){
       const edge=url.searchParams.get('enlace');
       if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}
       if(seg[1]==='no' && seg[2]){
         const nodeNum=Number(decodeURIComponent(seg[2]));
         if(Number.isFinite(nodeNum)){
+          let tries=0;
           const openMapNodeWhenReady=()=>{
             if((topology?.nodes||[]).some(n=>Number(n.nodeNum)===nodeNum)){openNodeWindow(nodeNum,false);const m=nodeMarkers.get(nodeNum);if(m)map.setView(m.getLatLng(),Math.max(map.getZoom(),14));}
-            else setTimeout(openMapNodeWhenReady,400);
+            else if(++tries<30)setTimeout(openMapNodeWhenReady,400);
           };
           setTimeout(openMapNodeWhenReady,80);
         }
@@ -4470,7 +4486,7 @@ function technicalDetailsHtml(p){
   const raw=`<details class="rawJson"><summary>Ver JSON bruto</summary><pre>${esc(JSON.stringify(meta,null,2))}</pre></details>`;
   return `<details class="techDetails"><summary>Dados técnicos</summary><div class="payloadBox"><div class="payloadRows">${html}</div>${raw}</div></details>`;
 }
-function selectPacket(key){
+function selectPacket(key,updateRoute=true){
   selectedPacketId=key; const p=trafficPackets.find(x=>trafficKey(x)===key); if(!p)return;
   const hops=packetHops(p); const broadcast=isBroadcastPacket(p);
   document.getElementById('packetDetail').innerHTML=`<div class="detailTitle">${esc(packetTypeLabel(p.portnum_name))}${broadcast?'<span class="broadcastTag">BROADCAST</span>':''}</div>`+
@@ -4488,6 +4504,7 @@ function selectPacket(key){
     (isDirectedNodeInfo(p)?`<b>Mapa</b><span><button id="showNodeInfoFlowBtn">Mostrar fluxo</button></span>`:'')+`</div>`;
   const flowBtn=document.getElementById('showNodeInfoFlowBtn'); if(flowBtn) flowBtn.addEventListener('click',()=>{setView('map');showNodeInfoFlow(p);});
   renderTraffic();
+  if(updateRoute)taSyncRoute({view:'traffic'});
 }
 function ensureAudio(){ if(!audioCtx){ const C=window.AudioContext||window.webkitAudioContext; if(C) audioCtx=new C(); } if(audioCtx?.state==='suspended') audioCtx.resume(); return audioCtx; }
 function toneOsc(ctx,type,f0,f1,start,duration,amp,output=ctx.destination){
@@ -4834,7 +4851,8 @@ function statsPopulateNodeFilter(){
     html+='<option value="'+esc(value)+'">'+esc(label)+'</option>';
   }
   el.innerHTML=html;
-  if([...el.options].some(o=>o.value===keep)) el.value=keep;
+  const wanted=taPendingStatsNode||keep;
+  if([...el.options].some(o=>o.value===wanted)){el.value=wanted;taPendingStatsNode='';}
 }
 function renderStatistics(){
   const p=statisticsPayload;if(!p)return;
