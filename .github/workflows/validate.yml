@@ -1163,7 +1163,7 @@ jobs:
               """)
               assert len(styles)==2,styles
               assert styles[0]["dash"]=="10 8",styles
-              assert styles[1]["dash"] in ("",None),styles
+              assert styles[1]["dash"]=="5 9" and styles[1]["color"]=="#8b98a5",styles  # RF sem confirmação direta
               isolated=d.execute_script("""
                 topology={
                   generatedAtMs:Date.now(),
