@@ -55,12 +55,15 @@ function renderCards(){
  const events=data.events||[];
  const cards=(data.items||[]).map(item=>{
   const id=item.id,conf=data.settings[id],last=events.find(x=>x.command===id);
+  const rf=data.liveStatus?.bots?.[id]||{};
   const active=data.globalEnabled&&conf.enabled;
   const label=active?'Ativo':!data.globalEnabled?'Desativado globalmente':'Desativado';
   return '<article class="autoCard"><h3>'+e(item.name)+'</h3><span class="autoState '+(active?'ok':'off')+'">'+e(label)+'</span>'+
    '<p>'+ (id==='ping'?'Responde a PING com diagnóstico de sinal, nós e traceroute.':'Responde a CLIMA e #CLIMA com os dados locais da API Tempest.')+'</p>'+
    '<p>Última ocorrência: '+e(last?fmt(last.processed_at):'Sem registros')+'</p>'+
    '<p>Status: '+e(last?.status||'—')+'</p>'+
+   '<p>RF nesta sessão: '+e(rf.rxCount??0)+' RX · '+e(rf.txCount??0)+' TX aceitos · '+e(rf.errorCount??0)+' erros</p>'+
+   (rf.lastError?'<p class="autoInfo">Último erro RF: '+e(rf.lastError)+'</p>':'')+
    '<button data-auto-open="'+e(id)+'">Configurar '+e(item.name)+'</button></article>';
  }).join('');
  el('autoCards').innerHTML=cards+'<article class="autoCard"><h3>Próximas automações</h3>'+
@@ -131,8 +134,11 @@ async function loadAutomations(force=false){
   const r=await fetch('/api/automations',{cache:'no-store'}),b=await r.json();
   if(!r.ok||!b.success)throw Error(b.message||'HTTP '+r.status);
   data=b;hasLoaded=true;
-  alertText(b.globalEnabled?'Bots integrados habilitados globalmente. Ajuste cada automação abaixo.':
-   'ATENÇÃO: TA_MESH_COMMANDS_ENABLED=false desativa todos os bots; a ativação individual não substitui a chave global.',!b.globalEnabled);
+  const live=b.liveStatus||{},connected=Boolean(live.connected);
+  const base=b.globalEnabled?'Bots habilitados globalmente.':'TA_MESH_COMMANDS_ENABLED=false: todos os bots estão inativos.';
+  const rfStatus=connected?'Listener Meshtastic conectado.':'Listener Meshtastic desconectado. Verifique serviço e porta 4404.';
+  const diagnostic=live.lastError?' Último erro: '+live.lastError:'';
+  alertText(base+' '+rfStatus+diagnostic,!b.globalEnabled||!connected);
   renderCards();renderHistory();
   if(selected)showAutomationDetails(selected,false);
  }catch(ex){hasLoaded=false;alertText('Falha ao consultar automações: '+String(ex.message||ex),true);}
