@@ -854,6 +854,13 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
     </div>
 
+    <h3>Filtro geográfico do mapa</h3>
+    <div class="settingsGrid">
+      <label><input type="checkbox" id="taGeoEnabled" checked> Limitar exibição ao raio da estação</label>
+      <label>Raio (km): <input id="taGeoRadiusKm" type="number" min="100" max="10000" step="100" value="4000"></label>
+      <div class="settingDesc">Padrão: 4.000 km. Nós e enlaces fora do raio não são exibidos, mas continuam preservados no histórico. A estação de referência deve ter coordenadas válidas.</div>
+    </div>
+
     <h3>Temas sonoros</h3>
     <div class="settingsGrid">
       <div class="settingRow">
@@ -3096,6 +3103,10 @@ function render(){
   const showNodes = document.getElementById('showNodes').checked;
   const showHeatmap = document.getElementById('showHeatmap').checked;
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
+  const geoRef=nodesReferenceNode();
+  const geoEnabled=localStorage.getItem('taGeoEnabled')!=='false';
+  const geoRadius=Math.max(100,Math.min(10000,Number(localStorage.getItem('taGeoRadiusKm')||4000)||4000));
+  const inGeo=n=>!geoEnabled||!geoRef||!nodeHasValidMapPosition(geoRef)||!nodeHasValidMapPosition(n)||(haversineKm(geoRef.latitude,geoRef.longitude,n.latitude,n.longitude)<=geoRadius);
   const isolatedEdge = isolatedEdgeId ? (topology.edges||[]).find(e=>String(e.id||'')===String(isolatedEdgeId)) : null;
   isolatedEdgeNodes = new Set(isolatedEdge ? [Number(isolatedEdge.a),Number(isolatedEdge.b)] : []);
   const isolationActive=Boolean(isolatedEdge);
@@ -3111,6 +3122,7 @@ function render(){
     const stats = edgeStatsForWindow(e, isolationActive?null:cutoff);
     if(!stats || (!isolationActive && stats.observations < minObs)) continue;
     const a = nodeMap.get(Number(e.a)), b = nodeMap.get(Number(e.b));
+    if(!isolationActive && (!inGeo(a)||!inGeo(b))) continue;
     if(!isolationActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
@@ -3125,10 +3137,13 @@ function render(){
       const mqttOnly=stats.displayTransport==='mqtt';
       const lineColor=mqttOnly?(document.getElementById('mqttLineColor').value||'#ff8c42'):(document.getElementById('rfLineColor').value||'#ffff00');
       const lineWidth=Math.max(1,Math.min(8,Number(document.getElementById(mqttOnly?'mqttLineWidth':'rfLineWidth').value||3)));
-      const style={weight:lineWidth,opacity:.82,color:lineColor};
+      const directConfirmed=(e.events||[]).some(ev=>ev.directEvidence===true&&ev.directEvidenceKind==='route-adjacency-api');
+      const rfUnverified=!mqttOnly&&!directConfirmed;
+      const style={weight:lineWidth,opacity:.82,color:rfUnverified?'#8b98a5':lineColor};
       if(mqttOnly) style.dashArray='10 8';
+      else if(rfUnverified) style.dashArray='5 9';
       const line = L.polyline(e.geometry, style);
-      const classLabel=stats.mixed?'Misto RF + MQTT/não-RF (há evidência RF)':(mqttOnly?'MQTT / não-RF':'RF confirmado');
+      const classLabel=rfUnverified?'RF observado, enlace direto não confirmado':(stats.mixed?'Misto RF + MQTT/não-RF':(mqttOnly?'MQTT / não-RF':'RF direto confirmado'));
       let distanceLabel='Distância indisponível';
       if(Array.isArray(e.geometry)&&e.geometry.length>=2){
         const p1=e.geometry[0],p2=e.geometry[e.geometry.length-1];
@@ -3143,7 +3158,7 @@ function render(){
         `${distanceLabel}<br>`+
         `Classificação: <b>${esc(classLabel)}</b><br>`+
         `Observações: <b>${stats.observations}</b> · RF: <b>${stats.rf}</b> · MQTT/não-RF: <b>${stats.nonRf}</b><br>`+
-        `Critério RF: SNR válido observado no hop<br>`+
+        `Critério RF: ${directConfirmed?'adjacência identificada em traceroute':'SNR não comprova adjacência direta'}<br>`+
         `Ida: ${stats.forward} | Volta: ${stats.back}<br>`+
         `SNR médio RF conhecido: ${snr(stats.avgSnr)}<br>`+
         `Faixa SNR: ${snr(stats.minSnr)} a ${snr(stats.maxSnr)}<br>`+
@@ -3178,6 +3193,7 @@ function render(){
   for(const n of topology.nodes || []){
     if(isolationActive && !isolatedEdgeNodes.has(Number(n.nodeNum))) continue;
     if(!nodeHasValidMapPosition(n)) continue;
+    if(!isolationActive && !inGeo(n)) continue;
     if(!isolationActive && onlyIdentified && n.state !== 'identified') continue;
     const lat=Number(n.latitude),lon=Number(n.longitude);
     mappableCount++;
@@ -5715,6 +5731,17 @@ document.getElementById('archiveRetentionDays').addEventListener('change',async(
   try{await saveArchiveRetentionSettings();}
   catch(e){alert(tr('Erro')+': '+e);await loadArchiveRetentionSettings();}
 });
+
+for(const id of ['taGeoEnabled','taGeoRadiusKm']){
+  const el=document.getElementById(id);
+  if(!el)continue;
+  if(id==='taGeoEnabled')el.checked=localStorage.getItem('taGeoEnabled')!=='false';
+  else el.value=localStorage.getItem('taGeoRadiusKm')||'4000';
+  el.addEventListener('change',()=>{
+    localStorage.setItem(id, id==='taGeoEnabled'?String(el.checked):String(Math.max(100,Math.min(10000,Number(el.value)||4000))));
+    render();
+  });
+}
 
 const PAGE_VERSION='__APP_VERSION__';
 let versionCheckTimer=null;
@@ -9791,6 +9818,8 @@ def _archive_rf_longest_links_query(query):
         "e.source_id = ?",
         "e.transport = 'rf'",
         "e.snr IS NOT NULL",
+        "e.direct_evidence = 1",
+        "e.direct_evidence_kind = 'route-adjacency-api'",
     ]
     params = [MM_SOURCE]
     raw_since = (query.get("since") or [None])[0]
@@ -9915,7 +9944,7 @@ def _archive_rf_longest_links_query(query):
 
 
 def _archive_rf_ranking_audit_query(query):
-    """Explica a elegibilidade usando exatamente o mesmo critério RF do mapa."""
+    """Audita RF observado sem confundir SNR com confirmação de enlace direto."""
     clauses = ["e.source_id = ?", "e.transport = 'rf'", "e.snr IS NOT NULL"]
     params = [MM_SOURCE]
     raw_since = (query.get("since") or [None])[0]
@@ -9998,6 +10027,9 @@ def _archive_rf_ranking_audit_query(query):
         elif not has_pos:
             item["eligible"] = False
             item["reason"] = "sem_posicao"
+        elif not trusted_obs:
+            item["eligible"] = False
+            item["reason"] = "sem_evidencia_direta_verificavel"
         else:
             item["eligible"] = True
             item["reason"] = "elegivel"
