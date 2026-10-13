@@ -14,7 +14,9 @@ VALID_COMMANDS = {"ping", "clima", "#clima"}
 
 def normalize_command(text) -> str | None:
     value = re.sub(r"\s+", " ", str(text or "").strip().lower())
-    if value == "#clima":\n        return "clima"\n    return value if value in {"ping", "clima"} else None
+    if value == "#clima":
+        return "clima"
+    return value if value in {"ping", "clima"} else None
 
 
 def node_identity(node: dict | None, fallback_id: str | None = None) -> str:
