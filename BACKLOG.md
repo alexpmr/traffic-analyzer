@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.59.4** (2026-10-09).
+Estado consolidado da release **v1.60.0** (2026-10-09).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.59.4. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -50,8 +50,9 @@ Esta matriz registra o fechamento do backlog funcional até a v1.59.4. Um item s
 | 42 | PING por RF não retornava após a migração | Corrigido na v1.59.2 | Listener em tempo real pelo Virtual Node com TCPInterface + meshtastic.receive.text; suporta mensagens diretas e broadcast sem persistir texto privado no traffic.db. |
 | 43 | PING/CLIMA recebidos, mas resposta não retornava por RF | Corrigido na v1.59.3 | Respostas passam a usar TCPInterface.sendText no próprio listener Meshtastic, canal 0 e broadcast ^all, replicando o bot legado. |
 | 44 | Listener RF não recebia TEXT_MESSAGE_APP em meshtastic.receive.text | Corrigido na v1.59.4 | Listener passa a usar meshtastic.receive e filtrar TEXT_MESSAGE_APP, conforme teste real no servidor. |
+| 45 | URLs completas/dedicadas por tela, subaba e contexto navegável | Concluído na v1.60.0 | Rotas reais com History API, refresh/favoritos/Voltar-Avançar, deep links para Nós e Mapa e filtros relevantes em query string. |
 
-## Política após v1.59.4
+## Política após v1.60.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -59,4 +60,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.59.4. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.59.4: nenhum item funcional pendente nesta matriz.**
+**Backlog conhecido após a v1.60.0: nenhum item funcional pendente nesta matriz.**

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.59.4 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.60.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -29,7 +29,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.59.4"
+APP_VERSION = "1.60.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -2872,7 +2872,7 @@ function toggleNodeWindowExpanded(){
   }
   applyNodeWindowGeometry();
 }
-function closeNodeWindow(){
+function closeNodeWindow(updateRoute=true){
   const n=Number(nodeWindowState.nodeNum);
   if(Number.isFinite(n))stopNodePolling(n);
   const el=document.getElementById('nodeWindow');
@@ -2881,8 +2881,9 @@ function closeNodeWindow(){
   if(el&&mapView&&el.parentElement!==mapView)mapView.appendChild(el);
   nodeWindowState.maximized=false;nodeWindowState.restore=null;
   openNodeNum=null;nodeWindowState.nodeNum=null;
+  if(updateRoute && typeof taActiveView==='function' && taActiveView()==='map')taSyncRoute({replace:true,view:'map'});
 }
-function openNodeWindow(nodeNum){
+function openNodeWindow(nodeNum,updateRoute=true){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
   const previous=Number(nodeWindowState.nodeNum);
   if(Number.isFinite(previous)&&previous!==Number(nodeNum))stopNodePolling(previous);
@@ -2898,6 +2899,7 @@ function openNodeWindow(nodeNum){
   }
   win?.classList.add('open');
   applyNodeWindowGeometry();
+  if(updateRoute && typeof taActiveView==='function' && taActiveView()==='map')taSyncRoute({view:'map'});
   loadNodeDetails(nodeNum,true).catch(e=>{
     const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
     if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
@@ -3965,13 +3967,14 @@ function renderNodesTable(){
   body.querySelectorAll('tr[data-node-num]').forEach(tr=>tr.addEventListener('click',()=>openNodeFromList(Number(tr.dataset.nodeNum))));
   renderNodesSortIndicators();
 }
-function closeNodeDetailsModal(){
+function closeNodeDetailsModal(updateRoute=true){
   if(Number.isFinite(Number(nodeDetailsModalNodeNum)))stopNodePolling(Number(nodeDetailsModalNodeNum));
   nodeDetailsModalNodeNum=null;
   document.getElementById('nodeDetailsBackdrop')?.classList.remove('open');
+  if(updateRoute && taActiveView()==='nodes')taSyncRoute({replace:true,view:'nodes'});
 }
 let nodeDetailsModalNodeNum=null;
-function openNodeDetailsModal(nodeNum){
+function openNodeDetailsModal(nodeNum,updateRoute=true){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
   closeNodeWindow();
   map.closePopup();
@@ -3984,14 +3987,15 @@ function openNodeDetailsModal(nodeNum){
     if(run.details)renderNodePopupData(nodeNum,run.details);
   }
   document.getElementById('nodeDetailsBackdrop')?.classList.add('open');
+  if(updateRoute)taSyncRoute({view:'nodes'});
   loadNodeDetails(nodeNum,true).catch(e=>{
     const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
     if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
   });
 }
 function openNodeFromList(nodeNum){openNodeDetailsModal(nodeNum);}
-document.getElementById('nodesFilter').addEventListener('input',e=>{nodesFilterText=String(e.target.value||'');renderNodesTable();});
-document.getElementById('nodesFilterClear').addEventListener('click',()=>{const el=document.getElementById('nodesFilter');el.value='';nodesFilterText='';el.focus();renderNodesTable();});
+document.getElementById('nodesFilter').addEventListener('input',e=>{nodesFilterText=String(e.target.value||'');renderNodesTable();taSyncRoute({replace:true,view:'nodes'});});
+document.getElementById('nodesFilterClear').addEventListener('click',()=>{const el=document.getElementById('nodesFilter');el.value='';nodesFilterText='';el.focus();renderNodesTable();taSyncRoute({replace:true,view:'nodes'});});
 document.getElementById('nodesColumnsButton').addEventListener('click',e=>{
   e.stopPropagation();
   document.getElementById('nodesColumnsPanel').classList.toggle('open');
@@ -4010,6 +4014,7 @@ document.querySelectorAll('#nodesTable th[data-node-sort]').forEach(th=>th.addEv
     nodesSortDir=(key==='longName'||key==='shortName'||key==='role'||key==='hardware'||key==='nodeId'||key==='state')?'asc':'desc';
   }
   renderNodesTable();
+  taSyncRoute({replace:true,view:'nodes'});
 }));
 document.getElementById('nodesReload').addEventListener('click',()=>load(false));
 document.getElementById('nodeDetailsClose').addEventListener('click',closeNodeDetailsModal);
@@ -4018,7 +4023,135 @@ loadNodesColumnPrefs();
 setInterval(()=>{
   if(document.getElementById('viewNodes')?.classList.contains('active'))renderNodesTable();
 },30000);
-function setView(name){
+const TA_ROUTE_PATHS={map:'/mapa',nodes:'/nos',traffic:'/trafego',messages:'/mensagens/canal/0',statistics:'/estatisticas',settings:'/configuracoes',help:'/ajuda'};
+const TA_ROUTE_VIEWS={mapa:'map',nos:'nodes',trafego:'traffic',mensagens:'messages',estatisticas:'statistics',configuracoes:'settings',ajuda:'help'};
+let taRouteApplying=false;
+let taCurrentStatsTab='overview';
+let taPendingStatsNode='';
+
+function taActiveView(){
+  const btn=document.querySelector('.navbtn.active');
+  return btn?.dataset?.view||'map';
+}
+function taRouteUrl(view=taActiveView()){
+  const params=new URLSearchParams();
+  let path=TA_ROUTE_PATHS[view]||'/mapa';
+  if(view==='nodes'){
+    if(nodeDetailsModalNodeNum!==null && Number.isFinite(Number(nodeDetailsModalNodeNum))) path+='/'+encodeURIComponent(String(nodeDetailsModalNodeNum));
+    else{
+      if(nodesFilterText.trim())params.set('filtro',nodesFilterText.trim());
+      if(nodesSortKey)params.set('ordem',nodesSortKey);
+      if(nodesSortDir)params.set('dir',nodesSortDir);
+    }
+  }else if(view==='traffic'){
+    const dir=document.getElementById('trafficDirection')?.value||'all';
+    const type=document.getElementById('trafficType')?.value||'all';
+    const q=document.getElementById('trafficSearch')?.value?.trim()||'';
+    if(dir!=='all')params.set('direcao',dir);
+    if(type!=='all')params.set('tipo',type);
+    if(q)params.set('busca',q);
+    if(selectedPacketId)params.set('pacote',selectedPacketId);
+  }else if(view==='statistics'){
+    path+='/'+encodeURIComponent(taCurrentStatsTab||'overview');
+    const period=document.getElementById('statsPeriod')?.value;
+    const node=document.getElementById('statsNodeFilter')?.value;
+    if(period && period!=='all')params.set('periodo',period);
+    if(node)params.set('no',node);
+    if(taCurrentStatsTab==='access'){
+      const days=document.getElementById('accessDays')?.value;
+      if(days && days!=='30')params.set('dias',days);
+    }
+  }else if(view==='map'){
+    if(openNodeNum!==null && Number.isFinite(Number(openNodeNum)))path+='/no/'+encodeURIComponent(String(openNodeNum));
+    else if(isolatedEdgeId)params.set('enlace',isolatedEdgeId);
+  }
+  const qs=params.toString();
+  return path+(qs?'?'+qs:'');
+}
+function taSyncRoute({replace=false,view}={}){
+  if(taRouteApplying)return;
+  const url=taRouteUrl(view||taActiveView());
+  if(location.pathname+location.search===url)return;
+  history[replace?'replaceState':'pushState']({ta:true},'',url);
+}
+function taApplyRoute(){
+  taRouteApplying=true;
+  try{
+    const url=new URL(location.href);
+    const seg=url.pathname.split('/').filter(Boolean);
+    const view=TA_ROUTE_VIEWS[seg[0]]||'map';
+    setView(view,false);
+    if(view==='statistics'){
+      const valid=new Set(['overview','network','rf','ranking','routing','traffic','queries','chat','energy','anomalies','access']);
+      const tab=valid.has(seg[1])?seg[1]:'overview';
+      setStatisticsTab(tab,false);
+      const period=url.searchParams.get('periodo');
+      const node=url.searchParams.get('no');
+      const days=url.searchParams.get('dias');
+      if(period && document.getElementById('statsPeriod'))document.getElementById('statsPeriod').value=period;
+      taPendingStatsNode=node||'';
+      if(node && document.getElementById('statsNodeFilter') && [...document.getElementById('statsNodeFilter').options].some(o=>o.value===node))document.getElementById('statsNodeFilter').value=node;
+      if(days && document.getElementById('accessDays'))document.getElementById('accessDays').value=days;
+      statisticsPayload=null;
+      loadStatistics(true);
+    }else if(view==='nodes'){
+      const filter=url.searchParams.get('filtro')||'';
+      const order=url.searchParams.get('ordem');
+      const dir=url.searchParams.get('dir');
+      nodesFilterText=filter;
+      const f=document.getElementById('nodesFilter');if(f)f.value=filter;
+      if(order)nodesSortKey=order;
+      if(dir==='asc'||dir==='desc')nodesSortDir=dir;
+      renderNodesTable();
+      if(seg[1]){
+        const nodeNum=Number(decodeURIComponent(seg[1]));
+        if(Number.isFinite(nodeNum)){
+          let tries=0;
+          const openWhenReady=()=>{
+            if((topology?.nodes||[]).some(n=>Number(n.nodeNum)===nodeNum))openNodeDetailsModal(nodeNum,false);
+            else if(++tries<30)setTimeout(openWhenReady,400);
+          };
+          setTimeout(openWhenReady,50);
+        }
+      }
+    }else if(view==='traffic'){
+      const dir=url.searchParams.get('direcao');
+      const type=url.searchParams.get('tipo');
+      const q=url.searchParams.get('busca')||'';
+      if(dir && document.getElementById('trafficDirection'))document.getElementById('trafficDirection').value=dir;
+      if(type && document.getElementById('trafficType'))document.getElementById('trafficType').value=type;
+      if(document.getElementById('trafficSearch'))document.getElementById('trafficSearch').value=q;
+      renderTraffic();
+      const packet=url.searchParams.get('pacote');
+      if(packet){
+        let tries=0;
+        const selectWhenReady=()=>{
+          if(trafficPackets.some(x=>trafficKey(x)===packet))selectPacket(packet,false);
+          else if(++tries<30)setTimeout(selectWhenReady,350);
+        };
+        setTimeout(selectWhenReady,100);
+      }
+    }else if(view==='map'){
+      const edge=url.searchParams.get('enlace');
+      if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}
+      if(seg[1]==='no' && seg[2]){
+        const nodeNum=Number(decodeURIComponent(seg[2]));
+        if(Number.isFinite(nodeNum)){
+          let tries=0;
+          const openMapNodeWhenReady=()=>{
+            if((topology?.nodes||[]).some(n=>Number(n.nodeNum)===nodeNum)){openNodeWindow(nodeNum,false);const m=nodeMarkers.get(nodeNum);if(m)map.setView(m.getLatLng(),Math.max(map.getZoom(),14));}
+            else if(++tries<30)setTimeout(openMapNodeWhenReady,400);
+          };
+          setTimeout(openMapNodeWhenReady,80);
+        }
+      }
+    }
+  }finally{
+    setTimeout(()=>{taRouteApplying=false;},0);
+  }
+}
+
+function setView(name,updateRoute=true){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
   const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',statistics:'viewStatistics',settings:'viewSettings',help:'viewHelp'};
@@ -4030,6 +4163,7 @@ function setView(name){
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
   if(name==='settings'||name==='messages')applyAuthState();
   if(name==='statistics') loadStatistics(false);
+  if(updateRoute)taSyncRoute({view:name});
 }
 
 function packetTypeClass(name){
@@ -4352,7 +4486,7 @@ function technicalDetailsHtml(p){
   const raw=`<details class="rawJson"><summary>Ver JSON bruto</summary><pre>${esc(JSON.stringify(meta,null,2))}</pre></details>`;
   return `<details class="techDetails"><summary>Dados técnicos</summary><div class="payloadBox"><div class="payloadRows">${html}</div>${raw}</div></details>`;
 }
-function selectPacket(key){
+function selectPacket(key,updateRoute=true){
   selectedPacketId=key; const p=trafficPackets.find(x=>trafficKey(x)===key); if(!p)return;
   const hops=packetHops(p); const broadcast=isBroadcastPacket(p);
   document.getElementById('packetDetail').innerHTML=`<div class="detailTitle">${esc(packetTypeLabel(p.portnum_name))}${broadcast?'<span class="broadcastTag">BROADCAST</span>':''}</div>`+
@@ -4370,6 +4504,7 @@ function selectPacket(key){
     (isDirectedNodeInfo(p)?`<b>Mapa</b><span><button id="showNodeInfoFlowBtn">Mostrar fluxo</button></span>`:'')+`</div>`;
   const flowBtn=document.getElementById('showNodeInfoFlowBtn'); if(flowBtn) flowBtn.addEventListener('click',()=>{setView('map');showNodeInfoFlow(p);});
   renderTraffic();
+  if(updateRoute)taSyncRoute({view:'traffic'});
 }
 function ensureAudio(){ if(!audioCtx){ const C=window.AudioContext||window.webkitAudioContext; if(C) audioCtx=new C(); } if(audioCtx?.state==='suspended') audioCtx.resume(); return audioCtx; }
 function toneOsc(ctx,type,f0,f1,start,duration,amp,output=ctx.destination){
@@ -4716,7 +4851,8 @@ function statsPopulateNodeFilter(){
     html+='<option value="'+esc(value)+'">'+esc(label)+'</option>';
   }
   el.innerHTML=html;
-  if([...el.options].some(o=>o.value===keep)) el.value=keep;
+  const wanted=taPendingStatsNode||keep;
+  if([...el.options].some(o=>o.value===wanted)){el.value=wanted;taPendingStatsNode='';}
 }
 function renderStatistics(){
   const p=statisticsPayload;if(!p)return;
@@ -4863,7 +4999,7 @@ function isolateStatsRfLink(edgeId){
     return;
   }
   isolatedEdgeId=String(edge.id||edgeId);
-  closeNodeWindow();
+  closeNodeWindow(false);
   setView('map');
   render();
   setTimeout(()=>fitMapTight(),80);
@@ -4876,7 +5012,8 @@ function clearStatsRfLinkIsolation(){
 }
 document.getElementById('clearLinkIsolation').addEventListener('click',clearStatsRfLinkIsolation);
 
-function setStatisticsTab(name){
+function setStatisticsTab(name,updateRoute=true){
+  taCurrentStatsTab=name||'overview';
   document.querySelectorAll('.statsTab').forEach(b=>b.classList.toggle('active',b.dataset.statsTab===name));
   document.querySelectorAll('.statsPanel').forEach(p=>p.classList.remove('active'));
   const id='statsPanel'+name.charAt(0).toUpperCase()+name.slice(1);
@@ -4885,13 +5022,14 @@ function setStatisticsTab(name){
   if(name==='network')loadNetworkHealth(false);
   if(name==='anomalies')loadAnomalies(false);
   if(name==='access')loadAccessStats(false);
+  if(updateRoute)taSyncRoute({view:'statistics'});
 }
 document.querySelectorAll('.statsTab').forEach(b=>b.addEventListener('click',()=>setStatisticsTab(b.dataset.statsTab)));
 document.getElementById('statsReload').addEventListener('click',()=>loadStatistics(true));
 document.getElementById('statsReport').addEventListener('click',openStatisticsReport);
 document.getElementById('statsExportCsv').addEventListener('click',exportStatisticsCsv);
-document.getElementById('statsPeriod').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);});
-document.getElementById('statsNodeFilter').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);});
+document.getElementById('statsPeriod').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);taSyncRoute({replace:true,view:'statistics'});});
+document.getElementById('statsNodeFilter').addEventListener('change',()=>{statisticsPayload=null;loadStatistics(true);taSyncRoute({replace:true,view:'statistics'});});
 
 function sevLabel(s){if(currentLang==='en')return s==='critical'?'Critical':s==='warning'?'Warning':s==='info'?'Informational':'OK';return s==='critical'?'Crítica':s==='warning'?'Atenção':s==='info'?'Informativa':'OK';}
 function renderAnomalies(){
@@ -4983,7 +5121,7 @@ async function loadAccessStats(force=false){
   }
 }
 document.getElementById('accessReload').addEventListener('click',()=>loadAccessStats(true));
-document.getElementById('accessDays').addEventListener('change',()=>loadAccessStats(true));
+document.getElementById('accessDays').addEventListener('change',()=>{loadAccessStats(true);taSyncRoute({replace:true,view:'statistics'});});
 document.getElementById('accessDownload').addEventListener('click',()=>{
   window.location.href='/api/access-log';
 });
@@ -5444,8 +5582,10 @@ document.getElementById('messageReload').addEventListener('click',reloadPrimaryM
 
 
 document.querySelectorAll('.navbtn').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
-for(const id of ['trafficDirection','trafficType']) document.getElementById(id).addEventListener('change',renderTraffic);
-document.getElementById('trafficSearch').addEventListener('input',renderTraffic);
+window.addEventListener('popstate',taApplyRoute);
+setTimeout(taApplyRoute,0);
+for(const id of ['trafficDirection','trafficType']) document.getElementById(id).addEventListener('change',()=>{renderTraffic();taSyncRoute({replace:true,view:'traffic'});});
+document.getElementById('trafficSearch').addEventListener('input',()=>{renderTraffic();taSyncRoute({replace:true,view:'traffic'});});
 document.getElementById('trafficPause').addEventListener('click',toggleTrafficPause);
 document.getElementById('trafficReload').addEventListener('click',async()=>{ trafficPackets=[];trafficInitialized=false;selectedPacketId=null;journeySeen=new Set();await loadTrafficInitial(); });
 document.getElementById('trafficDump').addEventListener('click',downloadTrafficDump);
@@ -10628,7 +10768,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
-        if path in ("/", "/index.html"):
+        spa_roots = {"/", "/index.html", "/mapa", "/nos", "/trafego", "/mensagens", "/estatisticas", "/configuracoes", "/ajuda"}
+        spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/")
+        if path in spa_roots or path.startswith(spa_prefixes):
             _record_access_event(self, event="pageview", status=200, path=path)
             self._send(200, "text/html; charset=utf-8", HTML.encode("utf-8"))
             return

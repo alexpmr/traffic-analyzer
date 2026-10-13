@@ -1,6 +1,18 @@
-# Traffic Analyzer v1.59.4
+# Traffic Analyzer v1.60.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.60.0
+
+- Adiciona **URLs completas, estáveis e favoráveis a favoritos** para a navegação da interface.
+- Refresh/F5 volta para a mesma área da aplicação em vez de retornar sempre ao mapa principal.
+- Botões Voltar/Avançar do navegador acompanham a navegação interna.
+- Rotas principais: `/mapa`, `/nos`, `/trafego`, `/mensagens/canal/0`, `/estatisticas/<subaba>`, `/configuracoes` e `/ajuda`.
+- Cada subaba de Estatísticas possui URL própria: visão geral, rede, RF, ranking, routing, tráfego, consultas, chat, energia, pontos de atenção e acessos.
+- Filtros relevantes são preservados na query string, incluindo filtro/ordenação de Nós, filtros de Tráfego, período/nó em Estatísticas e período de Acessos.
+- Detalhes de nó possuem URL dedicada tanto na lista de Nós (`/nos/<nodeNum>`) quanto no mapa (`/mapa/no/<nodeNum>`).
+- Enlace isolado no mapa é representado por `?enlace=<id>`.
+- O backend passa a servir a SPA diretamente nessas rotas, permitindo abrir favoritos e links compartilhados sem erro 404.
 
 ## Novidades da v1.59.4
 
