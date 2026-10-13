@@ -6189,8 +6189,15 @@ def _mesh_command_candidates(limit: int = 300):
         command=meshcmd.normalize_command(row.get("text"))
         if not command:
             continue
-        key=_mesh_command_message_key(row)
-        dedup.setdefault(key,row)
+        # A mesma mensagem pode aparecer tanto em /messages quanto no arquivo
+        # de pacotes com IDs internos diferentes. Deduplica por remetente,
+        # comando e janela temporal curta antes da persistência.
+        sender=str(row.get("fromNodeNum") or row.get("fromNodeId") or "")
+        bucket=int(_mesh_command_timestamp_ms(row)/5000)
+        semantic_key=f"{sender}:{command}:{bucket}"
+        existing=dedup.get(semantic_key)
+        if existing is None or (row.get("_source")!="traffic.db" and existing.get("_source")=="traffic.db"):
+            dedup[semantic_key]=row
     rows=list(dedup.values())
     rows.sort(key=_mesh_command_timestamp_ms)
     return rows, errors
