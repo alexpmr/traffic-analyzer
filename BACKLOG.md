@@ -1,6 +1,6 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.60.0** (2026-10-09).
+Estado consolidado da release **v1.60.0** (2026-10-13), com novas solicitações registradas separadamente.
 
 Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
@@ -51,6 +51,26 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 43 | PING/CLIMA recebidos, mas resposta não retornava por RF | Corrigido na v1.59.3 | Respostas passam a usar TCPInterface.sendText no próprio listener Meshtastic, canal 0 e broadcast ^all, replicando o bot legado. |
 | 44 | Listener RF não recebia TEXT_MESSAGE_APP em meshtastic.receive.text | Corrigido na v1.59.4 | Listener passa a usar meshtastic.receive e filtrar TEXT_MESSAGE_APP, conforme teste real no servidor. |
 | 45 | URLs completas/dedicadas por tela, subaba e contexto navegável | Concluído na v1.60.0 | Rotas reais com History API, refresh/favoritos/Voltar-Avançar, deep links para Nós e Mapa e filtros relevantes em query string. |
+| 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Pendente — backlog** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
+
+## Próximas implementações
+
+### Issue #63 — Aba superior Automações: PING e CLIMA
+
+**Estado:** pendente, ainda não implementado. **Prioridade:** melhoria funcional para próxima release.
+
+- **Navegação:** nova aba superior `Automações`, rota `/automacoes`, detalhes `/automacoes/ping` e `/automacoes/clima`, com F5/favoritos/Voltar-Avançar.
+- **Visão geral:** cartões independentes para PING e CLIMA, status, última execução, erro recente e ações de edição/teste; catálogo preparado para outras automações.
+- **PING:** ligar/desligar individualmente, identificação, cooldown, timeout do traceroute, edição segura do conteúdo/campos da resposta e prévia do resultado com limites de payload Meshtastic.
+- **CLIMA:** ligar/desligar individualmente, cooldown, endereço/saúde da API Tempest, intervalo entre mensagens, apresentação dos dados meteorológicos e prévia.
+- **Observabilidade:** histórico e diagnóstico por bot, aproveitando `mesh_command_events`, separando comando recebido, geração de resposta, tentativa de envio e falha; sem expor dados privados.
+- **Segurança de operação:** testes de prévia não transmitem RF; envio de teste exige confirmação explícita. `sendText` não comprova entrega.
+- **Persistência:** configurações editadas via interface preservadas em `/var/lib/traffic-analyzer`, sem alteração manual dos scripts, com migração dos defaults existentes, controles de acesso e CSRF.
+- **Compatibilidade:** PING e CLIMA atuais seguem operando como na v1.60.0 até alteração pelo operador, sem duplicação de bots/listeners ou regressões dos comandos.
+- **Arquitetura extensível:** registro de automações e componentes reutilizáveis, permitindo acrescentar novas rotinas sem transformar a aba em um painel específico de PING/CLIMA.
+- **Aceite:** testes de isolamento entre os bots, configuração persistente, roteamento por URL, autorização, preview sem RF e regressão do listener e respostas reais.
+
+Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issues/63
 
 ## Política após v1.60.0
 
@@ -60,4 +80,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.60.0: nenhum item funcional pendente nesta matriz.**
+**Backlog aberto após a v1.60.0: item #46 / issue #63 (aba Automações, PING e CLIMA).**
