@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.59.3 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.59.4 para MeshMonitor."""
 
 import base64
 import csv
@@ -29,7 +29,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.59.3"
+APP_VERSION = "1.59.4"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6319,9 +6319,18 @@ def _mesh_command_live_worker():
                 timeout=max(5, VIRTUAL_NODE_CONNECT_TIMEOUT),
             )
 
-            def on_text(packet=None, interface=None, **kwargs):
+            def on_packet(packet=None, interface=None, **kwargs):
                 try:
-                    row = _mesh_command_live_row(packet or {}, interface=interface)
+                    pkt = packet or {}
+                    decoded = pkt.get("decoded") if isinstance(pkt, dict) and isinstance(pkt.get("decoded"), dict) else {}
+                    port = str(decoded.get("portnum") or "")
+                    # Em algumas versões/combinações do cliente Python o tópico
+                    # meshtastic.receive.text não é publicado, embora o pacote
+                    # TEXT_MESSAGE_APP chegue normalmente em meshtastic.receive.
+                    # Por isso filtramos o TEXT_MESSAGE_APP a partir do tópico geral.
+                    if port != "TEXT_MESSAGE_APP" and not decoded.get("text"):
+                        return
+                    row = _mesh_command_live_row(pkt, interface=interface)
                     if not row:
                         return
                     command = row.get("_command") or meshcmd.normalize_command(row.get("text"))
@@ -6358,11 +6367,12 @@ def _mesh_command_live_worker():
                 except Exception as exc:
                     print(f"Falha no callback de comando da malha: {exc}", flush=True)
 
-            pub.subscribe(on_text, "meshtastic.receive.text")
+            pub.subscribe(on_packet, "meshtastic.receive")
             subscribed = True
             print(
                 f"Comandos da malha integrados: PING, CLIMA e #CLIMA ativos em "
-                f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT} no canal primário.",
+                f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT} no canal primário "
+                f"(listener meshtastic.receive).",
                 flush=True,
             )
 
@@ -6375,7 +6385,7 @@ def _mesh_command_live_worker():
             if subscribed:
                 try:
                     from pubsub import pub
-                    pub.unsubscribe(on_text, "meshtastic.receive.text")
+                    pub.unsubscribe(on_packet, "meshtastic.receive")
                 except Exception:
                     pass
             if interface is not None:
