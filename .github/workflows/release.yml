@@ -609,9 +609,22 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.59.4
+      - name: Validar backlog v1.60.0
         shell: bash
         run: |
+          grep -Fq 'const TA_ROUTE_PATHS=' traffic_analyzer_web.py
+          grep -Fq "map:'/mapa'" traffic_analyzer_web.py
+          grep -Fq "nodes:'/nos'" traffic_analyzer_web.py
+          grep -Fq "traffic:'/trafego'" traffic_analyzer_web.py
+          grep -Fq "messages:'/mensagens/canal/0'" traffic_analyzer_web.py
+          grep -Fq "statistics:'/estatisticas'" traffic_analyzer_web.py
+          grep -Fq "settings:'/configuracoes'" traffic_analyzer_web.py
+          grep -Fq "help:'/ajuda'" traffic_analyzer_web.py
+          grep -Fq "window.addEventListener('popstate',taApplyRoute)" traffic_analyzer_web.py
+          grep -Fq 'spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/")' traffic_analyzer_web.py
+          grep -Fq 'function openNodeDetailsModal(nodeNum,updateRoute=true)' traffic_analyzer_web.py
+          grep -Fq 'function openNodeWindow(nodeNum,updateRoute=true)' traffic_analyzer_web.py
+          grep -Fq 'function selectPacket(key,updateRoute=true)' traffic_analyzer_web.py
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="hillshadeEnabled"' traffic_analyzer_web.py
           grep -Fq 'id="elevationEnabled"' traffic_analyzer_web.py
@@ -704,7 +717,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.59.4: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.60.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
