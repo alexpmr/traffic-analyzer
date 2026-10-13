@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.59.2 - 2026-10-12
+
+- Substitui a detecção principal de PING/CLIMA por um listener Meshtastic em tempo real.
+- Usa `TCPInterface` no Virtual Node e assinatura de `meshtastic.receive.text`, replicando o mecanismo dos bots legados que funcionavam na rede RF.
+- Processa mensagens diretas e broadcast do canal primário antes da sanitização do arquivo histórico.
+- Mantém a política de privacidade do `traffic.db`: mensagens diretas continuam redigidas no arquivo.
+- Mantém compatibilidade com `ping`, `clima` e `#clima`.
+- Executa `traffic_analyzer_web.py` pelo venv interno para disponibilizar o cliente Meshtastic no próprio serviço.
+
 ## 1.59.1 - 2026-10-12
 
 - Corrige PING e CLIMA integrados que não respondiam na rede real em algumas instalações.
