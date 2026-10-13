@@ -858,7 +858,9 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <div class="settingsGrid">
       <label><input type="checkbox" id="taGeoEnabled" checked> Limitar exibição ao raio da estação</label>
       <label>Raio (km): <input id="taGeoRadiusKm" type="number" min="100" max="10000" step="100" value="4000"></label>
-      <div class="settingDesc">Padrão: 4.000 km. Nós e enlaces fora do raio não são exibidos, mas continuam preservados no histórico. A estação de referência deve ter coordenadas válidas.</div>
+      <label>Latitude da estação: <input id="taGeoStationLat" type="number" min="-90" max="90" step="any" placeholder="-15.8000"></label>
+      <label>Longitude da estação: <input id="taGeoStationLon" type="number" min="-180" max="180" step="any" placeholder="-47.9000"></label>
+      <div class="settingDesc">Padrão: 4.000 km. Informe a latitude e longitude da estação para centralizar o filtro. Caso estejam vazias, usa a referência local identificada na topologia, quando disponível. O filtro nunca exclui o histórico.</div>
     </div>
 
     <h3>Temas sonoros</h3>
@@ -3103,7 +3105,12 @@ function render(){
   const showNodes = document.getElementById('showNodes').checked;
   const showHeatmap = document.getElementById('showHeatmap').checked;
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
-  const geoRef=nodesReferenceNode();
+  const userGeoLat=Number(localStorage.getItem('taGeoStationLat'));
+  const userGeoLon=Number(localStorage.getItem('taGeoStationLon'));
+  const geoRef=(localStorage.getItem('taGeoStationLat')!==null&&localStorage.getItem('taGeoStationLon')!==null&&
+    Number.isFinite(userGeoLat)&&Number.isFinite(userGeoLon)&&userGeoLat>=-90&&userGeoLat<=90&&userGeoLon>=-180&&userGeoLon<=180&&
+    !(Math.abs(userGeoLat)<.01&&Math.abs(userGeoLon)<.01))?
+    {latitude:userGeoLat,longitude:userGeoLon}:nodesReferenceNode();
   const geoEnabled=localStorage.getItem('taGeoEnabled')!=='false';
   const geoRadius=Math.max(100,Math.min(10000,Number(localStorage.getItem('taGeoRadiusKm')||4000)||4000));
   const inGeo=n=>!geoEnabled||!geoRef||!nodeHasValidMapPosition(geoRef)||!nodeHasValidMapPosition(n)||(haversineKm(geoRef.latitude,geoRef.longitude,n.latitude,n.longitude)<=geoRadius);
@@ -5732,13 +5739,16 @@ document.getElementById('archiveRetentionDays').addEventListener('change',async(
   catch(e){alert(tr('Erro')+': '+e);await loadArchiveRetentionSettings();}
 });
 
-for(const id of ['taGeoEnabled','taGeoRadiusKm']){
+for(const id of ['taGeoEnabled','taGeoRadiusKm','taGeoStationLat','taGeoStationLon']){
   const el=document.getElementById(id);
   if(!el)continue;
   if(id==='taGeoEnabled')el.checked=localStorage.getItem('taGeoEnabled')!=='false';
-  else el.value=localStorage.getItem('taGeoRadiusKm')||'4000';
+  else el.value=localStorage.getItem(id)??(id==='taGeoRadiusKm'?'4000':'');
   el.addEventListener('change',()=>{
-    localStorage.setItem(id, id==='taGeoEnabled'?String(el.checked):String(Math.max(100,Math.min(10000,Number(el.value)||4000))));
+    if(id==='taGeoEnabled')localStorage.setItem(id,String(el.checked));
+    else if(id==='taGeoRadiusKm')localStorage.setItem(id,String(Math.max(100,Math.min(10000,Number(el.value)||4000))));
+    else if(el.value.trim())localStorage.setItem(id,el.value.trim());
+    else localStorage.removeItem(id);
     render();
   });
 }
