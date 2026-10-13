@@ -141,6 +141,8 @@ def load(path: Path, fallback):
             return settings
         try:
             raw = json.loads(Path(path).read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("JSON de configurações inválido")
             for bot in AUTOMATION_IDS:
                 if isinstance(raw.get(bot), dict):
                     # Saved settings receive validation, and missing fields retain defaults.
