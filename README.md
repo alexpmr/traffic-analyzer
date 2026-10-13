@@ -1,6 +1,23 @@
-# Traffic Analyzer v1.58.0
+# Traffic Analyzer v1.59.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.59.0
+
+- Migra os comandos **PING** e **CLIMA** para dentro do Traffic Analyzer.
+- Adiciona o módulo interno `mesh_commands.py`, separando parser/formatação da interface web.
+- O worker integrado monitora apenas o **canal primário (0)** e aceita somente os comandos exatos `ping` e `clima`, sem diferenciar maiúsculas/minúsculas.
+- O PING usa os metadados reais da mensagem recebida para informar RSSI, SNR, hops e transporte LoRa/MQTT.
+- A origem do PING passa a priorizar os nomes configurados pelo usuário: **Long Name + Short Name + Node ID**, eliminando o uso do nome genérico/fábrica quando há identidade configurada.
+- O PING conta os nós efetivamente ouvidos nas últimas 24 horas a partir do `traffic.db`.
+- O PING solicita um traceroute atual ao remetente e informa **direto**, **via <nós>** ou **sem resposta**.
+- O CLIMA reutiliza a fonte Tempest existente em `http://127.0.0.1:8765/clima`, preservando o formato já conhecido e o limite de até quatro mensagens.
+- Cooldowns preservados: **PING 30 s** e **CLIMA 300 s**, configuráveis por ambiente.
+- As respostas do CLIMA mantêm intervalo padrão de **8 s** entre blocos para reduzir colisões na malha.
+- Cada comando processado é auditado em `mesh_command_events` no `traffic.db`.
+- Na atualização, os serviços externos `tempest-ping-bot.service` e `tempest-clima-bot.service` são desativados automaticamente para impedir respostas duplicadas.
+- O serviço `tempest-clima-api.service` permanece ativo como fonte local de dados meteorológicos.
+- A primeira inicialização apenas marca comandos antigos como conhecidos; o Traffic Analyzer não responde retroativamente a PING/CLIMA já existentes no histórico.
 
 ## Novidades da v1.58.0
 
