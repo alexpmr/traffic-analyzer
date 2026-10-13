@@ -2872,7 +2872,7 @@ function toggleNodeWindowExpanded(){
   }
   applyNodeWindowGeometry();
 }
-function closeNodeWindow(){
+function closeNodeWindow(updateRoute=true){
   const n=Number(nodeWindowState.nodeNum);
   if(Number.isFinite(n))stopNodePolling(n);
   const el=document.getElementById('nodeWindow');
@@ -2881,8 +2881,9 @@ function closeNodeWindow(){
   if(el&&mapView&&el.parentElement!==mapView)mapView.appendChild(el);
   nodeWindowState.maximized=false;nodeWindowState.restore=null;
   openNodeNum=null;nodeWindowState.nodeNum=null;
+  if(updateRoute && typeof taActiveView==='function' && taActiveView()==='map')taSyncRoute({replace:true,view:'map'});
 }
-function openNodeWindow(nodeNum){
+function openNodeWindow(nodeNum,updateRoute=true){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));if(!n)return;
   const previous=Number(nodeWindowState.nodeNum);
   if(Number.isFinite(previous)&&previous!==Number(nodeNum))stopNodePolling(previous);
@@ -2898,6 +2899,7 @@ function openNodeWindow(nodeNum){
   }
   win?.classList.add('open');
   applyNodeWindowGeometry();
+  if(updateRoute && typeof taActiveView==='function' && taActiveView()==='map')taSyncRoute({view:'map'});
   loadNodeDetails(nodeNum,true).catch(e=>{
     const el=document.getElementById(`nodeTelemetry-${Number(nodeNum)}`);
     if(el)el.innerHTML=`<span class="nodeMetaMissing">Não foi possível carregar dados do MeshMonitor: ${esc(e.message||e)}</span>`;
@@ -4021,7 +4023,7 @@ loadNodesColumnPrefs();
 setInterval(()=>{
   if(document.getElementById('viewNodes')?.classList.contains('active'))renderNodesTable();
 },30000);
-const TA_ROUTE_PATHS={map:'/mapa',nodes:'/nos',traffic:'/trafego',messages:'/mensagens',statistics:'/estatisticas',settings:'/configuracoes',help:'/ajuda'};
+const TA_ROUTE_PATHS={map:'/mapa',nodes:'/nos',traffic:'/trafego',messages:'/mensagens/canal/0',statistics:'/estatisticas',settings:'/configuracoes',help:'/ajuda'};
 const TA_ROUTE_VIEWS={mapa:'map',nos:'nodes',trafego:'traffic',mensagens:'messages',estatisticas:'statistics',configuracoes:'settings',ajuda:'help'};
 let taRouteApplying=false;
 let taCurrentStatsTab='overview';
@@ -4058,7 +4060,8 @@ function taRouteUrl(view=taActiveView()){
       if(days && days!=='30')params.set('dias',days);
     }
   }else if(view==='map'){
-    if(isolatedEdgeId)params.set('enlace',isolatedEdgeId);
+    if(openNodeNum!==null && Number.isFinite(Number(openNodeNum)))path+='/no/'+encodeURIComponent(String(openNodeNum));
+    else if(isolatedEdgeId)params.set('enlace',isolatedEdgeId);
   }
   const qs=params.toString();
   return path+(qs?'?'+qs:'');
@@ -4116,6 +4119,16 @@ function taApplyRoute(){
     }else if(view==='map'){
       const edge=url.searchParams.get('enlace');
       if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}
+      if(seg[1]==='no' && seg[2]){
+        const nodeNum=Number(decodeURIComponent(seg[2]));
+        if(Number.isFinite(nodeNum)){
+          const openMapNodeWhenReady=()=>{
+            if((topology?.nodes||[]).some(n=>Number(n.nodeNum)===nodeNum)){openNodeWindow(nodeNum,false);const m=nodeMarkers.get(nodeNum);if(m)map.setView(m.getLatLng(),Math.max(map.getZoom(),14));}
+            else setTimeout(openMapNodeWhenReady,400);
+          };
+          setTimeout(openMapNodeWhenReady,80);
+        }
+      }
     }
   }finally{
     setTimeout(()=>{taRouteApplying=false;},0);
@@ -4968,7 +4981,7 @@ function isolateStatsRfLink(edgeId){
     return;
   }
   isolatedEdgeId=String(edge.id||edgeId);
-  closeNodeWindow();
+  closeNodeWindow(false);
   setView('map');
   render();
   setTimeout(()=>fitMapTight(),80);
@@ -10738,7 +10751,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?", 1)[0]
         spa_roots = {"/", "/index.html", "/mapa", "/nos", "/trafego", "/mensagens", "/estatisticas", "/configuracoes", "/ajuda"}
-        spa_prefixes = ("/nos/", "/estatisticas/")
+        spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/")
         if path in spa_roots or path.startswith(spa_prefixes):
             _record_access_event(self, event="pageview", status=200, path=path)
             self._send(200, "text/html; charset=utf-8", HTML.encode("utf-8"))
