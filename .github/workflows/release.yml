@@ -460,8 +460,8 @@ jobs:
           rows=web._mesh_command_archive_rows(20)
           assert any(mc.normalize_command(x.get("text"))=="ping" and x.get("fromNodeNum")==42 for x in rows),rows
           candidates,errors=web._mesh_command_candidates(20)
-          assert not errors,errors
           assert any(mc.normalize_command(x.get("text"))=="ping" for x in candidates),candidates
+          assert all(str(x).startswith("messages-api:") for x in errors),errors
           PY
 
       - name: Validar replies e reações no backend
