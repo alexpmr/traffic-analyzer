@@ -18,12 +18,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validar Python
-        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py mesh_commands.py automation_manager.py meshtastic_query.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py mesh_commands.py automation_manager.py mesh_command_dispatch.py meshtastic_query.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
 
       - name: Testar painel Automações
         run: |
           python -m unittest discover -s tests -p 'test_automations.py' -v
           node --check automations_ui.js
+
+      - name: Validar regressão da recepção RF de PING/CLIMA
+        run: python -m unittest discover -s tests -p 'test_mesh_rf_dispatch.py' -v
 
       - name: Validar classificação RF e MQTT por hop
         run: |
