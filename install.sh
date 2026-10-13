@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.59.0"
+VERSION="1.59.1"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -219,6 +219,9 @@ systemctl disable --now meshmonitor-route-map.service 2>/dev/null || true
 # bots antigos são retirados para impedir respostas duplicadas.
 systemctl disable --now tempest-ping-bot.service 2>/dev/null || true
 systemctl disable --now tempest-clima-bot.service 2>/dev/null || true
+if systemctl list-unit-files tempest-clima-api.service >/dev/null 2>&1; then
+  systemctl enable --now tempest-clima-api.service 2>/dev/null || true
+fi
 
 systemctl daemon-reload
 systemctl enable --now traffic-analyzer.timer
