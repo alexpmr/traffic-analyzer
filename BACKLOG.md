@@ -51,13 +51,13 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 43 | PING/CLIMA recebidos, mas resposta não retornava por RF | Corrigido na v1.59.3 | Respostas passam a usar TCPInterface.sendText no próprio listener Meshtastic, canal 0 e broadcast ^all, replicando o bot legado. |
 | 44 | Listener RF não recebia TEXT_MESSAGE_APP em meshtastic.receive.text | Corrigido na v1.59.4 | Listener passa a usar meshtastic.receive e filtrar TEXT_MESSAGE_APP, conforme teste real no servidor. |
 | 45 | URLs completas/dedicadas por tela, subaba e contexto navegável | Concluído na v1.60.0 | Rotas reais com History API, refresh/favoritos/Voltar-Avançar, deep links para Nós e Mapa e filtros relevantes em query string. |
-| 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Pendente — backlog** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
+| 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Concluído na v1.61.0** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
 
 ## Próximas implementações
 
 ### Issue #63 — Aba superior Automações: PING e CLIMA
 
-**Estado:** pendente, ainda não implementado. **Prioridade:** melhoria funcional para próxima release.
+**Estado:** implementado na v1.61.0, com testes automatizados e smoke test web. Validação física em RF permanece recomendada.
 
 - **Navegação:** nova aba superior `Automações`, rota `/automacoes`, detalhes `/automacoes/ping` e `/automacoes/clima`, com F5/favoritos/Voltar-Avançar.
 - **Visão geral:** cartões independentes para PING e CLIMA, status, última execução, erro recente e ações de edição/teste; catálogo preparado para outras automações.
@@ -80,4 +80,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog aberto após a v1.60.0: item #46 / issue #63 (aba Automações, PING e CLIMA).**
+**Backlog aberto após a v1.61.0: nenhum item desta matriz.**

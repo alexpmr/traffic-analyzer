@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.61.0 - 2026-10-13
+
+- Adiciona aba superior Automações com PING e CLIMA e URLs próprias.
+- Cria configuração persistente independente dos bots com preview e editor de respostas.
+- Reaproveita listener Meshtastic e mantém os padrões operacionais anteriores.
+- Implementa diagnóstico e histórico, proteções de autenticação/CSRF e testes reais limitados.
+- Inclui módulos no instalador e nos arquivos ZIP versionados; validações automatizadas adicionadas.
+
 ## 1.60.0 - 2026-10-13
 
 - Implementa roteamento por URL para todas as áreas principais e subabas de Estatísticas.

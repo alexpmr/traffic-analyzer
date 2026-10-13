@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.60.0"
+VERSION="1.61.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -63,6 +63,8 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR/topology-h
 install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
 install -m 0644 "$BASE_DIR/mesh_commands.py" "$APP_DIR/mesh_commands.py"
+install -m 0644 "$BASE_DIR/automation_manager.py" "$APP_DIR/automation_manager.py"
+install -m 0644 "$BASE_DIR/automations_ui.js" "$APP_DIR/automations_ui.js"
 install -m 0755 "$BASE_DIR/meshtastic_query.py" "$APP_DIR/meshtastic_query.py"
 install -m 0755 "$BASE_DIR/auto_update.py" "$APP_DIR/auto_update.py"
 install -m 0755 "$BASE_DIR/set_auth_password.py" "$APP_DIR/set_auth_password.py"
@@ -138,6 +140,7 @@ append_if_missing "$MAP_ENV_FILE" "TA_LIGHTNING_API_KEY" ""
 append_if_missing "$MAP_ENV_FILE" "TA_INMET_ALERTS_URL" "https://apiprevmet3.inmet.gov.br/avisos/ativos"
 append_if_missing "$MAP_ENV_FILE" "TA_NOTICE_POLL_SECONDS" "600"
 append_if_missing "$MAP_ENV_FILE" "TA_MESHTASTIC_RELEASES_URL" "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20"
+append_if_missing "$MAP_ENV_FILE" "TA_AUTOMATION_SETTINGS_FILE" "$STATE_DIR/automations.json"
 append_if_missing "$MAP_ENV_FILE" "TA_MESH_COMMANDS_ENABLED" "true"
 append_if_missing "$MAP_ENV_FILE" "TA_MESH_COMMAND_POLL_SECONDS" "3"
 append_if_missing "$MAP_ENV_FILE" "TA_PING_COOLDOWN_SECONDS" "30"

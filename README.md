@@ -1,6 +1,26 @@
-# Traffic Analyzer v1.60.0
+# Traffic Analyzer v1.61.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.61.0
+
+- Nova aba superior **Automações**, com links diretos `/automacoes`, `/automacoes/ping` e `/automacoes/clima`.
+- Controle independente dos bots PING e CLIMA, mantendo o listener RF atual.
+- Editor de modelos PING, identificação, cooldown, timeout de traceroute, URL Tempest e intervalo entre blocos CLIMA.
+- Prévia com limites de 200 bytes por bloco e até 12 blocos, **sem qualquer transmissão**.
+- Histórico e diagnóstico a partir de `mesh_command_events`; leitura e edição protegidas pela autenticação administrativa e CSRF.
+- Teste real separado, com confirmação explícita, limite de quatro blocos e intervalo mínimo de 180 segundos.
+- O teste envia pelo MeshMonitor: não garante entrega nem confirma que o transporte utilizado foi RF.
+- As configurações ficam em `/var/lib/traffic-analyzer/automations.json` e são preservadas nas atualizações.
+- A fonte CLIMA editável é restrita a HTTP local (`localhost` ou loopback), reduzindo riscos de SSRF.
+- Arquitetura modular `automation_manager.py` e `automations_ui.js` preparada para novas automações.
+
+### Como usar
+
+1. Abra **Automações** no menu superior e selecione **Configurar PING** ou **Configurar CLIMA**.
+2. Ajuste parâmetros e modelo de resposta; use **Prévia sem transmitir** para revisar o resultado.
+3. Clique **Salvar configuração** para aplicar os parâmetros ao listener atual.
+4. Se necessário, use **Enviar teste real** e confirme o possível uso do canal RF.
 
 ## Novidades da v1.60.0
 

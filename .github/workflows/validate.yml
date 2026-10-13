@@ -18,7 +18,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validar Python
-        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py mesh_commands.py meshtastic_query.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
+        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py mesh_commands.py automation_manager.py meshtastic_query.py auto_update.py set_auth_password.py docs/build_manual_pdf.py
+
+      - name: Testar painel Automações
+        run: |
+          python -m unittest discover -s tests -p 'test_automations.py' -v
+          node --check automations_ui.js
 
       - name: Validar classificação RF e MQTT por hop
         run: |
@@ -616,7 +621,7 @@ jobs:
           src = Path("traffic_analyzer_web.py").read_text(encoding="utf-8")
           marker = "<script>\n"
           start = src.index(marker) + len(marker)
-          end = src.index("</script>\n</body>", start)
+          end = src.index("</script>", start)
           Path("/tmp/traffic-analyzer.js").write_text(src[start:end], encoding="utf-8")
           PY
           node --check /tmp/traffic-analyzer.js
@@ -664,7 +669,7 @@ jobs:
           grep -Fq "settings:'/configuracoes'" traffic_analyzer_web.py
           grep -Fq "help:'/ajuda'" traffic_analyzer_web.py
           grep -Fq "window.addEventListener('popstate',taApplyRoute)" traffic_analyzer_web.py
-          grep -Fq 'spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/")' traffic_analyzer_web.py
+          grep -Fq 'spa_prefixes = ("/mapa/", "/nos/", "/mensagens/", "/estatisticas/", "/automacoes/")' traffic_analyzer_web.py
           grep -Fq 'function openNodeDetailsModal(nodeNum,updateRoute=true)' traffic_analyzer_web.py
           grep -Fq 'function openNodeWindow(nodeNum,updateRoute=true)' traffic_analyzer_web.py
           grep -Fq 'function selectPacket(key,updateRoute=true)' traffic_analyzer_web.py
@@ -760,7 +765,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.60.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Issue #63 — Aba superior Automações: PING e CLIMA' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
