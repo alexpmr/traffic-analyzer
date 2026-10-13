@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.59.3 - 2026-10-12
+
+- Corrige PING/CLIMA que eram detectados pelo listener Meshtastic, mas ainda respondiam pelo backend HTTP do MeshMonitor.
+- Respostas agora usam o próprio `TCPInterface.sendText()` no canal primário, em broadcast RF (`^all`), como o bot legado.
+- PING usa intervalo curto entre blocos; CLIMA mantém o intervalo configurado entre mensagens.
+- Adiciona logs `Resposta RF enviada` e `Comando concluído ... via RF`.
+
 ## 1.59.2 - 2026-10-12
 
 - Substitui a detecção principal de PING/CLIMA por um listener Meshtastic em tempo real.
