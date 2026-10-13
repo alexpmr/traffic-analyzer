@@ -19,8 +19,9 @@ def normalize_command(text) -> str | None:
 
 def node_identity(node: dict | None, fallback_id: str | None = None) -> str:
     node = node or {}
-    long_name = str(node.get("longName") or node.get("name") or "").strip()
+    long_name = str(node.get("longName") or "").strip()
     short_name = str(node.get("shortName") or "").strip()
+    generic_name = str(node.get("name") or "").strip()
     node_id = str(node.get("nodeId") or fallback_id or "").strip()
 
     label = ""
@@ -30,6 +31,8 @@ def node_identity(node: dict | None, fallback_id: str | None = None) -> str:
         label = long_name
     elif short_name:
         label = short_name
+    elif generic_name:
+        label = generic_name
     elif node_id:
         label = node_id
     else:
