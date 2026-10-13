@@ -6301,7 +6301,9 @@ def _mesh_command_send_parts(parts, send_func=None, gap_seconds=None):
         clean = str(part or "").strip()
         if not clean:
             continue
-        sender(clean)
+        receipt = sender(clean)
+        if isinstance(receipt, dict) and receipt.get("success") is False:
+            raise RuntimeError("Backend recusou envio: " + str(receipt.get("message") or receipt.get("error") or receipt))
         sent.append(clean)
         if idx < len(parts)-1 and gap > 0:
             _mesh_command_stop.wait(gap)
