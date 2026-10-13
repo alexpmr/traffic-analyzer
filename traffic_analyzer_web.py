@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.61.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.61.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,11 +26,12 @@ import urllib.request
 
 import mesh_commands as meshcmd
 import automation_manager as automgr
+from mesh_command_dispatch import MeshCommandDispatcher
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.61.0"
+APP_VERSION = "1.61.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -148,6 +149,9 @@ MESH_COMMAND_NODE_LABEL = str(os.getenv("TA_MESH_COMMAND_NODE_LABEL", "VHF3")).s
 PING_ROUTE_TIMEOUT_SECONDS = max(5, min(int(os.getenv("TA_PING_ROUTE_TIMEOUT_SECONDS", "20")), 90))
 _notice_stop = threading.Event()
 _mesh_command_stop = threading.Event()
+_mesh_dispatcher_lock = threading.RLock()
+_mesh_dispatcher_active = None
+_mesh_last_listener_error = None
 _notice_wakeup = threading.Event()
 _update_watch_stop = threading.Event()
 _notice_lock = threading.Lock()
@@ -6444,6 +6448,9 @@ def _mesh_command_packet_text(packet: dict) -> str:
     decoded = packet.get("decoded") if isinstance(packet, dict) else {}
     decoded = decoded if isinstance(decoded, dict) else {}
     value = decoded.get("text")
+    # Algumas versões do cliente Python informam apenas payload no decode.
+    if value is None and str(decoded.get("portnum") or "") in ("TEXT_MESSAGE_APP", "1"):
+        value = decoded.get("payload")
     if value is None:
         value = packet.get("text") if isinstance(packet, dict) else None
     if isinstance(value, bytes):
@@ -6484,9 +6491,16 @@ def _mesh_command_live_row(packet: dict, interface=None):
     except (TypeError, ValueError):
         to_num = None
 
-    # Aceita broadcast ou mensagem direta destinada ao próprio Virtual Node.
-    if to_num not in (None, 0xFFFFFFFF, -1) and local_num is not None and to_num != local_num:
+    # Não responder a comandos transmitidos pelo próprio nó nem a DMs alheias.
+    try:
+        origin_num = int(packet.get("from")) if packet.get("from") is not None else None
+    except (TypeError, ValueError):
+        origin_num = None
+    if local_num is not None and origin_num == local_num:
         return None
+    if to_num not in (None, 0xFFFFFFFF, -1):
+        if local_num is None or to_num != local_num:
+            return None
 
     rx_time = packet.get("rxTime") or packet.get("rx_time") or packet.get("timestamp")
     try:
@@ -6525,109 +6539,142 @@ def _mesh_command_live_row(packet: dict, interface=None):
     }
 
 
-def _mesh_command_live_worker():
-    """Escuta o Virtual Node Meshtastic em tempo real.
+def _mesh_command_receive_packet(packet, connection, dispatcher):
+    """Valida um comando RF e coloca na fila; sem I/O lento nem transmissão."""
+    pkt = packet if isinstance(packet, dict) else {}
+    decoded = pkt.get("decoded") if isinstance(pkt.get("decoded"), dict) else {}
+    port = str(decoded.get("portnum") or "")
+    if port not in ("TEXT_MESSAGE_APP", "1"):
+        return False
+    row = _mesh_command_live_row(pkt, interface=connection)
+    return bool(row and dispatcher.submit(row, row["_command"]))
 
-    É o mesmo mecanismo usado pelos bots legados que funcionavam na rede real:
-    TCPInterface + evento meshtastic.receive.text. Assim mensagens diretas são
-    processadas antes da sanitização de privacidade do traffic.db.
+
+def _mesh_command_live_status():
+    with _mesh_dispatcher_lock:
+        dispatcher = _mesh_dispatcher_active
+        last_error = _mesh_last_listener_error
+    if dispatcher is None:
+        return {"connected": False, "lastError": last_error,
+                "bots": {c: {"rxCount": 0, "txCount": 0, "errorCount": 0,
+                              "lastRxMs": None, "lastTxMs": None,
+                              "lastError": None, "processing": False, "pending": 0}
+                         for c in ("ping", "clima")}}
+    return dispatcher.snapshot()
+
+
+def _mesh_command_live_worker():
+    """Recebe TEXT_MESSAGE_APP sem bloquear o callback de recepção Meshtastic.
+
+    Um único TCPInterface permanece conectado; duas filas independentes
+    processam PING e CLIMA. A conexão é reiniciada em perda anunciada pela
+    biblioteca PubSub. Sem resposta RF garantida até validação no rádio.
     """
+    global _mesh_dispatcher_active, _mesh_last_listener_error
     if not MESH_COMMANDS_ENABLED:
-        print("Comandos da malha integrados: desativados.", flush=True)
+        print("Comandos da malha integrados: desativados no ambiente.", flush=True)
         return
 
     while not _mesh_command_stop.is_set():
-        interface = None
-        subscribed = False
+        connection = None
+        dispatcher = None
+        subscribed_receive = False
+        subscribed_lost = False
+        disconnected = threading.Event()
         try:
             from meshtastic.tcp_interface import TCPInterface
             from pubsub import pub
-
-            print(
-                f"Comandos da malha: conectando ao Virtual Node "
-                f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT}...",
-                flush=True,
-            )
-            interface = TCPInterface(
+            print(f"Comandos da malha: conectando ao Virtual Node "
+                  f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT}...", flush=True)
+            connection = TCPInterface(
                 hostname=VIRTUAL_NODE_HOST,
                 portNumber=VIRTUAL_NODE_PORT,
                 timeout=max(5, VIRTUAL_NODE_CONNECT_TIMEOUT),
             )
+            send_lock = threading.Lock()
+
+            def send_rf(text, command):
+                with send_lock:
+                    if disconnected.is_set():
+                        raise RuntimeError("Conexão RF perdida antes do envio")
+                    result = connection.sendText(str(text), destinationId="^all", channelIndex=0)
+                    print(f"Resposta RF encaminhada: {command.upper()} · "
+                          f"{len(str(text).encode('utf-8'))} bytes", flush=True)
+                    return {"success": True, "transport": "meshtastic-tcp",
+                            "packetId": result.get("id") if isinstance(result, dict) else None}
+
+            dispatcher = MeshCommandDispatcher(
+                process=_mesh_command_handle,
+                seen=_mesh_command_seen,
+                record=_mesh_command_record,
+                send=send_rf,
+                key=_mesh_command_message_key,
+                stop_event=_mesh_command_stop,
+                log=lambda message: print(message, flush=True),
+            ).start()
+            dispatcher.set_connected(True)
+
+            with _mesh_dispatcher_lock:
+                _mesh_dispatcher_active = dispatcher
+                _mesh_last_listener_error = None
 
             def on_packet(packet=None, interface=None, **kwargs):
+                # Nunca consultar banco/API/traceroute ou enviar RF no callback.
+                # Ignorar eventos de conexões de outras rotinas Meshtastic.
+                if interface is not None and interface is not connection:
+                    return
                 try:
-                    pkt = packet or {}
-                    decoded = pkt.get("decoded") if isinstance(pkt, dict) and isinstance(pkt.get("decoded"), dict) else {}
-                    port = str(decoded.get("portnum") or "")
-                    # Em algumas versões/combinações do cliente Python o tópico
-                    # meshtastic.receive.text não é publicado, embora o pacote
-                    # TEXT_MESSAGE_APP chegue normalmente em meshtastic.receive.
-                    # Por isso filtramos o TEXT_MESSAGE_APP a partir do tópico geral.
-                    if port != "TEXT_MESSAGE_APP" and not decoded.get("text"):
-                        return
-                    row = _mesh_command_live_row(pkt, interface=interface)
-                    if not row:
-                        return
-                    command = row.get("_command") or meshcmd.normalize_command(row.get("text"))
-                    key = _mesh_command_message_key(row)
-                    if _mesh_command_seen(key):
-                        return
-                    remaining = _mesh_command_cooldown_active(row, command)
-                    if remaining:
-                        _mesh_command_record(row, command, "cooldown", detail=f"{remaining}s restantes")
-                        return
-                    print(
-                        f"Comando recebido: {command.upper()} de "
-                        f"{row.get('fromNodeId') or row.get('fromNodeNum') or 'desconhecido'} "
-                        f"via Meshtastic RF/live",
-                        flush=True,
-                    )
-                    try:
-                        def send_rf(text):
-                            interface.sendText(
-                                str(text),
-                                destinationId="^all",
-                                channelIndex=0,
-                            )
-                            print(
-                                f"Resposta RF enviada: {command.upper()} · {len(str(text).encode('utf-8'))} bytes",
-                                flush=True,
-                            )
-                            return {"success": True, "transport": "meshtastic-tcp-rf"}
-                        _mesh_command_handle(row, command, send_func=send_rf)
-                        print(f"Comando concluído: {command.upper()} via RF", flush=True)
-                    except Exception as exc:
-                        _mesh_command_record(row, command, "error", detail=str(exc))
-                        print(f"Comando {command} falhou: {exc}", flush=True)
+                    _mesh_command_receive_packet(packet, connection, dispatcher)
                 except Exception as exc:
-                    print(f"Falha no callback de comando da malha: {exc}", flush=True)
+                    print(f"Falha no callback RF (parsing/fila): {exc}", flush=True)
+
+            def on_lost(interface=None, **kwargs):
+                if interface is None or interface is connection:
+                    print("Listener RF: perda de conexão anunciada pelo Meshtastic.", flush=True)
+                    disconnected.set()
 
             pub.subscribe(on_packet, "meshtastic.receive")
-            subscribed = True
+            subscribed_receive = True
+            pub.subscribe(on_lost, "meshtastic.connection.lost")
+            subscribed_lost = True
             print(
                 f"Comandos da malha integrados: PING, CLIMA e #CLIMA ativos em "
                 f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT} no canal primário "
-                f"(listener meshtastic.receive).",
-                flush=True,
+                f"(listener assíncrono meshtastic.receive).", flush=True,
             )
-
             while not _mesh_command_stop.wait(1.0):
-                pass
+                if disconnected.is_set():
+                    raise ConnectionError("Conexão Meshtastic perdida")
         except Exception as exc:
+            with _mesh_dispatcher_lock:
+                _mesh_last_listener_error = str(exc)[:320]
             print(f"Listener Meshtastic dos comandos caiu: {exc}; reconectando em 5 s.", flush=True)
-            _mesh_command_stop.wait(5.0)
         finally:
-            if subscribed:
+            disconnected.set()
+            if dispatcher is not None:
+                dispatcher.stop()
+            with _mesh_dispatcher_lock:
+                if _mesh_dispatcher_active is dispatcher:
+                    _mesh_dispatcher_active = None
+            if subscribed_receive:
                 try:
                     from pubsub import pub
                     pub.unsubscribe(on_packet, "meshtastic.receive")
                 except Exception:
                     pass
-            if interface is not None:
+            if subscribed_lost:
                 try:
-                    interface.close()
+                    from pubsub import pub
+                    pub.unsubscribe(on_lost, "meshtastic.connection.lost")
                 except Exception:
                     pass
+            if connection is not None:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+            if not _mesh_command_stop.is_set():
+                _mesh_command_stop.wait(5.0)
 
 def _mesh_command_worker():
     if not MESH_COMMANDS_ENABLED:
@@ -10877,6 +10924,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 body = {"success": True, "settings": _automation_settings(),
                         "globalEnabled": MESH_COMMANDS_ENABLED,
+                        "liveStatus": _mesh_command_live_status(),
                         "items": [{"id": "ping", "name": "PING"}, {"id": "clima", "name": "CLIMA"}],
                         "events": _automation_events(60)}
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))

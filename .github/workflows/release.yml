@@ -36,6 +36,9 @@ jobs:
           python -m unittest discover -s tests -p 'test_automations.py' -v
           node --check automations_ui.js
 
+      - name: Validar regressão da recepção RF de PING/CLIMA
+        run: python -m unittest discover -s tests -p 'test_mesh_rf_dispatch.py' -v
+
       - name: Validar classificação RF e MQTT por hop
         run: |
           python - <<'PY'
@@ -485,7 +488,7 @@ jobs:
           web._archive_init()
           sent=[]
           web._mesh_command_stop.clear()
-          web._mesh_command_route_text=lambda node_num: "sem resposta"
+          web._mesh_command_route_text=lambda node_num, timeout_seconds=None: "sem resposta"
           web._mesh_command_heard_nodes_24h=lambda: 32
           web._mesh_command_node_for_message=lambda row: node
           web._mesh_command_record=lambda *args,**kwargs: None
@@ -1431,6 +1434,7 @@ jobs:
             traffic_analyzer_web.py \
             mesh_commands.py \
             automation_manager.py \
+            mesh_command_dispatch.py \
             automations_ui.js \
             meshtastic_query.py \
             install.sh \
