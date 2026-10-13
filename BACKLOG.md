@@ -1,3 +1,12 @@
+
+## Correção em revisão — classificação RF e filtro geográfico (13/10/2026)
+
+- Ranking de enlaces RF diretos passa a exigir `direct_evidence=1` e `direct_evidence_kind=route-adjacency-api`, não apenas SNR válido.
+- No mapa, registros RF sem adjacência comprovada aparecem em cinza tracejado e são identificados como não confirmados.
+- Em Configurações, filtro geográfico visual padrão de 4.000 km, ajustável de 100 a 10.000 km, sem excluir histórico persistente.
+- **Pendente antes de release:** testes automatizados e com dados reais; confirmar persistência e referência correta da estação; avaliar eventos históricos sem `events` completos e garantir equivalência de mapa, ranking e auditoria.
+- **Não confundir esta branch de correção com release completa ou publicada.**
+
 # Backlog — Traffic Analyzer
 
 Estado consolidado da release **v1.60.0** (2026-10-13), com novas solicitações registradas separadamente.
