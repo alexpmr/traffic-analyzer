@@ -6035,7 +6035,7 @@ def _mesh_command_route_text(node_num: int) -> str:
                         break
                 except (TypeError, ValueError):
                     pass
-            if ts and ts + 2000 < requested:
+            if not ts or ts + 2000 < requested:
                 continue
             route = trace.get("route")
             if isinstance(route, str):
