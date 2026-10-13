@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.59.2 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.59.3 para MeshMonitor."""
 
 import base64
 import csv
@@ -29,7 +29,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.59.2"
+APP_VERSION = "1.59.3"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6060,22 +6060,24 @@ def _mesh_command_route_text(node_num: int) -> str:
     return "sem resposta"
 
 
-def _mesh_command_send_parts(parts):
+def _mesh_command_send_parts(parts, send_func=None, gap_seconds=None):
+    sender = send_func or _send_primary_message
     sent = []
+    gap = CLIMA_REPLY_GAP_SECONDS if gap_seconds is None else max(0.0, float(gap_seconds))
     for idx, part in enumerate(parts):
         if _mesh_command_stop.is_set():
             break
         clean = str(part or "").strip()
         if not clean:
             continue
-        body = _send_primary_message(clean)
+        sender(clean)
         sent.append(clean)
-        if idx < len(parts)-1 and CLIMA_REPLY_GAP_SECONDS > 0:
-            _mesh_command_stop.wait(CLIMA_REPLY_GAP_SECONDS)
+        if idx < len(parts)-1 and gap > 0:
+            _mesh_command_stop.wait(gap)
     return sent
 
 
-def _mesh_command_handle(row: dict, command: str):
+def _mesh_command_handle(row: dict, command: str, send_func=None):
     remaining = _mesh_command_cooldown_active(row, command)
     if remaining:
         _mesh_command_record(row, command, "cooldown", detail=f"{remaining}s restantes")
@@ -6097,7 +6099,7 @@ def _mesh_command_handle(row: dict, command: str):
             route_text=route_text,
         )
         parts = meshcmd.split_utf8(text, 200)
-        sent = _mesh_command_send_parts(parts)
+        sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=1.5)
         _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
         return
 
@@ -6107,12 +6109,12 @@ def _mesh_command_handle(row: dict, command: str):
             parts = []
             for response in responses:
                 parts.extend(meshcmd.split_utf8(response, 200))
-            sent = _mesh_command_send_parts(parts)
+            sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=CLIMA_REPLY_GAP_SECONDS)
             _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
         except Exception as exc:
             fallback = "CLIMA indisponível no momento."
             try:
-                _send_primary_message(fallback)
+                (send_func or _send_primary_message)(fallback)
             except Exception:
                 pass
             _mesh_command_record(row, command, "error", response_text=fallback, detail=str(exc))
@@ -6337,8 +6339,19 @@ def _mesh_command_live_worker():
                         flush=True,
                     )
                     try:
-                        _mesh_command_handle(row, command)
-                        print(f"Comando concluído: {command.upper()}", flush=True)
+                        def send_rf(text):
+                            interface.sendText(
+                                str(text),
+                                destinationId="^all",
+                                channelIndex=0,
+                            )
+                            print(
+                                f"Resposta RF enviada: {command.upper()} · {len(str(text).encode('utf-8'))} bytes",
+                                flush=True,
+                            )
+                            return {"success": True, "transport": "meshtastic-tcp-rf"}
+                        _mesh_command_handle(row, command, send_func=send_rf)
+                        print(f"Comando concluído: {command.upper()} via RF", flush=True)
                     except Exception as exc:
                         _mesh_command_record(row, command, "error", detail=str(exc))
                         print(f"Comando {command} falhou: {exc}", flush=True)
