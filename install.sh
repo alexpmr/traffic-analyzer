@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.61.0"
+VERSION="1.61.1"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -64,6 +64,7 @@ install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
 install -m 0644 "$BASE_DIR/mesh_commands.py" "$APP_DIR/mesh_commands.py"
 install -m 0644 "$BASE_DIR/automation_manager.py" "$APP_DIR/automation_manager.py"
+install -m 0644 "$BASE_DIR/mesh_command_dispatch.py" "$APP_DIR/mesh_command_dispatch.py"
 install -m 0644 "$BASE_DIR/automations_ui.js" "$APP_DIR/automations_ui.js"
 install -m 0755 "$BASE_DIR/meshtastic_query.py" "$APP_DIR/meshtastic_query.py"
 install -m 0755 "$BASE_DIR/auto_update.py" "$APP_DIR/auto_update.py"
