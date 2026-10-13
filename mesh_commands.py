@@ -9,12 +9,14 @@ import re
 import urllib.request
 
 
-VALID_COMMANDS = {"ping", "clima"}
+VALID_COMMANDS = {"ping", "clima", "#clima"}
 
 
 def normalize_command(text) -> str | None:
     value = re.sub(r"\s+", " ", str(text or "").strip().lower())
-    return value if value in VALID_COMMANDS else None
+    if value == "#clima":
+        return "clima"
+    return value if value in {"ping", "clima"} else None
 
 
 def node_identity(node: dict | None, fallback_id: str | None = None) -> str:

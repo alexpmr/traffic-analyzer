@@ -1,6 +1,16 @@
-# Traffic Analyzer v1.59.1
+# Traffic Analyzer v1.59.2
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.59.2
+
+- Corrige definitivamente a recepção de **PING/CLIMA por RF**.
+- O Traffic Analyzer passa a escutar em tempo real o **Virtual Node Meshtastic TCP** usando o mesmo mecanismo comprovado pelos bots antigos: `TCPInterface` + evento `meshtastic.receive.text`.
+- Mensagens diretas são processadas **antes** da sanitização de privacidade do `traffic.db`, portanto o conteúdo privado continua sem ser persistido em texto puro.
+- O listener aceita mensagens do canal primário destinadas ao próprio nó e broadcasts.
+- Compatibilidade preservada com os comandos `ping`, `clima` e o legado `#clima`.
+- O serviço web passa a usar o Python do venv interno do Traffic Analyzer, onde o cliente Meshtastic 2.7.11 já é instalado.
+- O worker anterior baseado em polling permanece no código apenas como fallback interno, mas a execução padrão passa a ser o listener Meshtastic em tempo real.
 
 ## Novidades da v1.59.1
 

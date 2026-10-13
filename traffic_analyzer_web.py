@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.59.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.59.2 para MeshMonitor."""
 
 import base64
 import csv
@@ -29,7 +29,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.59.1"
+APP_VERSION = "1.59.2"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6202,6 +6202,175 @@ def _mesh_command_candidates(limit: int = 300):
     rows.sort(key=_mesh_command_timestamp_ms)
     return rows, errors
 
+
+def _mesh_command_packet_text(packet: dict) -> str:
+    decoded = packet.get("decoded") if isinstance(packet, dict) else {}
+    decoded = decoded if isinstance(decoded, dict) else {}
+    value = decoded.get("text")
+    if value is None:
+        value = packet.get("text") if isinstance(packet, dict) else None
+    if isinstance(value, bytes):
+        try:
+            value = value.decode("utf-8", errors="replace")
+        except Exception:
+            value = ""
+    return str(value or "").strip()
+
+
+def _mesh_command_live_row(packet: dict, interface=None):
+    packet = packet or {}
+    decoded = packet.get("decoded") if isinstance(packet.get("decoded"), dict) else {}
+    text = _mesh_command_packet_text(packet)
+    command = meshcmd.normalize_command(text)
+    if not command:
+        return None
+
+    try:
+        channel = int(packet.get("channel", 0) or 0)
+    except (TypeError, ValueError):
+        channel = 0
+    if channel != 0:
+        return None
+
+    local_num = None
+    try:
+        info = interface.getMyNodeInfo() if interface is not None else {}
+        local_num = int((info or {}).get("num") or (info or {}).get("nodeNum") or 0) or None
+    except Exception:
+        try:
+            local_num = int(getattr(getattr(interface, "myInfo", None), "my_node_num", 0) or 0) or None
+        except Exception:
+            local_num = None
+
+    try:
+        to_num = int(packet.get("to")) if packet.get("to") is not None else None
+    except (TypeError, ValueError):
+        to_num = None
+
+    # Aceita broadcast ou mensagem direta destinada ao próprio Virtual Node.
+    if to_num not in (None, 0xFFFFFFFF, -1) and local_num is not None and to_num != local_num:
+        return None
+
+    rx_time = packet.get("rxTime") or packet.get("rx_time") or packet.get("timestamp")
+    try:
+        rx_ms = int(float(rx_time) * 1000) if rx_time and float(rx_time) < 100000000000 else int(float(rx_time)) if rx_time else int(time.time()*1000)
+    except Exception:
+        rx_ms = int(time.time()*1000)
+
+    try:
+        from_num = int(packet.get("from")) if packet.get("from") is not None else None
+    except (TypeError, ValueError):
+        from_num = None
+    from_id = _node_hex_id(from_num) if from_num else ""
+
+    packet_id = packet.get("id")
+    if packet_id is None:
+        packet_id = decoded.get("requestId") or decoded.get("request_id")
+
+    return {
+        "id": f"live:{packet_id or hashlib.sha256((from_id+'|'+text+'|'+str(rx_ms)).encode()).hexdigest()[:16]}",
+        "requestId": packet_id,
+        "fromNodeNum": from_num,
+        "fromNodeId": from_id,
+        "text": text,
+        "channel": channel,
+        "timestamp": rx_ms,
+        "createdAt": rx_ms,
+        "receivedAt": rx_ms,
+        "hopStart": packet.get("hopStart", packet.get("hop_start")),
+        "hopLimit": packet.get("hopLimit", packet.get("hop_limit")),
+        "rxSnr": packet.get("rxSnr", packet.get("rx_snr")),
+        "rxRssi": packet.get("rxRssi", packet.get("rx_rssi")),
+        "viaMqtt": bool(packet.get("viaMqtt", packet.get("via_mqtt", False))),
+        "mine": False,
+        "_source": "meshtastic-live",
+        "_command": command,
+    }
+
+
+def _mesh_command_live_worker():
+    """Escuta o Virtual Node Meshtastic em tempo real.
+
+    É o mesmo mecanismo usado pelos bots legados que funcionavam na rede real:
+    TCPInterface + evento meshtastic.receive.text. Assim mensagens diretas são
+    processadas antes da sanitização de privacidade do traffic.db.
+    """
+    if not MESH_COMMANDS_ENABLED:
+        print("Comandos da malha integrados: desativados.", flush=True)
+        return
+
+    while not _mesh_command_stop.is_set():
+        interface = None
+        subscribed = False
+        try:
+            from meshtastic.tcp_interface import TCPInterface
+            from pubsub import pub
+
+            print(
+                f"Comandos da malha: conectando ao Virtual Node "
+                f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT}...",
+                flush=True,
+            )
+            interface = TCPInterface(
+                hostname=VIRTUAL_NODE_HOST,
+                portNumber=VIRTUAL_NODE_PORT,
+                timeout=max(5, VIRTUAL_NODE_CONNECT_TIMEOUT),
+            )
+
+            def on_text(packet=None, interface=None, **kwargs):
+                try:
+                    row = _mesh_command_live_row(packet or {}, interface=interface)
+                    if not row:
+                        return
+                    command = row.get("_command") or meshcmd.normalize_command(row.get("text"))
+                    key = _mesh_command_message_key(row)
+                    if _mesh_command_seen(key):
+                        return
+                    remaining = _mesh_command_cooldown_active(row, command)
+                    if remaining:
+                        _mesh_command_record(row, command, "cooldown", detail=f"{remaining}s restantes")
+                        return
+                    print(
+                        f"Comando recebido: {command.upper()} de "
+                        f"{row.get('fromNodeId') or row.get('fromNodeNum') or 'desconhecido'} "
+                        f"via Meshtastic RF/live",
+                        flush=True,
+                    )
+                    try:
+                        _mesh_command_handle(row, command)
+                        print(f"Comando concluído: {command.upper()}", flush=True)
+                    except Exception as exc:
+                        _mesh_command_record(row, command, "error", detail=str(exc))
+                        print(f"Comando {command} falhou: {exc}", flush=True)
+                except Exception as exc:
+                    print(f"Falha no callback de comando da malha: {exc}", flush=True)
+
+            pub.subscribe(on_text, "meshtastic.receive.text")
+            subscribed = True
+            print(
+                f"Comandos da malha integrados: PING, CLIMA e #CLIMA ativos em "
+                f"{VIRTUAL_NODE_HOST}:{VIRTUAL_NODE_PORT} no canal primário.",
+                flush=True,
+            )
+
+            while not _mesh_command_stop.wait(1.0):
+                pass
+        except Exception as exc:
+            print(f"Listener Meshtastic dos comandos caiu: {exc}; reconectando em 5 s.", flush=True)
+            _mesh_command_stop.wait(5.0)
+        finally:
+            if subscribed:
+                try:
+                    from pubsub import pub
+                    pub.unsubscribe(on_text, "meshtastic.receive.text")
+                except Exception:
+                    pass
+            if interface is not None:
+                try:
+                    interface.close()
+                except Exception:
+                    pass
+
 def _mesh_command_worker():
     if not MESH_COMMANDS_ENABLED:
         print("Comandos da malha integrados: desativados.", flush=True)
@@ -10937,7 +11106,7 @@ def main():
     archive_thread.start()
     notice_thread = threading.Thread(target=_automatic_notice_worker, name="automatic-notices", daemon=True)
     notice_thread.start()
-    command_thread = threading.Thread(target=_mesh_command_worker, name="mesh-commands", daemon=True)
+    command_thread = threading.Thread(target=_mesh_command_live_worker, name="mesh-commands-live", daemon=True)
     command_thread.start()
     update_thread = threading.Thread(target=_automatic_update_watch_worker, name="automatic-update-watch", daemon=True)
     update_thread.start()

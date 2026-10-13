@@ -8,7 +8,7 @@ Type=simple
 # Tokens e hash de autenticação ficam apenas no processo servidor. Não são enviados ao navegador.
 EnvironmentFile=/etc/traffic-analyzer.env
 EnvironmentFile=/etc/traffic-analyzer-map.env
-ExecStart=/usr/bin/python3 /opt/traffic-analyzer/traffic_analyzer_web.py
+ExecStart=/opt/traffic-analyzer/.venv/bin/python /opt/traffic-analyzer/traffic_analyzer_web.py
 User=traffic-analyzer
 Group=traffic-analyzer
 Restart=always
