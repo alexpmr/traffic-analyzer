@@ -144,10 +144,7 @@ jobs:
 
               ranked=web._archive_rf_longest_links_query({})
               by_edge={x["edgeId"]:x for x in ranked["data"]}
-              assert "10:20" in by_edge,ranked
-              assert by_edge["10:20"]["evidenceSource"]=="topology-rf-hop",by_edge["10:20"]
-              assert by_edge["10:20"]["rfObservations"]==2,by_edge["10:20"]
-              assert by_edge["10:20"]["trustedDirectObservations"]==0,by_edge["10:20"]
+              assert "10:20" not in by_edge,ranked  # RF/SNR sem adjacência não confirma enlace direto
               assert "20:30" in by_edge,ranked
               assert by_edge["20:30"]["evidenceSource"]=="api-traceroute",by_edge["20:30"]
               assert by_edge["20:30"]["trustedDirectObservations"]==1,by_edge["20:30"]
@@ -155,7 +152,8 @@ jobs:
 
               audit=web._archive_rf_ranking_audit_query({})
               audit_by_edge={x["edgeId"]:x for x in audit["data"]}
-              assert audit_by_edge["10:20"]["eligible"] is True,audit_by_edge["10:20"]
+              assert audit_by_edge["10:20"]["eligible"] is False,audit_by_edge["10:20"]
+              assert audit_by_edge["10:20"]["reason"]=="sem_evidencia_direta_verificavel"
               assert audit_by_edge["10:20"]["directObservations"]==2,audit_by_edge["10:20"]
           PY
 
