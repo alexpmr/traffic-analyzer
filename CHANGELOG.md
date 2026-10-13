@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.59.0 - 2026-10-12
+
+- Migra os bots externos **PING** e **CLIMA** para o backend do Traffic Analyzer.
+- Adiciona `mesh_commands.py` com parser e formatação independentes.
+- Processa somente `ping` e `clima` exatos no canal primário, case-insensitive.
+- PING usa Long Name/Short Name configurados pelo usuário, Node ID, RSSI, SNR, hops, transporte e contagem de nós ouvidos em 24 h.
+- PING dispara traceroute atual e informa rota direta, intermediários ou ausência de resposta.
+- CLIMA consome a API Tempest local já existente e preserva o envio em blocos curtos.
+- Adiciona cooldown por nó/comando e persistência/auditoria em `mesh_command_events`.
+- Instalação passa a desativar `tempest-ping-bot.service` e `tempest-clima-bot.service`, mantendo `tempest-clima-api.service`.
+- Evita respostas retroativas na primeira inicialização do worker integrado.
+
 ## 1.58.0 - 2026-10-10
 
 - Remove a dependência de basemap CARTO que passou a exibir `API KEY REQUIRED`.
