@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.61.1 - 2026-10-13
+
+- Separa o recebimento de comandos RF de operações bloqueantes de PING e CLIMA, com filas assíncronas independentes.
+- Amplia parsing de TEXT_MESSAGE_APP, deduplicação, reconexão, proteção contra auto-respostas e telemetria do listener.
+- Inclui regressões sem hardware; teste real em rádio permanece pendente até validação externa.
+
 ## 1.61.0 - 2026-10-13
 
 - Adiciona aba superior Automações com PING e CLIMA e URLs próprias.
