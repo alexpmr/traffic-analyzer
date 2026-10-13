@@ -609,7 +609,7 @@ jobs:
           src = Path("traffic_analyzer_web.py").read_text(encoding="utf-8")
           marker = "<script>\n"
           start = src.index(marker) + len(marker)
-          end = src.index("</script>\n</body>", start)
+          end = src.index("</script>", start)
           Path("/tmp/traffic-analyzer.js").write_text(src[start:end], encoding="utf-8")
           PY
           node --check /tmp/traffic-analyzer.js
