@@ -404,6 +404,50 @@ jobs:
           grep -Fq 'Referrer-Policy", "strict-origin-when-cross-origin"' traffic_analyzer_web.py
           ! grep -Fq 'Referrer-Policy", "same-origin"' traffic_analyzer_web.py
 
+      - name: Validar comandos integrados PING e CLIMA
+        shell: bash
+        run: |
+          python - <<'PY'
+          import mesh_commands as mc
+          import traffic_analyzer_web as web
+
+          assert mc.normalize_command("ping")=="ping"
+          assert mc.normalize_command(" PING ")=="ping"
+          assert mc.normalize_command("clima")=="clima"
+          assert mc.normalize_command("#clima") is None
+          assert mc.normalize_command("ping agora") is None
+
+          node={"longName":"PT2VHF-3 - MeshMonitor","shortName":"VHF3","nodeId":"!8fa573a4"}
+          assert mc.node_identity(node)=="PT2VHF-3 - MeshMonitor [VHF3] (!8fa573a4)"
+
+          msg={"hopStart":3,"hopLimit":1,"rxRssi":-72,"rxSnr":6.2,"viaMqtt":False,"timestamp":1700000000000}
+          text=mc.format_ping_message(
+              destination_label="VHF3",
+              origin=mc.node_identity(node),
+              message=msg,
+              heard_nodes_24h=32,
+              route_text="sem resposta",
+          )
+          assert "Origem: PT2VHF-3 - MeshMonitor [VHF3] (!8fa573a4)" in text,text
+          assert "Sinal recebido: -72 dBm" in text,text
+          assert "Qualidade do sinal: 6.2 dB" in text,text
+          assert "Saltos até VHF3: 2" in text,text
+          assert "Via: LoRa" in text,text
+          assert "Nós ouvidos em 24 h: 32" in text,text
+          assert "Teste de rota: sem resposta" in text,text
+          assert all(len(x.encode("utf-8"))<=200 for x in mc.split_utf8(text,200))
+
+          web.TRAFFIC_ARCHIVE_DB=__import__("pathlib").Path("/tmp/ta-mesh-command-test.db")
+          try:
+              web.TRAFFIC_ARCHIVE_DB.unlink()
+          except FileNotFoundError:
+              pass
+          web._archive_init()
+          with web._archive_connect() as conn:
+              names={r["name"] for r in conn.execute("PRAGMA table_info(mesh_command_events)").fetchall()}
+          assert {"message_key","command","from_node","status","response_text"} <= names,names
+          PY
+
       - name: Validar replies e reações no backend
         shell: bash
         run: |
@@ -494,7 +538,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.58.0
+      - name: Validar backlog v1.59.0
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -589,7 +633,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.58.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.59.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py
@@ -1296,6 +1340,7 @@ jobs:
           for f in \
             traffic_analyzer.py \
             traffic_analyzer_web.py \
+            mesh_commands.py \
             meshtastic_query.py \
             install.sh \
             update.sh \
