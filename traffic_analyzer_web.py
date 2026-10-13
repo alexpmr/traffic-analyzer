@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.59.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.59.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -29,7 +29,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.59.0"
+APP_VERSION = "1.59.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6119,6 +6119,82 @@ def _mesh_command_handle(row: dict, command: str):
         return
 
 
+
+def _mesh_command_archive_rows(limit: int = 300):
+    """Fallback robusto: lê comandos diretamente do arquivo de pacotes RX.
+
+    O Packet Monitor/arquivador já recebe TEXT_MESSAGE_APP mesmo quando o
+    endpoint de mensagens do MeshMonitor não projeta a mensagem para o bot.
+    Apenas broadcasts do canal primário são elegíveis; mensagens diretas
+    permanecem sanitizadas no arquivo e não são usadas como comandos.
+    """
+    with _archive_connect() as conn:
+        rows = conn.execute(
+            """SELECT archive_id,packet_id,timestamp,created_at,direction,
+                      from_node,from_node_id,channel,portnum_name,snr,rssi,
+                      hop_limit,hop_start,transport_mechanism,payload_preview
+               FROM packets
+               WHERE COALESCE(channel,0)=0
+                 AND COALESCE(direction,'rx')!='tx'
+                 AND COALESCE(portnum_name,'')='TEXT_MESSAGE_APP'
+                 AND payload_preview IS NOT NULL
+               ORDER BY timestamp DESC
+               LIMIT ?""",
+            (max(1, min(int(limit), 1500)),),
+        ).fetchall()
+    out=[]
+    for row in reversed(rows):
+        text=str(row["payload_preview"] or "").strip()
+        if not meshcmd.normalize_command(text):
+            continue
+        transport = row["transport_mechanism"]
+        out.append({
+            "id": f"archive:{row['archive_id']}",
+            "requestId": row["packet_id"],
+            "fromNodeNum": row["from_node"],
+            "fromNodeId": row["from_node_id"],
+            "text": text,
+            "channel": row["channel"] if row["channel"] is not None else 0,
+            "timestamp": row["timestamp"],
+            "createdAt": row["created_at"],
+            "receivedAt": row["created_at"] or row["timestamp"],
+            "hopStart": row["hop_start"],
+            "hopLimit": row["hop_limit"],
+            "rxSnr": row["snr"],
+            "rxRssi": row["rssi"],
+            "viaMqtt": bool(transport not in (None,0,1)),
+            "mine": False,
+            "_source": "traffic.db",
+        })
+    return out
+
+
+def _mesh_command_candidates(limit: int = 300):
+    """Une API de mensagens e arquivo RX sem duplicar comandos."""
+    combined=[]
+    errors=[]
+    try:
+        body=_primary_messages(limit)
+        rows=body.get("data",[]) if isinstance(body,dict) else []
+        combined.extend(r for r in rows if isinstance(r,dict))
+    except Exception as exc:
+        errors.append(f"messages-api: {exc}")
+    try:
+        combined.extend(_mesh_command_archive_rows(limit))
+    except Exception as exc:
+        errors.append(f"traffic-db: {exc}")
+
+    dedup={}
+    for row in combined:
+        command=meshcmd.normalize_command(row.get("text"))
+        if not command:
+            continue
+        key=_mesh_command_message_key(row)
+        dedup.setdefault(key,row)
+    rows=list(dedup.values())
+    rows.sort(key=_mesh_command_timestamp_ms)
+    return rows, errors
+
 def _mesh_command_worker():
     if not MESH_COMMANDS_ENABLED:
         print("Comandos da malha integrados: desativados.", flush=True)
@@ -6128,13 +6204,12 @@ def _mesh_command_worker():
         f"clima={CLIMA_API_URL}",
         flush=True,
     )
-    meta_key = f"mesh-commands-initialized-v1:{MM_SOURCE}"
+    meta_key = f"mesh-commands-initialized-v2:{MM_SOURCE}"
     while not _mesh_command_stop.is_set():
         try:
-            body = _primary_messages(300)
-            rows = body.get("data", []) if isinstance(body, dict) else []
-            rows = [r for r in rows if isinstance(r, dict)]
-            rows.sort(key=_mesh_command_timestamp_ms)
+            rows, errors = _mesh_command_candidates(300)
+            if errors:
+                print("Comandos da malha: " + " | ".join(errors), flush=True)
 
             with _archive_connect() as conn:
                 initialized = conn.execute(
@@ -6151,6 +6226,7 @@ def _mesh_command_worker():
                         "INSERT OR REPLACE INTO topology_history_meta(meta_key,meta_value) VALUES(?,?)",
                         (meta_key, json.dumps({"initializedAtMs":int(time.time()*1000)})),
                     )
+                print(f"Comandos da malha: inicializados; {len(rows)} comando(s) antigo(s) ignorado(s).", flush=True)
                 _mesh_command_stop.wait(MESH_COMMAND_POLL_SECONDS)
                 continue
 
@@ -6163,8 +6239,15 @@ def _mesh_command_worker():
                 key = _mesh_command_message_key(row)
                 if _mesh_command_seen(key):
                     continue
+                print(
+                    f"Comando recebido: {command.upper()} de "
+                    f"{row.get('fromNodeId') or row.get('fromNodeNum') or 'desconhecido'} "
+                    f"via {row.get('_source') or 'messages-api'}",
+                    flush=True,
+                )
                 try:
                     _mesh_command_handle(row, command)
+                    print(f"Comando concluído: {command.upper()}", flush=True)
                 except Exception as exc:
                     _mesh_command_record(row, command, "error", detail=str(exc))
                     print(f"Comando {command} falhou: {exc}", flush=True)
