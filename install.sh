@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.56.0"
+VERSION="1.59.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -62,6 +62,7 @@ install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR"
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$STATE_DIR/topology-history-queue"
 install -m 0755 "$BASE_DIR/traffic_analyzer.py" "$APP_DIR/traffic_analyzer.py"
 install -m 0755 "$BASE_DIR/traffic_analyzer_web.py" "$APP_DIR/traffic_analyzer_web.py"
+install -m 0644 "$BASE_DIR/mesh_commands.py" "$APP_DIR/mesh_commands.py"
 install -m 0755 "$BASE_DIR/meshtastic_query.py" "$APP_DIR/meshtastic_query.py"
 install -m 0755 "$BASE_DIR/auto_update.py" "$APP_DIR/auto_update.py"
 install -m 0755 "$BASE_DIR/set_auth_password.py" "$APP_DIR/set_auth_password.py"
@@ -137,6 +138,14 @@ append_if_missing "$MAP_ENV_FILE" "TA_LIGHTNING_API_KEY" ""
 append_if_missing "$MAP_ENV_FILE" "TA_INMET_ALERTS_URL" "https://apiprevmet3.inmet.gov.br/avisos/ativos"
 append_if_missing "$MAP_ENV_FILE" "TA_NOTICE_POLL_SECONDS" "600"
 append_if_missing "$MAP_ENV_FILE" "TA_MESHTASTIC_RELEASES_URL" "https://api.github.com/repos/meshtastic/firmware/releases?per_page=20"
+append_if_missing "$MAP_ENV_FILE" "TA_MESH_COMMANDS_ENABLED" "true"
+append_if_missing "$MAP_ENV_FILE" "TA_MESH_COMMAND_POLL_SECONDS" "3"
+append_if_missing "$MAP_ENV_FILE" "TA_PING_COOLDOWN_SECONDS" "30"
+append_if_missing "$MAP_ENV_FILE" "TA_CLIMA_COOLDOWN_SECONDS" "300"
+append_if_missing "$MAP_ENV_FILE" "TA_CLIMA_API_URL" "http://127.0.0.1:8765/clima"
+append_if_missing "$MAP_ENV_FILE" "TA_CLIMA_REPLY_GAP_SECONDS" "8"
+append_if_missing "$MAP_ENV_FILE" "TA_MESH_COMMAND_NODE_LABEL" "VHF3"
+append_if_missing "$MAP_ENV_FILE" "TA_PING_ROUTE_TIMEOUT_SECONDS" "20"
 chmod 0600 "$MAP_ENV_FILE"
 
 # Preserva estado/topologia ja coletados, se existirem.
@@ -205,6 +214,12 @@ systemctl disable --now meshmonitor-route-discovery.timer 2>/dev/null || true
 systemctl stop meshmonitor-route-discovery.service 2>/dev/null || true
 systemctl disable --now meshmonitor-route-map.service 2>/dev/null || true
 
+# v1.59.0: PING e CLIMA passam a ser respondidos pelo próprio Traffic Analyzer.
+# O serviço da API de clima é mantido como fonte local de dados; somente os
+# bots antigos são retirados para impedir respostas duplicadas.
+systemctl disable --now tempest-ping-bot.service 2>/dev/null || true
+systemctl disable --now tempest-clima-bot.service 2>/dev/null || true
+
 systemctl daemon-reload
 systemctl enable --now traffic-analyzer.timer
 systemctl enable --now traffic-analyzer-auto-update.path
@@ -270,7 +285,7 @@ Atualização futura pelo GitHub:
   traffic-analyzer-update
 
 O token, MM_SOURCE, estado, topologia, cooldowns e traffic.db sao preservados nas atualizacoes.
-Os servicos antigos meshmonitor-route-* sao desativados para evitar duplicidade.
+Os servicos antigos meshmonitor-route-* e os bots externos PING/CLIMA sao desativados para evitar duplicidade. A tempest-clima-api.service permanece como fonte local do comando CLIMA.
 
 ------------------------------------------------------------
  Status do agendador

@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.58.0** (2026-10-09).
+Estado consolidado da release **v1.59.0** (2026-10-09).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.58.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.59.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -43,8 +43,11 @@ Esta matriz registra o fechamento do backlog funcional até a v1.58.0. Um item s
 | 35 | Ranking RF: usar o mesmo critério RF confirmado do mapa | Concluído na v1.57.0 | Todo hop persistido com `transport='rf'` + SNR válido entra no Ranking quando há posição nos dois extremos; `route-adjacency-api` permanece como evidência adicional, não como requisito. Corrige casos como Perseverance ↔ PT2TSP-3. |
 | 36 | Ranking RF: não reintroduzir falsos diretos ao alinhar com o mapa | Concluído na v1.57.1 | Hops RF/SNR continuam elegíveis sem traceroute histórico; porém, se a consulta autenticada do par comprovar somente rotas multi-hop, o par é marcado como `multihop_confirmado` e excluído. Histórico vazio não é evidência negativa. |
 | 37 | Mapa-base sem fundo / `API KEY REQUIRED` | Concluído na v1.58.0 | CARTO removido; Claro/Escuro usam OSM com filtro local sem chave; fallback automático entre provedores sem credenciais preserva mapa, zoom, nós e enlaces. |
+| 38 | Migrar bot PING para dentro do Traffic Analyzer | Concluído na v1.59.0 | Worker integrado no canal primário, cooldown, traceroute, RSSI/SNR/hops, contagem de nós e identidade usando Long Name + Short Name + Node ID. |
+| 39 | Migrar bot CLIMA para dentro do Traffic Analyzer | Concluído na v1.59.0 | Worker integrado chama a API Tempest local, preserva mensagens curtas e intervalo de 8 s; bot externo é desativado, API meteorológica permanece como fonte. |
+| 40 | PING mostrar nomes configurados pelo usuário | Concluído na v1.59.0 | Origem prioriza Long Name e Short Name do cadastro conhecido do nó, usando Node ID apenas como referência técnica. |
 
-## Política após v1.58.0
+## Política após v1.59.0
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -52,4 +55,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.58.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.58.0: nenhum item funcional pendente nesta matriz.**
+**Backlog conhecido após a v1.59.0: nenhum item funcional pendente nesta matriz.**
