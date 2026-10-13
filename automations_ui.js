@@ -86,7 +86,7 @@ function formHtml(bot,conf){
   '<label class="autoField">Intervalo entre blocos (s)<input id="autoReplyGap" type="number" min="0" max="60" step="0.5" value="'+e(conf.replyGapSeconds)+'"></label>'+
   '<label class="autoField wide">API Tempest local<input id="autoApiUrl" maxlength="256" value="'+e(conf.apiUrl)+'">'+
   '<span class="autoHint">Somente endereço HTTP de loopback (127.0.0.1/localhost), para proteger o servidor.</span></label>';
- const help=ping?'Variáveis disponíveis: {{mensagem_padrao}}, {{destino}}, {{origem}}, {{hora}}, {{sinal}}, {{qualidade}}, {{saltos}}, {{via}}, {{nos_24h}}, {{rota}}. Modelo personalizado deve conter {{origem}}.':
+ const help=ping?'Variáveis disponíveis: {{mensagem_padrao}}, {{destino}}, {{origem}}, {{hora}}, {{sinal}}, {{qualidade}}, {{saltos}}, {{via}}, {{nos_24h}}, {{rota}}. O modelo pode combinar os campos ou usar uma resposta curta livre.':
   'Use {{clima}} para inserir as mensagens geradas pela API Tempest. Prévia consulta a API, mas não transmite.';
  return '<div class="autoTop"><h3>Configurar '+(ping?'PING':'CLIMA')+'</h3>'+
   '<button id="autoClose" type="button">Voltar para as automações</button></div>'+
