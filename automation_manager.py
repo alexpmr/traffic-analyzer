@@ -78,7 +78,7 @@ def _template(value, allowed, required):
     if not value.strip():
         raise ValueError("O modelo de resposta não pode estar vazio")
     found = set(_VARIABLE.findall(value))
-    if required not in found:
+    if required and required not in found:
         raise ValueError(f"Modelo deve incluir {{{{{required}}}}}")
     unknown = found - set(allowed)
     if unknown:
@@ -126,7 +126,7 @@ def validate_bot(bot, submitted, existing):
             raise ValueError("Identificação deve ter de 1 a 45 caracteres")
         value["label"] = label
         value["routeTimeoutSeconds"] = _integer(value["routeTimeoutSeconds"], "Timeout de rota", 5, 90)
-        value["template"] = _template(value["template"], PING_VARIABLES, "mensagem_padrao" if "{{mensagem_padrao}}" in value["template"] else "origem")
+        value["template"] = _template(value["template"], PING_VARIABLES, None)
     else:
         value["replyGapSeconds"] = _float(value["replyGapSeconds"], "Intervalo entre mensagens", 0, 60)
         value["apiUrl"] = _api_url(value["apiUrl"])
