@@ -52,15 +52,18 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 44 | Listener RF não recebia TEXT_MESSAGE_APP em meshtastic.receive.text | Corrigido na v1.59.4 | Listener passa a usar meshtastic.receive e filtrar TEXT_MESSAGE_APP, conforme teste real no servidor. |
 | 45 | URLs completas/dedicadas por tela, subaba e contexto navegável | Concluído na v1.60.0 | Rotas reais com History API, refresh/favoritos/Voltar-Avançar, deep links para Nós e Mapa e filtros relevantes em query string. |
 | 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Concluído na v1.61.0** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
-| 47 | [Issue #65 — Avisos NodeInfo de linha lógica/traceroute](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Pendente — UX** | Esclarecer texto de progresso, identificar ligação lógica sem evidência física, permitir ocultar toast independentemente do fluxo no mapa, apresentar resultado e deduplicar notificações; sem gerar traceroute RF. |
+| 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Pendente — funcional/UX** | Não desenhar linha reta sem evidência; renderizar apenas hops demonstrados por traceroute com geometria válida; marcar rota como observação temporal, não prova do percurso original; destacar extremos quando desconhecido; consulta ativa só por ação explícita e com limites RF. |
 
 ## Próximas implementações
 
-### Issue #65 — Explicação e controle dos avisos NodeInfo
+### Issue #65 — Desenhar caminho por hops observados e controlar avisos NodeInfo
 
 **Estado:** pendente, previsto para próxima atualização de UX.
 
-- O aviso atual **não indica erro**: o Traffic Analyzer desenha segmento lógico de NodeInfo e procura na base de traceroutes uma rota entre os mesmos nós, até 30 s, com janela temporal de ±3 min; **não dispara traceroute novo por RF**.
+- O aviso atual **não indica erro**. O Traffic Analyzer desenha hoje uma linha reta lógica e procura um traceroute correlacionado até 30 s em janela de ±3 min; essa linha reta **deve ser removida** como fallback, pois induz interpretação de RF direto.
+- Quando existir traceroute com rota e coordenadas confiáveis, **desenhar a sequência real de hops observados**, destacando os intermediários e a hora da medição. Ressalvar que o caminho é do traceroute, não prova do percurso do pacote NodeInfo.
+- Sem traceroute, mostrar apenas origem/destino e status **caminho desconhecido**, sem linha reta. Se faltarem coordenadas de hops, mostrar a sequência textual e somente segmentos espacialmente confirmados, nunca fechar lacunas com reta fictícia.
+- Opcionalmente oferecer **Descobrir rota agora** acionado explicitamente pelo operador, com autenticação, cooldown e controle de airtime. Não disparar consultas RF de forma automática em cada NodeInfo.
 - Melhorar o texto informativo e distinguir estados: em busca, rota histórica correlacionada, não encontrada, erro real.
 - Configurar os avisos flutuantes separadamente da opção existente **Mostrar fluxo de NodeInfo no mapa**; reduzir repetições e conservar diagnóstico acessível.
 - Preservar distinção entre ligação lógica e enlace RF confirmado, sem inventar hops ou alterar Ranking.
@@ -92,4 +95,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog aberto após a v1.61.0: item #47 / issue #65 (clareza e controle dos avisos NodeInfo).**
+**Backlog aberto após a v1.61.0: item #47 / issue #65 (rota por hops observados, sem linha lógica reta e controle dos avisos NodeInfo).**
