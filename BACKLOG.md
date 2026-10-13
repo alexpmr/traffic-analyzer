@@ -53,8 +53,16 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 45 | URLs completas/dedicadas por tela, subaba e contexto navegável | Concluído na v1.60.0 | Rotas reais com History API, refresh/favoritos/Voltar-Avançar, deep links para Nós e Mapa e filtros relevantes em query string. |
 | 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Concluído na v1.61.0** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
 | 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Pendente — funcional/UX** | Não desenhar linha reta sem evidência; usar traceroutes com geometria válida e informar limites de precisão; destacar extremos quando desconhecido. Oferecer consulta manual e traceroute automático opt-in, com elegibilidade e limites de RF. |
+| 48 | [Issue #66 — PING e CLIMA sem resposta RF na v1.61.0](https://github.com/alexpmr/traffic-analyzer/issues/66) | **Pendente — regressão crítica relatada** | Diagnosticar listener TCP/pacotes, configuração persistente, logs de erro e envio RF; validar com rádio físico antes de encerrar. |
 
 ## Próximas implementações
+
+### Issue #66 — PING e CLIMA não respondem em teste de RF
+
+**Prioridade:** regressão operacional — diagnosticar antes das próximas funcionalidades. Testes de RF com outro nó não obtiveram resposta para nenhum dos bots na v1.61.0. Sem logs não há causa confirmada. Investigar conexão ao Virtual Node, tratamento de pacotes, carregamento do JSON de automações, cooldowns, API CLIMA e envio; exigir validação física e indicadores de saúde no painel.
+
+Acompanhar: https://github.com/alexpmr/traffic-analyzer/issues/66
+
 
 ### Issue #65 — Desenhar caminho por hops observados e controlar avisos NodeInfo
 
@@ -95,4 +103,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog aberto após a v1.61.0: item #47 / issue #65 (rota por hops observados, sem linha lógica reta e controle dos avisos NodeInfo).**
+**Backlog aberto após a v1.61.0: #47/issue #65 (rota NodeInfo) e #48/issue #66 (falha de PING/CLIMA por RF, prioridade máxima).**
