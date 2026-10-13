@@ -583,6 +583,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <button class="navbtn" data-view="traffic">Tráfego</button>
     <button class="navbtn" id="messagesNav" data-view="messages">Mensagens <span id="messagesUnreadCount" class="unreadCount">0</span></button>
     <button class="navbtn" data-view="statistics">Estatísticas</button>
+    <button class="navbtn" data-view="automations">Automações</button>
     <button class="navbtn" data-view="settings">Configurações</button>
     <button class="navbtn" data-view="help">Ajuda</button>
   </div>
@@ -3786,6 +3787,7 @@ function applyAuthState(){
     if(locked){accessPayload=null;accessLoadedAt=0;}
     else if(document.getElementById('viewAccess')?.classList.contains('active'))setTimeout(()=>loadAccessStats(true),0);
   }
+  if(typeof applyAutomationAccess==='function')applyAutomationAccess(locked);
   if(locked){clearReply();closeMentionSuggestions();document.getElementById('emojiPicker').classList.remove('open');}
   if(messagesInitialized)renderMessages({forceBottom:false});
 }
@@ -4027,10 +4029,11 @@ loadNodesColumnPrefs();
 setInterval(()=>{
   if(document.getElementById('viewNodes')?.classList.contains('active'))renderNodesTable();
 },30000);
-const TA_ROUTE_PATHS={map:'/mapa',nodes:'/nos',traffic:'/trafego',messages:'/mensagens/canal/0',statistics:'/estatisticas',settings:'/configuracoes',help:'/ajuda'};
-const TA_ROUTE_VIEWS={mapa:'map',nos:'nodes',trafego:'traffic',mensagens:'messages',estatisticas:'statistics',configuracoes:'settings',ajuda:'help'};
+const TA_ROUTE_PATHS={map:'/mapa',nodes:'/nos',traffic:'/trafego',messages:'/mensagens/canal/0',statistics:'/estatisticas',automations:'/automacoes',settings:'/configuracoes',help:'/ajuda'};
+const TA_ROUTE_VIEWS={mapa:'map',nos:'nodes',trafego:'traffic',mensagens:'messages',estatisticas:'statistics',automacoes:'automations',configuracoes:'settings',ajuda:'help'};
 let taRouteApplying=false;
 let taCurrentStatsTab='overview';
+let taCurrentAutomation='';
 let taPendingStatsNode='';
 
 function taActiveView(){
@@ -4047,6 +4050,9 @@ function taRouteUrl(view=taActiveView()){
       if(nodesSortKey)params.set('ordem',nodesSortKey);
       if(nodesSortDir)params.set('dir',nodesSortDir);
     }
+  }else if(view==='automations'){
+    const selected=window.automationSelectedBot||taCurrentAutomation;
+    if(selected==='ping'||selected==='clima')path+='/'+selected;
   }else if(view==='traffic'){
     const dir=document.getElementById('trafficDirection')?.value||'all';
     const type=document.getElementById('trafficType')?.value||'all';
@@ -4085,7 +4091,10 @@ function taApplyRoute(){
     const seg=url.pathname.split('/').filter(Boolean);
     const view=TA_ROUTE_VIEWS[seg[0]]||'map';
     setView(view,false);
-    if(view==='statistics'){
+    if(view==='automations'){
+      taCurrentAutomation=(seg[1]==='ping'||seg[1]==='clima')?seg[1]:'';
+      if(typeof showAutomationDetails==='function')showAutomationDetails(taCurrentAutomation,false);
+    }else if(view==='statistics'){
       const valid=new Set(['overview','network','rf','ranking','routing','traffic','queries','chat','energy','anomalies','access']);
       const tab=valid.has(seg[1])?seg[1]:'overview';
       setStatisticsTab(tab,false);
@@ -4158,7 +4167,7 @@ function taApplyRoute(){
 function setView(name,updateRoute=true){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',statistics:'viewStatistics',settings:'viewSettings',help:'viewHelp'};
+  const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',statistics:'viewStatistics',automations:'viewAutomations',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
   if(name==='map') setTimeout(()=>map.invalidateSize(),40);
@@ -4167,6 +4176,7 @@ function setView(name,updateRoute=true){
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
   if(name==='settings'||name==='messages')applyAuthState();
   if(name==='statistics') loadStatistics(false);
+  if(name==='automations'&&typeof loadAutomations==='function')loadAutomations(false);
   if(updateRoute)taSyncRoute({view:name});
 }
 
@@ -5906,6 +5916,7 @@ async function bootstrap(){
 }
 bootstrap();
 </script>
+<script src="/automations_ui.js"></script>
 </body>
 </html>'''.replace('__TITLE__', TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__DISPLAY_TITLE__', DISPLAY_TITLE.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')).replace('__APP_VERSION__', APP_VERSION.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;'))
 
@@ -10885,6 +10896,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/automations_ui.js":
+            try:
+                self._send(200, "application/javascript; charset=utf-8",
+                           Path(__file__).with_name("automations_ui.js").read_bytes())
+            except OSError:
+                self._send(503, "text/plain; charset=utf-8", b"Frontend de automacoes indisponivel")
             return
         if path == "/api/auth/status":
             self._send(200, "application/json; charset=utf-8", json.dumps(_auth_status(self), ensure_ascii=False).encode("utf-8"))
