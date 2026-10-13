@@ -1,8 +1,8 @@
 # Backlog — Traffic Analyzer
 
-Estado consolidado da release **v1.59.0** (2026-10-09).
+Estado consolidado da release **v1.59.1** (2026-10-09).
 
-Esta matriz registra o fechamento do backlog funcional até a v1.59.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
+Esta matriz registra o fechamento do backlog funcional até a v1.59.1. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.
 
 | # | Item | Estado | Evidência / critério |
 |---:|---|---|---|
@@ -46,8 +46,9 @@ Esta matriz registra o fechamento do backlog funcional até a v1.59.0. Um item s
 | 38 | Migrar bot PING para dentro do Traffic Analyzer | Concluído na v1.59.0 | Worker integrado no canal primário, cooldown, traceroute, RSSI/SNR/hops, contagem de nós e identidade usando Long Name + Short Name + Node ID. |
 | 39 | Migrar bot CLIMA para dentro do Traffic Analyzer | Concluído na v1.59.0 | Worker integrado chama a API Tempest local, preserva mensagens curtas e intervalo de 8 s; bot externo é desativado, API meteorológica permanece como fonte. |
 | 40 | PING mostrar nomes configurados pelo usuário | Concluído na v1.59.0 | Origem prioriza Long Name e Short Name do cadastro conhecido do nó, usando Node ID apenas como referência técnica. |
+| 41 | PING/CLIMA integrados não respondiam na rede real | Corrigido na v1.59.1 | Worker usa API de mensagens + fallback no tráfego RX arquivado em traffic.db; CLIMA API é explicitamente iniciada pelo instalador quando disponível. |
 
-## Política após v1.59.0
+## Política após v1.59.1
 
 - Novos pedidos entram como novos itens de backlog ou issues.
 - Correções de regressão têm prioridade sobre novas funcionalidades.
@@ -55,4 +56,4 @@ Esta matriz registra o fechamento do backlog funcional até a v1.59.0. Um item s
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog conhecido após a v1.59.0: nenhum item funcional pendente nesta matriz.**
+**Backlog conhecido após a v1.59.1: nenhum item funcional pendente nesta matriz.**

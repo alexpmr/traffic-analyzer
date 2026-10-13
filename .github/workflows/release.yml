@@ -446,6 +446,22 @@ jobs:
           with web._archive_connect() as conn:
               names={r["name"] for r in conn.execute("PRAGMA table_info(mesh_command_events)").fetchall()}
           assert {"message_key","command","from_node","status","response_text"} <= names,names
+
+          with web._archive_connect() as conn:
+              conn.execute(
+                  """INSERT INTO packets(
+                       archive_key,source_id,packet_id,timestamp,created_at,direction,
+                       from_node,from_node_id,channel,portnum_name,snr,rssi,
+                       hop_limit,hop_start,transport_mechanism,payload_preview,archived_at
+                     ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                  ("cmd-ping","default",123,1700000000000,1700000000000,"rx",
+                   42,"!0000002a",0,"TEXT_MESSAGE_APP",5.5,-70,3,3,1,"PING",1700000000000),
+              )
+          rows=web._mesh_command_archive_rows(20)
+          assert any(mc.normalize_command(x.get("text"))=="ping" and x.get("fromNodeNum")==42 for x in rows),rows
+          candidates,errors=web._mesh_command_candidates(20)
+          assert any(mc.normalize_command(x.get("text"))=="ping" for x in candidates),candidates
+          assert all(str(x).startswith("messages-api:") for x in errors),errors
           PY
 
       - name: Validar replies e reações no backend
@@ -538,7 +554,7 @@ jobs:
           PY
           node --check /tmp/traffic-analyzer.js
 
-      - name: Validar backlog v1.59.0
+      - name: Validar backlog v1.59.1
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -633,7 +649,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.59.0: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.59.1: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py

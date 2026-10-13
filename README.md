@@ -1,6 +1,16 @@
-# Traffic Analyzer v1.59.0
+# Traffic Analyzer v1.59.1
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.59.1
+
+- Corrige a detecção dos comandos **PING** e **CLIMA** na rede real.
+- O worker passa a combinar duas fontes: endpoint de mensagens do MeshMonitor e o histórico RX `TEXT_MESSAGE_APP` já arquivado em `traffic.db`.
+- Isso elimina a dependência exclusiva da projeção de mensagens do MeshMonitor, que em algumas instalações não entregava os comandos ao bot integrado.
+- Deduplica o mesmo comando quando ele aparece simultaneamente nas duas fontes.
+- Adiciona logs explícitos de inicialização, recebimento, conclusão e erro dos comandos integrados.
+- Corrige a migração do CLIMA: se `tempest-clima-api.service` existir, o instalador agora executa `enable --now` para mantê-la ativa como fonte meteorológica.
+- Os bots antigos `tempest-ping-bot.service` e `tempest-clima-bot.service` continuam desativados para impedir respostas duplicadas.
 
 ## Novidades da v1.59.0
 
