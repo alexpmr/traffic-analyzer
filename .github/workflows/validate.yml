@@ -468,6 +468,15 @@ jobs:
           }, FakeInterface())
           assert climate and climate["_command"]=="clima",climate
 
+          general_packet={
+              "from":0x12345678,
+              "to":0x8fa573a4,
+              "channel":0,
+              "decoded":{"portnum":"TEXT_MESSAGE_APP","text":"PING"},
+          }
+          general=web._mesh_command_live_row(general_packet,FakeInterface())
+          assert general and general["_command"]=="ping",general
+
           web.TRAFFIC_ARCHIVE_DB=__import__("pathlib").Path("/tmp/ta-mesh-command-test.db")
           try:
               web.TRAFFIC_ARCHIVE_DB.unlink()
@@ -643,7 +652,7 @@ jobs:
             /tmp/manual.pdf
             /tmp/manual-preview.png
 
-      - name: Validar backlog v1.59.3
+      - name: Validar backlog v1.59.4
         shell: bash
         run: |
           grep -Fq 'id="rfCoverageEnabled"' traffic_analyzer_web.py
@@ -738,7 +747,7 @@ jobs:
           grep -Fq 'function statisticsReportHtml' traffic_analyzer_web.py
           grep -Fq 'id="statsExportCsv"' traffic_analyzer_web.py
           grep -Fq 'function exportStatisticsCsv' traffic_analyzer_web.py
-          grep -Fq 'Backlog conhecido após a v1.59.3: nenhum item funcional pendente nesta matriz.' BACKLOG.md
+          grep -Fq 'Backlog conhecido após a v1.59.4: nenhum item funcional pendente nesta matriz.' BACKLOG.md
           ! grep -Fq ' | Pendente |' BACKLOG.md
           grep -Fq '/api/archive/rf-longest-links' traffic_analyzer_web.py
           grep -Fq 'def _archive_rf_longest_links_query' traffic_analyzer_web.py

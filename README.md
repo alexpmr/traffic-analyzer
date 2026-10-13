@@ -1,6 +1,13 @@
-# Traffic Analyzer v1.59.3
+# Traffic Analyzer v1.59.4
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.59.4
+
+- Corrige a captura dos comandos PING/CLIMA em instalações nas quais o cliente Meshtastic publica os pacotes apenas no tópico geral `meshtastic.receive`.
+- O listener passa a assinar `meshtastic.receive` e filtrar `TEXT_MESSAGE_APP` internamente, em vez de depender de `meshtastic.receive.text`.
+- O teste direto no servidor confirmou que os pacotes RF chegam pelo tópico geral.
+- Mantém o envio das respostas pelo próprio `TCPInterface.sendText()` no canal primário.
 
 ## Novidades da v1.59.3
 

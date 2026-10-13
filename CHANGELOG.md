@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.59.4 - 2026-10-13
+
+- Corrige recepção de PING/CLIMA por RF quando `meshtastic.receive.text` não é emitido pela biblioteca.
+- Listener passa a usar `meshtastic.receive` e filtrar `TEXT_MESSAGE_APP`.
+- Mantém resposta por RF através de `TCPInterface.sendText()`.
+
 ## 1.59.3 - 2026-10-12
 
 - Corrige PING/CLIMA que eram detectados pelo listener Meshtastic, mas ainda respondiam pelo backend HTTP do MeshMonitor.
