@@ -55,8 +55,21 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Implementado na v1.62.0; validação por CI** | Sem linha reta quando a rota é desconhecida; desenha somente hops observados; separa notificações; traceroute manual/opt-in com comprovação de NodeInfo TX local e cooldown 5 min global/30 min por destino. |
 | 48 | [Issue #66 — PING e CLIMA sem resposta RF na v1.61.0](https://github.com/alexpmr/traffic-analyzer/issues/66) | **Pendente — regressão crítica relatada** | Diagnosticar listener TCP/pacotes, configuração persistente, logs de erro e envio RF; validar com rádio físico antes de encerrar. |
 | 49 | [Issue #69 — Pesquisa incremental de nós no mapa](https://github.com/alexpmr/traffic-analyzer/issues/69) | **Implementado na v1.62.0; validação por CI** | Busca a cada caractere filtra marcadores e enlaces no Mapa sem alterar banco/filtros; nomes curtos, longos, personalizados e aliases antigos realmente observados; seleção centraliza, destaca e abre detalhes; limpar restaura mapa. |
+| 50 | [Issue #71 — Barra de controles do mapa em uma única linha](https://github.com/alexpmr/traffic-analyzer/issues/71) | **Pendente — layout/UX** | Evitar quebra de linha ao abrir pesquisa: Reprodução, navegação, Velocidade, AO VIVO, Pesquisar, filtros, Mapa, Camadas, Enquadrar e Atualizar alinhados horizontalmente; em telas estreitas, rolagem lateral sem esconder popovers. |
 
 ## Próximas implementações
+
+### Issue #71 — Barra superior do Mapa em uma linha
+
+**Estado:** pendente; solicitado com captura da v1.62.0 em 14/10/2026.
+
+- Todos os controles da mesma barra, de Reprodução até Atualizar, devem permanecer **em uma única linha**, inclusive com o campo de pesquisa aberto.
+- Ajustar `#playback`, `.mapActions`, `#playStatus` e `.mapSearchBox` para impedir `flex-wrap` e distribuir largura de maneira compacta em desktop.
+- Em telas pequenas, manter a barra de altura única com rolagem horizontal, sem cortar a lista de resultados nem o menu Camadas.
+- Testes de navegador em 1920/1366/1264/1024/768/390 px, busca aberta/fechada e funcionalidade dos controles preservada.
+
+Acompanhamento: https://github.com/alexpmr/traffic-analyzer/issues/71
+
 
 ### Issue #69 — Pesquisa dinâmica por nomes no mapa
 
@@ -119,4 +132,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog funcional implementado na v1.62.0: #47/issue #65 (NodeInfo) e #49/issue #69 (busca dinâmica). A #48/issue #66 permanece aberta aguardando **teste físico RF** de PING e CLIMA; CI não substitui prova de entrega em rádio.**
+**Backlog após a v1.62.0: #50/issue #71 (barra do mapa em uma linha) permanece pendente de implementação; #48/issue #66 requer teste físico RF de PING/CLIMA. As issues #65 e #69 foram entregues na v1.62.0.**
