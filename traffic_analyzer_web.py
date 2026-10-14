@@ -382,7 +382,19 @@ HTML = r'''<!doctype html>
   .trafficTable th:nth-child(1),.trafficTable td:nth-child(1){width:72px}.trafficTable th:nth-child(2),.trafficTable td:nth-child(2){width:48px}.trafficTable th:nth-child(3),.trafficTable td:nth-child(3){width:185px;max-width:185px}.trafficTable th:nth-child(4),.trafficTable td:nth-child(4){width:185px;max-width:185px}.trafficTable th:nth-child(5),.trafficTable td:nth-child(5){width:118px;max-width:118px}.trafficTable th:nth-child(6),.trafficTable td:nth-child(6){width:58px}.trafficTable th:nth-child(7),.trafficTable td:nth-child(7){width:58px}.trafficTable th:nth-child(8),.trafficTable td:nth-child(8){width:48px}
   .badge{display:inline-block;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:800}.rx{background:#174f37;color:#7af0ad}.tx{background:#164a64;color:#7ddcff}.typeBadge{background:#374657;color:#e8edf2}.type-text{background:#5d3b7c}.type-position{background:#365f3a}.type-nodeinfo{background:#795628}.type-telemetry{background:#1f5d69}.type-traceroute{background:#5a487d}.type-routing{background:#754044}.type-neighbor{background:#4d5b25}
   #packetDetail{overflow:auto;border-left:1px solid #293744;background:#111a24;padding:14px}.detailTitle{font-size:16px;font-weight:800;margin-bottom:8px}.detailGrid{display:grid;grid-template-columns:120px minmax(0,1fr);gap:7px;font-size:12px}.detailGrid b{color:#9fb0bf}.emptyDetail{color:#8194a5;font-size:13px;padding-top:8px}.payloadBox{background:#172532;border:1px solid #304353;border-radius:7px;padding:9px;line-height:1.45;overflow-wrap:anywhere}.payloadRows{display:grid;grid-template-columns:minmax(110px,38%) minmax(0,1fr);gap:4px 9px}.payloadRows .k{color:#9fb0bf;font-weight:700}.payloadRows .v{overflow-wrap:anywhere}.techDetails{margin-top:8px}.techDetails summary{cursor:pointer;color:#9fc6e4;font-weight:700}.techDetails .payloadBox{margin-top:7px}.rawJson{margin-top:9px;border-top:1px solid #304353;padding-top:7px}.rawJson summary{font-size:11px;color:#8194a5;font-weight:600}.techDetails pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1620;border:1px solid #2e4050;border-radius:6px;padding:8px;font-size:10px;max-height:320px;overflow:auto}.broadcastTag{display:inline-block;background:#345d39;color:#a8f0b0;border-radius:9px;padding:2px 6px;font-size:10px;font-weight:800;margin-left:6px}
-  #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:7px}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:0}}
+  #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .mapSearchBox{position:relative;display:flex;align-items:center;gap:4px;z-index:5400}
+  .mapSearchBox input{width:min(25vw,245px);min-width:135px}
+  .mapSearchBox button{white-space:nowrap}
+  .mapSearchMatches{position:absolute;right:0;top:calc(100% + 4px);width:min(430px,90vw);max-height:300px;overflow:auto;background:#172736;border:1px solid #526b7c;border-radius:7px;box-shadow:0 8px 20px #0008;z-index:5500}
+  .mapSearchMatches[hidden],.mapSearchBox[hidden]{display:none!important}
+  .mapSearchMatches button{display:flex;flex-direction:column;gap:3px;text-align:left;width:100%;border:0;border-bottom:1px solid #344757;border-radius:0;white-space:normal;padding:9px}
+  .mapSearchMatches button:hover,.mapSearchMatches button:focus-visible{background:#31506b}
+  .mapSearchMatches small{color:#b7cbda}
+  .mapSearchInfo{font-size:11px;color:#b9cddd;white-space:nowrap}
+  .mapSearchPulse{animation:mapSearchPulse 1s ease-in-out 7;pointer-events:none}
+  @keyframes mapSearchPulse{0%,100%{stroke-width:3;stroke-opacity:.95;fill-opacity:.04}50%{stroke-width:8;stroke-opacity:.4;fill-opacity:.22}}
+  @media(max-width:680px){.mapSearchBox input{width:145px;min-width:110px}.mapSearchInfo{max-width:110px;overflow:hidden;text-overflow:ellipsis}}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:0}}
   @media(max-width:1150px){#trafficBody{grid-template-columns:minmax(0,1fr)}#packetDetail{display:none}header{align-items:flex-start}.trafficTable{min-width:760px}}
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
@@ -614,6 +626,15 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   </label>
   <span id="playStatus">Histórico pronto.</span>
   <div class="mapActions">
+    <div class="mapSearchBox">
+      <button id="mapSearchToggle" type="button" title="Pesquisar nós no mapa" aria-expanded="false" aria-controls="mapSearchPanel" aria-label="Pesquisar estações no mapa">⌕ Pesquisar</button>
+      <div id="mapSearchPanel" class="mapSearchBox" hidden>
+        <input id="mapSearchInput" type="search" placeholder="Nome curto, longo, ID..." aria-label="Filtrar nós no mapa por nome" autocomplete="off" maxlength="120">
+        <button id="mapSearchClear" type="button" title="Limpar pesquisa e restaurar mapa" aria-label="Limpar pesquisa">×</button>
+        <span id="mapSearchCount" class="mapSearchInfo" role="status"></span>
+        <div id="mapSearchMatches" class="mapSearchMatches" hidden></div>
+      </div>
+    </div>
     <label>Mapa:
       <select id="mapToolbarType" title="Escolher mapa-base">
         <option value="osm">OSM / Ruas</option>
@@ -1462,6 +1483,9 @@ let heatLayer = null;
 let topology = null;
 const nodeTrafficLastSeen = new Map();
 const nodeMarkers = new Map();
+const mapSearchHighlightLayer = L.layerGroup().addTo(map);
+let mapSearchText='';
+let mapSearchHintTimer=null;
 let openNodeNum = null;
 let suppressNodePopupClose = false;
 let openNodePopupScrollTop = 0;
@@ -3096,6 +3120,8 @@ function render(){
   const showNodes = document.getElementById('showNodes').checked;
   const showHeatmap = document.getElementById('showHeatmap').checked;
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
+  const mapSearchActive=Boolean(mapSearchText.trim());
+  const mapSearchAllowed=mapSearchActive?new Set(mapSearchMatches().map(n=>Number(n.nodeNum))):null;
   const isolatedEdge = isolatedEdgeId ? (topology.edges||[]).find(e=>String(e.id||'')===String(isolatedEdgeId)) : null;
   isolatedEdgeNodes = new Set(isolatedEdge ? [Number(isolatedEdge.a),Number(isolatedEdge.b)] : []);
   const isolationActive=Boolean(isolatedEdge);
@@ -3107,11 +3133,12 @@ function render(){
 
   for(const e of topology.edges || []){
     if(isolationActive && String(e.id||'')!==String(isolatedEdgeId)) continue;
+    if(mapSearchActive && (!mapSearchAllowed.has(Number(e.a)) || !mapSearchAllowed.has(Number(e.b)))) continue;
     if(!e.geometry) continue;
     const stats = edgeStatsForWindow(e, isolationActive?null:cutoff);
     if(!stats || (!isolationActive && stats.observations < minObs)) continue;
     const a = nodeMap.get(Number(e.a)), b = nodeMap.get(Number(e.b));
-    if(!isolationActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
+    if(!isolationActive && !mapSearchActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
     if(stats.mixed) mixedEdgeCount++;
@@ -3160,7 +3187,7 @@ function render(){
     for(const [nodeNum, weight] of heatWeights.entries()){
       const n = nodeMap.get(nodeNum);
       if(!nodeHasValidMapPosition(n)) continue;
-      if(onlyIdentified && n.state !== 'identified') continue;
+      if(!mapSearchActive && onlyIdentified && n.state !== 'identified') continue;
       const intensity = Math.max(.08, Math.log1p(weight) / Math.log1p(maxWeight));
       heatPoints.push([Number(n.latitude), Number(n.longitude), intensity]);
     }
@@ -3177,13 +3204,14 @@ function render(){
   const mappableStates = {identified:0, stub:0, 'route-only':0};
   for(const n of topology.nodes || []){
     if(isolationActive && !isolatedEdgeNodes.has(Number(n.nodeNum))) continue;
+    if(mapSearchActive && !mapSearchAllowed.has(Number(n.nodeNum))) continue;
     if(!nodeHasValidMapPosition(n)) continue;
-    if(!isolationActive && onlyIdentified && n.state !== 'identified') continue;
+    if(!isolationActive && !mapSearchActive && onlyIdentified && n.state !== 'identified') continue;
     const lat=Number(n.latitude),lon=Number(n.longitude);
     mappableCount++;
     mappableStates[n.state] = (mappableStates[n.state] || 0) + 1;
     coords.push([lat,lon]);
-    if(!showNodes && !isolationActive) continue;
+    if(!showNodes && !isolationActive && !mapSearchActive) continue;
 
     const trafficAge=nodeTrafficAge(n);
     const marker = L.circleMarker([lat,lon], {
@@ -4076,6 +4104,7 @@ function taRouteUrl(view=taActiveView()){
       if(days && days!=='30')params.set('dias',days);
     }
   }else if(view==='map'){
+    if(mapSearchText.trim())params.set('busca',mapSearchText.trim());
     if(openNodeNum!==null && Number.isFinite(Number(openNodeNum)))path+='/no/'+encodeURIComponent(String(openNodeNum));
     else if(isolatedEdgeId)params.set('enlace',isolatedEdgeId);
   }
@@ -4149,6 +4178,10 @@ function taApplyRoute(){
         setTimeout(selectWhenReady,100);
       }
     }else if(view==='map'){
+      mapSearchText=url.searchParams.get('busca')||'';
+      const input=document.getElementById('mapSearchInput');if(input)input.value=mapSearchText;
+      const panel=document.getElementById('mapSearchPanel');if(panel)panel.hidden=!mapSearchText;
+      render();renderMapSearchResults();
       const edge=url.searchParams.get('enlace');
       if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}
       if(seg[1]==='no' && seg[2]){
@@ -4174,7 +4207,7 @@ function setView(name,updateRoute=true){
   const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',statistics:'viewStatistics',automations:'viewAutomations',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
-  if(name==='map') setTimeout(()=>map.invalidateSize(),40);
+  if(name==='map') setTimeout(()=>{map.invalidateSize();renderMapSearchResults();},40);
   if(name==='nodes') renderNodesTable();
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
