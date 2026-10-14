@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.62.1 - 2026-10-14
+
+- Mantém campo de pesquisa do Mapa visível permanentemente, sem botão expansor.
+- Mantém barra de Reprodução e controles de Mapa em linha única, com rolagem horizontal quando necessária.
+- Alinha popovers de sugestões e Camadas para evitar cortes por overflow; melhora responsividade.
+- Amplia regressões Selenium em diferentes resoluções e mantém funcionalidades de pesquisa incremental.
+
+
 ## 1.62.0 - 2026-10-14
 
 - Pesquisa incremental no mapa por nomes atuais/históricos e Node ID, ocultando imediatamente os não correspondentes e restaurando visualização ao limpar.
