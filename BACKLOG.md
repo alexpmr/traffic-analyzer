@@ -54,8 +54,24 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Concluído na v1.61.0** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
 | 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Pendente — funcional/UX** | Não desenhar linha reta sem evidência; usar traceroutes com geometria válida e informar limites de precisão; destacar extremos quando desconhecido. Oferecer consulta manual e traceroute automático opt-in, com elegibilidade e limites de RF. |
 | 48 | [Issue #66 — PING e CLIMA sem resposta RF na v1.61.0](https://github.com/alexpmr/traffic-analyzer/issues/66) | **Pendente — regressão crítica relatada** | Diagnosticar listener TCP/pacotes, configuração persistente, logs de erro e envio RF; validar com rádio físico antes de encerrar. |
+| 49 | [Issue #69 — Buscar nó por nome no Mapa](https://github.com/alexpmr/traffic-analyzer/issues/69) | **Pendente — melhoria de navegação** | Botão lupa com autocomplete para nomes longos/curtos, de fábrica e personalizados (e aliases históricos disponíveis), ID do nó; centralizar/zoom, destacar/pulsar marcador e abrir detalhes, inclusive para nós offline com posição histórica; sem coordenadas, só detalhes e aviso; deep link persistente. |
 
 ## Próximas implementações
+
+### Issue #69 — Pesquisa de nós por todos os nomes no Mapa
+
+**Estado:** pendente, registrado como backlog para a próxima versão que tratar melhorias de navegação.
+
+- Botão de **lupa no Mapa**, com autocomplete de nomes longos, curtos, fábrica, customizados e aliases históricos efetivamente registrados; pesquisa parcial tolerante a maiúsculas e acentos, incluindo Node ID.
+- Ao selecionar: **centralizar, ajustar zoom e pulsar/ressaltar marcador** e abrir a janela detalhada existente, com URL `/mapa/no/<nodeNum>` para refresh/favoritos.
+- Pesquisar nós **offline e históricos** do catálogo persistente: quando existir posição conhecida válida, exibir que é histórica e a idade; sem coordenadas, informar e abrir detalhes sem centralização errada.
+- Manter acesso a nós escondidos pelos filtros por meio de destaque temporário, **sem modificar filtros ou falsear atividade/enlaces RF**.
+- Nomes iguais resolvidos por Node ID; se nomes originais/customizados antigos não estiverem na topologia, recuperar de fonte real e preservar aliases ao longo do tempo, sem inventar identificadores.
+- Controles responsivos e acessíveis; busca e seleção não transmitem RF. Testes abrangem variações de nomes, duplicatas, offline, falta de coordenadas e deep links.
+
+Acompanhamento: https://github.com/alexpmr/traffic-analyzer/issues/69
+
+
 
 ### Issue #66 — PING e CLIMA não respondem em teste de RF
 
@@ -103,4 +119,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog aberto após a v1.61.0: #47/issue #65 (rota NodeInfo) e #48/issue #66 (falha de PING/CLIMA por RF, prioridade máxima).**
+**Backlog aberto após a v1.61.1: #47/issue #65 (rota NodeInfo), #48/issue #66 (validação em RF dos bots) e #49/issue #69 (pesquisa e destaque de nós no mapa).**
