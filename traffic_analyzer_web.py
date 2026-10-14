@@ -3958,6 +3958,83 @@ function saveNodesColumnPrefs(){
   localStorage.setItem(NODES_COLUMNS_KEY,JSON.stringify([...nodesOptionalColumns]));
   applyNodesColumns();
 }
+function mapSearchFields(n){
+  // O índice usa a mesma normalização da aba Nós, mas somente nomes/IDs.
+  const aliases=Array.isArray(n?.nameAliases)?n.nameAliases:[];
+  return [n?.name,n?.longName,n?.shortName,n?.customName,n?.originalName,
+    n?.factoryName,n?.defaultName,n?.nodeId,n?.nodeNum,...aliases]
+    .filter(x=>x!==null&&x!==undefined&&x!=='').map(nodesNormalizeText);
+}
+function mapSearchMatches(){
+  const needle=nodesNormalizeText(mapSearchText).trim();
+  if(!needle)return topology?.nodes||[];
+  return (topology?.nodes||[]).filter(n=>mapSearchFields(n).some(x=>x.includes(needle)));
+}
+function renderMapSearchResults(){
+  const panel=document.getElementById('mapSearchPanel'),results=document.getElementById('mapSearchMatches'),count=document.getElementById('mapSearchCount');
+  if(!panel||!results||!count)return;
+  const matches=mapSearchMatches();
+  count.textContent=mapSearchText.trim()?matches.length+' de '+(topology?.nodes?.length||0):'Todos os nós';
+  if(!mapSearchText.trim()||panel.hidden){results.hidden=true;results.innerHTML='';return;}
+  results.hidden=false;
+  results.innerHTML=matches.slice(0,15).map(n=>{
+    const pos=nodeHasValidMapPosition(n),historical=Boolean(n.historical);
+    const name=n.name||n.longName||n.shortName||n.nodeId||'Nó desconhecido';
+    const other=[n.shortName&&n.shortName!==name?n.shortName:null,n.nodeId].filter(Boolean).join(' · ');
+    return '<button type="button" data-map-search-node="'+Number(n.nodeNum)+'">'+
+      '<strong>'+esc(name)+'</strong><small>'+esc(other)+
+      ' · '+esc(!pos?'Sem localização':historical?'Posição histórica':'Com posição')+'</small></button>';
+  }).join('')||'<div style="padding:10px;color:#d8b6a4">Nenhum nó encontrado.</div>';
+  results.querySelectorAll('[data-map-search-node]').forEach(btn=>btn.addEventListener('click',()=>focusMapSearchNode(Number(btn.dataset.mapSearchNode))));
+}
+function updateMapSearch(next,updateRoute=true){
+  mapSearchText=String(next??'').slice(0,120);
+  const field=document.getElementById('mapSearchInput');if(field&&field.value!==mapSearchText)field.value=mapSearchText;
+  mapSearchHighlightLayer.clearLayers();
+  render();
+  renderMapSearchResults();
+  if(updateRoute)taSyncRoute({replace:true,view:'map'});
+}
+function focusMapSearchNode(nodeNum,updateRoute=true){
+  const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));
+  if(!n)return;
+  setView('map',false);
+  if(nodeHasValidMapPosition(n)){
+    const point=L.latLng(Number(n.latitude),Number(n.longitude));
+    map.setView(point,Math.max(map.getZoom(),14),{animate:true});
+    mapSearchHighlightLayer.clearLayers();
+    L.circleMarker(point,{radius:19,weight:4,color:'#ffe66d',fillColor:'#ffe66d',fillOpacity:.05,
+      interactive:false,className:'mapSearchPulse'}).addTo(mapSearchHighlightLayer);
+    if(mapSearchHintTimer)clearTimeout(mapSearchHintTimer);
+    mapSearchHintTimer=setTimeout(()=>mapSearchHighlightLayer.clearLayers(),7600);
+    const status=document.getElementById('mapSearchCount');
+    if(status)status.textContent=n.historical?'Posição histórica · '+(n.nodeId||''):'Nó destacado · '+(n.nodeId||'');
+  }else{
+    const status=document.getElementById('mapSearchCount');
+    if(status)status.textContent='Sem coordenadas · '+(n.nodeId||'');
+  }
+  document.getElementById('mapSearchMatches').hidden=true;
+  openNodeWindow(nodeNum,false);
+  if(updateRoute)taSyncRoute({view:'map'});
+}
+function initMapSearch(){
+  const toggle=document.getElementById('mapSearchToggle'),panel=document.getElementById('mapSearchPanel');
+  const field=document.getElementById('mapSearchInput');
+  toggle.addEventListener('click',()=>{
+    panel.hidden=!panel.hidden;
+    toggle.setAttribute('aria-expanded',String(!panel.hidden));
+    if(!panel.hidden){field.focus();renderMapSearchResults();}
+    else document.getElementById('mapSearchMatches').hidden=true;
+  });
+  field.addEventListener('input',()=>updateMapSearch(field.value));
+  field.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();updateMapSearch('');field.focus();}
+    if(event.key==='Enter'){const matches=mapSearchMatches();if(matches.length===1){event.preventDefault();focusMapSearchNode(Number(matches[0].nodeNum));}}
+  });
+  document.getElementById('mapSearchClear').addEventListener('click',()=>{updateMapSearch('');field.focus();});
+}
+initMapSearch();
+
 function nodesNormalizeText(value){
   return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
