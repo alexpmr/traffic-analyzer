@@ -55,13 +55,13 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Implementado na v1.62.0; validação por CI** | Sem linha reta quando a rota é desconhecida; desenha somente hops observados; separa notificações; traceroute manual/opt-in com comprovação de NodeInfo TX local e cooldown 5 min global/30 min por destino. |
 | 48 | [Issue #66 — PING e CLIMA sem resposta RF na v1.61.0](https://github.com/alexpmr/traffic-analyzer/issues/66) | **Pendente — regressão crítica relatada** | Diagnosticar listener TCP/pacotes, configuração persistente, logs de erro e envio RF; validar com rádio físico antes de encerrar. |
 | 49 | [Issue #69 — Pesquisa incremental de nós no mapa](https://github.com/alexpmr/traffic-analyzer/issues/69) | **Implementado na v1.62.0; validação por CI** | Busca a cada caractere filtra marcadores e enlaces no Mapa sem alterar banco/filtros; nomes curtos, longos, personalizados e aliases antigos realmente observados; seleção centraliza, destaca e abre detalhes; limpar restaura mapa. |
-| 50 | [Issue #71 — Barra única e pesquisa permanentemente visível](https://github.com/alexpmr/traffic-analyzer/issues/71) | **Implementado no código v1.62.1; aguardando CI** | Reprodução, controles, pesquisa e ações do Mapa em linha única, com campo de pesquisa sempre visível; em telas estreitas, rolagem lateral e posicionamento flutuante de menus/resultado sem cortes. |
+| 50 | [Issue #71 — Barra única e pesquisa permanentemente visível](https://github.com/alexpmr/traffic-analyzer/issues/71) | **Concluído na v1.62.1 (CI validado)** | Reprodução, controles, pesquisa e ações do Mapa em linha única, com campo de pesquisa sempre visível; em telas estreitas, rolagem lateral e posicionamento flutuante de menus/resultado sem cortes. |
 
 ## Próximas implementações
 
 ### Issue #71 — Barra superior do Mapa em uma linha
 
-**Estado:** implementado no código v1.62.1, pendente de validação do pipeline antes da publicação.
+**Estado:** concluído na v1.62.1; testes automatizados e smoke test de navegador validados.
 
 - Todos os controles, de Reprodução até Atualizar, permanecem **em uma única linha**. O campo de pesquisa fica **sempre visível**, sem botão de expandir/recolher.
 - Ajustar `#playback`, `.mapActions`, `#playStatus` e `.mapSearchBox` para impedir `flex-wrap` e distribuir largura de maneira compacta em desktop.
@@ -132,4 +132,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog funcional implementado no código v1.62.1: #50/issue #71 (barra única e pesquisa sempre visível), sujeito a CI e publicação. #48/issue #66 continua aberta para teste físico RF de PING/CLIMA.**
+**Backlog funcional da v1.62.1: #50/issue #71 concluído em código e CI; #48/issue #66 continua aberto aguardando teste físico RF de PING/CLIMA.**
