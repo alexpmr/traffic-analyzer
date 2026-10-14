@@ -64,9 +64,13 @@ class MapAndNodeInfoTests(unittest.TestCase):
     def test_map_search_and_nodeinfo_ui_source(self):
         html = web.HTML
         source = Path(web.__file__).read_text(encoding="utf-8")
-        for name in ("mapSearchToggle", "mapSearchInput", "mapSearchClear", "mapSearchCount",
+        for name in ("mapSearchPanel", "mapSearchInput", "mapSearchClear", "mapSearchCount",
                      "nodeInfoToastEnabled", "nodeInfoAutoTraceEnabled", "nodeInfoTraceNow"):
             self.assertIn('id="' + name + '"', html)
+        self.assertNotIn('id="mapSearchToggle"', html)
+        self.assertIn('<div id="mapSearchPanel" class="mapSearchBox">', html)
+        self.assertIn("function positionMapToolbarPopovers()", html)
+        self.assertIn("#playback{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;", html)
         self.assertIn("function mapSearchMatches()", html)
         self.assertIn("function updateMapSearch(", html)
         self.assertIn("nameAliases", html)
