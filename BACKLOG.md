@@ -52,18 +52,18 @@ Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item s
 | 44 | Listener RF não recebia TEXT_MESSAGE_APP em meshtastic.receive.text | Corrigido na v1.59.4 | Listener passa a usar meshtastic.receive e filtrar TEXT_MESSAGE_APP, conforme teste real no servidor. |
 | 45 | URLs completas/dedicadas por tela, subaba e contexto navegável | Concluído na v1.60.0 | Rotas reais com History API, refresh/favoritos/Voltar-Avançar, deep links para Nós e Mapa e filtros relevantes em query string. |
 | 46 | [Issue #63 — Nova aba Automações com PING e CLIMA](https://github.com/alexpmr/traffic-analyzer/issues/63) | **Concluído na v1.61.0** | Nova aba superior com URLs dedicadas, controle independente, edição de respostas e parâmetros, prévia sem RF, diagnóstico e histórico; arquitetura extensível para futuras automações, persistência e proteção administrativa. |
-| 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Pendente — funcional/UX** | Não desenhar linha reta sem evidência; usar traceroutes com geometria válida e informar limites de precisão; destacar extremos quando desconhecido. Oferecer consulta manual e traceroute automático opt-in, com elegibilidade e limites de RF. |
+| 47 | [Issue #65 — Mostrar rota NodeInfo por hops observados](https://github.com/alexpmr/traffic-analyzer/issues/65) | **Implementado na v1.62.0; validação por CI** | Sem linha reta quando a rota é desconhecida; desenha somente hops observados; separa notificações; traceroute manual/opt-in com comprovação de NodeInfo TX local e cooldown 5 min global/30 min por destino. |
 | 48 | [Issue #66 — PING e CLIMA sem resposta RF na v1.61.0](https://github.com/alexpmr/traffic-analyzer/issues/66) | **Pendente — regressão crítica relatada** | Diagnosticar listener TCP/pacotes, configuração persistente, logs de erro e envio RF; validar com rádio físico antes de encerrar. |
-| 49 | [Issue #69 — Buscar nó por nome no Mapa](https://github.com/alexpmr/traffic-analyzer/issues/69) | **Pendente — melhoria de navegação** | Botão lupa com autocomplete para nomes longos/curtos, de fábrica e personalizados (e aliases históricos disponíveis), ID do nó; centralizar/zoom, destacar/pulsar marcador e abrir detalhes, inclusive para nós offline com posição histórica; sem coordenadas, só detalhes e aviso; deep link persistente. |
+| 49 | [Issue #69 — Pesquisa incremental de nós no mapa](https://github.com/alexpmr/traffic-analyzer/issues/69) | **Implementado na v1.62.0; validação por CI** | Busca a cada caractere filtra marcadores e enlaces no Mapa sem alterar banco/filtros; nomes curtos, longos, personalizados e aliases antigos realmente observados; seleção centraliza, destaca e abre detalhes; limpar restaura mapa. |
 
 ## Próximas implementações
 
-### Issue #69 — Pesquisa de nós por todos os nomes no Mapa
+### Issue #69 — Pesquisa dinâmica por nomes no mapa
 
-**Estado:** pendente, registrado como backlog para a próxima versão que tratar melhorias de navegação.
+**Estado:** implementado no código v1.62.0, condicionado à validação CI. Pesquisa por tecla sobre nós conhecidos, ocultando marcadores e enlaces sem correspondência e mantendo os dados originais.
 
-- Botão de **lupa no Mapa**, com autocomplete de nomes longos, curtos, fábrica, customizados e aliases históricos efetivamente registrados; pesquisa parcial tolerante a maiúsculas e acentos, incluindo Node ID.
-- Ao selecionar: **centralizar, ajustar zoom e pulsar/ressaltar marcador** e abrir a janela detalhada existente, com URL `/mapa/no/<nodeNum>` para refresh/favoritos.
+- Botão de **lupa no Mapa**, com filtro incremental no próprio mapa, sem Enter, usando nomes longos, curtos, de fábrica/customizados (quando observados) e aliases históricos registrados no banco. O filtro é tolerante a maiúsculas e acentos, inclui Node ID e apresenta contador de correspondências.
+- Somente nós correspondentes e enlaces entre correspondentes ficam visíveis durante a pesquisa; ao limpar o campo, a visualização original é restaurada. Ao selecionar: **centralizar, ajustar zoom e pulsar marcador**, abrindo detalhes e URL `/mapa/no/<nodeNum>?busca=...`.
 - Pesquisar nós **offline e históricos** do catálogo persistente: quando existir posição conhecida válida, exibir que é histórica e a idade; sem coordenadas, informar e abrir detalhes sem centralização errada.
 - Manter acesso a nós escondidos pelos filtros por meio de destaque temporário, **sem modificar filtros ou falsear atividade/enlaces RF**.
 - Nomes iguais resolvidos por Node ID; se nomes originais/customizados antigos não estiverem na topologia, recuperar de fonte real e preservar aliases ao longo do tempo, sem inventar identificadores.
@@ -82,9 +82,9 @@ Acompanhar: https://github.com/alexpmr/traffic-analyzer/issues/66
 
 ### Issue #65 — Desenhar caminho por hops observados e controlar avisos NodeInfo
 
-**Estado:** pendente, previsto para próxima atualização de UX.
+**Estado:** implementado no código v1.62.0, condicionado à validação CI. Sem comprovação retroativa do caminho original do NodeInfo.
 
-- O aviso atual **não indica erro**. O Traffic Analyzer desenha hoje uma linha reta lógica e procura um traceroute correlacionado até 30 s em janela de ±3 min; essa linha reta **deve ser removida** como fallback, pois induz interpretação de RF direto.
+- A linha reta lógica de NodeInfo foi removida: na ausência de traceroute, apenas destaca os marcadores de origem/destino, sem transformar a relação lógica em RF direto.
 - Quando existir traceroute com rota e coordenadas confiáveis, **desenhar a sequência real de hops observados**, destacando os intermediários e a hora da medição. Ressalvar que o caminho é do traceroute, não prova do percurso do pacote NodeInfo.
 - Sem traceroute, mostrar apenas origem/destino e status **caminho desconhecido**, sem linha reta. Se faltarem coordenadas de hops, mostrar a sequência textual e somente segmentos espacialmente confirmados, nunca fechar lacunas com reta fictícia.
 - Oferecer **Descobrir rota agora** e modo **traceroute automático opcional** (desativado por padrão) antes de exibir o resultado, somente quando a origem da consulta torna a medição relevante; priorizar traceroute histórico. Aplicar autenticação, limite inicial sugerido de 30 min por destino e máximo 1 consulta automática a cada 5 min, controle de airtime, concorrência e auditoria. Nunca afirmar que um traceroute do coletor é o caminho exato do NodeInfo entre terceiros.
@@ -119,4 +119,4 @@ Detalhamento e acompanhamento: https://github.com/alexpmr/traffic-analyzer/issue
 - Rankings RF nunca devem inferir enlace direto a partir de uma rota multihop sem evidência física do hop.
 - Ações administrativas continuam protegidas pela autenticação/CSRF existentes.
 
-**Backlog aberto após a v1.61.1: #47/issue #65 (rota NodeInfo), #48/issue #66 (validação em RF dos bots) e #49/issue #69 (pesquisa e destaque de nós no mapa).**
+**Backlog funcional implementado na v1.62.0: #47/issue #65 (NodeInfo) e #49/issue #69 (busca dinâmica). A #48/issue #66 permanece aberta aguardando **teste físico RF** de PING e CLIMA; CI não substitui prova de entrega em rádio.**
