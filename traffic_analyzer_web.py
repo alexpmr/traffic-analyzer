@@ -1029,7 +1029,17 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <h3>Fluxos e privacidade</h3>
     <div class="settingRow">
       <label><input id="nodeInfoFlowEnabled" type="checkbox" checked> Mostrar fluxo de NodeInfo no mapa</label>
-      <div class="settingDesc">O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.</div>
+      <div class="settingDesc">Somente os saltos observados em traceroute são desenhados. Sem rota, destaca-se origem/destino sem linha reta. O traceroute não comprova necessariamente o caminho original do NodeInfo.</div>
+    </div>
+    <div class="settingRow">
+      <label><input id="nodeInfoToastEnabled" type="checkbox" checked> Exibir avisos flutuantes de NodeInfo</label>
+      <div class="settingDesc">Controla apenas os avisos; não desativa a visualização no mapa.</div>
+    </div>
+    <div class="settingRow">
+      <label><input id="nodeInfoAutoTraceEnabled" type="checkbox"> Consultar traceroute automaticamente para NodeInfo enviado pela estação local</label>
+      <div class="settingDesc">Padrão desligado. Somente pacotes TX confirmados no histórico, com destino específico: máximo 1 consulta a cada 5 minutos e 30 minutos por destino. Não mede rotas entre terceiros. Gera tráfego adicional RF.</div>
+      <button id="nodeInfoTraceNow" type="button" data-admin-only disabled>Descobrir rota agora</button>
+      <div id="nodeInfoRouteStatus" class="settingDesc" role="status">Nenhum NodeInfo selecionado. Consultas RF não são iniciadas automaticamente.</div>
     </div>
     <div class="settingRow">
       <b>Conteúdo dos pacotes</b>
@@ -1581,6 +1591,8 @@ function collectPrefs(){
     activityDuration: Number(document.getElementById('activityDuration').value || 1000),
     autoZoomTraceroute: document.getElementById('autoZoomTraceroute').checked,
     nodeInfoFlowEnabled: document.getElementById('nodeInfoFlowEnabled').checked,
+    nodeInfoToastEnabled: document.getElementById('nodeInfoToastEnabled').checked,
+    nodeInfoAutoTraceEnabled: document.getElementById('nodeInfoAutoTraceEnabled').checked,
     messageFontSize: Number(document.getElementById('messageFontSize').value || 13),
     messageFontFamily: document.getElementById('messageFontFamily').value || 'system',
     messageBold: document.getElementById('messageBold').checked,
@@ -2087,6 +2099,8 @@ function initVisualPrefs(){
   if([650,1000,1500,2000].includes(Number(prefs.activityDuration))) document.getElementById('activityDuration').value = String(prefs.activityDuration);
   document.getElementById('autoZoomTraceroute').checked = (typeof prefs.autoZoomTraceroute === 'boolean') ? prefs.autoZoomTraceroute : false;
   document.getElementById('nodeInfoFlowEnabled').checked = (typeof prefs.nodeInfoFlowEnabled === 'boolean') ? prefs.nodeInfoFlowEnabled : true;
+  document.getElementById('nodeInfoToastEnabled').checked = (typeof prefs.nodeInfoToastEnabled === 'boolean') ? prefs.nodeInfoToastEnabled : true;
+  document.getElementById('nodeInfoAutoTraceEnabled').checked = (typeof prefs.nodeInfoAutoTraceEnabled === 'boolean') ? prefs.nodeInfoAutoTraceEnabled : false;
   if(Number.isFinite(Number(prefs.messageFontSize))) document.getElementById('messageFontSize').value = String(Math.max(10,Math.min(20,Number(prefs.messageFontSize))));
   if(MESSAGE_FONT_STACKS[prefs.messageFontFamily]) document.getElementById('messageFontFamily').value=prefs.messageFontFamily;
   document.getElementById('messageBold').checked=Boolean(prefs.messageBold);
@@ -3755,6 +3769,7 @@ let flowGeneration=0;
 let flowToastTimer=null;
 let nodeInfoRecent=new Map();
 let nodeInfoTriggered=new Set();
+let nodeInfoActivePacket=null;
 const NODEINFO_PAIR_WINDOW_MS=45000;
 const NODEINFO_TRACE_WINDOW_MS=180000;
 const NODEINFO_ROUTE_WAIT_MS=30000;
@@ -5728,6 +5743,8 @@ document.getElementById('soundTest').addEventListener('click',testSoundTheme);
 for(const id of ['activityAnimationEnabled','activityOriginEnabled','activityRelayEnabled','activityDuration']) document.getElementById(id).addEventListener('change',()=>{savePrefs(); if(!document.getElementById('activityAnimationEnabled').checked){activityLayer.clearLayers();activityMarkers.clear();}});
 document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore(false);});
 document.getElementById('nodeInfoFlowEnabled').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('nodeInfoFlowEnabled').checked){flowGeneration++;flowLayer.clearLayers();}});
+for(const id of ['nodeInfoToastEnabled','nodeInfoAutoTraceEnabled'])document.getElementById(id).addEventListener('change',savePrefs);
+document.getElementById('nodeInfoTraceNow').addEventListener('click',()=>{if(nodeInfoActivePacket)showNodeInfoFlow(nodeInfoActivePacket,{forceTrace:true,wait:true});});
 document.getElementById('messageFontSize').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
 document.getElementById('messageFontFamily').addEventListener('change',()=>{applyMessageAppearance();savePrefs();});
 for(const id of ['messageBold','messageItalic','messageUnderline']) document.getElementById(id).addEventListener('change',()=>{applyMessageAppearance();savePrefs();});
