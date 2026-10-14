@@ -4007,6 +4007,7 @@ function renderMapSearchResults(){
 }
 function updateMapSearch(next,updateRoute=true){
   mapSearchText=String(next??'').slice(0,120);
+  if(openNodeNum!==null)closeNodeWindow(false);
   const field=document.getElementById('mapSearchInput');if(field&&field.value!==mapSearchText)field.value=mapSearchText;
   mapSearchHighlightLayer.clearLayers();
   render();
@@ -4276,6 +4277,7 @@ function taApplyRoute(){
       mapSearchText=url.searchParams.get('busca')||'';
       const input=document.getElementById('mapSearchInput');if(input)input.value=mapSearchText;
       const panel=document.getElementById('mapSearchPanel');if(panel)panel.hidden=!mapSearchText;
+      document.getElementById('mapSearchToggle')?.setAttribute('aria-expanded',String(Boolean(mapSearchText)));
       render();renderMapSearchResults();
       const edge=url.searchParams.get('enlace');
       if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}
@@ -4347,7 +4349,7 @@ function isConfirmedNodeInfoRequest(p){
 }
 function topologyPoint(nodeNum){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));
-  if(!n || n.latitude===null || n.longitude===null || !Number.isFinite(Number(n.latitude)) || !Number.isFinite(Number(n.longitude))) return null;
+  if(!nodeHasValidMapPosition(n)) return null;
   return {nodeNum:Number(nodeNum),nodeId:n.nodeId,name:n.name||n.nodeId,lat:Number(n.latitude),lon:Number(n.longitude)};
 }
 function sameEndpoints(path,a,b){
