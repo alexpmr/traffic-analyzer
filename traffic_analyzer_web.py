@@ -139,6 +139,9 @@ MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://a
 AUTOMATION_SETTINGS_FILE = Path(os.getenv("TA_AUTOMATION_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automations.json")))
 _automation_test_lock = threading.Lock()
 _automation_last_test_at = 0.0
+_nodeinfo_trace_lock = threading.Lock()
+_nodeinfo_last_trace_global = 0.0
+_nodeinfo_last_trace_destinations = {}
 MESH_COMMANDS_ENABLED = str(os.getenv("TA_MESH_COMMANDS_ENABLED", "true")).strip().lower() in {"1","true","yes","on"}
 MESH_COMMAND_POLL_SECONDS = max(1.0, min(float(os.getenv("TA_MESH_COMMAND_POLL_SECONDS", "3")), 60.0))
 PING_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_PING_COOLDOWN_SECONDS", "30")), 86400))
@@ -6677,6 +6680,43 @@ def _mesh_command_receive_packet(packet, connection, dispatcher):
     return bool(row and dispatcher.submit(row, row["_command"]))
 
 
+def _nodeinfo_trace_request(payload):
+    """Consulta apenas para NodeInfo TX local recente; nunca para terceiros."""
+    global _nodeinfo_last_trace_global
+    if not isinstance(payload, dict):
+        raise ValueError("Pedido inválido")
+    try:
+        packet_id = int(payload["packetId"])
+        destination = _node_num(payload["nodeNum"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Informe o packetId do NodeInfo TX e o destino")
+    if packet_id < 1 or destination in (0, 1, 2, 3, 255, 65535, 0xffffffff):
+        raise ValueError("NodeInfo ou destino inválido")
+    since_ms = int(time.time() * 1000) - 2 * 3600 * 1000
+    with _archive_connect() as conn:
+        row = conn.execute(
+            """SELECT packet_id,to_node,channel,timestamp FROM packets
+               WHERE source_id=? AND packet_id=? AND to_node=? AND LOWER(direction)='tx'
+               AND portnum_name='NODEINFO_APP' AND timestamp >= ?
+               ORDER BY timestamp DESC LIMIT 1""",
+            (MM_SOURCE, packet_id, destination, since_ms),
+        ).fetchone()
+    if not row or row["channel"] not in (None, 0):
+        raise ValueError("Não há NodeInfo TX local recente confirmado para esse destino")
+    now = time.monotonic()
+    with _nodeinfo_trace_lock:
+        remaining_global = 300 - (now - _nodeinfo_last_trace_global) if _nodeinfo_last_trace_global else 0
+        last_dest = _nodeinfo_last_trace_destinations.get(destination, 0)
+        remaining_dest = 1800 - (now - last_dest) if last_dest else 0
+        if remaining_global > 0 or remaining_dest > 0:
+            raise ValueError(f"Limite de RF: aguarde {int(max(remaining_global, remaining_dest)) + 1} s antes de consultar novamente")
+        _nodeinfo_last_trace_global = now
+        _nodeinfo_last_trace_destinations[destination] = now
+        result = _request_node_query(destination, "traceroute")
+    return {"success": True, "query": result,
+            "note": "Rota do traceroute atual, não prova do percurso anterior do NodeInfo."}
+
+
 def _mesh_command_live_status():
     with _mesh_dispatcher_lock:
         dispatcher = _mesh_dispatcher_active
@@ -11517,6 +11557,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/nodeinfo/traceroute":
+            try:
+                if "application/json" not in str(self.headers.get("Content-Type") or "").lower():
+                    raise ValueError("Content-Type application/json obrigatório")
+                size = int(self.headers.get("Content-Length", "0") or 0)
+                if not 1 <= size <= 1024:
+                    raise ValueError("Corpo inválido")
+                payload = json.loads(self.rfile.read(size).decode("utf-8"))
+                body = _nodeinfo_trace_request(payload)
+                self._send(202, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except (ValueError, KeyError) as exc:
+                message = str(exc)
+                status = 429 if message.startswith("Limite de RF") else 400
+                self._send(status, "application/json; charset=utf-8", json.dumps({"success": False, "message": message}, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/node-query":
             try:
