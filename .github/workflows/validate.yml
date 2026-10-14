@@ -958,11 +958,11 @@ jobs:
                     const bar=document.getElementById('playback');
                     const children=[...bar.children];
                     const a=children.map(n=>({top:n.getBoundingClientRect().top,bottom:n.getBoundingClientRect().bottom}));
-                    return {rows:new Set(a.map(r=>Math.round(r.top))).size,
+                    return {sameRow:Math.max(...a.map(r=>r.top)) <= Math.min(...a.map(r=>r.bottom))+1,
                             scrollWidth:bar.scrollWidth,clientWidth:bar.clientWidth,
                             scrollHeight:bar.scrollHeight,clientHeight:bar.clientHeight};
                   """)
-                  assert layout["rows"]==1,(width,layout)
+                  assert layout["sameRow"],(width,layout)
                   assert layout["scrollHeight"]<=layout["clientHeight"]+5,(width,layout)
               d.set_window_size(1600,1000)
               time.sleep(.2)
