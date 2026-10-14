@@ -1,6 +1,16 @@
-# Traffic Analyzer v1.61.1
+# Traffic Analyzer v1.62.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.62.0
+
+- **Mapa:** botão Pesquisar com filtro incremental. A cada caractere, mantém no mapa apenas estações cujo nome (curto, longo, personalizado, de fábrica, quando conhecido, ou alias historicamente observado) ou Node ID coincida; oculta temporariamente os demais nós, enlaces e heatmap relacionado.
+- Os aliases realmente observados são preservados no catálogo histórico por Node ID. Ao limpar o campo, todos os nós e enlaces retornam conforme os filtros anteriores; a busca não apaga registros.
+- Seleção de resultado: centraliza, ajusta zoom, pulsa o nó e abre seus detalhes, inclusive para nós offline com última posição histórica. Nós sem posição abrem os detalhes sem mover o mapa para coordenadas falsas.
+- **NodeInfo:** elimina a antiga reta origem→destino sem evidência. Exibe apenas saltos realmente presentes em traceroutes correlacionados; distingue rota do traceroute e percurso exato do pacote original, que normalmente não pode ser reconstruído.
+- Avisos flutuantes de NodeInfo podem ser desligados separadamente do fluxo. Consultas de traceroute ficam desativadas por padrão e podem ser habilitadas para TX local confirmado; o backend exige registro TX, autenticação/CSRF existentes e intervalos mínimos (5 min global, 30 min por destino).
+- Botão **Descobrir rota agora** sob as mesmas proteções; NodeInfo entre terceiros não dispara traceroute automático. Logs e resultado informam ausência de rota sem inventar RF direto.
+- PING/CLIMA preservam a correção assíncrona e a telemetria do listener v1.61.1. **Ainda requer confirmação de recepção em rádio físico** no servidor do usuário (issue #66).
 
 ## Novidades da v1.61.1
 

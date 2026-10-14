@@ -28,6 +28,9 @@ jobs:
       - name: Validar regressão da recepção RF de PING/CLIMA
         run: python -m unittest discover -s tests -p 'test_mesh_rf_dispatch.py' -v
 
+      - name: Validar busca no Mapa e traceroute NodeInfo
+        run: python -m unittest discover -s tests -p 'test_map_search_nodeinfo.py' -v
+
       - name: Validar classificação RF e MQTT por hop
         run: |
           python - <<'PY'
@@ -944,6 +947,22 @@ jobs:
               d.get("http://127.0.0.1:8788/")
               WebDriverWait(d,20).until(EC.presence_of_element_located((By.ID,"nav")))
               time.sleep(2)
+              # Regressão do filtro incremental do mapa: não afeta o banco de nós.
+              d.find_element(By.ID,"mapSearchToggle").click()
+              field=d.find_element(By.ID,"mapSearchInput")
+              field.send_keys("TE")
+              time.sleep(.25)
+              assert d.execute_script("return mapSearchMatches().length")==1
+              field.send_keys("ZZZ")
+              time.sleep(.25)
+              assert d.execute_script("return mapSearchMatches().length")==0
+              assert d.execute_script("return nodeMarkers.size")==0
+              d.find_element(By.ID,"mapSearchClear").click()
+              time.sleep(.25)
+              assert d.execute_script("return mapSearchMatches().length")>=1
+              assert d.execute_script("return nodeMarkers.size")>=1
+              assert d.find_element(By.ID,"nodeInfoAutoTraceEnabled").get_attribute("type")=="checkbox"
+              assert not d.find_element(By.ID,"nodeInfoAutoTraceEnabled").is_selected()
               logs=d.get_log("browser")
               print("BROWSER LOGS AFTER LOAD")
               print(json.dumps(logs,ensure_ascii=False,indent=2))

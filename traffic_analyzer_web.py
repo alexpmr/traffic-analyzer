@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.61.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.62.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -31,7 +31,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.61.1"
+APP_VERSION = "1.62.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -139,6 +139,9 @@ MESHTASTIC_RELEASES_URL = str(os.getenv("TA_MESHTASTIC_RELEASES_URL", "https://a
 AUTOMATION_SETTINGS_FILE = Path(os.getenv("TA_AUTOMATION_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "automations.json")))
 _automation_test_lock = threading.Lock()
 _automation_last_test_at = 0.0
+_nodeinfo_trace_lock = threading.Lock()
+_nodeinfo_last_trace_global = 0.0
+_nodeinfo_last_trace_destinations = {}
 MESH_COMMANDS_ENABLED = str(os.getenv("TA_MESH_COMMANDS_ENABLED", "true")).strip().lower() in {"1","true","yes","on"}
 MESH_COMMAND_POLL_SECONDS = max(1.0, min(float(os.getenv("TA_MESH_COMMAND_POLL_SECONDS", "3")), 60.0))
 PING_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_PING_COOLDOWN_SECONDS", "30")), 86400))
@@ -382,7 +385,19 @@ HTML = r'''<!doctype html>
   .trafficTable th:nth-child(1),.trafficTable td:nth-child(1){width:72px}.trafficTable th:nth-child(2),.trafficTable td:nth-child(2){width:48px}.trafficTable th:nth-child(3),.trafficTable td:nth-child(3){width:185px;max-width:185px}.trafficTable th:nth-child(4),.trafficTable td:nth-child(4){width:185px;max-width:185px}.trafficTable th:nth-child(5),.trafficTable td:nth-child(5){width:118px;max-width:118px}.trafficTable th:nth-child(6),.trafficTable td:nth-child(6){width:58px}.trafficTable th:nth-child(7),.trafficTable td:nth-child(7){width:58px}.trafficTable th:nth-child(8),.trafficTable td:nth-child(8){width:48px}
   .badge{display:inline-block;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:800}.rx{background:#174f37;color:#7af0ad}.tx{background:#164a64;color:#7ddcff}.typeBadge{background:#374657;color:#e8edf2}.type-text{background:#5d3b7c}.type-position{background:#365f3a}.type-nodeinfo{background:#795628}.type-telemetry{background:#1f5d69}.type-traceroute{background:#5a487d}.type-routing{background:#754044}.type-neighbor{background:#4d5b25}
   #packetDetail{overflow:auto;border-left:1px solid #293744;background:#111a24;padding:14px}.detailTitle{font-size:16px;font-weight:800;margin-bottom:8px}.detailGrid{display:grid;grid-template-columns:120px minmax(0,1fr);gap:7px;font-size:12px}.detailGrid b{color:#9fb0bf}.emptyDetail{color:#8194a5;font-size:13px;padding-top:8px}.payloadBox{background:#172532;border:1px solid #304353;border-radius:7px;padding:9px;line-height:1.45;overflow-wrap:anywhere}.payloadRows{display:grid;grid-template-columns:minmax(110px,38%) minmax(0,1fr);gap:4px 9px}.payloadRows .k{color:#9fb0bf;font-weight:700}.payloadRows .v{overflow-wrap:anywhere}.techDetails{margin-top:8px}.techDetails summary{cursor:pointer;color:#9fc6e4;font-weight:700}.techDetails .payloadBox{margin-top:7px}.rawJson{margin-top:9px;border-top:1px solid #304353;padding-top:7px}.rawJson summary{font-size:11px;color:#8194a5;font-weight:600}.techDetails pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1620;border:1px solid #2e4050;border-radius:6px;padding:8px;font-size:10px;max-height:320px;overflow:auto}.broadcastTag{display:inline-block;background:#345d39;color:#a8f0b0;border-radius:9px;padding:2px 6px;font-size:10px;font-weight:800;margin-left:6px}
-  #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:7px}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:0}}
+  #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .mapSearchBox{position:relative;display:flex;align-items:center;gap:4px;z-index:5400}
+  .mapSearchBox input{width:min(25vw,245px);min-width:135px}
+  .mapSearchBox button{white-space:nowrap}
+  .mapSearchMatches{position:absolute;right:0;top:calc(100% + 4px);width:min(430px,90vw);max-height:300px;overflow:auto;background:#172736;border:1px solid #526b7c;border-radius:7px;box-shadow:0 8px 20px #0008;z-index:5500}
+  .mapSearchMatches[hidden],.mapSearchBox[hidden]{display:none!important}
+  .mapSearchMatches button{display:flex;flex-direction:column;gap:3px;text-align:left;width:100%;border:0;border-bottom:1px solid #344757;border-radius:0;white-space:normal;padding:9px}
+  .mapSearchMatches button:hover,.mapSearchMatches button:focus-visible{background:#31506b}
+  .mapSearchMatches small{color:#b7cbda}
+  .mapSearchInfo{font-size:11px;color:#b9cddd;white-space:nowrap}
+  .mapSearchPulse{animation:mapSearchPulse 1s ease-in-out 7;pointer-events:none}
+  @keyframes mapSearchPulse{0%,100%{stroke-width:3;stroke-opacity:.95;fill-opacity:.04}50%{stroke-width:8;stroke-opacity:.4;fill-opacity:.22}}
+  @media(max-width:680px){.mapSearchBox input{width:145px;min-width:110px}.mapSearchInfo{max-width:110px;overflow:hidden;text-overflow:ellipsis}}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:0}}
   @media(max-width:1150px){#trafficBody{grid-template-columns:minmax(0,1fr)}#packetDetail{display:none}header{align-items:flex-start}.trafficTable{min-width:760px}}
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
@@ -614,6 +629,15 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   </label>
   <span id="playStatus">Histórico pronto.</span>
   <div class="mapActions">
+    <div class="mapSearchBox">
+      <button id="mapSearchToggle" type="button" title="Pesquisar nós no mapa" aria-expanded="false" aria-controls="mapSearchPanel" aria-label="Pesquisar estações no mapa">⌕ Pesquisar</button>
+      <div id="mapSearchPanel" class="mapSearchBox" hidden>
+        <input id="mapSearchInput" type="search" placeholder="Nome curto, longo, ID..." aria-label="Filtrar nós no mapa por nome" autocomplete="off" maxlength="120">
+        <button id="mapSearchClear" type="button" title="Limpar pesquisa e restaurar mapa" aria-label="Limpar pesquisa">×</button>
+        <span id="mapSearchCount" class="mapSearchInfo" role="status"></span>
+        <div id="mapSearchMatches" class="mapSearchMatches" hidden></div>
+      </div>
+    </div>
     <label>Mapa:
       <select id="mapToolbarType" title="Escolher mapa-base">
         <option value="osm">OSM / Ruas</option>
@@ -1008,7 +1032,17 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
     <h3>Fluxos e privacidade</h3>
     <div class="settingRow">
       <label><input id="nodeInfoFlowEnabled" type="checkbox" checked> Mostrar fluxo de NodeInfo no mapa</label>
-      <div class="settingDesc">O mapa liga origem e destino. A animação por hops só usa rota observada quando existe traceroute completo compatível; sem evidência suficiente, nenhum hop é inventado.</div>
+      <div class="settingDesc">Somente os saltos observados em traceroute são desenhados. Sem rota, destaca-se origem/destino sem linha reta. O traceroute não comprova necessariamente o caminho original do NodeInfo.</div>
+    </div>
+    <div class="settingRow">
+      <label><input id="nodeInfoToastEnabled" type="checkbox" checked> Exibir avisos flutuantes de NodeInfo</label>
+      <div class="settingDesc">Controla apenas os avisos; não desativa a visualização no mapa.</div>
+    </div>
+    <div class="settingRow">
+      <label><input id="nodeInfoAutoTraceEnabled" type="checkbox"> Consultar traceroute automaticamente para NodeInfo enviado pela estação local</label>
+      <div class="settingDesc">Padrão desligado. Somente pacotes TX confirmados no histórico, com destino específico: máximo 1 consulta a cada 5 minutos e 30 minutos por destino. Não mede rotas entre terceiros. Gera tráfego adicional RF.</div>
+      <button id="nodeInfoTraceNow" type="button" data-admin-only disabled>Descobrir rota agora</button>
+      <div id="nodeInfoRouteStatus" class="settingDesc" role="status">Nenhum NodeInfo selecionado. Consultas RF não são iniciadas automaticamente.</div>
     </div>
     <div class="settingRow">
       <b>Conteúdo dos pacotes</b>
@@ -1462,6 +1496,9 @@ let heatLayer = null;
 let topology = null;
 const nodeTrafficLastSeen = new Map();
 const nodeMarkers = new Map();
+const mapSearchHighlightLayer = L.layerGroup().addTo(map);
+let mapSearchText='';
+let mapSearchHintTimer=null;
 let openNodeNum = null;
 let suppressNodePopupClose = false;
 let openNodePopupScrollTop = 0;
@@ -1557,6 +1594,8 @@ function collectPrefs(){
     activityDuration: Number(document.getElementById('activityDuration').value || 1000),
     autoZoomTraceroute: document.getElementById('autoZoomTraceroute').checked,
     nodeInfoFlowEnabled: document.getElementById('nodeInfoFlowEnabled').checked,
+    nodeInfoToastEnabled: document.getElementById('nodeInfoToastEnabled').checked,
+    nodeInfoAutoTraceEnabled: document.getElementById('nodeInfoAutoTraceEnabled').checked,
     messageFontSize: Number(document.getElementById('messageFontSize').value || 13),
     messageFontFamily: document.getElementById('messageFontFamily').value || 'system',
     messageBold: document.getElementById('messageBold').checked,
@@ -2063,6 +2102,8 @@ function initVisualPrefs(){
   if([650,1000,1500,2000].includes(Number(prefs.activityDuration))) document.getElementById('activityDuration').value = String(prefs.activityDuration);
   document.getElementById('autoZoomTraceroute').checked = (typeof prefs.autoZoomTraceroute === 'boolean') ? prefs.autoZoomTraceroute : false;
   document.getElementById('nodeInfoFlowEnabled').checked = (typeof prefs.nodeInfoFlowEnabled === 'boolean') ? prefs.nodeInfoFlowEnabled : true;
+  document.getElementById('nodeInfoToastEnabled').checked = (typeof prefs.nodeInfoToastEnabled === 'boolean') ? prefs.nodeInfoToastEnabled : true;
+  document.getElementById('nodeInfoAutoTraceEnabled').checked = (typeof prefs.nodeInfoAutoTraceEnabled === 'boolean') ? prefs.nodeInfoAutoTraceEnabled : false;
   if(Number.isFinite(Number(prefs.messageFontSize))) document.getElementById('messageFontSize').value = String(Math.max(10,Math.min(20,Number(prefs.messageFontSize))));
   if(MESSAGE_FONT_STACKS[prefs.messageFontFamily]) document.getElementById('messageFontFamily').value=prefs.messageFontFamily;
   document.getElementById('messageBold').checked=Boolean(prefs.messageBold);
@@ -3096,6 +3137,8 @@ function render(){
   const showNodes = document.getElementById('showNodes').checked;
   const showHeatmap = document.getElementById('showHeatmap').checked;
   const nodeMap = new Map((topology.nodes || []).map(n => [Number(n.nodeNum), n]));
+  const mapSearchActive=Boolean(mapSearchText.trim());
+  const mapSearchAllowed=mapSearchActive?new Set(mapSearchMatches().map(n=>Number(n.nodeNum))):null;
   const isolatedEdge = isolatedEdgeId ? (topology.edges||[]).find(e=>String(e.id||'')===String(isolatedEdgeId)) : null;
   isolatedEdgeNodes = new Set(isolatedEdge ? [Number(isolatedEdge.a),Number(isolatedEdge.b)] : []);
   const isolationActive=Boolean(isolatedEdge);
@@ -3107,11 +3150,12 @@ function render(){
 
   for(const e of topology.edges || []){
     if(isolationActive && String(e.id||'')!==String(isolatedEdgeId)) continue;
+    if(mapSearchActive && (!mapSearchAllowed.has(Number(e.a)) || !mapSearchAllowed.has(Number(e.b)))) continue;
     if(!e.geometry) continue;
     const stats = edgeStatsForWindow(e, isolationActive?null:cutoff);
     if(!stats || (!isolationActive && stats.observations < minObs)) continue;
     const a = nodeMap.get(Number(e.a)), b = nodeMap.get(Number(e.b));
-    if(!isolationActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
+    if(!isolationActive && !mapSearchActive && onlyIdentified && ((a?.state !== 'identified') || (b?.state !== 'identified'))) continue;
 
     visibleNodes.add(Number(e.a)); visibleNodes.add(Number(e.b)); edgeCount++;
     if(stats.mixed) mixedEdgeCount++;
@@ -3160,7 +3204,7 @@ function render(){
     for(const [nodeNum, weight] of heatWeights.entries()){
       const n = nodeMap.get(nodeNum);
       if(!nodeHasValidMapPosition(n)) continue;
-      if(onlyIdentified && n.state !== 'identified') continue;
+      if(!mapSearchActive && onlyIdentified && n.state !== 'identified') continue;
       const intensity = Math.max(.08, Math.log1p(weight) / Math.log1p(maxWeight));
       heatPoints.push([Number(n.latitude), Number(n.longitude), intensity]);
     }
@@ -3177,13 +3221,14 @@ function render(){
   const mappableStates = {identified:0, stub:0, 'route-only':0};
   for(const n of topology.nodes || []){
     if(isolationActive && !isolatedEdgeNodes.has(Number(n.nodeNum))) continue;
+    if(mapSearchActive && !mapSearchAllowed.has(Number(n.nodeNum))) continue;
     if(!nodeHasValidMapPosition(n)) continue;
-    if(!isolationActive && onlyIdentified && n.state !== 'identified') continue;
+    if(!isolationActive && !mapSearchActive && onlyIdentified && n.state !== 'identified') continue;
     const lat=Number(n.latitude),lon=Number(n.longitude);
     mappableCount++;
     mappableStates[n.state] = (mappableStates[n.state] || 0) + 1;
     coords.push([lat,lon]);
-    if(!showNodes && !isolationActive) continue;
+    if(!showNodes && !isolationActive && !mapSearchActive) continue;
 
     const trafficAge=nodeTrafficAge(n);
     const marker = L.circleMarker([lat,lon], {
@@ -3727,6 +3772,7 @@ let flowGeneration=0;
 let flowToastTimer=null;
 let nodeInfoRecent=new Map();
 let nodeInfoTriggered=new Set();
+let nodeInfoActivePacket=null;
 const NODEINFO_PAIR_WINDOW_MS=45000;
 const NODEINFO_TRACE_WINDOW_MS=180000;
 const NODEINFO_ROUTE_WAIT_MS=30000;
@@ -3930,6 +3976,84 @@ function saveNodesColumnPrefs(){
   localStorage.setItem(NODES_COLUMNS_KEY,JSON.stringify([...nodesOptionalColumns]));
   applyNodesColumns();
 }
+function mapSearchFields(n){
+  // O índice usa a mesma normalização da aba Nós, mas somente nomes/IDs.
+  const aliases=Array.isArray(n?.nameAliases)?n.nameAliases:[];
+  return [n?.name,n?.longName,n?.shortName,n?.customName,n?.originalName,
+    n?.factoryName,n?.defaultName,n?.nodeId,n?.nodeNum,...aliases]
+    .filter(x=>x!==null&&x!==undefined&&x!=='').map(nodesNormalizeText);
+}
+function mapSearchMatches(){
+  const needle=nodesNormalizeText(mapSearchText).trim();
+  if(!needle)return topology?.nodes||[];
+  return (topology?.nodes||[]).filter(n=>mapSearchFields(n).some(x=>x.includes(needle)));
+}
+function renderMapSearchResults(){
+  const panel=document.getElementById('mapSearchPanel'),results=document.getElementById('mapSearchMatches'),count=document.getElementById('mapSearchCount');
+  if(!panel||!results||!count)return;
+  const matches=mapSearchMatches();
+  count.textContent=mapSearchText.trim()?matches.length+' de '+(topology?.nodes?.length||0):'Todos os nós';
+  if(!mapSearchText.trim()||panel.hidden){results.hidden=true;results.innerHTML='';return;}
+  results.hidden=false;
+  results.innerHTML=matches.slice(0,15).map(n=>{
+    const pos=nodeHasValidMapPosition(n),historical=Boolean(n.historical);
+    const name=n.name||n.longName||n.shortName||n.nodeId||'Nó desconhecido';
+    const other=[n.shortName&&n.shortName!==name?n.shortName:null,n.nodeId].filter(Boolean).join(' · ');
+    return '<button type="button" data-map-search-node="'+Number(n.nodeNum)+'">'+
+      '<strong>'+esc(name)+'</strong><small>'+esc(other)+
+      ' · '+esc(!pos?'Sem localização':historical?'Posição histórica':'Com posição')+'</small></button>';
+  }).join('')||'<div style="padding:10px;color:#d8b6a4">Nenhum nó encontrado.</div>';
+  results.querySelectorAll('[data-map-search-node]').forEach(btn=>btn.addEventListener('click',()=>focusMapSearchNode(Number(btn.dataset.mapSearchNode))));
+}
+function updateMapSearch(next,updateRoute=true){
+  mapSearchText=String(next??'').slice(0,120);
+  if(openNodeNum!==null)closeNodeWindow(false);
+  const field=document.getElementById('mapSearchInput');if(field&&field.value!==mapSearchText)field.value=mapSearchText;
+  mapSearchHighlightLayer.clearLayers();
+  render();
+  renderMapSearchResults();
+  if(updateRoute)taSyncRoute({replace:true,view:'map'});
+}
+function focusMapSearchNode(nodeNum,updateRoute=true){
+  const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));
+  if(!n)return;
+  setView('map',false);
+  if(nodeHasValidMapPosition(n)){
+    const point=L.latLng(Number(n.latitude),Number(n.longitude));
+    map.setView(point,Math.max(map.getZoom(),14),{animate:true});
+    mapSearchHighlightLayer.clearLayers();
+    L.circleMarker(point,{radius:19,weight:4,color:'#ffe66d',fillColor:'#ffe66d',fillOpacity:.05,
+      interactive:false,className:'mapSearchPulse'}).addTo(mapSearchHighlightLayer);
+    if(mapSearchHintTimer)clearTimeout(mapSearchHintTimer);
+    mapSearchHintTimer=setTimeout(()=>mapSearchHighlightLayer.clearLayers(),7600);
+    const status=document.getElementById('mapSearchCount');
+    if(status)status.textContent=n.historical?'Posição histórica · '+(n.nodeId||''):'Nó destacado · '+(n.nodeId||'');
+  }else{
+    const status=document.getElementById('mapSearchCount');
+    if(status)status.textContent='Sem coordenadas · '+(n.nodeId||'');
+  }
+  document.getElementById('mapSearchMatches').hidden=true;
+  openNodeWindow(nodeNum,false);
+  if(updateRoute)taSyncRoute({view:'map'});
+}
+function initMapSearch(){
+  const toggle=document.getElementById('mapSearchToggle'),panel=document.getElementById('mapSearchPanel');
+  const field=document.getElementById('mapSearchInput');
+  toggle.addEventListener('click',()=>{
+    panel.hidden=!panel.hidden;
+    toggle.setAttribute('aria-expanded',String(!panel.hidden));
+    if(!panel.hidden){field.focus();renderMapSearchResults();}
+    else document.getElementById('mapSearchMatches').hidden=true;
+  });
+  field.addEventListener('input',()=>updateMapSearch(field.value));
+  field.addEventListener('keydown',event=>{
+    if(event.key==='Escape'){event.preventDefault();updateMapSearch('');field.focus();}
+    if(event.key==='Enter'){const matches=mapSearchMatches();if(matches.length===1){event.preventDefault();focusMapSearchNode(Number(matches[0].nodeNum));}}
+  });
+  document.getElementById('mapSearchClear').addEventListener('click',()=>{updateMapSearch('');field.focus();});
+}
+initMapSearch();
+
 function nodesNormalizeText(value){
   return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
@@ -4076,6 +4200,7 @@ function taRouteUrl(view=taActiveView()){
       if(days && days!=='30')params.set('dias',days);
     }
   }else if(view==='map'){
+    if(mapSearchText.trim())params.set('busca',mapSearchText.trim());
     if(openNodeNum!==null && Number.isFinite(Number(openNodeNum)))path+='/no/'+encodeURIComponent(String(openNodeNum));
     else if(isolatedEdgeId)params.set('enlace',isolatedEdgeId);
   }
@@ -4149,6 +4274,11 @@ function taApplyRoute(){
         setTimeout(selectWhenReady,100);
       }
     }else if(view==='map'){
+      mapSearchText=url.searchParams.get('busca')||'';
+      const input=document.getElementById('mapSearchInput');if(input)input.value=mapSearchText;
+      const panel=document.getElementById('mapSearchPanel');if(panel)panel.hidden=!mapSearchText;
+      document.getElementById('mapSearchToggle')?.setAttribute('aria-expanded',String(Boolean(mapSearchText)));
+      render();renderMapSearchResults();
       const edge=url.searchParams.get('enlace');
       if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}
       if(seg[1]==='no' && seg[2]){
@@ -4174,7 +4304,7 @@ function setView(name,updateRoute=true){
   const ids={map:'viewMap',nodes:'viewNodes',traffic:'viewTraffic',messages:'viewMessages',statistics:'viewStatistics',automations:'viewAutomations',settings:'viewSettings',help:'viewHelp'};
   const target=document.getElementById(ids[name]||'viewMap');
   target.classList.add('active');
-  if(name==='map') setTimeout(()=>map.invalidateSize(),40);
+  if(name==='map') setTimeout(()=>{map.invalidateSize();renderMapSearchResults();},40);
   if(name==='nodes') renderNodesTable();
   if(name==='traffic' && !trafficInitialized) loadTrafficInitial();
   if(name==='messages'){messageAutoScroll=true;messagePendingBelow=0;updateMessageNewBelowButton();loadPrimaryMessages(true,false);}
@@ -4219,7 +4349,7 @@ function isConfirmedNodeInfoRequest(p){
 }
 function topologyPoint(nodeNum){
   const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum));
-  if(!n || n.latitude===null || n.longitude===null || !Number.isFinite(Number(n.latitude)) || !Number.isFinite(Number(n.longitude))) return null;
+  if(!nodeHasValidMapPosition(n)) return null;
   return {nodeNum:Number(nodeNum),nodeId:n.nodeId,name:n.name||n.nodeId,lat:Number(n.latitude),lon:Number(n.longitude)};
 }
 function sameEndpoints(path,a,b){
@@ -4260,13 +4390,38 @@ function flowToast(html,known=false){
 function clearFlowLater(generation,ms=45000){
   setTimeout(()=>{ if(generation===flowGeneration) flowLayer.clearLayers(); },ms);
 }
-function drawLogicalNodeInfoLine(p,generation){
-  const a=topologyPoint(packetNodeNum(p,'from')), b=topologyPoint(packetNodeNum(p,'to'));
-  if(!a || !b) return null;
-  const line=L.polyline([[a.lat,a.lon],[b.lat,b.lon]],{color:'#ffb347',weight:3,opacity:.86,dashArray:'7 8',interactive:true}).addTo(flowLayer);
-  line.bindTooltip(`NodeInfo ${a.name} → ${b.name} · caminho intermediário ainda não observado`);
-  if(autoMapMotionAllowed() && document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds(),{padding:[18,18],maxZoom:13,animate:true});
-  return {a,b,line};
+function nodeInfoToast(html,known=false){
+  if(document.getElementById('nodeInfoToastEnabled')?.checked)flowToast(html,known);
+}
+function nodeInfoStatus(message){
+  const box=document.getElementById('nodeInfoRouteStatus');
+  if(box)box.textContent=String(message);
+}
+function nodeInfoTraceEligible(p){
+  return String(p?.direction||'').toLowerCase()==='tx' &&
+    Number(p?.packet_id)>0 && Number.isFinite(packetNodeNum(p,'to')) &&
+    packetNodeNum(p,'to')!==0xffffffff;
+}
+function highlightNodeInfoEndpoints(a,b){
+  let shown=0;
+  for(const num of [a,b]){
+    const pt=topologyPoint(num);
+    if(!pt)continue;
+    L.circleMarker([pt.lat,pt.lon],{radius:12,color:'#ffb347',weight:3,fillOpacity:.06,
+      interactive:false,dashArray:'3 4'}).addTo(flowLayer);
+    shown++;
+  }
+  return shown;
+}
+async function requestNodeInfoTrace(p){
+  if(!authCanWrite()){openAuthModal();throw new Error('Faça login para solicitar traceroute por RF');}
+  if(!nodeInfoTraceEligible(p))throw new Error('Consulta local não disponível: este NodeInfo não é um TX local confirmado');
+  const response=await authFetch('/api/nodeinfo/traceroute',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({packetId:Number(p.packet_id),nodeNum:packetNodeNum(p,'to')})});
+  const body=await response.json();
+  if(!response.ok||!body.success)throw new Error(body.message||('HTTP '+response.status));
+  return body;
 }
 function animateFlowPath(points,generation,color='#a970ff'){
   return new Promise(resolve=>{
@@ -4291,38 +4446,86 @@ function animateFlowPath(points,generation,color='#a970ff'){
   });
 }
 async function showNodeInfoFlow(p,opts={}){
-  if(!document.getElementById('nodeInfoFlowEnabled').checked || !isDirectedNodeInfo(p)) return;
-  const aNum=packetNodeNum(p,'from'), bNum=packetNodeNum(p,'to'), eventTs=packetTime(p);
-  const from=packetNode(p,'from'), to=packetNode(p,'to');
-  const generation=++flowGeneration; flowLayer.clearLayers();
-  const logical=drawLogicalNodeInfoLine(p,generation);
-  if(!logical){
-    flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Sem coordenadas suficientes para desenhar o fluxo no mapa.</div>`);
+  if(!document.getElementById('nodeInfoFlowEnabled').checked||!isDirectedNodeInfo(p))return;
+  const aNum=packetNodeNum(p,'from'),bNum=packetNodeNum(p,'to');
+  const originalTs=packetTime(p)||Date.now();
+  const from=packetNode(p,'from'),to=packetNode(p,'to');
+  nodeInfoActivePacket=p;
+  const canTrace=nodeInfoTraceEligible(p);
+  const button=document.getElementById('nodeInfoTraceNow');
+  if(button)button.disabled=!canTrace||!authCanWrite();
+  const generation=++flowGeneration;
+  flowLayer.clearLayers();
+  const endpoints=highlightNodeInfoEndpoints(aNum,bNum);
+  nodeInfoStatus('NodeInfo '+from+' → '+to+': procurando rota observada no histórico. Nenhuma linha direta presumida.');
+  let evidence=null,referenceTs=originalTs,initiated=false,queryError='';
+  try{
+    evidence=await fetchObservedTracePath(aNum,bNum,originalTs);
+    if(generation!==flowGeneration)return;
+    const automatic=document.getElementById('nodeInfoAutoTraceEnabled')?.checked &&
+      canTrace&&authCanWrite()&&!evidence&&opts.wait!==false;
+    if((opts.forceTrace||automatic)&&canTrace){
+      nodeInfoStatus('NodeInfo: solicitando traceroute local com limite de RF; a resposta mede o caminho atual da consulta.');
+      try{
+        await requestNodeInfoTrace(p);
+        initiated=true;
+        referenceTs=Date.now();
+      }catch(error){
+        queryError=String(error.message||error);
+      }
+    }else if(opts.forceTrace&&!canTrace){
+      queryError='A consulta só é aplicável a NodeInfo TX local, não a pacotes entre terceiros.';
+    }
+    const deadline=Date.now()+(opts.wait===false?0:NODEINFO_ROUTE_WAIT_MS);
+    while(!evidence&&generation===flowGeneration){
+      evidence=await fetchObservedTracePath(aNum,bNum,referenceTs);
+      if(evidence||Date.now()>=deadline)break;
+      await new Promise(resolve=>setTimeout(resolve,5000));
+    }
+  }catch(error){
+    queryError=String(error.message||error);
+  }
+  if(generation!==flowGeneration)return;
+  flowLayer.clearLayers();
+  if(!evidence){
+    highlightNodeInfoEndpoints(aNum,bNum);
+    const base='Caminho original desconhecido; nenhum enlace RF direto presumido.';
+    const more=queryError?' · Consulta: '+queryError:(initiated?' · Traceroute solicitado, sem rota compatível até o timeout.':' · Não há traceroute compatível registrado.');
+    nodeInfoStatus(base+more);
+    nodeInfoToast('<b>NodeInfo: '+esc(from)+' → '+esc(to)+'</b><div class="flowNote">'+esc(base+more)+'</div>');
+    clearFlowLater(generation,30000);
     return;
   }
-  flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Linha lógica exibida; procurando um traceroute próximo no tempo para não inventar hops.</div>`);
-  const deadline=Date.now()+(opts.wait===false?0:NODEINFO_ROUTE_WAIT_MS);
-  let evidence=null;
-  do{
-    evidence=await fetchObservedTracePath(aNum,bNum,eventTs);
-    if(evidence) break;
-    if(Date.now()>=deadline) break;
-    await new Promise(r=>setTimeout(r,5000));
-  }while(generation===flowGeneration);
-  if(generation!==flowGeneration) return;
-  if(!evidence){
-    flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">O pacote comum não carrega a cadeia completa de relays. A linha tracejada é apenas origem/destino; nenhum hop foi inventado.</div>`);
-    clearFlowLater(generation,30000); return;
+  // Somente segmentos adjacentes de uma rota registrada podem virar geometria.
+  // Ponto intermediário sem posição interrompe a linha: não encurtar por reta.
+  const points=evidence.path||[];
+  const hasCoords=pt=>pt&&Number.isFinite(Number(pt.lat))&&Number.isFinite(Number(pt.lon))&&
+    Math.abs(Number(pt.lat))<=90&&Math.abs(Number(pt.lon))<=180&&
+    !(Math.abs(Number(pt.lat))<.01&&Math.abs(Number(pt.lon))<.01);
+  const paths=[];
+  for(let i=0;i<points.length-1;i++){
+    if(!hasCoords(points[i])||!hasCoords(points[i+1]))continue;
+    const line=L.polyline([[points[i].lat,points[i].lon],[points[i+1].lat,points[i+1].lon]],
+      {color:'#a970ff',weight:5,opacity:.88,interactive:true}).addTo(flowLayer);
+    line.bindTooltip('Hop observado em traceroute · não comprova o percurso do pacote NodeInfo');
+    paths.push(line);
   }
-  flowLayer.clearLayers();
-  const latlngs=evidence.path.map(x=>[x.lat,x.lon]);
-  const line=L.polyline(latlngs,{color:'#a970ff',weight:5,opacity:.88,interactive:true}).addTo(flowLayer);
-  const deltaS=Math.round(evidence.delta/1000);
-  line.bindTooltip(`Rota observada por traceroute próximo (${deltaS}s) · não prova que o NodeInfo usou exatamente os mesmos relays`);
-  evidence.path.forEach((pt,i)=>L.circleMarker([pt.lat,pt.lon],{radius:i===0||i===evidence.path.length-1?6:4,color:'#d8c8ff',fillColor:'#a970ff',fillOpacity:.85,weight:1,interactive:false}).addTo(flowLayer));
-  if(autoMapMotionAllowed() && document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds(),{padding:[18,18],maxZoom:13,animate:true});
-  flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Animando pela rota observada em traceroute entre os mesmos nós, ${deltaS}s distante deste evento. É evidência de rota, não o caminho codificado no pacote NodeInfo.</div>`,true);
-  await animateFlowPath(evidence.path,generation,'#a970ff');
+  for(const pt of points){
+    if(hasCoords(pt))L.circleMarker([pt.lat,pt.lon],{radius:6,color:'#d8c8ff',
+      fillColor:'#a970ff',fillOpacity:.85,weight:1,interactive:false}).addTo(flowLayer);
+  }
+  const deltaS=Math.round(Math.abs(Number(evidence.trace?.timestampMs||originalTs)-originalTs)/1000);
+  const complete=paths.length===points.length-1;
+  const label=complete?'Rota observada por traceroute':'Rota parcialmente observada';
+  const note=label+' ('+points.length+' nós, medição a '+deltaS+
+    ' s do evento). Não é prova do caminho exato do NodeInfo.';
+  nodeInfoStatus(note);
+  nodeInfoToast('<b>NodeInfo: '+esc(from)+' → '+esc(to)+'</b><div class="flowNote">'+esc(note)+'</div>',true);
+  if(paths.length&&autoMapMotionAllowed()&&document.getElementById('viewMap').classList.contains('active')){
+    const coords=paths.flatMap(x=>x.getLatLngs());
+    map.fitBounds(L.latLngBounds(coords),{padding:[18,18],maxZoom:13,animate:true});
+  }
+  if(complete&&paths.length)await animateFlowPath(points,generation,'#a970ff');
   clearFlowLater(generation,45000);
 }
 function handleNodeInfoPacket(p){
@@ -5618,6 +5821,8 @@ document.getElementById('soundTest').addEventListener('click',testSoundTheme);
 for(const id of ['activityAnimationEnabled','activityOriginEnabled','activityRelayEnabled','activityDuration']) document.getElementById(id).addEventListener('change',()=>{savePrefs(); if(!document.getElementById('activityAnimationEnabled').checked){activityLayer.clearLayers();activityMarkers.clear();}});
 document.getElementById('autoZoomTraceroute').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('autoZoomTraceroute').checked) disableAutoZoomAndRestore(false);});
 document.getElementById('nodeInfoFlowEnabled').addEventListener('change',()=>{savePrefs(); if(!document.getElementById('nodeInfoFlowEnabled').checked){flowGeneration++;flowLayer.clearLayers();}});
+for(const id of ['nodeInfoToastEnabled','nodeInfoAutoTraceEnabled'])document.getElementById(id).addEventListener('change',savePrefs);
+document.getElementById('nodeInfoTraceNow').addEventListener('click',()=>{if(nodeInfoActivePacket)showNodeInfoFlow(nodeInfoActivePacket,{forceTrace:true,wait:true});});
 document.getElementById('messageFontSize').addEventListener('input',()=>{applyMessageAppearance();savePrefs();});
 document.getElementById('messageFontFamily').addEventListener('change',()=>{applyMessageAppearance();savePrefs();});
 for(const id of ['messageBold','messageItalic','messageUnderline']) document.getElementById(id).addEventListener('change',()=>{applyMessageAppearance();savePrefs();});
@@ -6548,6 +6753,43 @@ def _mesh_command_receive_packet(packet, connection, dispatcher):
         return False
     row = _mesh_command_live_row(pkt, interface=connection)
     return bool(row and dispatcher.submit(row, row["_command"]))
+
+
+def _nodeinfo_trace_request(payload):
+    """Consulta apenas para NodeInfo TX local recente; nunca para terceiros."""
+    global _nodeinfo_last_trace_global
+    if not isinstance(payload, dict):
+        raise ValueError("Pedido inválido")
+    try:
+        packet_id = int(payload["packetId"])
+        destination = _node_num(payload["nodeNum"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("Informe o packetId do NodeInfo TX e o destino")
+    if packet_id < 1 or destination in (0, 1, 2, 3, 255, 65535, 0xffffffff):
+        raise ValueError("NodeInfo ou destino inválido")
+    since_ms = int(time.time() * 1000) - 2 * 3600 * 1000
+    with _archive_connect() as conn:
+        row = conn.execute(
+            """SELECT packet_id,to_node,channel,timestamp FROM packets
+               WHERE source_id=? AND packet_id=? AND to_node=? AND LOWER(direction)='tx'
+               AND portnum_name='NODEINFO_APP' AND timestamp >= ?
+               ORDER BY timestamp DESC LIMIT 1""",
+            (MM_SOURCE, packet_id, destination, since_ms),
+        ).fetchone()
+    if not row or row["channel"] not in (None, 0):
+        raise ValueError("Não há NodeInfo TX local recente confirmado para esse destino")
+    now = time.monotonic()
+    with _nodeinfo_trace_lock:
+        remaining_global = 300 - (now - _nodeinfo_last_trace_global) if _nodeinfo_last_trace_global else 0
+        last_dest = _nodeinfo_last_trace_destinations.get(destination, 0)
+        remaining_dest = 1800 - (now - last_dest) if last_dest else 0
+        if remaining_global > 0 or remaining_dest > 0:
+            raise ValueError(f"Limite de RF: aguarde {int(max(remaining_global, remaining_dest)) + 1} s antes de consultar novamente")
+        _nodeinfo_last_trace_global = now
+        _nodeinfo_last_trace_destinations[destination] = now
+        result = _request_node_query(destination, "traceroute")
+    return {"success": True, "query": result,
+            "note": "Rota do traceroute atual, não prova do percurso anterior do NodeInfo."}
 
 
 def _mesh_command_live_status():
@@ -7955,6 +8197,23 @@ def _history_node_id(node_num: int):
 def _history_merge_node_json(old: dict, new: dict, seen_ms: int, old_position_ms=0):
     merged = dict(old or {})
     new = dict(new or {})
+    # Preserve nomes realmente observados em NodeInfo (inclusive os de fábrica
+    # anteriores a renomeações), sem inventar aliases. NodeNum é a chave estável.
+    alias_fields = ("name", "longName", "shortName", "customName",
+                    "originalName", "factoryName", "defaultName")
+    aliases = []
+    for value in merged.get("nameAliases") or []:
+        if isinstance(value, str) and value.strip() and value.strip() not in aliases:
+            aliases.append(value.strip()[:80])
+    for record in (old or {}, new):
+        for name_key in alias_fields:
+            value = record.get(name_key)
+            if isinstance(value, str):
+                candidate = value.strip()[:80]
+                if candidate and candidate not in aliases and not candidate.startswith("!"):
+                    aliases.append(candidate)
+    if aliases:
+        merged["nameAliases"] = aliases[-32:]
     state_rank = {"route-only": 0, "stub": 1, "identified": 2}
     old_state = str(merged.get("state") or "route-only")
     new_state = str(new.get("state") or "route-only")
@@ -11373,6 +11632,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/nodeinfo/traceroute":
+            try:
+                if "application/json" not in str(self.headers.get("Content-Type") or "").lower():
+                    raise ValueError("Content-Type application/json obrigatório")
+                size = int(self.headers.get("Content-Length", "0") or 0)
+                if not 1 <= size <= 1024:
+                    raise ValueError("Corpo inválido")
+                payload = json.loads(self.rfile.read(size).decode("utf-8"))
+                body = _nodeinfo_trace_request(payload)
+                self._send(202, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except (ValueError, KeyError) as exc:
+                message = str(exc)
+                status = 429 if message.startswith("Limite de RF") else 400
+                self._send(status, "application/json; charset=utf-8", json.dumps({"success": False, "message": message}, ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(exc)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/node-query":
             try:
