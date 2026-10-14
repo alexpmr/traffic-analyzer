@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.62.0 - 2026-10-14
+
+- Pesquisa incremental no mapa por nomes atuais/históricos e Node ID, ocultando imediatamente os não correspondentes e restaurando visualização ao limpar.
+- Destaque pulsante e centralização do nó escolhido, histórico/offline e deep links `/mapa?busca=`.
+- NodeInfo não usa mais linha reta presumida; renderiza hops registrados apenas quando observados.
+- Avisos de NodeInfo independentes e traceroute local manual/automático opt-in limitado, com validação TX arquivada.
+- Suite de testes de aliases, orçamento RF e regressões, sem afirmar validação física dos bots PING/CLIMA.
+
 ## 1.61.1 - 2026-10-13
 
 - Separa o recebimento de comandos RF de operações bloqueantes de PING e CLIMA, com filas assíncronas independentes.
