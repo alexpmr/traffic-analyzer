@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.62.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.62.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -31,7 +31,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.62.0"
+APP_VERSION = "1.62.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -367,8 +367,8 @@ HTML = r'''<!doctype html>
   header{padding:10px 14px;background:#17212b;border-bottom:1px solid #293744;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
   header h1{font-size:17px;margin:0;font-weight:700}.downloadBtn{background:#234d63;border-color:#4c7e96;font-weight:700}
   #summary{display:flex;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#111c27;border-bottom:1px solid #293744}
-  #playback{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 12px;background:#14202b;border-bottom:1px solid #293744}
-  #playStatus{font-size:12px;color:#cbd6df;min-width:260px;max-width:680px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #playback{display:flex;gap:5px;align-items:center;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;overscroll-behavior-x:contain;min-width:0;flex:0 0 auto;padding:6px 8px;background:#14202b;border-bottom:1px solid #293744}
+  #playStatus{font-size:12px;color:#cbd6df;min-width:54px;max-width:110px;flex:0 1 84px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .liveBadge{color:#ff6b6b;font-weight:700}
   .metric{background:#1d2b38;border:1px solid #304353;border-radius:7px;padding:5px 9px;font-size:12px}
   .metric b{font-size:15px;margin-right:4px}
@@ -385,24 +385,24 @@ HTML = r'''<!doctype html>
   .trafficTable th:nth-child(1),.trafficTable td:nth-child(1){width:72px}.trafficTable th:nth-child(2),.trafficTable td:nth-child(2){width:48px}.trafficTable th:nth-child(3),.trafficTable td:nth-child(3){width:185px;max-width:185px}.trafficTable th:nth-child(4),.trafficTable td:nth-child(4){width:185px;max-width:185px}.trafficTable th:nth-child(5),.trafficTable td:nth-child(5){width:118px;max-width:118px}.trafficTable th:nth-child(6),.trafficTable td:nth-child(6){width:58px}.trafficTable th:nth-child(7),.trafficTable td:nth-child(7){width:58px}.trafficTable th:nth-child(8),.trafficTable td:nth-child(8){width:48px}
   .badge{display:inline-block;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:800}.rx{background:#174f37;color:#7af0ad}.tx{background:#164a64;color:#7ddcff}.typeBadge{background:#374657;color:#e8edf2}.type-text{background:#5d3b7c}.type-position{background:#365f3a}.type-nodeinfo{background:#795628}.type-telemetry{background:#1f5d69}.type-traceroute{background:#5a487d}.type-routing{background:#754044}.type-neighbor{background:#4d5b25}
   #packetDetail{overflow:auto;border-left:1px solid #293744;background:#111a24;padding:14px}.detailTitle{font-size:16px;font-weight:800;margin-bottom:8px}.detailGrid{display:grid;grid-template-columns:120px minmax(0,1fr);gap:7px;font-size:12px}.detailGrid b{color:#9fb0bf}.emptyDetail{color:#8194a5;font-size:13px;padding-top:8px}.payloadBox{background:#172532;border:1px solid #304353;border-radius:7px;padding:9px;line-height:1.45;overflow-wrap:anywhere}.payloadRows{display:grid;grid-template-columns:minmax(110px,38%) minmax(0,1fr);gap:4px 9px}.payloadRows .k{color:#9fb0bf;font-weight:700}.payloadRows .v{overflow-wrap:anywhere}.techDetails{margin-top:8px}.techDetails summary{cursor:pointer;color:#9fc6e4;font-weight:700}.techDetails .payloadBox{margin-top:7px}.rawJson{margin-top:9px;border-top:1px solid #304353;padding-top:7px}.rawJson summary{font-size:11px;color:#8194a5;font-weight:600}.techDetails pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#0d1620;border:1px solid #2e4050;border-radius:6px;padding:8px;font-size:10px;max-height:320px;overflow:auto}.broadcastTag{display:inline-block;background:#345d39;color:#a8f0b0;border-radius:9px;padding:2px 6px;font-size:10px;font-weight:800;margin-left:6px}
-  #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
-  .mapSearchBox{position:relative;display:flex;align-items:center;gap:4px;z-index:5400}
-  .mapSearchBox input{width:min(25vw,245px);min-width:135px}
+  #viewSettings{overflow:auto}.settingsCard{max-width:900px;margin:24px auto;background:#17212b;border:1px solid #304353;border-radius:10px;padding:20px;width:calc(100% - 48px);box-sizing:border-box}.settingsCard h2{margin-top:0}.settingsCard h3{margin:20px 0 4px;color:#e9d46d}.settingRow{padding:12px 0;border-bottom:1px solid #293744}.settingRow:last-child{border-bottom:0}.settingDesc{color:#99aaba;font-size:12px;margin-top:5px}.soundTest{margin-left:8px}.settingsGrid{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px 22px}.settingsGrid .settingRow{min-width:0}.mapActions{margin-left:auto;display:flex;gap:5px;align-items:center;flex-wrap:nowrap;white-space:nowrap;flex:0 0 auto}
+  .mapSearchBox{position:relative;display:flex;align-items:center;flex-wrap:nowrap;flex:0 0 auto;gap:4px;min-width:0;z-index:5400}
+  .mapSearchBox input{width:clamp(145px,15vw,195px);min-width:120px;flex:0 0 auto}
   .mapSearchBox button{white-space:nowrap}
-  .mapSearchMatches{position:absolute;right:0;top:calc(100% + 4px);width:min(430px,90vw);max-height:300px;overflow:auto;background:#172736;border:1px solid #526b7c;border-radius:7px;box-shadow:0 8px 20px #0008;z-index:5500}
-  .mapSearchMatches[hidden],.mapSearchBox[hidden]{display:none!important}
+  .mapSearchMatches{position:fixed;left:0;top:0;width:min(385px,calc(100vw - 14px));max-height:min(300px,calc(100vh - 75px));overflow:auto;background:#172736;border:1px solid #526b7c;border-radius:7px;box-shadow:0 8px 20px #0008;z-index:5500}
+  .mapSearchMatches[hidden]{display:none!important}
   .mapSearchMatches button{display:flex;flex-direction:column;gap:3px;text-align:left;width:100%;border:0;border-bottom:1px solid #344757;border-radius:0;white-space:normal;padding:9px}
   .mapSearchMatches button:hover,.mapSearchMatches button:focus-visible{background:#31506b}
   .mapSearchMatches small{color:#b7cbda}
   .mapSearchInfo{font-size:11px;color:#b9cddd;white-space:nowrap}
   .mapSearchPulse{animation:mapSearchPulse 1s ease-in-out 7;pointer-events:none}
   @keyframes mapSearchPulse{0%,100%{stroke-width:3;stroke-opacity:.95;fill-opacity:.04}50%{stroke-width:8;stroke-opacity:.4;fill-opacity:.22}}
-  @media(max-width:680px){.mapSearchBox input{width:145px;min-width:110px}.mapSearchInfo{max-width:110px;overflow:hidden;text-overflow:ellipsis}}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:0}}
+  @media(max-width:680px){.mapSearchBox input{width:145px;min-width:110px}.mapSearchInfo{max-width:70px;overflow:hidden;text-overflow:ellipsis}}@media(max-width:760px){.settingsGrid{grid-template-columns:1fr}.mapActions{margin-left:auto}}
   @media(max-width:1150px){#trafficBody{grid-template-columns:minmax(0,1fr)}#packetDetail{display:none}header{align-items:flex-start}.trafficTable{min-width:760px}}
   select,input,button{background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 7px}
   label{font-size:12px;color:#cbd6df}
   #map{height:100%;width:100%;min-height:0;min-width:0}
-  .mapActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.mapActions label{display:flex;align-items:center;gap:5px}.mapActions select{min-width:118px}.mapLayersMenu{position:relative}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:5300;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoverageHit{cursor:pointer}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:390px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:255px}}
+  .mapActions{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}.mapActions label{display:flex;align-items:center;gap:4px;flex:0 0 auto}.mapActions select{min-width:105px;max-width:140px}.mapLayersMenu{position:relative;flex:0 0 auto}.mapLayersMenu>summary{list-style:none;cursor:pointer;background:#233443;color:#edf3f8;border:1px solid #405668;border-radius:6px;padding:5px 9px;font-size:12px}.mapLayersMenu>summary::-webkit-details-marker{display:none}.mapLayersPanel{position:fixed;left:0;top:0;z-index:5500;min-width:210px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:9px 10px;box-shadow:0 10px 28px rgba(0,0,0,.4)}.mapLayersPanel label{display:flex;align-items:center;gap:7px;white-space:nowrap}.mapLayersPanel .layerSubControl{margin:4px 0 7px 22px;gap:6px;font-size:10px;color:#9fb0be}.mapLayersPanel .layerSubControl input[type=range]{width:105px;padding:0}.layerStatus{font-size:10px;color:#91a4b3;margin-top:5px}.leaflet-weather-radar-pane,.leaflet-clouds-pane,.leaflet-hillshade-pane,.leaflet-elevation-pane{pointer-events:none}.rfCoverageHit{cursor:pointer}.weatherAlertPopup{max-width:360px}.elevationThresholdControl{display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1150;background:rgba(23,33,43,.95);border:1px solid #52697a;border-radius:9px;padding:8px 7px;color:#edf3f8;box-shadow:0 8px 22px rgba(0,0,0,.35);text-align:center;min-width:72px}.elevationThresholdControl.active{display:block}.elevationThresholdTitle{font-size:10px;font-weight:800;color:#e9d46d;margin-bottom:3px}.elevationThresholdValue{font-size:12px;font-weight:800;margin-bottom:4px}.elevationVerticalRange{display:block;writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;width:28px;height:390px;margin:2px auto;padding:0;accent-color:#e4b800}.elevationThresholdNumber{width:64px!important;padding:3px 4px!important;font-size:11px!important;text-align:center}.elevationThresholdUnit{font-size:9px;color:#9fb0be;margin-top:2px}.elevationScaleLabel{font-size:8px;color:#8194a5;line-height:1}.elevationControlRow{display:flex;align-items:center;justify-content:center;gap:3px}@media(max-height:700px){.elevationVerticalRange{height:255px}}
   .legend{background:rgba(23,33,43,.94);padding:8px 10px;border-radius:7px;color:#edf3f8;font-size:12px;line-height:1.55;border:1px solid #405668;min-width:190px}
   .legendSection{margin-top:7px;padding-top:6px;border-top:1px solid rgba(128,148,165,.35)}.legendLine{display:inline-block;width:34px;height:0;margin:0 7px 2px 0;vertical-align:middle;border-top-style:solid}.legendLine.mqtt{border-top-style:dashed}.legendNote{font-size:10px;color:#9fb0be;line-height:1.3;margin-top:4px;max-width:230px}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -629,14 +629,12 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   </label>
   <span id="playStatus">Histórico pronto.</span>
   <div class="mapActions">
-    <div class="mapSearchBox">
-      <button id="mapSearchToggle" type="button" title="Pesquisar nós no mapa" aria-expanded="false" aria-controls="mapSearchPanel" aria-label="Pesquisar estações no mapa">⌕ Pesquisar</button>
-      <div id="mapSearchPanel" class="mapSearchBox" hidden>
-        <input id="mapSearchInput" type="search" placeholder="Nome curto, longo, ID..." aria-label="Filtrar nós no mapa por nome" autocomplete="off" maxlength="120">
-        <button id="mapSearchClear" type="button" title="Limpar pesquisa e restaurar mapa" aria-label="Limpar pesquisa">×</button>
-        <span id="mapSearchCount" class="mapSearchInfo" role="status"></span>
-        <div id="mapSearchMatches" class="mapSearchMatches" hidden></div>
-      </div>
+    <div id="mapSearchPanel" class="mapSearchBox">
+      <label for="mapSearchInput" class="mapSearchLabel" title="Pesquisar estações por nome ou Node ID">⌕</label>
+      <input id="mapSearchInput" type="search" placeholder="Pesquisar nó..." aria-label="Pesquisar nós no mapa por nome curto, longo, histórico ou Node ID" autocomplete="off" maxlength="120">
+      <button id="mapSearchClear" type="button" title="Limpar pesquisa e restaurar mapa" aria-label="Limpar pesquisa">×</button>
+      <span id="mapSearchCount" class="mapSearchInfo" role="status"></span>
+      <div id="mapSearchMatches" class="mapSearchMatches" hidden></div>
     </div>
     <label>Mapa:
       <select id="mapToolbarType" title="Escolher mapa-base">
@@ -3993,7 +3991,7 @@ function renderMapSearchResults(){
   if(!panel||!results||!count)return;
   const matches=mapSearchMatches();
   count.textContent=mapSearchText.trim()?matches.length+' de '+(topology?.nodes?.length||0):'Todos os nós';
-  if(!mapSearchText.trim()||panel.hidden){results.hidden=true;results.innerHTML='';return;}
+  if(!mapSearchText.trim()){results.hidden=true;results.innerHTML='';return;}
   results.hidden=false;
   results.innerHTML=matches.slice(0,15).map(n=>{
     const pos=nodeHasValidMapPosition(n),historical=Boolean(n.historical);
@@ -4004,6 +4002,7 @@ function renderMapSearchResults(){
       ' · '+esc(!pos?'Sem localização':historical?'Posição histórica':'Com posição')+'</small></button>';
   }).join('')||'<div style="padding:10px;color:#d8b6a4">Nenhum nó encontrado.</div>';
   results.querySelectorAll('[data-map-search-node]').forEach(btn=>btn.addEventListener('click',()=>focusMapSearchNode(Number(btn.dataset.mapSearchNode))));
+  positionMapToolbarPopovers();
 }
 function updateMapSearch(next,updateRoute=true){
   mapSearchText=String(next??'').slice(0,120);
@@ -4036,21 +4035,35 @@ function focusMapSearchNode(nodeNum,updateRoute=true){
   openNodeWindow(nodeNum,false);
   if(updateRoute)taSyncRoute({view:'map'});
 }
+function positionMapToolbarPopovers(){
+  const margin=7, viewportW=document.documentElement.clientWidth;
+  const results=document.getElementById('mapSearchMatches');
+  const input=document.getElementById('mapSearchInput');
+  if(results&&!results.hidden&&input){
+    const rect=input.getBoundingClientRect(),width=results.getBoundingClientRect().width||385;
+    results.style.left=Math.round(Math.max(margin,Math.min(rect.left,viewportW-width-margin)))+'px';
+    results.style.top=Math.round(rect.bottom+5)+'px';
+  }
+  const layers=document.querySelector('#mapLayersMenu .mapLayersPanel');
+  const anchor=document.getElementById('mapLayersMenu');
+  if(layers&&anchor&&anchor.open){
+    const rect=anchor.getBoundingClientRect(),width=layers.getBoundingClientRect().width||230;
+    layers.style.left=Math.round(Math.max(margin,Math.min(rect.right-width,viewportW-width-margin)))+'px';
+    layers.style.top=Math.round(rect.bottom+5)+'px';
+  }
+}
 function initMapSearch(){
-  const toggle=document.getElementById('mapSearchToggle'),panel=document.getElementById('mapSearchPanel');
   const field=document.getElementById('mapSearchInput');
-  toggle.addEventListener('click',()=>{
-    panel.hidden=!panel.hidden;
-    toggle.setAttribute('aria-expanded',String(!panel.hidden));
-    if(!panel.hidden){field.focus();renderMapSearchResults();}
-    else document.getElementById('mapSearchMatches').hidden=true;
-  });
   field.addEventListener('input',()=>updateMapSearch(field.value));
   field.addEventListener('keydown',event=>{
     if(event.key==='Escape'){event.preventDefault();updateMapSearch('');field.focus();}
     if(event.key==='Enter'){const matches=mapSearchMatches();if(matches.length===1){event.preventDefault();focusMapSearchNode(Number(matches[0].nodeNum));}}
   });
   document.getElementById('mapSearchClear').addEventListener('click',()=>{updateMapSearch('');field.focus();});
+  const playback=document.getElementById('playback');
+  playback.addEventListener('scroll',positionMapToolbarPopovers,{passive:true});
+  window.addEventListener('resize',positionMapToolbarPopovers,{passive:true});
+  document.getElementById('mapLayersMenu').addEventListener('toggle',positionMapToolbarPopovers);
 }
 initMapSearch();
 
@@ -4276,8 +4289,7 @@ function taApplyRoute(){
     }else if(view==='map'){
       mapSearchText=url.searchParams.get('busca')||'';
       const input=document.getElementById('mapSearchInput');if(input)input.value=mapSearchText;
-      const panel=document.getElementById('mapSearchPanel');if(panel)panel.hidden=!mapSearchText;
-      document.getElementById('mapSearchToggle')?.setAttribute('aria-expanded',String(Boolean(mapSearchText)));
+      // A pesquisa permanece sempre visível, mesmo com campo vazio ou após F5.
       render();renderMapSearchResults();
       const edge=url.searchParams.get('enlace');
       if(edge){isolatedEdgeId=edge;setTimeout(()=>{render();fitMapTight();},120);}

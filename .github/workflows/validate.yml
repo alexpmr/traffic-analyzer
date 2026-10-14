@@ -948,11 +948,35 @@ jobs:
               WebDriverWait(d,20).until(EC.presence_of_element_located((By.ID,"nav")))
               time.sleep(2)
               # Regressão do filtro incremental do mapa: não afeta o banco de nós.
-              d.find_element(By.ID,"mapSearchToggle").click()
               field=d.find_element(By.ID,"mapSearchInput")
+              assert field.is_displayed(), "Pesquisa deve estar sempre visível"
+              # A faixa permanece uma linha em resoluções de desktop e móvel.
+              for width in (1920,1366,1264,1024,768,390):
+                  d.set_window_size(width,860)
+                  time.sleep(.12)
+                  layout=d.execute_script("""
+                    const bar=document.getElementById('playback');
+                    const children=[...bar.children];
+                    const a=children.map(n=>({top:n.getBoundingClientRect().top,bottom:n.getBoundingClientRect().bottom}));
+                    return {sameRow:Math.max(...a.map(r=>r.top)) <= Math.min(...a.map(r=>r.bottom))+1,
+                            scrollWidth:bar.scrollWidth,clientWidth:bar.clientWidth,
+                            scrollHeight:bar.scrollHeight,clientHeight:bar.clientHeight};
+                  """)
+                  assert layout["sameRow"],(width,layout)
+                  assert layout["scrollHeight"]<=layout["clientHeight"]+5,(width,layout)
+              d.set_window_size(1600,1000)
+              time.sleep(.2)
               field.send_keys("TE")
               time.sleep(.25)
               assert d.execute_script("return mapSearchMatches().length")==1
+              # Sugestões flutuantes continuam legíveis fora da barra com overflow.
+              popup=d.execute_script("""
+                const box=document.getElementById('mapSearchMatches'),bar=document.getElementById('playback');
+                return {hidden:box.hidden,top:box.getBoundingClientRect().top,
+                        toolbarBottom:bar.getBoundingClientRect().bottom,
+                        height:box.getBoundingClientRect().height};
+              """)
+              assert not popup["hidden"] and popup["height"]>0 and popup["top"]>=popup["toolbarBottom"]-3,popup
               field.send_keys("ZZZ")
               time.sleep(.25)
               assert d.execute_script("return mapSearchMatches().length")==0
