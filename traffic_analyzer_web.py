@@ -4388,13 +4388,38 @@ function flowToast(html,known=false){
 function clearFlowLater(generation,ms=45000){
   setTimeout(()=>{ if(generation===flowGeneration) flowLayer.clearLayers(); },ms);
 }
-function drawLogicalNodeInfoLine(p,generation){
-  const a=topologyPoint(packetNodeNum(p,'from')), b=topologyPoint(packetNodeNum(p,'to'));
-  if(!a || !b) return null;
-  const line=L.polyline([[a.lat,a.lon],[b.lat,b.lon]],{color:'#ffb347',weight:3,opacity:.86,dashArray:'7 8',interactive:true}).addTo(flowLayer);
-  line.bindTooltip(`NodeInfo ${a.name} → ${b.name} · caminho intermediário ainda não observado`);
-  if(autoMapMotionAllowed() && document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds(),{padding:[18,18],maxZoom:13,animate:true});
-  return {a,b,line};
+function nodeInfoToast(html,known=false){
+  if(document.getElementById('nodeInfoToastEnabled')?.checked)flowToast(html,known);
+}
+function nodeInfoStatus(message){
+  const box=document.getElementById('nodeInfoRouteStatus');
+  if(box)box.textContent=String(message);
+}
+function nodeInfoTraceEligible(p){
+  return String(p?.direction||'').toLowerCase()==='tx' &&
+    Number(p?.packet_id)>0 && Number.isFinite(packetNodeNum(p,'to')) &&
+    packetNodeNum(p,'to')!==0xffffffff;
+}
+function highlightNodeInfoEndpoints(a,b){
+  let shown=0;
+  for(const num of [a,b]){
+    const pt=topologyPoint(num);
+    if(!pt)continue;
+    L.circleMarker([pt.lat,pt.lon],{radius:12,color:'#ffb347',weight:3,fillOpacity:.06,
+      interactive:false,dashArray:'3 4'}).addTo(flowLayer);
+    shown++;
+  }
+  return shown;
+}
+async function requestNodeInfoTrace(p){
+  if(!authCanWrite()){openAuthModal();throw new Error('Faça login para solicitar traceroute por RF');}
+  if(!nodeInfoTraceEligible(p))throw new Error('Consulta local não disponível: este NodeInfo não é um TX local confirmado');
+  const response=await authFetch('/api/nodeinfo/traceroute',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({packetId:Number(p.packet_id),nodeNum:packetNodeNum(p,'to')})});
+  const body=await response.json();
+  if(!response.ok||!body.success)throw new Error(body.message||('HTTP '+response.status));
+  return body;
 }
 function animateFlowPath(points,generation,color='#a970ff'){
   return new Promise(resolve=>{
@@ -4419,38 +4444,86 @@ function animateFlowPath(points,generation,color='#a970ff'){
   });
 }
 async function showNodeInfoFlow(p,opts={}){
-  if(!document.getElementById('nodeInfoFlowEnabled').checked || !isDirectedNodeInfo(p)) return;
-  const aNum=packetNodeNum(p,'from'), bNum=packetNodeNum(p,'to'), eventTs=packetTime(p);
-  const from=packetNode(p,'from'), to=packetNode(p,'to');
-  const generation=++flowGeneration; flowLayer.clearLayers();
-  const logical=drawLogicalNodeInfoLine(p,generation);
-  if(!logical){
-    flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Sem coordenadas suficientes para desenhar o fluxo no mapa.</div>`);
+  if(!document.getElementById('nodeInfoFlowEnabled').checked||!isDirectedNodeInfo(p))return;
+  const aNum=packetNodeNum(p,'from'),bNum=packetNodeNum(p,'to');
+  const originalTs=packetTime(p)||Date.now();
+  const from=packetNode(p,'from'),to=packetNode(p,'to');
+  nodeInfoActivePacket=p;
+  const canTrace=nodeInfoTraceEligible(p);
+  const button=document.getElementById('nodeInfoTraceNow');
+  if(button)button.disabled=!canTrace||!authCanWrite();
+  const generation=++flowGeneration;
+  flowLayer.clearLayers();
+  const endpoints=highlightNodeInfoEndpoints(aNum,bNum);
+  nodeInfoStatus('NodeInfo '+from+' → '+to+': procurando rota observada no histórico. Nenhuma linha direta presumida.');
+  let evidence=null,referenceTs=originalTs,initiated=false,queryError='';
+  try{
+    evidence=await fetchObservedTracePath(aNum,bNum,originalTs);
+    if(generation!==flowGeneration)return;
+    const automatic=document.getElementById('nodeInfoAutoTraceEnabled')?.checked &&
+      canTrace&&authCanWrite()&&!evidence&&opts.wait!==false;
+    if((opts.forceTrace||automatic)&&canTrace){
+      nodeInfoStatus('NodeInfo: solicitando traceroute local com limite de RF; a resposta mede o caminho atual da consulta.');
+      try{
+        await requestNodeInfoTrace(p);
+        initiated=true;
+        referenceTs=Date.now();
+      }catch(error){
+        queryError=String(error.message||error);
+      }
+    }else if(opts.forceTrace&&!canTrace){
+      queryError='A consulta só é aplicável a NodeInfo TX local, não a pacotes entre terceiros.';
+    }
+    const deadline=Date.now()+(opts.wait===false?0:NODEINFO_ROUTE_WAIT_MS);
+    while(!evidence&&generation===flowGeneration){
+      evidence=await fetchObservedTracePath(aNum,bNum,referenceTs);
+      if(evidence||Date.now()>=deadline)break;
+      await new Promise(resolve=>setTimeout(resolve,5000));
+    }
+  }catch(error){
+    queryError=String(error.message||error);
+  }
+  if(generation!==flowGeneration)return;
+  flowLayer.clearLayers();
+  if(!evidence){
+    highlightNodeInfoEndpoints(aNum,bNum);
+    const base='Caminho original desconhecido; nenhum enlace RF direto presumido.';
+    const more=queryError?' · Consulta: '+queryError:(initiated?' · Traceroute solicitado, sem rota compatível até o timeout.':' · Não há traceroute compatível registrado.');
+    nodeInfoStatus(base+more);
+    nodeInfoToast('<b>NodeInfo: '+esc(from)+' → '+esc(to)+'</b><div class="flowNote">'+esc(base+more)+'</div>');
+    clearFlowLater(generation,30000);
     return;
   }
-  flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Linha lógica exibida; procurando um traceroute próximo no tempo para não inventar hops.</div>`);
-  const deadline=Date.now()+(opts.wait===false?0:NODEINFO_ROUTE_WAIT_MS);
-  let evidence=null;
-  do{
-    evidence=await fetchObservedTracePath(aNum,bNum,eventTs);
-    if(evidence) break;
-    if(Date.now()>=deadline) break;
-    await new Promise(r=>setTimeout(r,5000));
-  }while(generation===flowGeneration);
-  if(generation!==flowGeneration) return;
-  if(!evidence){
-    flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">O pacote comum não carrega a cadeia completa de relays. A linha tracejada é apenas origem/destino; nenhum hop foi inventado.</div>`);
-    clearFlowLater(generation,30000); return;
+  // Somente segmentos adjacentes de uma rota registrada podem virar geometria.
+  // Ponto intermediário sem posição interrompe a linha: não encurtar por reta.
+  const points=evidence.path||[];
+  const hasCoords=pt=>pt&&Number.isFinite(Number(pt.lat))&&Number.isFinite(Number(pt.lon))&&
+    Math.abs(Number(pt.lat))<=90&&Math.abs(Number(pt.lon))<=180&&
+    !(Math.abs(Number(pt.lat))<.01&&Math.abs(Number(pt.lon))<.01);
+  const paths=[];
+  for(let i=0;i<points.length-1;i++){
+    if(!hasCoords(points[i])||!hasCoords(points[i+1]))continue;
+    const line=L.polyline([[points[i].lat,points[i].lon],[points[i+1].lat,points[i+1].lon]],
+      {color:'#a970ff',weight:5,opacity:.88,interactive:true}).addTo(flowLayer);
+    line.bindTooltip('Hop observado em traceroute · não comprova o percurso do pacote NodeInfo');
+    paths.push(line);
   }
-  flowLayer.clearLayers();
-  const latlngs=evidence.path.map(x=>[x.lat,x.lon]);
-  const line=L.polyline(latlngs,{color:'#a970ff',weight:5,opacity:.88,interactive:true}).addTo(flowLayer);
-  const deltaS=Math.round(evidence.delta/1000);
-  line.bindTooltip(`Rota observada por traceroute próximo (${deltaS}s) · não prova que o NodeInfo usou exatamente os mesmos relays`);
-  evidence.path.forEach((pt,i)=>L.circleMarker([pt.lat,pt.lon],{radius:i===0||i===evidence.path.length-1?6:4,color:'#d8c8ff',fillColor:'#a970ff',fillOpacity:.85,weight:1,interactive:false}).addTo(flowLayer));
-  if(autoMapMotionAllowed() && document.getElementById('viewMap').classList.contains('active')) map.fitBounds(line.getBounds(),{padding:[18,18],maxZoom:13,animate:true});
-  flowToast(`<b>NodeInfo: ${esc(from)} → ${esc(to)}</b><div class="flowNote">Animando pela rota observada em traceroute entre os mesmos nós, ${deltaS}s distante deste evento. É evidência de rota, não o caminho codificado no pacote NodeInfo.</div>`,true);
-  await animateFlowPath(evidence.path,generation,'#a970ff');
+  for(const pt of points){
+    if(hasCoords(pt))L.circleMarker([pt.lat,pt.lon],{radius:6,color:'#d8c8ff',
+      fillColor:'#a970ff',fillOpacity:.85,weight:1,interactive:false}).addTo(flowLayer);
+  }
+  const deltaS=Math.round(Math.abs(Number(evidence.trace?.timestampMs||originalTs)-originalTs)/1000);
+  const complete=paths.length===points.length-1;
+  const label=complete?'Rota observada por traceroute':'Rota parcialmente observada';
+  const note=label+' ('+points.length+' nós, medição a '+deltaS+
+    ' s do evento). Não é prova do caminho exato do NodeInfo.';
+  nodeInfoStatus(note);
+  nodeInfoToast('<b>NodeInfo: '+esc(from)+' → '+esc(to)+'</b><div class="flowNote">'+esc(note)+'</div>',true);
+  if(paths.length&&autoMapMotionAllowed()&&document.getElementById('viewMap').classList.contains('active')){
+    const coords=paths.flatMap(x=>x.getLatLngs());
+    map.fitBounds(L.latLngBounds(coords),{padding:[18,18],maxZoom:13,animate:true});
+  }
+  if(complete&&paths.length)await animateFlowPath(points,generation,'#a970ff');
   clearFlowLater(generation,45000);
 }
 function handleNodeInfoPacket(p){
