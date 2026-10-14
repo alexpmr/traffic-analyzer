@@ -7955,6 +7955,23 @@ def _history_node_id(node_num: int):
 def _history_merge_node_json(old: dict, new: dict, seen_ms: int, old_position_ms=0):
     merged = dict(old or {})
     new = dict(new or {})
+    # Preserve nomes realmente observados em NodeInfo (inclusive os de fábrica
+    # anteriores a renomeações), sem inventar aliases. NodeNum é a chave estável.
+    alias_fields = ("name", "longName", "shortName", "customName",
+                    "originalName", "factoryName", "defaultName")
+    aliases = []
+    for value in merged.get("nameAliases") or []:
+        if isinstance(value, str) and value.strip() and value.strip() not in aliases:
+            aliases.append(value.strip()[:80])
+    for record in (old or {}, new):
+        for name_key in alias_fields:
+            value = record.get(name_key)
+            if isinstance(value, str):
+                candidate = value.strip()[:80]
+                if candidate and candidate not in aliases and not candidate.startswith("!"):
+                    aliases.append(candidate)
+    if aliases:
+        merged["nameAliases"] = aliases[-32:]
     state_rank = {"route-only": 0, "stub": 1, "identified": 2}
     old_state = str(merged.get("state") or "route-only")
     new_state = str(new.get("state") or "route-only")
