@@ -1,6 +1,14 @@
-# Traffic Analyzer v1.62.1
+# Traffic Analyzer v1.63.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.63.0
+
+- Ícones SVG customizados por role, com os mesmos desenhos do PT2VHF Mesh Analyzer: Client, Router, Client Base, Repeater, Tracker, Sensor e demais variantes (13 papéis).
+- Usa a role recebida do MeshMonitor, numérica ou textual, incluindo `CLIENT = 0`; papel ausente/desconhecido tem símbolo próprio.
+- Contorno preserva as cores de último tráfego real: verde até 2 h, laranja entre 2 e 24 h, vermelho acima de 24 h e cinza sem registro. Metadados não renovam atividade.
+- Legenda recolhível, nomes curtos, pesquisa, detalhes, reprodução e enlaces preservados; desenhos locais sem serviço externo de ícones.
+- [Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip).
 
 ## Novidades da v1.62.1
 

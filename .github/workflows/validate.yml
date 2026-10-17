@@ -31,6 +31,9 @@ jobs:
       - name: Validar busca no Mapa e traceroute NodeInfo
         run: python -m unittest discover -s tests -p 'test_map_search_nodeinfo.py' -v
 
+      - name: Testar ícones customizados por role
+        run: python -m unittest discover -s tests -p 'test_role_icons.py' -v
+
       - name: Validar classificação RF e MQTT por hop
         run: |
           python - <<'PY'
@@ -1263,6 +1266,28 @@ jobs:
               legend_text=d.find_element(By.CSS_SELECTOR,".legend").get_attribute("textContent")
               assert "Tipo de enlace" in legend_text,legend_text
               assert "MQTT / não-RF" in legend_text,legend_text
+              # Real Leaflet markers: same glyphs, activity colors and interactions.
+              role_icons=d.execute_script("""
+                const a=topology.nodes.find(n=>Number(n.nodeNum)===10);
+                const b=topology.nodes.find(n=>Number(n.nodeNum)===20);
+                a.role=0;b.role=12;
+                a.lastHeard=Date.now();b.lastHeard=Date.now()-3*86400000;
+                nodeTrafficLastSeen.delete(10);nodeTrafficLastSeen.delete(20);
+                render();
+                const markers=[nodeMarkers.get(10),nodeMarkers.get(20)];
+                return markers.map(m=>({div:m.options.icon instanceof L.DivIcon,
+                  html:m.getElement().innerHTML,click:m.listens('click'),
+                  tooltip:!!m.getTooltip(),anchor:m.options.icon.options.iconAnchor}));
+              """)
+              assert all(x['div'] and x['click'] and x['tooltip'] for x in role_icons),role_icons
+              assert all(x['anchor']==[17,17] for x in role_icons),role_icons
+              assert role_icons[0]['html']!=role_icons[1]['html'],role_icons
+              assert '#2ecc71' in role_icons[0]['html'],role_icons
+              assert '#e74c3c' in role_icons[1]['html'],role_icons
+              d.find_element(By.CSS_SELECTOR,'.roleLegend summary').click()
+              assert len(d.find_elements(By.CSS_SELECTOR,'.roleLegendItem'))==14
+              assert d.find_element(By.CSS_SELECTOR,'.roleLegendItem').is_displayed()
+              d.find_element(By.CSS_SELECTOR,'.roleLegend summary').click()
               unauth_status=d.execute_async_script("""
                 const done=arguments[0];
                 fetch('/api/topology/refresh',{method:'POST'}).then(r=>done(r.status)).catch(()=>done(0));

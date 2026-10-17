@@ -1,5 +1,11 @@
 # Backlog — Traffic Analyzer
 
+## v1.63.0 — Ícones por role
+
+- Replica ícones do Mesh Analyzer para todos os 13 papéis conhecidos, com símbolo desconhecido.
+- Usa role da API MeshMonitor; não infere pelo nome. Preserva atividade real no contorno, inclusive offline/histórico.
+- Legenda recolhível e testes de normalização, SVG e mapa. Pendências de RF físico anteriores permanecem independentes.
+
 Estado consolidado da release **v1.60.0** (2026-10-13), com novas solicitações registradas separadamente.
 
 Esta matriz registra o fechamento do backlog funcional até a v1.60.0. Um item só é tratado como concluído quando existe implementação no código e validação correspondente no pipeline, quando aplicável.

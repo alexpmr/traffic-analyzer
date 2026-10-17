@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.62.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.63.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -31,7 +31,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.62.1"
+APP_VERSION = "1.63.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -547,6 +547,14 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
   #messageComposer.readOnly{opacity:.68}.authLockIcon{font-weight:900;margin-right:4px}
   body[data-theme="light"] .authHint{background:#f5f7f9;border-color:#cbd5dd;color:#425566}body[data-theme="light"] .readOnlyBanner,body[data-theme="light"] .messageReadOnly{background:#fff5d2;color:#6f5310;border-color:#d9bb56}
 
+.mesh-role-marker{background:transparent;border:0}
+.mesh-role-marker svg{display:block;filter:drop-shadow(0 1px 2px #0008)}
+.mesh-role-marker:focus-visible{outline:2px solid #fff;outline-offset:2px;border-radius:50%}
+.roleLegend{margin-top:8px;border-top:1px solid #8ea6b544;padding-top:5px}
+.roleLegend summary{cursor:pointer;font-weight:600}
+.roleLegendGrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;max-height:185px;overflow:auto;margin-top:6px}
+.roleLegendItem{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:11px}
+.roleLegendItem svg{width:24px;height:24px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -1116,7 +1124,7 @@ const I18N_PAIRS=[
   ['Verificar novas versões a cada:','Check for new versions every:'],['minutos','minutes'],['Padrão: 15 minutos. A alteração é persistida no servidor e aplicada imediatamente, sem reiniciar o Traffic Analyzer.','Default: 15 minutes. The change is persisted on the server and applied immediately without restarting Traffic Analyzer.'],
   ['Versão do Traffic Analyzer','Traffic Analyzer Version'],['Consultando a versão publicada…','Checking the published version…'],['verificando…','checking…'],['Sem informações carregadas.','No information loaded.'],['Ver Release no GitHub','View Release on GitHub'],['Continuar','Continue'],['Fechar','Close'],['Verificar versão','Check version'],['Esta é a versão mais recente publicada','This is the latest published version'],['Nova versão disponível - clique para ver as novidades','New version available - click to see what is new'],['Não foi possível verificar a versão mais recente','Could not check the latest version'],['Não há notas de versão disponíveis.','No release notes are available.'],
   ['Último tráfego','Last traffic'],['até 2 h','up to 2 h'],['2 a 24 h','2 to 24 h'],['mais de 24 h','more than 24 h'],['sem registro','no record'],['Sem tráfego registrado','No traffic recorded'],['Tráfego nas últimas 2 h','Traffic in the last 2 h'],['Tráfego entre 2 e 24 h','Traffic between 2 and 24 h'],['Tráfego há mais de 24 h','Traffic more than 24 h ago'],
-  ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['círculos visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
+  ['enlaces no filtro','links in filter'],['nós no mapa','nodes on map'],['identificados','identified'],['traceroutes no histórico','traceroutes in history'],['ícones visíveis','visible circles'],['Calor = atividade de roteamento observada','Heat = observed routing activity'],['armazenados no MM','stored in MM'],['carregados','loaded'],['último minuto','last minute'],['no filtro','in filter'],
   ['Observações:','Observations:'],['Ida:','Outbound:'],['Volta:','Return:'],['SNR médio:','Average SNR:'],['Faixa SNR:','SNR range:'],['Última observação:','Last observation:'],['canal:','channel:'],['Estado:','State:'],['Posição:','Position:'],['Último tráfego:','Last traffic:'],['Situação:','Status:'],['Public key:','Public key:'],['Short name:','Short name:'],['sim','yes'],['não','no'],
   ['Dados técnicos','Technical data'],['Nenhum dado técnico adicional disponível.','No additional technical data available.'],['Ver JSON bruto','View raw JSON'],['Mostrar fluxo','Show flow'],['Criptografado','Encrypted'],['Canal','Channel'],['Nome','Name'],['Nome curto','Short name'],['Chave pública','Public key'],['Licenciado','Licensed'],['Nó','Node'],['Última recepção','Last reception'],['Vizinhos','Neighbors'],['Rota','Route'],['Rota de volta','Return route'],['Erro de roteamento','Routing error'],['Motivo','Reason'],['ID da solicitação','Request ID'],['ID da resposta','Reply ID'],['ID do pacote','Packet ID'],['Tipo de telemetria','Telemetry type'],['Solicita resposta','Requests response'],['Solicita ACK','Requests ACK'],['Tipo de pacote','Packet type'],['Transporte','Transport'],['Recebido em','Received at'],['Prioridade','Priority'],['Métricas do dispositivo','Device metrics'],['Métricas ambientais','Environmental metrics'],['Estatísticas locais','Local statistics'],['Métricas de energia','Power metrics'],['Qualidade do ar','Air quality'],['Bateria','Battery'],['Tensão','Voltage'],['Utilização do canal','Channel utilization'],['Horário','Time'],['Temperatura','Temperature'],['Umidade','Humidity'],['Pressão','Pressure'],['Resistência do gás','Gas resistance'],['Corrente','Current'],['Luminosidade','Illuminance'],
   ['Calculando indicadores','Calculating indicators'],['Nós ativos - 2 h','Active nodes - 2 h'],['nós conhecidos','known nodes'],['Nós ativos - 24 h','Active nodes - 24 h'],['sem tráfego > 24 h','no traffic > 24 h'],['Pacotes - 24 h','Packets - 24 h'],['Enlaces observados','Observed links'],['vistos nas últimas 24 h','seen in the last 24 h'],['histórico carregado','loaded history'],['Com ida e volta','With outbound and return'],['completos nos 2 sentidos','complete in both directions'],['Mediana de hops','Median hops'],['por perna observada','per observed leg'],['Sem registro','No record'],['nós sem timestamp confiável','nodes without a reliable timestamp'],['Idas observadas','Observed outbound legs'],['Voltas observadas','Observed return legs'],['Traceroutes incompletos','Incomplete traceroutes'],['Média de hops','Average hops'],['Nenhuma interação de chat registrada no canal primário.','No chat interaction recorded on the primary channel.'],['Nenhum nó requer atenção pelo critério atual.','No node requires attention under the current criterion.'],['Não foi possível calcular','Could not calculate'],
@@ -1150,6 +1158,8 @@ const I18N_PAIRS=[
   ['Use @ para localizar um nó; o @ é removido antes da transmissão.','Use @ to find a node; @ is removed before transmission.'],
   ['Adiciona bandeiras do Brasil e dos Estados Unidos ao seletor de idioma.','Adds Brazil and United States flags to the language selector.'],
   ['Remove o caractere @ das menções antes de transmitir a mensagem, preservando apenas o nome do nó.','Removes the @ character from mentions before transmitting the message, preserving only the node name.'],
+  ['Ícones por papel do nó','Node role icons'],
+  ['Papel não informado','Role not reported'],
   ['Adiciona controles visuais de fonte, negrito, itálico, sublinhado, altura de linha e espaçamento entre mensagens.','Adds visual controls for font, bold, italic, underline, line height, and message spacing.'],
   ['Adiciona filtro de severidade na aba Anomalias: Todas, Críticas, Atenção e Informativas.','Adds a severity filter to the Anomalies tab: All, Critical, Warning, and Informational.'],
   ['Adiciona ajuste de espessura das linhas do mapa e restauração de cor/espessura ao padrão.','Adds map line thickness control and reset of color/thickness to defaults.'],
@@ -2149,6 +2159,46 @@ function hardwareFriendly(v){
     return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase();
   }).join(' ');
 }
+// Custom inline SVG glyphs: no external icon/font service is required.
+const NODE_ROLE_META=[
+ ['CLIENT','Client','<rect x="8" y="6" width="9" height="15" rx="2"/><path d="M10 6V2m1 8h3m-3 4h3m-3 4h1"/>'],
+ ['CLIENT_MUTE','Client Mute','<rect x="4" y="6" width="9" height="15" rx="2"/><path d="M6 6V2m1 8h3m6 2 5 6m0-6-5 6"/>'],
+ ['ROUTER','Router','<path d="m6 21 6-15 6 15M8 17h8M10 12h4M12 3v3M7 3c-3 2-3 5 0 7m10-7c3 2 3 5 0 7"/>'],
+ ['ROUTER_CLIENT','Router Client','<path d="m3 20 5-13 5 13M5 16h6M8 4v3M4 4c-2 1-2 4 0 5m8-5c2 1 2 4 0 5"/><rect x="15" y="10" width="6" height="11" rx="1"/><path d="M17 10V6m0 8h2"/>'],
+ ['REPEATER','Repeater','<path d="M3 8h17l-4-4m4 12H3l4 4M4 8l4-4m12 12-4 4M7 12h10"/>'],
+ ['TRACKER','Tracker','<path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><circle cx="12" cy="9" r="2.5"/>'],
+ ['SENSOR','Sensor','<path d="M9 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0Zm3-8v11m6-11h3m-3 4h2"/><circle cx="12" cy="18" r="1"/>'],
+ ['TAK','TAK','<path d="m12 3 3 6 6 3-6 3-3 6-3-6-6-3 6-3Z"/><path d="M12 8v8m-4-4h8"/>'],
+ ['CLIENT_HIDDEN','Client Hidden','<path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6Zm2 9L20 3"/><circle cx="12" cy="12" r="3"/>'],
+ ['LOST_AND_FOUND','Lost & Found','<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M10 6v5m0 2v1"/>'],
+ ['TAK_TRACKER','TAK Tracker','<path d="M19 9c0 5-7 12-7 12S5 14 5 9a7 7 0 1 1 14 0Z"/><path d="m12 5 1 3 3 1-3 1-1 3-1-3-3-1 3-1Z"/>'],
+ ['ROUTER_LATE','Router Late','<path d="m3 20 5-13 5 13M5 16h6M8 3v4M4 4c-2 1-2 4 0 5m8-5c2 1 2 4 0 5"/><circle cx="18" cy="16" r="5"/><path d="M18 13v3l2 1"/>'],
+ ['CLIENT_BASE','Client Base','<path d="m2 12 10-8 10 8M5 10v11h14V10M12 4V1M9 14h6m-3-2v7"/>']
+];
+function nodeRoleMeta(value){
+ let key=typeof value==='number'&&Number.isInteger(value)?NODE_ROLE_META[value]?.[0]:null;
+ if(typeof value==='string'){
+  const text=value.trim();
+  key=/^\d+$/.test(text)?NODE_ROLE_META[Number(text)]?.[0]:text.toUpperCase().replace(/[\s-]+/g,'_');
+ }
+ return NODE_ROLE_META.find(row=>row[0]===key)||['UNKNOWN','Papel não informado','<path d="m12 2 10 10-10 10L2 12Z"/><path d="M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3v1"/>'];
+}
+function nodeRoleSvg(role,statusColor){
+ const meta=nodeRoleMeta(role);
+ return '<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">'+
+ '<circle cx="17" cy="17" r="15" fill="#142533" stroke="'+statusColor+'" stroke-width="2.5"/>'+
+ '<g transform="translate(5 5)" fill="none" stroke="#f0f5f8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+meta[2]+'</g></svg>';
+}
+function nodeRoleIcon(n){
+ return L.divIcon({className:'mesh-role-marker',html:nodeRoleSvg(n.role,nodeTrafficAge(n).color),
+  iconSize:[34,34],iconAnchor:[17,17],tooltipAnchor:[0,-18]});
+}
+function nodeRoleLegendHtml(){
+ return '<details class="roleLegend"><summary>'+tr('Ícones por papel do nó')+'</summary><div class="roleLegendGrid">'+
+ NODE_ROLE_META.map(([role,label])=>'<div class="roleLegendItem">'+nodeRoleSvg(role,'#8ea6b5')+'<span>'+label+'</span></div>').join('')+
+ '<div class="roleLegendItem">'+nodeRoleSvg(null,'#8ea6b5')+'<span>'+tr('Papel não informado')+'</span></div></div></details>';
+}
+
 function roleFriendly(v){
   if(v===null||v===undefined||v==='')return null;
   const n=Number(v);return Number.isFinite(n)?(DEVICE_ROLES[n]||`Unknown (${v})`):String(v);
@@ -3229,14 +3279,14 @@ function render(){
     if(!showNodes && !isolationActive && !mapSearchActive) continue;
 
     const trafficAge=nodeTrafficAge(n);
-    const marker = L.circleMarker([lat,lon], {
-      radius:n.state === 'identified' ? 6 : 7,
-      color:trafficAge.color, fillColor:trafficAge.color, fillOpacity:.90, weight:2
+    const marker = L.marker([lat,lon], {
+      icon:nodeRoleIcon(n),keyboard:true,riseOnHover:true,
+      alt:(n.name||n.nodeId||'')+' · '+nodeRoleMeta(n.role)[1]
     });
     if(showShortNames && n.shortName){
-      marker.bindTooltip(esc(n.shortName), {direction:'top', permanent:true, className:'short-label', offset:[0,-7]});
+      marker.bindTooltip(esc(n.shortName), {direction:'top', permanent:true, className:'short-label', offset:[0,0]});
     } else {
-      marker.bindTooltip(esc(n.name || n.nodeId), {direction:'top'});
+      marker.bindTooltip(esc(n.name || n.nodeId)+' · '+esc(nodeRoleMeta(n.role)[1])+' · '+esc(tr(trafficAge.label)), {direction:'top'});
     }
     marker.on('click',()=>openNodeWindow(n.nodeNum));
     marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
@@ -3264,7 +3314,7 @@ function render(){
     `<span class="metric"><b>${mappableStates.stub || 0}</b> stubs</span>`+
     `<span class="metric"><b>${mappableStates['route-only'] || 0}</b> route-only</span>`+
     `<span class="metric"><b>${traceCount}</b> traceroutes no histórico</span>`+
-    (showNodes ? `<span class="metric"><b>${markerCount}</b> círculos visíveis</span>` : '')+
+    (showNodes ? `<span class="metric"><b>${markerCount}</b> ícones visíveis</span>` : '')+
     (showHeatmap ? `<span class="metric warn">Calor = atividade de roteamento observada</span>` : '');
   updatePlaybackStatusIdle();
 }
@@ -6105,7 +6155,7 @@ function renderLegend(){
     '<div class="legendSection"><b>'+tr('Tipo de enlace')+'</b><br>'+
     '<span class="legendLine" style="border-top-color:'+esc(rfColor)+';border-top-width:'+rfWidth+'px"></span>'+tr('RF confirmado')+'<br>'+
     '<span class="legendLine mqtt" style="border-top-color:'+esc(mqttColor)+';border-top-width:'+mqttWidth+'px"></span>'+tr('MQTT / não-RF')+
-    '<div class="legendNote">'+tr('Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.')+'</div></div>';
+    '<div class="legendNote">'+tr('Enlace misto permanece contínuo quando houver ao menos uma observação RF no período.')+'</div></div>'+nodeRoleLegendHtml();
 }
 const legend = L.control({position:'bottomright'});
 legend.onAdd = () => {

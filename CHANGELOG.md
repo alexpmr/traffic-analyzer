@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.63.0 - 2026-10-17
+
+- Replica os 13 ícones SVG por role do PT2VHF Mesh Analyzer, com fallback desconhecido e legenda recolhível.
+- Preserva cores baseadas em tráfego real, pesquisa, nomes curtos, popup, reprodução e filtros. Role numérica zero e nomes canônicos suportados.
+- Testes de SVG real, role via topologia/histórico e navegação Leaflet no browser. Não adiciona consultas RF.
+
 ## 1.62.1 - 2026-10-14
 
 - Mantém campo de pesquisa do Mapa visível permanentemente, sem botão expansor.
