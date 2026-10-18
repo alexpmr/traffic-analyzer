@@ -1,3 +1,23 @@
+## P1 — Traceroute em Mensagens: formatar rota em múltiplas linhas (18/10/2026)
+
+- **Relato de campo:** na aba **Mensagens**, respostas de traceroute aparecem como texto contínuo, difícil de ler, por exemplo com toda a rota de ida e volta concatenada em uma única linha.
+- Preservar e/ou gerar **quebras de linha reais** no conteúdo de traceroute exibido no Traffic Analyzer.
+- Exibir a rota de ida e a rota de volta em linhas separadas.
+- Quando houver vários saltos, preferir **um salto por linha** ou grupos curtos por linha, evitando linhas horizontais extensas.
+- Formato sugerido:
+  - `Rota de ida:`
+  - `Origem → Nó 1`
+  - `Nó 1 → Nó 2`
+  - `Nó 2 → Destino`
+  - `Rota de volta:`
+  - `Destino → Nó 2`
+  - `Nó 2 → Nó 1`
+  - `Nó 1 → Origem`
+- Manter SNR por salto junto ao trecho correspondente, quando disponível, sem transformar a mensagem em uma linha única.
+- Se a mensagem vier de outro cliente já com `\n`, preservar as quebras; se vier compactada, normalizar somente o tipo traceroute para uma apresentação legível.
+- Aplicar o mesmo tratamento na mensagem ao vivo e no histórico recarregado.
+- Critério de aceite: um traceroute com múltiplos saltos deve caber visualmente no balão sem exigir leitura horizontal extensa e sem perder nomes, IDs ou SNR.
+
 # Backlog — Traffic Analyzer
 
 ## v1.66.1 — Formatação de automações/alertas e menu de contexto
