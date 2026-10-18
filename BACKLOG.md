@@ -1,6 +1,6 @@
 # Backlog — Traffic Analyzer
 
-## v1.66.0 — Formatação de automações/alertas e menu de contexto
+## v1.66.1 — Formatação de automações/alertas e menu de contexto
 
 - **Concluído:** preservação de quebras de linha reais em PING/CLIMA e divisão por limite de 200 bytes sem achatar o texto.
 - **Concluído:** expansão dos campos compactos de CLIMA para linguagem clara, incluindo temperatura, umidade relativa, ponto de orvalho, pressão, índice ultravioleta, iluminação, radiação solar, vento, chuva, raios e bateria.
@@ -9,6 +9,7 @@
 - **Concluído:** primeira opção do menu é **Excluir da base e do dispositivo**, com confirmação e resultado separado das duas etapas.
 - **Concluído:** favoritos do menu são sincronizados com a NodeDB do dispositivo Meshtastic conectado.
 - **Validado por testes automatizados:** formatação multilinha, expansão de abreviações, alerta INMET, ordem/tamanho do menu e exclusão combinada/resultado parcial.
+- **Correção v1.66.1:** normalização de raios refinada para não alterar linhas de dados já expandidas; ausência de último raio usa **sem registro**.
 - Teste físico em rádio continua necessário para confirmar comportamento do firmware/dispositivo específico, sem alterar a validação lógica do código.
 
 ## v1.65.0 — Menu de contexto de nós

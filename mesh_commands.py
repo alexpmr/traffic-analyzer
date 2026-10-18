@@ -167,11 +167,12 @@ def normalize_clima_message(text: str) -> str:
 
     # Alertas devem ser autoexplicativos, mesmo quando a fonte usa rótulos curtos.
     normalized = "\n".join(lines)
-    normalized = re.sub(r"(?im)^CHUVA FORTE\b", "Alerta de chuva forte", normalized)
-    normalized = re.sub(r"(?im)^RAIOS\b", "Alerta de raios", normalized)
-    normalized = re.sub(r"(?im)^VENTO FORTE\b", "Alerta de vento forte", normalized)
-    normalized = re.sub(r"(?im)^GRANIZO\b", "Alerta de granizo", normalized)
-    normalized = re.sub(r"(?im)^TEMPESTADE\b", "Alerta de tempestade", normalized)
+    normalized = re.sub(r"(?im)^CHUVA FORTE$", "Alerta de chuva forte", normalized)
+    normalized = re.sub(r"(?im)^RAIOS$", "Alerta de raios", normalized)
+    normalized = re.sub(r"(?im)^VENTO FORTE$", "Alerta de vento forte", normalized)
+    normalized = re.sub(r"(?im)^GRANIZO$", "Alerta de granizo", normalized)
+    normalized = re.sub(r"(?im)^TEMPESTADE$", "Alerta de tempestade", normalized)
+    normalized = re.sub(r":\s*--$", ": sem registro", normalized, flags=re.MULTILINE)
     return normalized
 
 
