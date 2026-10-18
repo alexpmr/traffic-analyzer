@@ -1,3 +1,16 @@
+## Ajuste — Traceroute em dois blocos, ida e volta (18/10/2026)
+
+- Na aba **Mensagens**, exibir o traceroute em **dois blocos visuais separados**.
+- **Bloco 1 — Ida:** mostrar somente o caminho no sentido origem → destino.
+- **Bloco 2 — Volta:** mostrar somente o caminho no sentido destino → origem.
+- Não misturar os dois sentidos no mesmo balão/bloco de texto.
+- Cada bloco deve preservar quebras de linha e manter os saltos na ordem correta.
+- Quando houver SNR por salto, manter o valor junto ao trecho correspondente.
+- O segundo bloco deve representar efetivamente a **rota reversa observada**, não apenas inverter visualmente a rota de ida caso os dados de retorno sejam diferentes.
+- Se não houver rota de volta disponível, mostrar apenas o bloco de ida e indicar claramente **“Rota de volta não disponível”**.
+- Aplicar o mesmo comportamento em mensagens novas e no histórico recarregado.
+- Critério de aceite: o usuário deve conseguir distinguir de imediato **ida** e **volta** sem precisar interpretar uma linha contínua.
+
 ## P1 — Traceroute em Mensagens: formatar rota em múltiplas linhas (18/10/2026)
 
 - **Relato de campo:** na aba **Mensagens**, respostas de traceroute aparecem como texto contínuo, difícil de ler, por exemplo com toda a rota de ida e volta concatenada em uma única linha.
