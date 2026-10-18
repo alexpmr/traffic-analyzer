@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.65.0 - 2026-10-18
+
+- Adiciona menu de contexto uniforme para nós no Mapa e na aba Nós.
+- Inclui mensagem privada, Node Info, posição, telemetria, Traceroute, Ping, detalhes, centralização, tráfego filtrado e cópia de identificação/coordenadas.
+- Adiciona favoritos locais e ocultação de nós no mapa com persistência no navegador.
+- Adiciona exclusão autenticada do histórico local do nó (nó, posições, pacotes e enlaces), com confirmação.
+- Mensagem privada e Ping usam o Virtual Node Meshtastic e continuam sujeitos à conectividade real do rádio.
+- Sincronização de favoritos com o dispositivo e automações persistentes específicas por nó permanecem pendentes.
+
 ## 1.64.0 - 2026-10-18
 
 - Automação Meshtastic com categorias estável/instável/nightly habilitadas, consulta oficial, modelo e intervalo configuráveis.
