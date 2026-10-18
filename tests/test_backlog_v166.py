@@ -30,6 +30,7 @@ class BacklogV166Tests(unittest.TestCase):
             "RAIOS/TEMPEST | raios 1h 0 | ultimo -- | bat 2.742V | dados 39s"
         )
         self.assertIn("Raios detectados na última hora: 0", lightning)
+        self.assertIn("Último raio detectado: sem registro", lightning)
         self.assertIn("Bateria: 2.742 V", lightning)
         self.assertIn("Dados atualizados há 39 segundos", lightning)
         self.assertNotIn(" bat ", " " + lightning.lower() + " ")
