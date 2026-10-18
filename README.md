@@ -1,6 +1,16 @@
-# Traffic Analyzer v1.66.1
+# Traffic Analyzer v1.66.2
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.66.2
+
+- **Traceroute em Mensagens:** separa visualmente os dois sentidos em blocos independentes.
+- O primeiro bloco mostra **Rota de ida** (origem → destino); o segundo mostra **Rota de volta** (destino → origem).
+- A rota de retorno usa os dados realmente recebidos em `Voltar para:`; ela não é fabricada invertendo a ida.
+- Cada salto passa a ocupar uma linha visual própria, preservando nome/ID e SNR que já vierem no texto.
+- Se não houver retorno, a interface mostra **Rota de volta não disponível**.
+- O tratamento é aplicado tanto a mensagens novas quanto ao histórico recarregado, pois ocorre no renderizador da conversa.
+- [Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip).
 
 ## Novidades da v1.66.1
 

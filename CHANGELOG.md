@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.66.2 - 2026-10-18
+
+- Formata traceroutes exibidos na aba Mensagens em dois blocos: **Rota de ida** e **Rota de volta**.
+- Divide os saltos em linhas visuais separadas para eliminar a leitura horizontal extensa.
+- Preserva a rota reversa realmente recebida em `Voltar para:`, sem inferir retorno por simples inversão da ida.
+- Exibe **Rota de volta não disponível** quando o retorno não está presente.
+- Adiciona teste de regressão para separação dos dois sentidos e renderização por salto.
+
 ## 1.66.1 - 2026-10-18
 
 - Corrige formatação de PING/CLIMA e mensagens automáticas para preservar quebras de linha reais até o payload transmitido.

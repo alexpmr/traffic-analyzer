@@ -1,35 +1,11 @@
-## Ajuste — Traceroute em dois blocos, ida e volta (18/10/2026)
+## v1.66.2 — Traceroute em dois blocos
 
-- Na aba **Mensagens**, exibir o traceroute em **dois blocos visuais separados**.
-- **Bloco 1 — Ida:** mostrar somente o caminho no sentido origem → destino.
-- **Bloco 2 — Volta:** mostrar somente o caminho no sentido destino → origem.
-- Não misturar os dois sentidos no mesmo balão/bloco de texto.
-- Cada bloco deve preservar quebras de linha e manter os saltos na ordem correta.
-- Quando houver SNR por salto, manter o valor junto ao trecho correspondente.
-- O segundo bloco deve representar efetivamente a **rota reversa observada**, não apenas inverter visualmente a rota de ida caso os dados de retorno sejam diferentes.
-- Se não houver rota de volta disponível, mostrar apenas o bloco de ida e indicar claramente **“Rota de volta não disponível”**.
-- Aplicar o mesmo comportamento em mensagens novas e no histórico recarregado.
-- Critério de aceite: o usuário deve conseguir distinguir de imediato **ida** e **volta** sem precisar interpretar uma linha contínua.
-
-## P1 — Traceroute em Mensagens: formatar rota em múltiplas linhas (18/10/2026)
-
-- **Relato de campo:** na aba **Mensagens**, respostas de traceroute aparecem como texto contínuo, difícil de ler, por exemplo com toda a rota de ida e volta concatenada em uma única linha.
-- Preservar e/ou gerar **quebras de linha reais** no conteúdo de traceroute exibido no Traffic Analyzer.
-- Exibir a rota de ida e a rota de volta em linhas separadas.
-- Quando houver vários saltos, preferir **um salto por linha** ou grupos curtos por linha, evitando linhas horizontais extensas.
-- Formato sugerido:
-  - `Rota de ida:`
-  - `Origem → Nó 1`
-  - `Nó 1 → Nó 2`
-  - `Nó 2 → Destino`
-  - `Rota de volta:`
-  - `Destino → Nó 2`
-  - `Nó 2 → Nó 1`
-  - `Nó 1 → Origem`
-- Manter SNR por salto junto ao trecho correspondente, quando disponível, sem transformar a mensagem em uma linha única.
-- Se a mensagem vier de outro cliente já com `\n`, preservar as quebras; se vier compactada, normalizar somente o tipo traceroute para uma apresentação legível.
-- Aplicar o mesmo tratamento na mensagem ao vivo e no histórico recarregado.
-- Critério de aceite: um traceroute com múltiplos saltos deve caber visualmente no balão sem exigir leitura horizontal extensa e sem perder nomes, IDs ou SNR.
+- **Concluído:** traceroute exibido em **Rota de ida** e **Rota de volta**, em blocos visuais independentes.
+- **Concluído:** cada salto é apresentado em linha própria, reduzindo a leitura horizontal.
+- **Concluído:** o retorno usa o conteúdo realmente recebido em `Voltar para:`; nenhuma rota reversa é inventada a partir da ida.
+- **Concluído:** quando o retorno não existe, a interface informa **Rota de volta não disponível**.
+- **Concluído:** formatação ocorre no renderizador da conversa e também vale para mensagens históricas recarregadas.
+- **Validado por teste automatizado:** existência dos dois blocos, parser de ida/volta, ausência de inversão artificial e linhas por salto.
 
 # Backlog — Traffic Analyzer
 

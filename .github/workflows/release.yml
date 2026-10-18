@@ -55,6 +55,9 @@ jobs:
       - name: Validar backlog da v1.66.0
         run: python -m unittest discover -s tests -p 'test_backlog_v166.py' -v
 
+      - name: Validar formatação de traceroute em Mensagens
+        run: python -m unittest discover -s tests -p 'test_traceroute_message_format.py' -v
+
       - name: Validar classificação RF e MQTT por hop
         run: |
           python - <<'PY'
