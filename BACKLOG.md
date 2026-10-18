@@ -1,5 +1,15 @@
 # Backlog — Traffic Analyzer
 
+## Pendente — Automações: preservar quebras de linha nas mensagens
+
+- As mensagens geradas pelas **Automações** estão chegando no chat com os campos concatenados na mesma linha, contrariando o formato solicitado anteriormente.
+- Corrigir a geração/envio para preservar **quebras de linha reais** entre os blocos/campos, sem transformar o conteúdo em uma linha única.
+- Aplicar o ajuste a **todas as automações**, incluindo PING, CLIMA e futuras automações que usem mensagens multilinha.
+- Evitar abreviações desnecessárias quando houver espaço, priorizando leitura clara no cliente Meshtastic.
+- Validar tanto a prévia no painel quanto a mensagem efetivamente recebida no dispositivo/cliente; não considerar concluído apenas porque a prévia HTML exibe linhas separadas.
+- Adicionar teste de regressão verificando que caracteres de nova linha são preservados até o payload transmitido e após a normalização do backend.
+- Critério de aceite: uma automação com três linhas deve ser recebida como **três linhas**, não como texto contínuo separado apenas por espaços ou barras.
+
 ## v1.65.0 — Menu de contexto de nós
 
 - Implementado clique com botão direito nas abas **Nós** e **Mapa**, reutilizando o mesmo menu e o mesmo nó selecionado.
