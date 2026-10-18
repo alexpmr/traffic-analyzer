@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.66.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.66.2 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.66.1"
+APP_VERSION = "1.66.2"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -474,6 +474,7 @@ HTML = r'''<!doctype html>
   .msgDay{text-align:center;margin:12px 0}.msgDay span{background:#182229;color:#b8c7d1;padding:5px 10px;border-radius:8px;font-size:11px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
   .msgRow{display:flex;margin:4px 0}.msgRow.mine{justify-content:flex-end}.msgBubble{max-width:min(92%,1200px);min-width:120px;border-radius:9px;padding:6px 8px 5px;box-shadow:0 1px 2px rgba(0,0,0,.28);overflow-wrap:anywhere;position:relative}.msgRow.theirs .msgBubble{background:#202c33;border-top-left-radius:2px}.msgRow.mine .msgBubble{background:#005c4b;border-top-right-radius:2px}
   .msgSender{font-size:calc(var(--message-font-size,13px) - 2px);color:#70cfff;font-weight:800;margin-bottom:2px}.msgSenderNode{appearance:none;border:0;background:transparent;padding:0;color:inherit;font:inherit;font-weight:800;cursor:pointer;text-align:left}.msgSenderNode:hover{text-decoration:underline}.msgText{white-space:pre-wrap;font-size:var(--message-font-size,13px);line-height:1.35;padding-right:58px}.msgMeta{font-size:calc(var(--message-font-size,13px) - 3px);color:#b8c4ca;text-align:right;margin-top:-1px;white-space:nowrap}.msgStatus{font-size:12px;margin-left:4px;letter-spacing:-2px}.msgStatus.confirmed{color:#53bdeb}.msgStatus.failed{color:#ff8f8f}.msgTransport{font-size:9px;color:#8194a5;margin-left:5px}
+  .traceBlocks{display:grid;gap:7px;white-space:normal}.traceBlock{background:rgba(0,0,0,.17);border:1px solid #40505a;border-radius:7px;padding:7px 8px}.traceBlock.return{border-color:#52606c}.traceBlockTitle{font-size:11px;font-weight:900;color:#70cfff;margin-bottom:4px;text-transform:uppercase;letter-spacing:.02em}.traceHop{display:block;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.35}.traceHop+.traceHop{margin-top:2px}.traceArrow{color:#91a4b3;font-weight:800;margin-right:5px}
   .msgNewMark{display:inline-block;background:#1f6f8b;color:white;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:5px}
   #messageComposer{display:flex;gap:8px;align-items:flex-end;padding:8px 12px;background:#202c33;border-top:1px solid #293744;box-sizing:border-box}#messageInput{flex:1;min-height:38px;max-height:120px;resize:none;border-radius:18px;padding:9px 12px;font-family:inherit;font-size:var(--message-font-size,13px);line-height:1.25;background:#2a3942;color:#fff;caret-color:#fff}#messageInput::placeholder{color:#9fb0bf;opacity:1}#messageSend{width:42px;height:42px;border-radius:50%;font-size:20px;background:#00a884;border-color:#00a884;color:#fff;padding:0;display:flex;align-items:center;justify-content:center}.msgCounter{font-size:10px;color:#91a4b3;min-width:52px;text-align:right;padding-bottom:11px}.msgCounter.over{color:#ff8f8f;font-weight:800}
   #messagesNav.unread{animation:messagesUnread 1.15s ease-in-out infinite;border-color:#53bdeb;box-shadow:0 0 0 1px rgba(83,189,235,.25)}@keyframes messagesUnread{0%,100%{background:#233443;color:#edf3f8}50%{background:#0b6f81;color:#fff}}
@@ -5813,7 +5814,7 @@ function selectMention(index){
   input.value=input.value.slice(0,start)+full+' '+input.value.slice(pos);
   const next=start+full.length+1; input.setSelectionRange(next,next);closeMentionSuggestions();updateMessageCounter();input.focus();
 }
-function renderChatText(text){
+function chatMentionsHtml(text){
   let html=esc(text||'');
   const names=[...new Set(mentionNodeList().flatMap(n=>[n.name,n.shortName].filter(Boolean)))].sort((a,b)=>b.length-a.length);
   for(const name of names){
@@ -5821,6 +5822,27 @@ function renderChatText(text){
     if(token) html=html.split(token).join(`<span class="chatMention">${token}</span>`);
   }
   return html;
+}
+function tracerouteDirectionHtml(title,body,cls=''){
+  const normalized=String(body||'').replace(/\r/g,'').trim();
+  if(!normalized)return '';
+  const hops=normalized.split(/\s*(?:-->|→|->)\s*/).map(x=>x.trim()).filter(Boolean);
+  const rows=hops.length>1?hops:[normalized];
+  return `<div class="traceBlock ${cls}"><div class="traceBlockTitle">${esc(title)}</div>${rows.map((hop,i)=>`<span class="traceHop">${i?'<span class="traceArrow">→</span>':''}${chatMentionsHtml(hop)}</span>`).join('')}</div>`;
+}
+function renderTracerouteChatText(text){
+  const raw=String(text||'').replace(/\r/g,'').trim();
+  const match=raw.match(/^\s*Rota:\s*([\s\S]*?)\s+Voltar para:\s*([\s\S]*)$/i);
+  if(!match)return null;
+  const outbound=tracerouteDirectionHtml('Rota de ida',match[1],'outbound');
+  const returned=String(match[2]||'').trim()
+    ?tracerouteDirectionHtml('Rota de volta',match[2],'return')
+    :'<div class="traceBlock return"><div class="traceBlockTitle">Rota de volta</div><span class="traceHop">Rota de volta não disponível</span></div>';
+  return `<div class="traceBlocks">${outbound}${returned}</div>`;
+}
+function renderChatText(text){
+  const trace=renderTracerouteChatText(text);
+  return trace!==null?trace:chatMentionsHtml(text);
 }
 function deliveryVisual(m){const st=String(m.deliveryState||'').toLowerCase();if(m.ackFailed||m.routingErrorReceived||st==='failed')return {icon:'!',cls:'failed',tip:'Falha de entrega/roteamento reportada pelo MeshMonitor'};if(st==='confirmed'||m.ackFromNode)return {icon:'✓✓',cls:'confirmed',tip:'ACK confirmado pelo protocolo; não significa leitura humana'};if(st==='delivered')return {icon:'✓',cls:'',tip:'Transmitida para a malha pelo rádio local'};if(st==='queued'||st==='pending'||!st)return {icon:'◷',cls:'',tip:'Aguardando confirmação de transmissão'};return {icon:'✓',cls:'',tip:`Estado: ${st}`};}
 function reactionGroups(){
