@@ -49,6 +49,9 @@ jobs:
       - name: Testar ícones customizados por role
         run: python -m unittest discover -s tests -p 'test_role_icons.py' -v
 
+      - name: Validar menu de contexto dos nós
+        run: python -m unittest discover -s tests -p 'test_node_context_menu.py' -v
+
       - name: Validar classificação RF e MQTT por hop
         run: |
           python - <<'PY'

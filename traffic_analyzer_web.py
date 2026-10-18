@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.64.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.65.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.64.0"
+APP_VERSION = "1.65.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -3271,6 +3271,7 @@ function render(){
   const mappableStates = {identified:0, stub:0, 'route-only':0};
   for(const n of topology.nodes || []){
     if(isolationActive && !isolatedEdgeNodes.has(Number(n.nodeNum))) continue;
+    if(nodeCtxReadSet(NODE_CTX_HIDDEN_KEY).has(Number(n.nodeNum)) && !isolationActive && !mapSearchActive) continue;
     if(mapSearchActive && !mapSearchAllowed.has(Number(n.nodeNum))) continue;
     if(!nodeHasValidMapPosition(n)) continue;
     if(!isolationActive && !mapSearchActive && onlyIdentified && n.state !== 'identified') continue;
@@ -3291,6 +3292,10 @@ function render(){
       marker.bindTooltip(esc(n.name || n.nodeId)+' · '+esc(nodeRoleMeta(n.role)[1])+' · '+esc(tr(trafficAge.label)), {direction:'top'});
     }
     marker.on('click',()=>openNodeWindow(n.nodeNum));
+    marker.on('contextmenu',ev=>{
+      if(ev?.originalEvent){ev.originalEvent.preventDefault();ev.originalEvent.stopPropagation();}
+      showNodeContextMenu(n, ev?.originalEvent?.clientX ?? 0, ev?.originalEvent?.clientY ?? 0, 'map');
+    });
     marker.addTo(nodeLayer); nodeMarkers.set(Number(n.nodeNum),marker); markerCount++;
   }
 
@@ -4119,6 +4124,116 @@ function initMapSearch(){
 }
 initMapSearch();
 
+const NODE_CTX_FAVORITES_KEY='trafficAnalyzerNodeFavoritesV165';
+const NODE_CTX_HIDDEN_KEY='trafficAnalyzerNodeHiddenV165';
+function nodeCtxReadSet(key){
+  try{return new Set((JSON.parse(localStorage.getItem(key)||'[]')||[]).map(Number).filter(Number.isFinite));}
+  catch{return new Set();}
+}
+function nodeCtxWriteSet(key,set){localStorage.setItem(key,JSON.stringify([...set]));}
+function nodeCtxNode(nodeNum){return (topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(nodeNum))||null;}
+function nodeCtxToast(message){
+  const el=document.getElementById('flowToast');
+  if(el){el.className='flowKnown';el.textContent=String(message);el.style.display='block';setTimeout(()=>{el.style.display='none';},4500);}
+  else alert(String(message));
+}
+function closeNodeContextMenu(){
+  document.getElementById('nodeContextMenuV165')?.remove();
+}
+function nodeCtxButton(menu,label,handler,{danger=false,disabled=false,title=''}={}){
+  const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.title=title;
+  Object.assign(b.style,{display:'block',width:'100%',textAlign:'left',padding:'7px 10px',border:'0',borderBottom:'1px solid #314353',background:danger?'#4b2026':'#172532',color:'#e8edf2',cursor:disabled?'not-allowed':'pointer',fontSize:'12px'});
+  if(!disabled)b.addEventListener('click',async()=>{closeNodeContextMenu();try{await handler();}catch(e){nodeCtxToast(e?.message||e);}});
+  menu.appendChild(b);return b;
+}
+function nodeCtxSeparator(menu,label=''){
+  const d=document.createElement('div');d.textContent=label;
+  Object.assign(d.style,{padding:label?'5px 9px':'2px 0',fontSize:'10px',fontWeight:'700',color:'#8fa5b7',background:'#101a23',borderBottom:'1px solid #314353',textTransform:label?'uppercase':'none'});
+  menu.appendChild(d);
+}
+async function nodeCtxCopy(text,label='Copiado'){
+  await navigator.clipboard.writeText(String(text??''));nodeCtxToast(label);
+}
+function nodeCtxAllInfo(n){
+  const raw=n||{};return [
+    ['Nome longo',raw.longName||raw.name],['Nome curto',raw.shortName],['Node ID',raw.nodeId],
+    ['Node num',raw.nodeNum],['Role',raw.role],['Hardware',raw.hwModel||raw.hardware],
+    ['Latitude',raw.latitude],['Longitude',raw.longitude],['Altitude',raw.altitude],
+    ['Último contato',raw.lastHeard],['SNR',raw.snr],['RSSI',raw.rssi]
+  ].filter(x=>x[1]!==null&&x[1]!==undefined&&String(x[1])!=='').map(x=>x[0]+': '+x[1]).join('\n');
+}
+function nodeCtxCenter(n){
+  if(nodeHasValidMapPosition(n)){setView('map');map.setView([Number(n.latitude),Number(n.longitude)],Math.max(map.getZoom(),14));openNodeWindow(Number(n.nodeNum));}
+  else throw new Error('Este nó não possui posição válida conhecida.');
+}
+function nodeCtxViewTraffic(n){
+  setView('traffic');
+  const field=document.getElementById('trafficSearch');
+  if(field)field.value=String(n.nodeId||n.shortName||n.longName||n.nodeNum||'');
+  renderTraffic();taSyncRoute({replace:true,view:'traffic'});
+}
+async function nodeCtxPrivateMessage(n){
+  const text=prompt('Mensagem privada para '+String(n.longName||n.name||n.nodeId||n.nodeNum)+':','');
+  if(text===null||!String(text).trim())return;
+  if(!authCanWrite()){openAuthModal();return;}
+  const r=await authFetch('/api/messages/private',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum),text:String(text)})});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
+  nodeCtxToast('Mensagem privada encaminhada'+(b.packetId?' · packet '+b.packetId:''));
+}
+async function nodeCtxPing(n){
+  if(!authCanWrite()){openAuthModal();return;}
+  const r=await authFetch('/api/node-ping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum)})});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
+  nodeCtxToast('PING encaminhado'+(b.packetId?' · packet '+b.packetId:''));
+}
+async function nodeCtxDeleteLocal(n){
+  const label=String(n.longName||n.name||n.nodeId||n.nodeNum);
+  if(!confirm('Excluir '+label+' do banco local do Traffic Analyzer?\n\nO nó poderá reaparecer se for recebido novamente do MeshMonitor.'))return;
+  if(!authCanWrite()){openAuthModal();return;}
+  const r=await authFetch('/api/node-local-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum)})});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
+  const hidden=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY);hidden.delete(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_HIDDEN_KEY,hidden);
+  closeNodeWindow();closeNodeDetailsModal(false);await load(false);nodeCtxToast('Nó removido do banco local.');
+}
+function showNodeContextMenu(n,x,y,source='map'){
+  closeNodeContextMenu();
+  const menu=document.createElement('div');menu.id='nodeContextMenuV165';
+  Object.assign(menu.style,{position:'fixed',zIndex:'10050',left:Math.max(4,Math.min(Number(x)||4,window.innerWidth-280))+'px',top:Math.max(4,Math.min(Number(y)||4,window.innerHeight-500))+'px',width:'270px',maxHeight:'calc(100vh - 12px)',overflowY:'auto',background:'#172532',border:'1px solid #496176',borderRadius:'7px',boxShadow:'0 10px 30px rgba(0,0,0,.45)'});
+  const title=document.createElement('div');title.textContent=String(n.longName||n.name||n.nodeId||n.nodeNum);
+  Object.assign(title.style,{padding:'8px 10px',fontWeight:'800',fontSize:'12px',background:'#101a23',borderBottom:'1px solid #496176'});menu.appendChild(title);
+  nodeCtxButton(menu,'✉ Enviar mensagem privada',()=>nodeCtxPrivateMessage(n));
+  nodeCtxSeparator(menu,'Consultas');
+  nodeCtxButton(menu,'ℹ Solicitar Node Info',()=>sendNodeQuery(Number(n.nodeNum),'nodeinfo'));
+  nodeCtxButton(menu,'⌖ Solicitar posição',()=>sendNodeQuery(Number(n.nodeNum),'position'));
+  nodeCtxButton(menu,'⚡ Solicitar telemetria de energia',()=>sendNodeQuery(Number(n.nodeNum),'telemetry_power'));
+  nodeCtxButton(menu,'▣ Solicitar telemetria do dispositivo',()=>sendNodeQuery(Number(n.nodeNum),'telemetry_device'));
+  nodeCtxButton(menu,'⇢ Executar Traceroute',()=>sendNodeQuery(Number(n.nodeNum),'traceroute'));
+  nodeCtxButton(menu,'● Executar Ping',()=>nodeCtxPing(n));
+  nodeCtxSeparator(menu,'Nó');
+  const fav=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY),isFav=fav.has(Number(n.nodeNum));
+  nodeCtxButton(menu,isFav?'★ Remover dos favoritos':'☆ Adicionar aos favoritos',()=>{const s=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY);isFav?s.delete(Number(n.nodeNum)):s.add(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_FAVORITES_KEY,s);nodeCtxToast(isFav?'Removido dos favoritos locais.':'Adicionado aos favoritos locais.');});
+  nodeCtxButton(menu,'▤ Abrir detalhes do nó',()=>{source==='nodes'?openNodeDetailsModal(Number(n.nodeNum)):openNodeWindow(Number(n.nodeNum));});
+  nodeCtxButton(menu,'◎ Centralizar no mapa',()=>nodeCtxCenter(n));
+  nodeCtxButton(menu,'☷ Ver tráfego deste nó',()=>nodeCtxViewTraffic(n));
+  nodeCtxSeparator(menu,'Copiar');
+  nodeCtxButton(menu,'Copiar nome longo',()=>nodeCtxCopy(n.longName||n.name||'','Nome longo copiado.'));
+  nodeCtxButton(menu,'Copiar nome curto',()=>nodeCtxCopy(n.shortName||'','Nome curto copiado.'));
+  nodeCtxButton(menu,'Copiar ID',()=>nodeCtxCopy(n.nodeId||'','Node ID copiado.'));
+  nodeCtxButton(menu,'Copiar coordenadas',()=>nodeCtxCopy(nodeHasValidMapPosition(n)?Number(n.latitude).toFixed(6)+', '+Number(n.longitude).toFixed(6):'','Coordenadas copiadas.'));
+  nodeCtxButton(menu,'Copiar todas as informações',()=>nodeCtxCopy(nodeCtxAllInfo(n),'Informações do nó copiadas.'));
+  nodeCtxSeparator(menu,'Visualização / banco');
+  const hidden=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY),isHidden=hidden.has(Number(n.nodeNum));
+  nodeCtxButton(menu,isHidden?'Mostrar nó no mapa':'Ocultar nó do mapa',()=>{const s=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY);isHidden?s.delete(Number(n.nodeNum)):s.add(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_HIDDEN_KEY,s);render();});
+  nodeCtxButton(menu,'⚙ Criar automação para este nó',()=>{setView('automations');nodeCtxToast('Automação por nó: use a aba Automações; agendamento específico por nó permanece no backlog.');});
+  nodeCtxButton(menu,'🗑 Excluir nó do banco local',()=>nodeCtxDeleteLocal(n),{danger:true});
+  document.body.appendChild(menu);
+  const close=e=>{if(!menu.contains(e.target)){closeNodeContextMenu();document.removeEventListener('pointerdown',close,true);}};
+  setTimeout(()=>document.addEventListener('pointerdown',close,true),0);
+  menu.addEventListener('contextmenu',e=>e.preventDefault());
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNodeContextMenu();});
+map.on('movestart zoomstart',closeNodeContextMenu);
+
 function nodesNormalizeText(value){
   return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
@@ -4163,7 +4278,14 @@ function renderNodesTable(){
       `<td class="nodeOptional col-airUtilTx">${x.airUtilTx==null?'—':esc(nodeFmtPercent(x.airUtilTx))}</td>`+
       `<td class="nodeOptional col-nodeId">${esc(x.nodeId||'—')}</td><td class="nodeOptional col-pkc">${x.pkc==null?'—':(x.pkc?'✓':'—')}</td><td class="nodeOptional col-state">${esc(x.state||'—')}</td></tr>`;
   }).join('')||'<tr><td colspan="17">Nenhum nó disponível.</td></tr>';
-  body.querySelectorAll('tr[data-node-num]').forEach(tr=>tr.addEventListener('click',()=>openNodeFromList(Number(tr.dataset.nodeNum))));
+  body.querySelectorAll('tr[data-node-num]').forEach(tr=>{
+    tr.addEventListener('click',()=>openNodeFromList(Number(tr.dataset.nodeNum)));
+    tr.addEventListener('contextmenu',event=>{
+      event.preventDefault();event.stopPropagation();
+      const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(tr.dataset.nodeNum));
+      if(n)showNodeContextMenu(n,event.clientX,event.clientY,'nodes');
+    });
+  });
   renderNodesSortIndicators();
 }
 function closeNodeDetailsModal(updateRoute=true){
@@ -6328,6 +6450,55 @@ def _send_primary_message(text: str, reply_id=None, emoji: bool = False):
     return _mm_api_post(f"/api/v1/sources/{source}/messages", payload)
 
 
+
+def _send_private_node_message(node_num, text: str):
+    n = _node_num(node_num)
+    clean = str(text or "").strip()
+    if not clean:
+        raise ValueError("Mensagem vazia")
+    if len(clean.encode("utf-8")) > 200:
+        raise ValueError("Mensagem privada excede 200 bytes")
+    destination = _node_hex_id(n)
+    channel = _node_query_channel(n, _resolved_mm_source_id())
+    try:
+        from meshtastic.tcp_interface import TCPInterface
+    except Exception as exc:
+        raise RuntimeError(f"Cliente Meshtastic indisponível: {exc}") from exc
+    interface = TCPInterface(hostname=VIRTUAL_NODE_HOST, portNumber=VIRTUAL_NODE_PORT,
+                             timeout=max(5, VIRTUAL_NODE_CONNECT_TIMEOUT))
+    try:
+        packet = interface.sendText(clean, destinationId=destination, channelIndex=channel, wantAck=True)
+        packet_id = packet.get("id") if isinstance(packet, dict) else getattr(packet, "id", None)
+        return {"success": True, "nodeNum": n, "destination": destination,
+                "channel": channel, "packetId": packet_id, "transport": "meshtastic-tcp"}
+    finally:
+        try:
+            interface.close()
+        except Exception:
+            pass
+
+
+def _ping_node(node_num):
+    result = _send_private_node_message(node_num, "ping")
+    result["kind"] = "ping"
+    return result
+
+
+def _delete_local_node(node_num):
+    n = _node_num(node_num)
+    source_id = MM_SOURCE
+    counts = {}
+    with _archive_connect() as conn:
+        for table, sql, params in [
+            ("topology_edge_events", "DELETE FROM topology_edge_events WHERE source_id=? AND (a=? OR b=?)", (source_id, n, n)),
+            ("topology_nodes", "DELETE FROM topology_nodes WHERE source_id=? AND node_num=?", (source_id, n)),
+            ("positions", "DELETE FROM positions WHERE source_id=? AND node_num=?", (source_id, n)),
+            ("packets", "DELETE FROM packets WHERE source_id=? AND (from_node=? OR to_node=?)", (source_id, n, n)),
+        ]:
+            cur = conn.execute(sql, params)
+            counts[table] = max(0, int(cur.rowcount if cur.rowcount is not None else 0))
+    return {"success": True, "nodeNum": n, "deleted": counts,
+            "message": "Nó removido do histórico local; poderá reaparecer se for recebido novamente."}
 
 
 def _automation_defaults():
@@ -11856,6 +12027,47 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Ação de atualização inválida")
                 body = _request_update(reason="manual")
                 self._send(202 if body.get("requested") else 200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/messages/private":
+            try:
+                if "application/json" not in str(self.headers.get("Content-Type") or "").lower():
+                    raise ValueError("Content-Type application/json obrigatório")
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 4096:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                body = _send_private_node_message(payload.get("nodeNum"), payload.get("text"))
+                self._send(201, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/node-ping":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 1024:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                body = _ping_node(payload.get("nodeNum"))
+                self._send(202, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/node-local-delete":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 1024:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                body = _delete_local_node(payload.get("nodeNum"))
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except ValueError as e:
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
