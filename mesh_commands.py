@@ -74,10 +74,31 @@ def local_time_text(timestamp_ms=None) -> str:
     return _dt.datetime.now().strftime("%H:%M:%S")
 
 
+def link_quality_label(snr) -> str | None:
+    try:
+        value = float(snr)
+    except (TypeError, ValueError):
+        return None
+    if value >= 7:
+        return "Excelente"
+    if value >= 3:
+        return "Boa"
+    if value >= 0:
+        return "Regular"
+    return "Fraca"
+
+
 def format_ping_message(*, destination_label: str, origin: str, message: dict,
-                        heard_nodes_24h: int | None, route_text: str) -> str:
+                        heard_nodes_24h: int | None, route_text: str,
+                        response_seconds: float | None = None) -> str:
     lines = [f"PING {destination_label}", f"Origem: {origin}"]
-    lines.append(f"Hora: {local_time_text(message.get('receivedAt') or message.get('createdAt') or message.get('timestamp'))}")
+    lines.append(f"Horário do recebimento: {local_time_text(message.get('receivedAt') or message.get('createdAt') or message.get('timestamp'))}")
+    if response_seconds is not None:
+        try:
+            value = max(0.0, float(response_seconds))
+            lines.append(f"Tempo de resposta: {value:.1f} segundos")
+        except (TypeError, ValueError):
+            pass
 
     rssi = message.get("rxRssi")
     snr = message.get("rxSnr")
@@ -88,16 +109,46 @@ def format_ping_message(*, destination_label: str, origin: str, message: dict,
         pass
     try:
         if snr is not None:
-            lines.append(f"Qualidade do sinal: {float(snr):.1f} dB")
+            lines.append(f"Relação sinal-ruído: {float(snr):.1f} dB")
+            quality = link_quality_label(snr)
+            if quality:
+                lines.append(f"Qualidade estimada do enlace: {quality}")
     except (TypeError, ValueError):
         pass
 
     lines.append(format_hops(hops_from_message(message), destination_label))
-    lines.append("Via: MQTT" if bool(message.get("viaMqtt")) else "Via: LoRa")
+    lines.append("Transporte: MQTT" if bool(message.get("viaMqtt")) else "Transporte: LoRa")
     if heard_nodes_24h is not None:
-        lines.append(f"Nós ouvidos em 24 h: {int(heard_nodes_24h)}")
+        lines.append(f"Nós ouvidos nas últimas 24 horas: {int(heard_nodes_24h)}")
     lines.append(f"Teste de rota: {route_text or 'sem resposta'}")
     return "\n".join(lines)
+
+
+def normalize_clima_text(text: str) -> str:
+    """Expande abreviações comuns e preserva uma informação por linha."""
+    value = str(text or "").strip()
+    replacements = (
+        (r"(?im)^Temp(?:\.|eratura)?\s*:", "Temperatura:"),
+        (r"(?im)^Sens(?:\.|ação térmica)?\s*:", "Sensação térmica:"),
+        (r"(?im)^Umid(?:\.|ade)?\s*:", "Umidade relativa:"),
+        (r"(?im)^Press(?:\.|ão)?\s*:", "Pressão atmosférica:"),
+        (r"(?im)^Vento\s*:", "Velocidade do vento:"),
+        (r"(?im)^Raj(?:\.|ada)?\s*:", "Rajada de vento:"),
+        (r"(?im)^Dir(?:\.|eção)?\s*:", "Direção do vento:"),
+        (r"(?im)^Chuva\s*:", "Precipitação:"),
+        (r"(?im)^UV\s*:", "Índice ultravioleta:"),
+        (r"(?im)^Raios?\s*:", "Atividade de raios:"),
+    )
+    for pattern, replacement in replacements:
+        value = re.sub(pattern, replacement, value)
+    # APIs antigas às vezes devolvem campos separados por " | " ou " • ".
+    value = re.sub(r"\s+(?:\||•)\s+", "\n", value)
+    return value
+
+
+def portable_line_breaks(text: str) -> str:
+    """Usa separador Unicode de linha para clientes que colapsam LF simples."""
+    return re.sub(r"\r?\n", "\u2028", str(text or ""))
 
 
 def fetch_clima_responses(url: str, timeout: float = 6.0) -> list[str]:
@@ -108,7 +159,7 @@ def fetch_clima_responses(url: str, timeout: float = 6.0) -> list[str]:
     responses = body.get("responses") if isinstance(body, dict) else None
     if not isinstance(responses, list):
         raise RuntimeError("Resposta inválida da API de clima")
-    out = [str(x).strip() for x in responses if str(x).strip()]
+    out = [normalize_clima_text(str(x)) for x in responses if str(x).strip()]
     if not out:
         raise RuntimeError("API de clima não retornou mensagens")
     return out[:4]
