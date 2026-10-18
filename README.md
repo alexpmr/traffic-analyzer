@@ -1,6 +1,15 @@
-# Traffic Analyzer v1.64.0
+# Traffic Analyzer v1.65.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.65.0
+
+- **Menu de contexto de nós** nas abas **Nós** e **Mapa** com clique do botão direito.
+- Ações rápidas para mensagem privada, Node Info, posição, telemetria, Traceroute, Ping, detalhes, centralização, tráfego filtrado, cópia de dados, favoritos locais, ocultar do mapa e exclusão do histórico local.
+- Mensagem privada e Ping usam o Virtual Node Meshtastic configurado; operações de escrita continuam protegidas por autenticação/CSRF.
+- Exclusão local remove nó, posições, pacotes e enlaces do banco do Traffic Analyzer; o nó pode reaparecer se for recebido novamente.
+- Favoritos são persistidos no navegador nesta versão. Sincronização de favoritos com o dispositivo e agendamento persistente por nó continuam no backlog.
+- [Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip).
 
 ## Novidades da v1.64.0
 
