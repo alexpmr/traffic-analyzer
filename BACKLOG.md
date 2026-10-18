@@ -1,5 +1,16 @@
 # Backlog — Traffic Analyzer
 
+## Pendente — Clareza textual em Automações e Alertas
+
+- Reduzir o uso de **abreviações** em todas as mensagens automáticas, mesmo que isso exija dividir o conteúdo em **mais blocos/mensagens**.
+- Priorizar **clareza e entendimento imediato** em vez de compactação excessiva.
+- Aplicar a regra a **PING, CLIMA, avisos de firmware e demais automações**, além de todos os **alertas automáticos**.
+- Alertas meteorológicos e operacionais, como **chuva forte, raios, tempestade, vento forte, granizo e eventos semelhantes**, devem usar descrições completas e fáceis de entender.
+- Evitar abreviações como "bat", "min/med/raj", "ult", "tx", "rx" e equivalentes quando houver forma clara e curta de escrever por extenso.
+- Quando o limite de tamanho da mensagem for atingido, **quebrar em blocos adicionais** em vez de condensar o texto com abreviações difíceis.
+- Preservar **quebras de linha reais** entre campos e blocos, conforme requisito anterior.
+- Critério de aceite: uma pessoa sem conhecimento técnico deve conseguir entender o conteúdo da automação ou alerta sem precisar interpretar siglas ou abreviações não óbvias.
+
 ## Pendente — Automações: preservar quebras de linha nas mensagens
 
 - As mensagens geradas pelas **Automações** estão chegando no chat com os campos concatenados na mesma linha, contrariando o formato solicitado anteriormente.
