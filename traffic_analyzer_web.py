@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.63.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.64.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -26,12 +26,13 @@ import urllib.request
 
 import mesh_commands as meshcmd
 import automation_manager as automgr
+import firmware_announcer as firmware_notices
 from mesh_command_dispatch import MeshCommandDispatcher
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.63.0"
+APP_VERSION = "1.64.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -1000,8 +1001,9 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
       <div class="settingRow">
         <label><input id="autoNoticeMeshtasticStable" type="checkbox" checked data-admin-only> Nova versão estável do Meshtastic</label><br>
-        <label><input id="autoNoticeMeshtasticUnstable" type="checkbox" checked data-admin-only> Nova versão instável do Meshtastic</label>
-        <div class="settingDesc">Monitora as Releases oficiais do firmware Meshtastic e diferencia versões estáveis de prereleases/alpha/beta/RC.</div>
+        <label><input id="autoNoticeMeshtasticUnstable" type="checkbox" checked data-admin-only> Nova versão instável do Meshtastic</label><br>
+        <label><input id="autoNoticeMeshtasticNightly" type="checkbox" checked data-admin-only> Nova versão nightly do Meshtastic</label>
+        <div class="settingDesc">Monitora releases oficiais e nightly. Configure intervalo, modelo e categorias também em Automações → Meshtastic.</div>
       </div>
       <div class="settingRow">
         <button id="autoNoticeCheckNow" type="button" data-admin-only>Verificar agora</button>
@@ -4243,7 +4245,7 @@ function taRouteUrl(view=taActiveView()){
     }
   }else if(view==='automations'){
     const selected=window.automationSelectedBot||taCurrentAutomation;
-    if(selected==='ping'||selected==='clima')path+='/'+selected;
+    if(selected==='ping'||selected==='clima'||selected==='meshtastic')path+='/'+selected;
   }else if(view==='traffic'){
     const dir=document.getElementById('trafficDirection')?.value||'all';
     const type=document.getElementById('trafficType')?.value||'all';
@@ -4284,7 +4286,7 @@ function taApplyRoute(){
     const view=TA_ROUTE_VIEWS[seg[0]]||'map';
     setView(view,false);
     if(view==='automations'){
-      taCurrentAutomation=(seg[1]==='ping'||seg[1]==='clima')?seg[1]:'';
+      taCurrentAutomation=(seg[1]==='ping'||seg[1]==='clima'||seg[1]==='meshtastic')?seg[1]:'';
       if(typeof showAutomationDetails==='function')showAutomationDetails(taCurrentAutomation,false);
     }else if(view==='statistics'){
       const valid=new Set(['overview','network','rf','ranking','routing','traffic','queries','chat','energy','anomalies','access']);
@@ -5903,6 +5905,7 @@ function renderAutoNoticeStatus(data){
   if(a)a.checked=settings.inmetEnabled!==false;
   if(s)s.checked=settings.meshtasticStableEnabled!==false;
   if(u)u.checked=settings.meshtasticUnstableEnabled!==false;
+  const nightly=document.getElementById("autoNoticeMeshtasticNightly");if(nightly)nightly.checked=settings.meshtasticNightlyEnabled!==false;
   const box=document.getElementById("autoNoticeStatus");if(!box)return;
   const st=(data&&data.state)||{};
   const checked=st.lastCheckAtMs?new Date(Number(st.lastCheckAtMs)).toLocaleString(uiLocale()):tr("Nunca");
@@ -5922,7 +5925,8 @@ async function saveAutoNoticeSettings(){
   const payload={
     inmetEnabled:document.getElementById("autoNoticeInmet").checked,
     meshtasticStableEnabled:document.getElementById("autoNoticeMeshtasticStable").checked,
-    meshtasticUnstableEnabled:document.getElementById("autoNoticeMeshtasticUnstable").checked
+    meshtasticUnstableEnabled:document.getElementById("autoNoticeMeshtasticUnstable").checked,
+    meshtasticNightlyEnabled:document.getElementById("autoNoticeMeshtasticNightly").checked
   };
   const r=await authFetch("/api/automatic-notices",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||("HTTP "+r.status));renderAutoNoticeStatus(b);return b;
@@ -5936,7 +5940,7 @@ async function checkAutoNoticesNow(){
     const b=await r.json();if(!r.ok&&!b.success)throw new Error(b.message||("HTTP "+r.status));renderAutoNoticeStatus(b);
   }catch(e){alert(tr("Erro")+": "+e);}finally{btn.disabled=false;}
 }
-for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMeshtasticUnstable"]){
+for(const id of ["autoNoticeInmet","autoNoticeMeshtasticStable","autoNoticeMeshtasticUnstable","autoNoticeMeshtasticNightly"]){
   document.getElementById(id).addEventListener("change",async()=>{try{await saveAutoNoticeSettings();}catch(e){alert(tr("Erro")+": "+e);await loadAutoNoticeStatus();}});
 }
 document.getElementById("autoNoticeCheckNow").addEventListener("click",checkAutoNoticesNow);
@@ -7046,19 +7050,32 @@ def _automatic_notice_settings():
         "inmetEnabled": bool(raw.get("inmetEnabled", True)),
         "meshtasticStableEnabled": bool(raw.get("meshtasticStableEnabled", True)),
         "meshtasticUnstableEnabled": bool(raw.get("meshtasticUnstableEnabled", True)),
-        "pollSeconds": NOTICE_POLL_SECONDS,
+        "meshtasticNightlyEnabled": bool(raw.get("meshtasticNightlyEnabled", True)),
+        "meshtasticEnabled": bool(raw.get("meshtasticEnabled", True)),
+        "meshtasticTemplate": str(raw.get("meshtasticTemplate", "Meshtastic {kind}: {version} — {url}")),
+        "pollSeconds": max(300,min(int(raw.get("pollSeconds",NOTICE_POLL_SECONDS)),86400)),
         "channel": 0,
     }
 
 
 def _save_automatic_notice_settings(payload: dict):
-    data = {
-        "inmetEnabled": bool(payload.get("inmetEnabled", True)),
-        "meshtasticStableEnabled": bool(payload.get("meshtasticStableEnabled", True)),
-        "meshtasticUnstableEnabled": bool(payload.get("meshtasticUnstableEnabled", True)),
-        "updatedAtMs": int(time.time() * 1000),
-    }
-    _write_json_file(NOTICE_SETTINGS_FILE, data)
+    with _notice_lock:
+        data=_automatic_notice_settings()
+        allowed={'inmetEnabled','meshtasticEnabled','meshtasticStableEnabled','meshtasticUnstableEnabled',
+                 'meshtasticNightlyEnabled','pollSeconds','meshtasticTemplate'}
+        if set(payload)-allowed:raise ValueError('Campos de avisos desconhecidos')
+        for key in allowed:
+            if key not in payload:continue
+            value=payload[key]
+            if key.endswith('Enabled') and type(value) is not bool:raise ValueError('Ativação deve ser booleana')
+            if key=='pollSeconds':
+                if type(value) is not int or not 300<=value<=86400:raise ValueError('Intervalo deve ser de 300 a 86400 segundos')
+            if key=='meshtasticTemplate':
+                firmware_notices.message({'version':'v2.8.0.abcdef0','kind':'nightly','url':'https://nightly.meshtastic.org/'},value)
+            data[key]=value
+        data.pop('channel',None)
+        data['updatedAtMs']=int(time.time()*1000)
+        _write_json_file(NOTICE_SETTINGS_FILE,data)
     _notice_wakeup.set()
     return _automatic_notice_settings()
 
@@ -7205,6 +7222,56 @@ def _latest_release_of_kind(releases, kind):
     return rows[0]
 
 
+def _firmware_send(record,text):
+    try:
+        body=_send_primary_message(text)
+    except Exception as exc:
+        _record_automatic_notice('meshtastic',record['id'],record['kind'],text,False,str(exc))
+        raise # Timeout outcome is ambiguous: do not blindly retransmit.
+    if not isinstance(body,dict) or type(body.get('success')) is not bool:
+        raise RuntimeError('Backend não confirmou aceitação do anúncio; resultado indeterminado')
+    accepted=body['success']
+    _record_automatic_notice('meshtastic',record['id'],record['kind'],text,accepted,str(body)[:400])
+    return accepted
+
+
+def _run_firmware_notice_check(state,settings,now):
+    records=[];available=[];errors=[]
+    sources=state.setdefault('firmwareSources',{})
+    for source in ('releases','nightly'):
+        info=sources.setdefault(source,{})
+        if now<info.get('retryAt',0):
+            if info.get('error'):errors.append(info['error'])
+            continue
+        try:
+            if source=='releases':
+                rows=firmware_notices.release_records(_meshtastic_releases())
+                records.extend(r for r in rows if r['kind']!='nightly')
+                available.extend(('stable','unstable'))
+            else:
+                records.append(firmware_notices.nightly_record(firmware_notices.fetch_json(firmware_notices.NIGHTLY_URL)))
+                available.append('nightly')
+            info.update(failures=0,error='',retryAt=0,lastCheck=now)
+        except Exception as exc:
+            failures=min(int(info.get('failures',0))+1,8)
+            delay=min(86400,600*2**(failures-1))
+            if isinstance(exc,urllib.error.HTTPError):
+                try:delay=max(delay,min(86400,int(exc.headers.get('Retry-After','0'))))
+                except (ValueError,AttributeError):pass
+            error=source+': '+str(exc)[:180]
+            info.update(failures=failures,error=error,retryAt=now+delay,lastCheck=now)
+            errors.append(error)
+    state['firmwareDetected']=records
+    keys={'stable':'meshtasticStableEnabled','unstable':'meshtasticUnstableEnabled','nightly':'meshtasticNightlyEnabled'}
+    enabled={kind:settings['meshtasticEnabled'] and settings[key] for kind,key in keys.items()}
+    sent=firmware_notices.process(state,records,available,enabled,
+        lambda value:_write_json_file(NOTICE_STATE_FILE,value),_firmware_send,now,settings['meshtasticTemplate'])
+    state['firmwareLastCheck']=now
+    state['firmwareLastError']='; '.join(errors)
+    _write_json_file(NOTICE_STATE_FILE,state)
+    return sent,errors
+
+
 def _run_automatic_notice_check(force=False):
     with _notice_lock:
         settings=_automatic_notice_settings()
@@ -7231,23 +7298,9 @@ def _run_automatic_notice_check(force=False):
         except Exception as exc:
             errors.append("INMET: "+str(exc))
         try:
-            releases=_meshtastic_releases()
-            for kind,key,enabled_key in (
-                ("stable","meshtasticStableId","meshtasticStableEnabled"),
-                ("unstable","meshtasticUnstableId","meshtasticUnstableEnabled"),
-            ):
-                rel=_latest_release_of_kind(releases,kind)
-                if not rel: continue
-                rid=str(rel.get("id") or rel.get("tag_name"))
-                old=str(state.get(key) or "")
-                if not old:
-                    state[key]=rid
-                elif rid!=old:
-                    if settings.get(enabled_key):
-                        if _notice_send("meshtastic",rid,kind,_meshtastic_notice_message(rel,kind)):
-                            state[key]=rid;sent_any=True
-                    else:
-                        state[key]=rid
+            sent,firmware_errors=_run_firmware_notice_check(state,settings,now_ms/1000)
+            sent_any=sent_any or sent
+            errors.extend(firmware_errors)
         except Exception as exc:
             errors.append("Meshtastic: "+str(exc))
         state["initialized"]=True
@@ -7266,7 +7319,7 @@ def _automatic_notice_worker():
         except Exception:
             pass
         _notice_wakeup.clear()
-        _notice_wakeup.wait(NOTICE_POLL_SECONDS)
+        _notice_wakeup.wait(_automatic_notice_settings()["pollSeconds"])
         if _notice_stop.is_set(): break
 
 def _live_traceroutes(limit: int):
@@ -10842,7 +10895,9 @@ def _read_json_file(path: Path, default):
 def _write_json_file(path: Path, data: dict):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + f".tmp.{os.getpid()}.{threading.get_ident()}")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with tmp.open("w",encoding="utf-8") as output:
+        output.write(json.dumps(data,ensure_ascii=False,indent=2)+"\n")
+        output.flush();os.fsync(output.fileno())
     os.replace(tmp, path)
 
 
@@ -11247,7 +11302,8 @@ class Handler(BaseHTTPRequestHandler):
                         "globalEnabled": MESH_COMMANDS_ENABLED,
                         "liveStatus": _mesh_command_live_status(),
                         "items": [{"id": "ping", "name": "PING"}, {"id": "clima", "name": "CLIMA"}],
-                        "events": _automation_events(60)}
+                        "events": _automation_events(60),
+                        "firmwareNotices":{"settings":_automatic_notice_settings(),"state":_automatic_notice_state()}}
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
@@ -11753,6 +11809,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/automatic-notices/firmware-check":
+            try:
+                with _notice_lock:
+                    state=_automatic_notice_state()
+                    sent,errors=_run_firmware_notice_check(state,_automatic_notice_settings(),time.time())
+                body={"success":True,"sent":sent,"errors":errors,"state":state}
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode('utf-8'))
+            except Exception as exc:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(exc)}).encode('utf-8'))
             return
         if path == "/api/automatic-notices/check":
             try:

@@ -1,5 +1,11 @@
 # Backlog — Traffic Analyzer
 
+## v1.64.0 — Anúncios de versões Meshtastic (#73)
+
+- Implementado monitor de estáveis, instáveis e nightly com todas habilitadas; painel, fila persistida, prévia, intervalo/modelo e diagnóstico.
+- Baseline inicial sem flood; anúncios aceitos não repetidos após restart. Fontes oficiais GitHub e índice nightly. O índice contém apenas o build atual, sem histórico de builds perdidos entre consultas.
+- Testes simulam fontes, reinício, duplicidade, falhas e envio via canal 0. Pendente aceite de recepção RF real; #66 permanece independente.
+
 ## v1.63.0 — Ícones por role
 
 - Replica ícones do Mesh Analyzer para todos os 13 papéis conhecidos, com símbolo desconhecido.

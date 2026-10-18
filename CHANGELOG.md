@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.64.0 - 2026-10-18
+
+- Automação Meshtastic com categorias estável/instável/nightly habilitadas, consulta oficial, modelo e intervalo configuráveis.
+- Baseline inicial, outbox persistente, bloqueio de duplicidade, limite de 200 bytes e envio pelo MeshMonitor no canal primário.
+- Até 3 tentativas para recusa explícita; timeout/crash fica indeterminado sem repetição cega. Backoff das fontes e diagnóstico por anúncio.
+- Configuração em Automações → Meshtastic e URL dedicada; preserva PING/CLIMA e controles existentes.
+- Testes unitários e navegação no navegador; recepção RF física ainda requer aceite.
+
 ## 1.63.0 - 2026-10-17
 
 - Replica os 13 ícones SVG por role do PT2VHF Mesh Analyzer, com fallback desconhecido e legenda recolhível.

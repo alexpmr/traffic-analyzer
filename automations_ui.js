@@ -1,4 +1,4 @@
-/* Traffic Analyzer v1.61.0 — Automações PING/CLIMA. Sem frameworks externos. */
+/* Traffic Analyzer v1.64.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
 (function(){
 'use strict';
 const css = [
@@ -66,10 +66,40 @@ function renderCards(){
    (rf.lastError?'<p class="autoInfo">Último erro RF: '+e(rf.lastError)+'</p>':'')+
    '<button data-auto-open="'+e(id)+'">Configurar '+e(item.name)+'</button></article>';
  }).join('');
- el('autoCards').innerHTML=cards+'<article class="autoCard"><h3>Próximas automações</h3>'+
+ el('autoCards').innerHTML=cards+firmwareCard()+'<article class="autoCard"><h3>Próximas automações</h3>'+
  '<p>Estrutura pronta para novas rotinas, sem duplicar listeners ou criar serviços paralelos.</p>'+
  '<span class="autoInfo">Nenhuma outra automação configurada.</span></article>';
  el('autoCards').querySelectorAll('[data-auto-open]').forEach(btn=>btn.addEventListener('click',()=>showAutomationDetails(btn.dataset.autoOpen)));
+}
+function firmwareCard(){
+ const fw=data?.firmwareNotices||{},cfg=fw.settings||{},st=fw.state||{};
+ return '<article class="autoCard"><h3>Meshtastic</h3><span class="autoState '+(cfg.meshtasticEnabled?'ok':'off')+'">'+(cfg.meshtasticEnabled?'Ativo':'Desativado')+'</span>'+
+ '<p>Anuncia novas versões estáveis, instáveis e nightly no canal primário.</p>'+
+ '<p>Última verificação: '+e(fmt(st.firmwareLastCheck*1000))+'</p><p>Último envio aceito: '+e(fmt(st.firmwareLastSend*1000))+'</p>'+
+ '<button data-auto-open="meshtastic">Configurar Meshtastic</button></article>';
+}
+function renderFirmwareForm(){
+ const fw=data?.firmwareNotices||{},cfg=fw.settings||{},st=fw.state||{};
+ const check=(key,label)=>'<label class="autoField"><span><input type="checkbox" id="fw-'+key+'" '+(cfg[key]?'checked':'')+'> '+label+'</span></label>';
+ const ledger=Object.values(st.firmwareOutbox||{}).slice(-15).reverse();
+ el('autoDetail').innerHTML='<div class="autoTop"><h3>Configurar anúncios Meshtastic</h3><button id="fwClose">Voltar</button></div>'+
+ '<p class="autoInfo">Canal primário · estável, instável e nightly. A primeira consulta registra as versões existentes sem anunciar o histórico.</p>'+
+ '<div class="autoForm">'+check('meshtasticEnabled','Automação habilitada')+check('meshtasticStableEnabled','Estáveis')+check('meshtasticUnstableEnabled','Instáveis')+check('meshtasticNightlyEnabled','Nightly')+
+ '<label class="autoField">Intervalo de consulta (minutos)<input id="fwInterval" type="number" min="5" max="1440" value="'+e((cfg.pollSeconds||600)/60)+'"></label>'+
+ '<label class="autoField wide">Modelo de anúncio<textarea id="fwTemplate" maxlength="250">'+e(cfg.meshtasticTemplate||'')+'</textarea><span class="autoHint">Use {kind}, {version} e {url}. Máximo de 200 bytes por anúncio.</span></label></div>'+
+ '<div class="autoToolbar"><button id="fwSave">Salvar configuração</button><button id="fwPreview">Prévia sem transmitir</button><button id="fwCheck">Verificar e anunciar novos</button></div>'+
+ '<pre id="fwResult" class="autoResult">'+e(st.firmwareLastError||'Envio aceito pelo backend não comprova recepção em outro rádio.')+'</pre>'+
+ '<p class="autoInfo">Fila e histórico recente: sent = aceito; baseline = já existente; queued = aguardando; uncertain = resultado indeterminado, sem repetição automática.</p>'+
+ '<div class="autoLogWrap"><table class="autoLog"><tbody>'+ledger.map(x=>'<tr><td>'+e(x.record?.kind)+'</td><td>'+e(x.record?.version)+'</td><td>'+e(x.status)+'</td><td>'+e(x.error||'')+'</td></tr>').join('')+'</tbody></table></div>';
+ const payload=()=>({meshtasticEnabled:el('fw-meshtasticEnabled').checked,meshtasticStableEnabled:el('fw-meshtasticStableEnabled').checked,
+  meshtasticUnstableEnabled:el('fw-meshtasticUnstableEnabled').checked,meshtasticNightlyEnabled:el('fw-meshtasticNightlyEnabled').checked,
+  pollSeconds:Number(el('fwInterval').value)*60,meshtasticTemplate:el('fwTemplate').value});
+ el('fwClose').onclick=()=>showAutomationDetails('');
+ el('fwPreview').onclick=()=>{const text=el('fwTemplate').value.replaceAll('{kind}','NIGHTLY').replaceAll('{version}','2.8.0.abcdef0').replaceAll('{url}','https://nightly.meshtastic.org/');
+  el('fwResult').textContent=text+'\n'+new TextEncoder().encode(text).length+' bytes · nenhuma transmissão';};
+ el('fwSave').onclick=async()=>{try{await post('/api/automatic-notices',payload());await loadAutomations(true);}catch(ex){el('fwResult').textContent=String(ex.message||ex);}};
+ el('fwCheck').onclick=async()=>{const btn=el('fwCheck');btn.disabled=true;try{await post('/api/automatic-notices',payload());await post('/api/automatic-notices/firmware-check',{});await loadAutomations(true);}catch(ex){el('fwResult').textContent=String(ex.message||ex);}finally{btn.disabled=false;}};
+ if(state())el('autoDetail').querySelectorAll('input,textarea,button').forEach(x=>x.disabled=true);
 }
 function renderHistory(){
  const events=data?.events||[];
@@ -111,9 +141,10 @@ function values(){
  return settings;
 }
 function showAutomationDetails(id,updateRoute=true){
- selected=(id==='ping'||id==='clima')?id:'';
+ selected=['ping','clima','meshtastic'].includes(id)?id:'';
  window.automationSelectedBot=selected;
  const box=el('autoDetail');box.style.display=selected?'block':'none';
+ if(selected==='meshtastic'){renderFirmwareForm();if(updateRoute)taSyncRoute({view:'automations'});return;}
  if(selected&&data?.settings?.[selected]){
   box.innerHTML=formHtml(selected,data.settings[selected]);
   el('autoClose').addEventListener('click',()=>showAutomationDetails(''));
@@ -135,7 +166,7 @@ async function loadAutomations(force=false){
   if(!r.ok||!b.success)throw Error(b.message||'HTTP '+r.status);
   data=b;hasLoaded=true;
   const live=b.liveStatus||{},connected=Boolean(live.connected);
-  const base=b.globalEnabled?'Bots habilitados globalmente.':'TA_MESH_COMMANDS_ENABLED=false: todos os bots estão inativos.';
+  const base=b.globalEnabled?'Bots habilitados globalmente.':'TA_MESH_COMMANDS_ENABLED=false: PING e CLIMA inativos. Avisos Meshtastic têm controle independente.';
   const rfStatus=connected?'Listener Meshtastic conectado.':'Listener Meshtastic desconectado. Verifique serviço e porta 4404.';
   const diagnostic=live.lastError?' Último erro: '+live.lastError:'';
   alertText(base+' '+rfStatus+diagnostic,!b.globalEnabled||!connected);

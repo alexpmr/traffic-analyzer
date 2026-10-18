@@ -29,7 +29,7 @@ jobs:
 
       - name: Validar Python
         shell: bash
-        run: python -m py_compile traffic_analyzer.py traffic_analyzer_web.py automation_manager.py meshtastic_query.py auto_update.py set_auth_password.py
+        run: python -m py_compile firmware_announcer.py traffic_analyzer.py traffic_analyzer_web.py automation_manager.py meshtastic_query.py auto_update.py set_auth_password.py
 
       - name: Testar painel Automações
         run: |
@@ -41,6 +41,9 @@ jobs:
 
       - name: Validar busca no Mapa e traceroute NodeInfo
         run: python -m unittest discover -s tests -p 'test_map_search_nodeinfo.py' -v
+
+      - name: Testar anúncios de firmware
+        run: python -m unittest discover -s tests -p 'test_firmware_announcer.py' -v
 
       - name: Testar ícones customizados por role
         run: python -m unittest discover -s tests -p 'test_role_icons.py' -v
@@ -1222,6 +1225,20 @@ jobs:
               assert role_icons[0]['html']!=role_icons[1]['html'],role_icons
               assert '#2ecc71' in role_icons[0]['html'],role_icons
               assert '#e74c3c' in role_icons[1]['html'],role_icons
+              firmware_ui=d.execute_async_script("""
+                const done=arguments[arguments.length-1];
+                loadAutomations(true).then(()=>{
+                  setView('automations');showAutomationDetails('meshtastic');
+                  const flags=['meshtasticEnabled','meshtasticStableEnabled','meshtasticUnstableEnabled','meshtasticNightlyEnabled'];
+                  done({flags:flags.map(k=>document.getElementById('fw-'+k)?.checked),
+                    path:location.pathname,template:document.getElementById('fwTemplate')?.value});
+                }).catch(ex=>done({error:String(ex)}));
+              """)
+              assert firmware_ui['flags']==[True,True,True,True],firmware_ui
+              assert firmware_ui['path']=='/automacoes/meshtastic',firmware_ui
+              d.find_element(By.ID,'fwPreview').click()
+              assert 'nenhuma transmissão' in d.find_element(By.ID,'fwResult').text
+              d.execute_script("showAutomationDetails('');setView('map');")
               d.find_element(By.CSS_SELECTOR,'.roleLegend summary').click()
               assert len(d.find_elements(By.CSS_SELECTOR,'.roleLegendItem'))==14
               assert d.find_element(By.CSS_SELECTOR,'.roleLegendItem').is_displayed()
@@ -1502,6 +1519,7 @@ jobs:
             traffic_analyzer_web.py \
             mesh_commands.py \
             automation_manager.py \
+            firmware_announcer.py \
             mesh_command_dispatch.py \
             automations_ui.js \
             meshtastic_query.py \
