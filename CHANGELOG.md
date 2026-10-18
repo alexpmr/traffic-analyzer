@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.66.0 - 2026-10-18
+## 1.66.1 - 2026-10-18
 
 - Corrige formatação de PING/CLIMA e mensagens automáticas para preservar quebras de linha reais até o payload transmitido.
 - Expande abreviações da resposta meteorológica para rótulos claros; conteúdo pode ser dividido em mais blocos Meshtastic.
@@ -10,6 +10,7 @@
 - Implementa exclusão da NodeDB do dispositivo Meshtastic via administração local e exclusão do histórico local, com resultado independente para cada etapa.
 - Sincroniza adicionar/remover favorito com a NodeDB do dispositivo conectado.
 - Adiciona testes de regressão para formatação, alertas, menu e exclusão combinada.
+- Corrige a normalização de textos de raios para não transformar também as linhas de dados; `--` passa a ser exibido como **sem registro**.
 
 ## 1.65.0 - 2026-10-18
 
