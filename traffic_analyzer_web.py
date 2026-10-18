@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.66.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.66.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.66.0"
+APP_VERSION = "1.66.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
