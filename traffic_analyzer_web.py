@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.65.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.66.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.65.0"
+APP_VERSION = "1.66.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -4142,7 +4142,7 @@ function closeNodeContextMenu(){
 }
 function nodeCtxButton(menu,label,handler,{danger=false,disabled=false,title=''}={}){
   const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=disabled;b.title=title;
-  Object.assign(b.style,{display:'block',width:'100%',textAlign:'left',padding:'7px 10px',border:'0',borderBottom:'1px solid #314353',background:danger?'#4b2026':'#172532',color:'#e8edf2',cursor:disabled?'not-allowed':'pointer',fontSize:'12px'});
+  Object.assign(b.style,{display:'block',width:'100%',textAlign:'left',padding:'8px 10px',border:'0',borderBottom:'1px solid #314353',background:danger?'#4b2026':'#172532',color:'#e8edf2',cursor:disabled?'not-allowed':'pointer',fontSize:'14px',lineHeight:'1.25'});
   if(!disabled)b.addEventListener('click',async()=>{closeNodeContextMenu();try{await handler();}catch(e){nodeCtxToast(e?.message||e);}});
   menu.appendChild(b);return b;
 }
@@ -4186,14 +4186,35 @@ async function nodeCtxPing(n){
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
   nodeCtxToast('PING encaminhado'+(b.packetId?' · packet '+b.packetId:''));
 }
+async function nodeCtxDeleteEverywhere(n){
+  const label=String(n.longName||n.name||n.nodeId||n.nodeNum);
+  if(!confirm('Excluir '+label+' da base local E da lista de nós do dispositivo Meshtastic conectado?\n\nEsta ação tentará as duas exclusões e mostrará o resultado de cada uma.'))return;
+  if(!authCanWrite()){openAuthModal();return;}
+  const r=await authFetch('/api/node-delete-everywhere',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum)})});
+  const b=await r.json();
+  if(!r.ok)throw new Error(b.message||b.error||('HTTP '+r.status));
+  const hidden=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY);hidden.delete(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_HIDDEN_KEY,hidden);
+  const favorites=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY);favorites.delete(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_FAVORITES_KEY,favorites);
+  closeNodeWindow();closeNodeDetailsModal(false);await load(false);
+  const local=b.localDeleted?'base local: excluído':'base local: falhou';
+  const device=b.deviceDeleted?'dispositivo: excluído':'dispositivo: falhou'+(b.deviceError?' ('+b.deviceError+')':'');
+  nodeCtxToast((b.success?'Exclusão concluída. ':'Exclusão parcial. ')+local+' · '+device);
+}
 async function nodeCtxDeleteLocal(n){
   const label=String(n.longName||n.name||n.nodeId||n.nodeNum);
-  if(!confirm('Excluir '+label+' do banco local do Traffic Analyzer?\n\nO nó poderá reaparecer se for recebido novamente do MeshMonitor.'))return;
+  if(!confirm('Excluir '+label+' somente do banco local do Traffic Analyzer?\n\nO nó poderá reaparecer se for recebido novamente do MeshMonitor.'))return;
   if(!authCanWrite()){openAuthModal();return;}
   const r=await authFetch('/api/node-local-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum)})});
   const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
   const hidden=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY);hidden.delete(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_HIDDEN_KEY,hidden);
   closeNodeWindow();closeNodeDetailsModal(false);await load(false);nodeCtxToast('Nó removido do banco local.');
+}
+async function nodeCtxSetFavorite(n,enabled){
+  if(!authCanWrite()){openAuthModal();return;}
+  const r=await authFetch('/api/node-favorite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum),favorite:Boolean(enabled)})});
+  const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
+  const s=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY);enabled?s.add(Number(n.nodeNum)):s.delete(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_FAVORITES_KEY,s);
+  nodeCtxToast(enabled?'Favorito salvo também no dispositivo Meshtastic.':'Favorito removido também do dispositivo Meshtastic.');
 }
 function showNodeContextMenu(n,x,y,source='map'){
   closeNodeContextMenu();
@@ -4201,6 +4222,7 @@ function showNodeContextMenu(n,x,y,source='map'){
   Object.assign(menu.style,{position:'fixed',zIndex:'10050',left:Math.max(4,Math.min(Number(x)||4,window.innerWidth-280))+'px',top:Math.max(4,Math.min(Number(y)||4,window.innerHeight-500))+'px',width:'270px',maxHeight:'calc(100vh - 12px)',overflowY:'auto',background:'#172532',border:'1px solid #496176',borderRadius:'7px',boxShadow:'0 10px 30px rgba(0,0,0,.45)'});
   const title=document.createElement('div');title.textContent=String(n.longName||n.name||n.nodeId||n.nodeNum);
   Object.assign(title.style,{padding:'8px 10px',fontWeight:'800',fontSize:'12px',background:'#101a23',borderBottom:'1px solid #496176'});menu.appendChild(title);
+  nodeCtxButton(menu,'🗑 Excluir da base e do dispositivo',()=>nodeCtxDeleteEverywhere(n),{danger:true});
   nodeCtxButton(menu,'✉ Enviar mensagem privada',()=>nodeCtxPrivateMessage(n));
   nodeCtxSeparator(menu,'Consultas');
   nodeCtxButton(menu,'ℹ Solicitar Node Info',()=>sendNodeQuery(Number(n.nodeNum),'nodeinfo'));
@@ -4211,7 +4233,7 @@ function showNodeContextMenu(n,x,y,source='map'){
   nodeCtxButton(menu,'● Executar Ping',()=>nodeCtxPing(n));
   nodeCtxSeparator(menu,'Nó');
   const fav=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY),isFav=fav.has(Number(n.nodeNum));
-  nodeCtxButton(menu,isFav?'★ Remover dos favoritos':'☆ Adicionar aos favoritos',()=>{const s=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY);isFav?s.delete(Number(n.nodeNum)):s.add(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_FAVORITES_KEY,s);nodeCtxToast(isFav?'Removido dos favoritos locais.':'Adicionado aos favoritos locais.');});
+  nodeCtxButton(menu,isFav?'★ Remover dos favoritos':'☆ Adicionar aos favoritos',()=>nodeCtxSetFavorite(n,!isFav));
   nodeCtxButton(menu,'▤ Abrir detalhes do nó',()=>{source==='nodes'?openNodeDetailsModal(Number(n.nodeNum)):openNodeWindow(Number(n.nodeNum));});
   nodeCtxButton(menu,'◎ Centralizar no mapa',()=>nodeCtxCenter(n));
   nodeCtxButton(menu,'☷ Ver tráfego deste nó',()=>nodeCtxViewTraffic(n));
@@ -6484,6 +6506,44 @@ def _ping_node(node_num):
     return result
 
 
+def _device_node_admin_action(node_num, action: str):
+    """Executa alteração na NodeDB do dispositivo Meshtastic conectado."""
+    n = _node_num(node_num)
+    try:
+        from meshtastic.tcp_interface import TCPInterface
+    except Exception as exc:
+        raise RuntimeError(f"Cliente Meshtastic indisponível: {exc}") from exc
+    interface = TCPInterface(
+        hostname=VIRTUAL_NODE_HOST,
+        portNumber=VIRTUAL_NODE_PORT,
+        timeout=max(5, VIRTUAL_NODE_CONNECT_TIMEOUT),
+    )
+    try:
+        local = interface.localNode
+        if action == "remove":
+            result = local.removeNode(n)
+        elif action == "favorite":
+            result = local.setFavorite(n)
+        elif action == "unfavorite":
+            result = local.removeFavorite(n)
+        else:
+            raise ValueError("Ação administrativa de nó inválida")
+        packet_id = result.get("id") if isinstance(result, dict) else getattr(result, "id", None)
+        return {"success": True, "nodeNum": n, "action": action,
+                "packetId": packet_id, "transport": "meshtastic-tcp"}
+    finally:
+        try:
+            interface.close()
+        except Exception:
+            pass
+
+
+def _set_device_node_favorite(node_num, favorite):
+    if type(favorite) is not bool:
+        raise ValueError("favorite deve ser verdadeiro ou falso")
+    return _device_node_admin_action(node_num, "favorite" if favorite else "unfavorite")
+
+
 def _delete_local_node(node_num):
     n = _node_num(node_num)
     source_id = MM_SOURCE
@@ -6499,6 +6559,37 @@ def _delete_local_node(node_num):
             counts[table] = max(0, int(cur.rowcount if cur.rowcount is not None else 0))
     return {"success": True, "nodeNum": n, "deleted": counts,
             "message": "Nó removido do histórico local; poderá reaparecer se for recebido novamente."}
+
+
+def _delete_node_everywhere(node_num):
+    n = _node_num(node_num)
+    device_deleted = False
+    local_deleted = False
+    device_error = ""
+    local_error = ""
+    device_result = None
+    local_result = None
+    try:
+        device_result = _device_node_admin_action(n, "remove")
+        device_deleted = bool(device_result.get("success"))
+    except Exception as exc:
+        device_error = str(exc)[:500]
+    try:
+        local_result = _delete_local_node(n)
+        local_deleted = bool(local_result.get("success"))
+    except Exception as exc:
+        local_error = str(exc)[:500]
+    return {
+        "success": bool(device_deleted and local_deleted),
+        "partial": bool(device_deleted != local_deleted),
+        "nodeNum": n,
+        "deviceDeleted": device_deleted,
+        "localDeleted": local_deleted,
+        "deviceError": device_error,
+        "localError": local_error,
+        "device": device_result,
+        "local": local_result,
+    }
 
 
 def _automation_defaults():
@@ -7262,7 +7353,9 @@ def _automatic_notice_state():
 
 
 def _truncate_utf8(text: str, max_bytes: int = 600) -> str:
-    raw = re.sub(r"\s+", " ", str(text or "")).strip()
+    # Preserva quebras de linha deliberadas. Apenas espaços horizontais são normalizados.
+    raw = "\n".join(re.sub(r"[ \t]+", " ", line).strip() for line in str(text or "").replace("\r", "").split("\n"))
+    raw = "\n".join(line for line in raw.split("\n") if line).strip()
     if len(raw.encode("utf-8")) <= max_bytes:
         return raw
     suffix = "…"
@@ -7291,14 +7384,24 @@ def _record_automatic_notice(source: str, external_id: str, kind: str, message: 
 
 
 def _notice_send(source: str, external_id: str, kind: str, message: str) -> bool:
-    text = _truncate_utf8(message, 600)
+    text = _truncate_utf8(message, 1200)
+    parts = meshcmd.split_utf8(text, 200)
+    if not parts:
+        return False
+    receipts = []
     try:
-        body = _send_primary_message(text)
-        ok = not isinstance(body, dict) or body.get("success") is not False
-        _record_automatic_notice(source, external_id, kind, text, ok, json.dumps(body, ensure_ascii=False) if isinstance(body, dict) else str(body))
-        return ok
+        for index, part in enumerate(parts):
+            body = _send_primary_message(part)
+            if isinstance(body, dict) and body.get("success") is False:
+                raise RuntimeError(str(body.get("message") or body.get("error") or body))
+            receipts.append(body)
+            if index < len(parts) - 1:
+                _notice_stop.wait(1.5)
+        _record_automatic_notice(source, external_id, kind, "\n---\n".join(parts), True,
+                                 json.dumps(receipts, ensure_ascii=False, default=str)[:4000])
+        return True
     except Exception as exc:
-        _record_automatic_notice(source, external_id, kind, text, False, str(exc))
+        _record_automatic_notice(source, external_id, kind, "\n---\n".join(parts), False, str(exc))
         return False
 
 
@@ -7333,17 +7436,17 @@ def _notice_alert_signature(alert: dict) -> str:
 
 
 def _notice_inmet_message(alert: dict, updated=False) -> str:
-    prefix = "⚠️ INMET Brasília/DF" + (" — ATUALIZAÇÃO" if updated else "")
+    prefix = "⚠️ Alerta meteorológico do INMET para Brasília/DF" + (" — atualização" if updated else "")
     event = str(alert.get("event") or "Alerta meteorológico").strip()
     severity = str(alert.get("severity") or "").strip()
     expires = str(alert.get("expires") or "").strip()
     headline = str(alert.get("headline") or alert.get("description") or "").strip()
-    parts=[prefix+": "+event]
-    if severity: parts.append("Severidade "+severity)
-    if expires: parts.append("válido até "+expires)
-    if headline and headline.lower()!=event.lower(): parts.append(headline)
-    parts.append("Fonte: INMET")
-    return _truncate_utf8(" · ".join(parts), 600)
+    lines=[prefix, "Evento: "+event]
+    if severity: lines.append("Severidade: "+severity)
+    if expires: lines.append("Válido até: "+expires)
+    if headline and headline.lower()!=event.lower(): lines.append("Descrição: "+headline)
+    lines.append("Fonte: Instituto Nacional de Meteorologia (INMET)")
+    return _truncate_utf8("\n".join(lines), 1200)
 
 
 def _meshtastic_releases():
@@ -7394,16 +7497,25 @@ def _latest_release_of_kind(releases, kind):
 
 
 def _firmware_send(record,text):
+    parts=meshcmd.split_utf8(_truncate_utf8(text,1200),200)
+    if not parts:
+        raise RuntimeError('Anúncio vazio')
+    receipts=[]
     try:
-        body=_send_primary_message(text)
+        for index,part in enumerate(parts):
+            body=_send_primary_message(part)
+            if not isinstance(body,dict) or type(body.get('success')) is not bool:
+                raise RuntimeError('Backend não confirmou aceitação do anúncio; resultado indeterminado')
+            if body['success'] is not True:
+                _record_automatic_notice('meshtastic',record['id'],record['kind'],"\n---\n".join(parts),False,str(body)[:400])
+                return False
+            receipts.append(body)
+            if index<len(parts)-1:_notice_stop.wait(1.5)
     except Exception as exc:
-        _record_automatic_notice('meshtastic',record['id'],record['kind'],text,False,str(exc))
+        _record_automatic_notice('meshtastic',record['id'],record['kind'],"\n---\n".join(parts),False,str(exc))
         raise # Timeout outcome is ambiguous: do not blindly retransmit.
-    if not isinstance(body,dict) or type(body.get('success')) is not bool:
-        raise RuntimeError('Backend não confirmou aceitação do anúncio; resultado indeterminado')
-    accepted=body['success']
-    _record_automatic_notice('meshtastic',record['id'],record['kind'],text,accepted,str(body)[:400])
-    return accepted
+    _record_automatic_notice('meshtastic',record['id'],record['kind'],"\n---\n".join(parts),True,json.dumps(receipts,ensure_ascii=False,default=str)[:400])
+    return True
 
 
 def _run_firmware_notice_check(state,settings,now):
@@ -12059,6 +12171,32 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/node-favorite":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 1024:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                body = _set_device_node_favorite(payload.get("nodeNum"), payload.get("favorite"))
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/node-delete-everywhere":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 1024:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                body = _delete_node_everywhere(payload.get("nodeNum"))
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/node-local-delete":
             try:
