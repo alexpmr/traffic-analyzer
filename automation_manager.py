@@ -20,7 +20,7 @@ _LOCK = threading.RLock()
 _VARIABLE = re.compile(r"\{\{([a-z0-9_]+)\}\}")
 _DEFAULT_PING_TEMPLATE = "{{mensagem_padrao}}"
 _DEFAULT_CLIMA_TEMPLATE = "{{clima}}"
-PING_VARIABLES = ("mensagem_padrao", "destino", "origem", "hora", "sinal", "qualidade", "saltos", "via", "nos_24h", "rota")
+PING_VARIABLES = ("mensagem_padrao", "destino", "origem", "hora", "tempo_resposta", "sinal", "qualidade", "qualidade_enlace", "saltos", "via", "nos_24h", "rota")
 CLIMA_VARIABLES = ("clima",)
 AUTOMATION_IDS = ("ping", "clima")
 
@@ -185,9 +185,10 @@ def save(path: Path, fallback, bot, patch, username="admin"):
 def _fields(default_text):
     lines = str(default_text).splitlines()
     by_prefix = {
-        "origem": "Origem:", "hora": "Hora:", "sinal": "Sinal recebido:",
-        "qualidade": "Qualidade do sinal:", "via": "Via:",
-        "nos_24h": "Nós ouvidos em 24 h:", "rota": "Teste de rota:",
+        "origem": "Origem:", "hora": "Horário do recebimento:", "tempo_resposta": "Tempo de resposta:",
+        "sinal": "Sinal recebido:", "qualidade": "Relação sinal-ruído:",
+        "qualidade_enlace": "Qualidade estimada do enlace:", "via": "Transporte:",
+        "nos_24h": "Nós ouvidos nas últimas 24 horas:", "rota": "Teste de rota:",
     }
     mapping = {k: "não disponível" for k in PING_VARIABLES}
     mapping["mensagem_padrao"] = str(default_text)
