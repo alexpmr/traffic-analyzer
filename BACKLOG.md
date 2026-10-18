@@ -1,3 +1,21 @@
+## P0 — Exclusão de nó não reflete na interface (Mapa e Nós) — 18/10/2026
+
+- **Relato de campo:** ao selecionar um nó no **Mapa** ou na aba **Nós**, escolher **Excluir/Apagar**, confirmar a ação e concluir o fluxo, o nó continua visível na interface.
+- O defeito deve ser investigado em **duas camadas separadas**:
+  1. **persistência/backend:** confirmar se a exclusão realmente removeu o nó do banco local e, quando solicitado, da NodeDB do dispositivo;
+  2. **estado/UI:** após sucesso da exclusão, remover imediatamente o nó de `topology.nodes`, listas, seleção atual, marcador Leaflet, caches locais, filtros e demais estruturas em memória antes ou junto do próximo `load/render`.
+- Não depender apenas de aguardar o próximo polling para o nó desaparecer.
+- A exclusão deve ter comportamento consistente nas duas origens de ação:
+  - menu de contexto do **Mapa**;
+  - menu de contexto/ação da aba **Nós**.
+- Após exclusão bem-sucedida, fechar detalhes/popup do nó excluído, limpar seleção e atualizar contadores/listas/mapa sem exigir F5.
+- Se a exclusão do dispositivo falhar, mas a exclusão local funcionar, a UI deve refletir a remoção local imediatamente e informar claramente o resultado parcial.
+- Se a exclusão local falhar, **não remover visualmente** o nó e exibir o erro.
+- Considerar que o nó pode reaparecer posteriormente se for novamente recebido da malha/dispositivo; isso deve ser uma nova descoberta, não permanência indevida do item antigo na tela.
+- Verificar se o `load(false)` atual reaplica um snapshot antigo do MeshMonitor logo após apagar do SQLite e, nesse caso, evitar que a resposta obsoleta reintroduza o nó na mesma atualização.
+- **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
+- **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
+
 ## v1.66.2 — Traceroute em dois blocos
 
 - **Concluído:** traceroute exibido em **Rota de ida** e **Rota de volta**, em blocos visuais independentes.
