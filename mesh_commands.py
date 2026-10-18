@@ -100,6 +100,81 @@ def format_ping_message(*, destination_label: str, origin: str, message: dict,
     return "\n".join(lines)
 
 
+def _expand_clima_segment(segment: str) -> str:
+    """Expande rótulos compactos recebidos da API CLIMA para texto legível."""
+    text = re.sub(r"\s+", " ", str(segment or "").strip())
+    if not text:
+        return ""
+
+    replacements = [
+        (r"^T\s+([-+]?\d+(?:[.,]\d+)?)\s*°?C$", r"Temperatura: \1 °C"),
+        (r"^UR\s+([-+]?\d+(?:[.,]\d+)?)%$", r"Umidade relativa: \1%"),
+        (r"^Orvalho\s+([-+]?\d+(?:[.,]\d+)?)\s*°?C$", r"Ponto de orvalho: \1 °C"),
+        (r"^P\s+([-+]?\d+(?:[.,]\d+)?)\s*hPa$", r"Pressão: \1 hPa"),
+        (r"^UV\s+(.+)$", r"Índice ultravioleta: \1"),
+        (r"^(\d+(?:[.,]\d+)?)\s*lx$", r"Iluminação: \1 lux"),
+        (r"^Solar\s+([-+]?\d+(?:[.,]\d+)?)\s*W/m2$", r"Radiação solar: \1 W/m²"),
+        (r"^min/med/raj\s+(.+)$", r"Vento mínimo / médio / rajada: \1"),
+        (r"^(\d+(?:[.,]\d+)?)\s*graus\s+(.+)$", r"Direção do vento: \1° \2"),
+        (r"^1min\s+(.+)$", r"Precipitação em 1 minuto: \1"),
+        (r"^taxa10m\s+(.+)$", r"Taxa de chuva em 10 minutos: \1"),
+        (r"^1h\s+(.+)$", r"Acumulado de chuva em 1 hora: \1"),
+        (r"^24h\s+(.+)$", r"Acumulado de chuva em 24 horas: \1"),
+        (r"^raios\s+1h\s+(.+)$", r"Raios detectados na última hora: \1"),
+        (r"^ultimo\s+(.+)$", r"Último raio detectado: \1"),
+        (r"^bat\s+(.+)$", r"Bateria: \1"),
+        (r"^dados\s+(\d+)s$", r"Dados atualizados há \1 segundos"),
+    ]
+    for pattern, repl in replacements:
+        if re.match(pattern, text, flags=re.IGNORECASE):
+            text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+            break
+
+    text = re.sub(r"(?i)\bsem chuva\b", "Sem chuva no momento", text)
+    text = re.sub(r"(?i)\bult\.?\b", "último", text)
+    text = re.sub(r"(?i)\bbat\.?\b", "bateria", text)
+    text = re.sub(r"(?i)\braj\.?\b", "rajada", text)
+    text = re.sub(r"(?i)\bmed\.?\b", "médio", text)
+    text = re.sub(r"(?i)\bmin\.?\b", "mínimo", text)
+    text = re.sub(r"(?i)(\d)(mm/h)\b", r"\1 mm/h", text)
+    text = re.sub(r"(?i)(\d)(mm)\b", r"\1 mm", text)
+    text = re.sub(r"(?i)(\d)(m/s)\b", r"\1 m/s", text)
+    text = re.sub(r"(?i)(\d)(hPa)\b", r"\1 hPa", text)
+    text = re.sub(r"(?i)(\d)(V)\b", r"\1 V", text)
+    return text
+
+
+def normalize_clima_message(text: str) -> str:
+    """Converte mensagens compactas da API CLIMA em blocos multilinha legíveis."""
+    raw = str(text or "").replace("\r", "").strip()
+    if not raw:
+        return ""
+    segments = [x.strip() for x in re.split(r"\s*\|\s*", raw) if x.strip()]
+    if not segments:
+        return raw
+
+    heading = segments[0]
+    heading_map = {
+        "LUZ/VENTO": "Luz e vento",
+        "CHUVA": "Chuva",
+        "RAIOS/TEMPEST": "Raios e estação meteorológica",
+        "RAIOS/TEMPESTADE": "Raios e tempestade",
+        "ALERTA": "Alerta meteorológico",
+    }
+    lines = [heading_map.get(heading.upper(), heading)]
+    lines.extend(_expand_clima_segment(x) for x in segments[1:])
+    lines = [x for x in lines if x]
+
+    # Alertas devem ser autoexplicativos, mesmo quando a fonte usa rótulos curtos.
+    normalized = "\n".join(lines)
+    normalized = re.sub(r"(?im)^CHUVA FORTE\b", "Alerta de chuva forte", normalized)
+    normalized = re.sub(r"(?im)^RAIOS\b", "Alerta de raios", normalized)
+    normalized = re.sub(r"(?im)^VENTO FORTE\b", "Alerta de vento forte", normalized)
+    normalized = re.sub(r"(?im)^GRANIZO\b", "Alerta de granizo", normalized)
+    normalized = re.sub(r"(?im)^TEMPESTADE\b", "Alerta de tempestade", normalized)
+    return normalized
+
+
 def fetch_clima_responses(url: str, timeout: float = 6.0) -> list[str]:
     req = urllib.request.Request(str(url), headers={"User-Agent": "TrafficAnalyzer-MeshCommands/1"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -108,7 +183,8 @@ def fetch_clima_responses(url: str, timeout: float = 6.0) -> list[str]:
     responses = body.get("responses") if isinstance(body, dict) else None
     if not isinstance(responses, list):
         raise RuntimeError("Resposta inválida da API de clima")
-    out = [str(x).strip() for x in responses if str(x).strip()]
+    out = [normalize_clima_message(str(x)) for x in responses if str(x).strip()]
+    out = [x for x in out if x]
     if not out:
         raise RuntimeError("API de clima não retornou mensagens")
     return out[:4]

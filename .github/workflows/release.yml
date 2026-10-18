@@ -52,6 +52,9 @@ jobs:
       - name: Validar menu de contexto dos nós
         run: python -m unittest discover -s tests -p 'test_node_context_menu.py' -v
 
+      - name: Validar backlog da v1.66.0
+        run: python -m unittest discover -s tests -p 'test_backlog_v166.py' -v
+
       - name: Validar classificação RF e MQTT por hop
         run: |
           python - <<'PY'

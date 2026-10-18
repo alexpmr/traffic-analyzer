@@ -1,32 +1,22 @@
 # Backlog — Traffic Analyzer
 
-## Pendente — Clareza textual em Automações e Alertas
+## v1.66.0 — Formatação de automações/alertas e menu de contexto
 
-- Reduzir o uso de **abreviações** em todas as mensagens automáticas, mesmo que isso exija dividir o conteúdo em **mais blocos/mensagens**.
-- Priorizar **clareza e entendimento imediato** em vez de compactação excessiva.
-- Aplicar a regra a **PING, CLIMA, avisos de firmware e demais automações**, além de todos os **alertas automáticos**.
-- Alertas meteorológicos e operacionais, como **chuva forte, raios, tempestade, vento forte, granizo e eventos semelhantes**, devem usar descrições completas e fáceis de entender.
-- Evitar abreviações como "bat", "min/med/raj", "ult", "tx", "rx" e equivalentes quando houver forma clara e curta de escrever por extenso.
-- Quando o limite de tamanho da mensagem for atingido, **quebrar em blocos adicionais** em vez de condensar o texto com abreviações difíceis.
-- Preservar **quebras de linha reais** entre campos e blocos, conforme requisito anterior.
-- Critério de aceite: uma pessoa sem conhecimento técnico deve conseguir entender o conteúdo da automação ou alerta sem precisar interpretar siglas ou abreviações não óbvias.
-
-## Pendente — Automações: preservar quebras de linha nas mensagens
-
-- As mensagens geradas pelas **Automações** estão chegando no chat com os campos concatenados na mesma linha, contrariando o formato solicitado anteriormente.
-- Corrigir a geração/envio para preservar **quebras de linha reais** entre os blocos/campos, sem transformar o conteúdo em uma linha única.
-- Aplicar o ajuste a **todas as automações**, incluindo PING, CLIMA e futuras automações que usem mensagens multilinha.
-- Evitar abreviações desnecessárias quando houver espaço, priorizando leitura clara no cliente Meshtastic.
-- Validar tanto a prévia no painel quanto a mensagem efetivamente recebida no dispositivo/cliente; não considerar concluído apenas porque a prévia HTML exibe linhas separadas.
-- Adicionar teste de regressão verificando que caracteres de nova linha são preservados até o payload transmitido e após a normalização do backend.
-- Critério de aceite: uma automação com três linhas deve ser recebida como **três linhas**, não como texto contínuo separado apenas por espaços ou barras.
+- **Concluído:** preservação de quebras de linha reais em PING/CLIMA e divisão por limite de 200 bytes sem achatar o texto.
+- **Concluído:** expansão dos campos compactos de CLIMA para linguagem clara, incluindo temperatura, umidade relativa, ponto de orvalho, pressão, índice ultravioleta, iluminação, radiação solar, vento, chuva, raios e bateria.
+- **Concluído:** alertas INMET multilinha e envio de avisos longos em múltiplos blocos.
+- **Concluído:** fonte das opções do menu de contexto aumentada para 14 px.
+- **Concluído:** primeira opção do menu é **Excluir da base e do dispositivo**, com confirmação e resultado separado das duas etapas.
+- **Concluído:** favoritos do menu são sincronizados com a NodeDB do dispositivo Meshtastic conectado.
+- **Validado por testes automatizados:** formatação multilinha, expansão de abreviações, alerta INMET, ordem/tamanho do menu e exclusão combinada/resultado parcial.
+- Teste físico em rádio continua necessário para confirmar comportamento do firmware/dispositivo específico, sem alterar a validação lógica do código.
 
 ## v1.65.0 — Menu de contexto de nós
 
 - Implementado clique com botão direito nas abas **Nós** e **Mapa**, reutilizando o mesmo menu e o mesmo nó selecionado.
 - Implementados: mensagem privada, Node Info, posição, telemetria, Traceroute, Ping, detalhes, centralização, filtro de tráfego, cópia de campos, favoritos locais, ocultação do mapa e exclusão do histórico local.
 - Exclusão local exige autenticação administrativa e confirmação; o nó pode reaparecer se o MeshMonitor voltar a fornecê-lo.
-- **Pendente:** sincronizar favoritos com o dispositivo Meshtastic.
+- **Concluído na v1.66.0:** adicionar/remover favoritos agora também é enviado à NodeDB do dispositivo Meshtastic.
 - **Pendente:** automações persistentes específicas por nó; o menu já direciona à aba Automações, mas não registra agendamento por nó nesta release.
 
 ## v1.64.0 — Anúncios de versões Meshtastic (#73)
