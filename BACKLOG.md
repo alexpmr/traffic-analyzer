@@ -1,5 +1,13 @@
 # Backlog — Traffic Analyzer
 
+## v1.65.0 — Menu de contexto de nós
+
+- Implementado clique com botão direito nas abas **Nós** e **Mapa**, reutilizando o mesmo menu e o mesmo nó selecionado.
+- Implementados: mensagem privada, Node Info, posição, telemetria, Traceroute, Ping, detalhes, centralização, filtro de tráfego, cópia de campos, favoritos locais, ocultação do mapa e exclusão do histórico local.
+- Exclusão local exige autenticação administrativa e confirmação; o nó pode reaparecer se o MeshMonitor voltar a fornecê-lo.
+- **Pendente:** sincronizar favoritos com o dispositivo Meshtastic.
+- **Pendente:** automações persistentes específicas por nó; o menu já direciona à aba Automações, mas não registra agendamento por nó nesta release.
+
 ## v1.64.0 — Anúncios de versões Meshtastic (#73)
 
 - Implementado monitor de estáveis, instáveis e nightly com todas habilitadas; painel, fila persistida, prévia, intervalo/modelo e diagnóstico.
