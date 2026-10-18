@@ -144,7 +144,11 @@ function showAutomationDetails(id,updateRoute=true){
  selected=['ping','clima','meshtastic'].includes(id)?id:'';
  window.automationSelectedBot=selected;
  const box=el('autoDetail');box.style.display=selected?'block':'none';
- if(selected==='meshtastic'){renderFirmwareForm();if(updateRoute)taSyncRoute({view:'automations'});return;}
+ if(selected==='meshtastic'){
+  if(state()){applyAutomationAccess(true);return;}
+  if(!data?.firmwareNotices){box.textContent='Carregando anúncios Meshtastic...';loadAutomations();return;}
+  renderFirmwareForm();if(updateRoute)taSyncRoute({view:'automations'});return;
+ }
  if(selected&&data?.settings?.[selected]){
   box.innerHTML=formHtml(selected,data.settings[selected]);
   el('autoClose').addEventListener('click',()=>showAutomationDetails(''));

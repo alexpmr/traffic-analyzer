@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - VERSION
+      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
@@ -1225,20 +1226,6 @@ jobs:
               assert role_icons[0]['html']!=role_icons[1]['html'],role_icons
               assert '#2ecc71' in role_icons[0]['html'],role_icons
               assert '#e74c3c' in role_icons[1]['html'],role_icons
-              firmware_ui=d.execute_async_script("""
-                const done=arguments[arguments.length-1];
-                loadAutomations(true).then(()=>{
-                  setView('automations');showAutomationDetails('meshtastic');
-                  const flags=['meshtasticEnabled','meshtasticStableEnabled','meshtasticUnstableEnabled','meshtasticNightlyEnabled'];
-                  done({flags:flags.map(k=>document.getElementById('fw-'+k)?.checked),
-                    path:location.pathname,template:document.getElementById('fwTemplate')?.value});
-                }).catch(ex=>done({error:String(ex)}));
-              """)
-              assert firmware_ui['flags']==[True,True,True,True],firmware_ui
-              assert firmware_ui['path']=='/automacoes/meshtastic',firmware_ui
-              d.find_element(By.ID,'fwPreview').click()
-              assert 'nenhuma transmissão' in d.find_element(By.ID,'fwResult').text
-              d.execute_script("showAutomationDetails('');setView('map');")
               d.find_element(By.CSS_SELECTOR,'.roleLegend summary').click()
               assert len(d.find_elements(By.CSS_SELECTOR,'.roleLegendItem'))==14
               assert d.find_element(By.CSS_SELECTOR,'.roleLegendItem').is_displayed()
@@ -1256,6 +1243,20 @@ jobs:
                   if d.execute_script("return authState.authenticated===true"): break
                   time.sleep(.1)
               assert d.execute_script("return authState.authenticated===true")
+              firmware_ui=d.execute_async_script("""
+                const done=arguments[arguments.length-1];
+                loadAutomations(true).then(()=>{
+                  setView('automations');showAutomationDetails('meshtastic');
+                  const flags=['meshtasticEnabled','meshtasticStableEnabled','meshtasticUnstableEnabled','meshtasticNightlyEnabled'];
+                  done({flags:flags.map(k=>document.getElementById('fw-'+k)?.checked),
+                    path:location.pathname,template:document.getElementById('fwTemplate')?.value});
+                }).catch(ex=>done({error:String(ex)}));
+              """)
+              assert firmware_ui['flags']==[True,True,True,True],firmware_ui
+              assert firmware_ui['path']=='/automacoes/meshtastic',firmware_ui
+              d.find_element(By.ID,'fwPreview').click()
+              assert 'nenhuma transmissão' in d.find_element(By.ID,'fwResult').text
+              d.execute_script("showAutomationDetails('');setView('map');")
               access_stats=d.execute_async_script("""
                 const done=arguments[0];fetch('/api/access-stats?days=30',{cache:'no-store'}).then(r=>r.json()).then(done).catch(e=>done({success:false,error:String(e)}));
               """)
