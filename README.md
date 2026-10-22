@@ -14,6 +14,7 @@
 
 ## Novidades da v1.66.1
 
+- **CLIMA em 5 blocos:** cada bloco vai em mensagem própria, na ordem *Temperatura e umidade*, *Luz e vento*, *Chuva*, *Raios* e *Previsão do tempo*, respeitando o intervalo entre blocos configurado. Bateria e idade dos dados da estação deixam de ser enviados. *Descargas próximas* (`binary_sensor` de raios) e a previsão (`weather.*`, condição atual + hoje/amanhã) vêm do Home Assistant: configure `TA_HA_URL`, `TA_HA_TOKEN` (token de longa duração), `TA_HA_LIGHTNING_ENTITY` e `TA_HA_FORECAST_ENTITY` em `/etc/traffic-analyzer-map.env`. Sem token, esses dois itens são omitidos.
 - **Automações e alertas mais legíveis:** respostas de CLIMA passam a preservar quebras de linha reais e expandir rótulos compactos como temperatura, umidade relativa, pressão, chuva, vento, raios e bateria.
 - Quando uma mensagem ultrapassa o limite do Meshtastic, ela é dividida em mais blocos em vez de remover a formatação ou recorrer a abreviações difíceis.
 - Alertas do INMET passam a usar estrutura multilinha com Evento, Severidade, validade, descrição e fonte por extenso.

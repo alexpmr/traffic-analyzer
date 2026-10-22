@@ -176,7 +176,150 @@ def normalize_clima_message(text: str) -> str:
     return normalized
 
 
-def fetch_clima_responses(url: str, timeout: float = 6.0) -> list[str]:
+CLIMA_BLOCK_TITLES = (
+    "Temperatura e umidade",
+    "Luz e vento",
+    "Chuva",
+    "Raios",
+    "Previsão do tempo",
+)
+
+# Seções compactas da API Tempest -> índice do bloco enviado pela malha.
+_CLIMA_SECTION_BLOCK = {"CLIMA": 0, "LUZ/VENTO": 1, "CHUVA": 2, "RAIOS/TEMPEST": 3, "RAIOS/TEMPESTADE": 3}
+# Linhas de diagnóstico da estação que não fazem parte do bloco de raios.
+_CLIMA_DROPPED = ("Bateria:", "Dados atualizados")
+
+HA_CONDITIONS = {
+    "clear-night": "Céu limpo", "cloudy": "Nublado", "exceptional": "Condição excepcional",
+    "fog": "Neblina", "hail": "Granizo", "lightning": "Raios", "lightning-rainy": "Chuva com raios",
+    "partlycloudy": "Parcialmente nublado", "pouring": "Chuva forte", "rainy": "Chuva",
+    "snowy": "Neve", "snowy-rainy": "Chuva e neve", "sunny": "Ensolarado",
+    "windy": "Ventoso", "windy-variant": "Ventoso e nublado",
+}
+_WEEKDAYS = ("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+_HA_ENTITY = re.compile(r"^[a-z_]+\.[a-z0-9_]+$")
+
+
+def build_clima_blocks(responses, lightning=None, forecast=None) -> list[str]:
+    """Organiza as respostas compactas da API CLIMA nos blocos enviados pela malha.
+
+    ``lightning`` é o texto de "Descargas próximas" e ``forecast`` as linhas da
+    previsão; ambos vêm do Home Assistant e são omitidos quando ``None``.
+    Mensagens que não pertencem a uma seção conhecida (alertas) viram blocos extras.
+    """
+    blocks = [[] for _ in CLIMA_BLOCK_TITLES]
+    extras = []
+    for raw in responses or []:
+        raw = str(raw or "").replace("\r", "").strip()
+        segments = [x.strip() for x in re.split(r"\s*\|\s*", raw) if x.strip()]
+        if not segments:
+            continue
+        head = segments[0].upper()
+        index = 0 if head.startswith("CLIMA") else _CLIMA_SECTION_BLOCK.get(head)
+        if index is None:
+            text = normalize_clima_message(raw)
+            if text:
+                extras.append(text)
+            continue
+        for segment in segments[1:]:
+            line = _expand_clima_segment(segment)
+            line = re.sub(r":\s*--$", ": sem registro", line)
+            if line and not line.startswith(_CLIMA_DROPPED):
+                blocks[index].append(line)
+    if lightning is not None:
+        blocks[3].insert(0, "Descargas próximas: " + str(lightning))
+    if forecast:
+        blocks[4].extend(str(x) for x in forecast if str(x).strip())
+    out = ["\n".join([CLIMA_BLOCK_TITLES[i]] + lines) for i, lines in enumerate(blocks) if lines]
+    return out + extras
+
+
+def _ha_request(base: str, token: str, path: str, timeout: float, payload=None):
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(str(base).rstrip("/") + path, data=data, method="GET" if data is None else "POST",
+                                 headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json",
+                                          "User-Agent": "TrafficAnalyzer-MeshCommands/1"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        raw = resp.read(500_001)
+    if len(raw) > 500_000:
+        raise RuntimeError("Resposta do Home Assistant excede o limite")
+    return json.loads(raw) if raw else {}
+
+
+def _num(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f"{number:.0f}"
+
+
+def format_forecast(state: dict, daily: list, today: _dt.date | None = None) -> list[str]:
+    """Linhas curtas: condição atual e previsão diária de hoje e amanhã."""
+    today = today or _dt.date.today()
+    attrs = state.get("attributes") or {}
+    unit = attrs.get("temperature_unit") or "°C"
+    lines = []
+    condition = HA_CONDITIONS.get(str(state.get("state") or ""), "")
+    temp = _num(attrs.get("temperature"))
+    if condition or temp:
+        lines.append("Agora: " + ", ".join(x for x in (condition, f"{temp} {unit}" if temp else "") if x))
+    for item in (daily or []):
+        if len(lines) >= 3 or not isinstance(item, dict):
+            break
+        try:
+            day = _dt.date.fromisoformat(str(item.get("datetime") or "")[:10])
+        except ValueError:
+            continue
+        if day < today:
+            continue
+        label = "Hoje" if day == today else "Amanhã" if day == today + _dt.timedelta(days=1) \
+            else f"{_WEEKDAYS[day.weekday()]} {day:%d/%m}"
+        parts = [HA_CONDITIONS.get(str(item.get("condition") or ""), "")]
+        high, low = _num(item.get("temperature")), _num(item.get("templow"))
+        if high and low:
+            parts.append(f"{low} a {high} {unit}")
+        elif high:
+            parts.append(f"máx. {high} {unit}")
+        rain = _num(item.get("precipitation_probability"))
+        if rain is not None:
+            parts.append(f"chuva {rain}%")
+        lines.append(label + ": " + ", ".join(x for x in parts if x))
+    return lines
+
+
+def fetch_home_assistant_weather(base: str, token: str, lightning_entity: str, forecast_entity: str,
+                                 timeout: float = 6.0):
+    """Retorna (descargas próximas, linhas da previsão) a partir do Home Assistant.
+
+    Falhas são independentes: uma entidade indisponível não impede a outra.
+    """
+    lightning = forecast = None
+    if lightning_entity and _HA_ENTITY.match(lightning_entity):
+        try:
+            state = str(_ha_request(base, token, "/api/states/" + lightning_entity, timeout).get("state") or "")
+            lightning = {"on": "detectadas", "off": "nenhuma"}.get(state, "indisponível")
+        except Exception:
+            lightning = "indisponível"
+    if forecast_entity and _HA_ENTITY.match(forecast_entity):
+        try:
+            state = _ha_request(base, token, "/api/states/" + forecast_entity, timeout)
+            daily = (state.get("attributes") or {}).get("forecast")
+            if not isinstance(daily, list):
+                # Home Assistant 2024.3+ só expõe a previsão pelo serviço weather.get_forecasts.
+                try:
+                    body = _ha_request(base, token, "/api/services/weather/get_forecasts?return_response", timeout,
+                                       {"entity_id": forecast_entity, "type": "daily"})
+                    daily = (((body or {}).get("service_response") or {}).get(forecast_entity) or {}).get("forecast")
+                except Exception:
+                    daily = None
+            forecast = format_forecast(state, daily if isinstance(daily, list) else []) or ["Previsão indisponível"]
+        except Exception:
+            forecast = ["Previsão indisponível"]
+    return lightning, forecast
+
+
+def fetch_clima_responses(url: str, timeout: float = 6.0, home_assistant: dict | None = None) -> list[str]:
     req = urllib.request.Request(str(url), headers={"User-Agent": "TrafficAnalyzer-MeshCommands/1"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read().decode("utf-8")
@@ -184,11 +327,15 @@ def fetch_clima_responses(url: str, timeout: float = 6.0) -> list[str]:
     responses = body.get("responses") if isinstance(body, dict) else None
     if not isinstance(responses, list):
         raise RuntimeError("Resposta inválida da API de clima")
-    out = [normalize_clima_message(str(x)) for x in responses if str(x).strip()]
-    out = [x for x in out if x]
+    lightning = forecast = None
+    ha = home_assistant or {}
+    if ha.get("url") and ha.get("token"):
+        lightning, forecast = fetch_home_assistant_weather(
+            ha["url"], ha["token"], ha.get("lightningEntity", ""), ha.get("forecastEntity", ""), timeout)
+    out = build_clima_blocks([str(x) for x in responses if str(x).strip()], lightning, forecast)
     if not out:
         raise RuntimeError("API de clima não retornou mensagens")
-    return out[:4]
+    return out[:8]
 
 
 def split_utf8(text: str, max_bytes: int = 200) -> list[str]:

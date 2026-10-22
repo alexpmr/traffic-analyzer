@@ -48,7 +48,7 @@ class AutomationTests(unittest.TestCase):
     def test_clima_preview_without_transmission(self):
         clima = self.defaults["clima"]
         result = a.preview("clima", clima, clima_responses=["Temperatura: 25°C", "Vento: 6 km/h"])
-        self.assertEqual(len(result["parts"]), 1)
+        self.assertEqual(result["parts"], ["Temperatura: 25°C", "Vento: 6 km/h"])
         self.assertTrue(result["bytes"] > 0)
         self.assertFalse(result["transmits"])
 

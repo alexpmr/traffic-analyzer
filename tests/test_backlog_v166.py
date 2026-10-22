@@ -35,6 +35,73 @@ class BacklogV166Tests(unittest.TestCase):
         self.assertIn("Dados atualizados há 39 segundos", lightning)
         self.assertNotIn(" bat ", " " + lightning.lower() + " ")
 
+    CLIMA_RAW = [
+        "CLIMA VHF3 | T 31.0C | UR 35% | Orvalho 13.6C | P 889.6hPa | UV 2.7",
+        "LUZ/VENTO | 26431lx | Solar 203W/m2 | min/med/raj 0.1/0.8/1.5m/s | 70graus ENE",
+        "CHUVA | sem chuva | 1min 0.0mm | taxa10m 0.0mm/h | 1h 0.0mm | 24h 0.0mm",
+        "RAIOS/TEMPEST | raios 1h 0 | ultimo -- | bat 2.742V | dados 39s",
+    ]
+
+    def test_clima_is_sent_as_five_separate_blocks(self):
+        import datetime as dt
+        import automation_manager as automgr
+        state = {"state": "partlycloudy", "attributes": {"temperature": 31.2, "temperature_unit": "°C"}}
+        daily = [{"datetime": "2026-10-22T15:00:00+00:00", "condition": "sunny", "temperature": 32, "templow": 18,
+                  "precipitation_probability": 10},
+                 {"datetime": "2026-10-23T15:00:00+00:00", "condition": "rainy", "temperature": 28.4, "templow": 17,
+                  "precipitation_probability": 60}]
+        forecast = meshcmd.format_forecast(state, daily, today=dt.date(2026, 10, 22))
+        blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW, "nenhuma", forecast)
+        self.assertEqual(blocks, [
+            "Temperatura e umidade\nTemperatura: 31.0 °C\nUmidade relativa: 35%\nPonto de orvalho: 13.6 °C\n"
+            "Pressão: 889.6 hPa\nÍndice ultravioleta: 2.7",
+            "Luz e vento\nIluminação: 26431 lux\nRadiação solar: 203 W/m²\n"
+            "Vento mínimo / médio / rajada: 0.1/0.8/1.5 m/s\nDireção do vento: 70° ENE",
+            "Chuva\nSem chuva no momento\nPrecipitação em 1 minuto: 0.0 mm\nTaxa de chuva em 10 minutos: 0.0 mm/h\n"
+            "Acumulado de chuva em 1 hora: 0.0 mm\nAcumulado de chuva em 24 horas: 0.0 mm",
+            "Raios\nDescargas próximas: nenhuma\nRaios detectados na última hora: 0\nÚltimo raio detectado: sem registro",
+            "Previsão do tempo\nAgora: Parcialmente nublado, 31 °C\nHoje: Ensolarado, 18 a 32 °C, chuva 10%\n"
+            "Amanhã: Chuva, 17 a 28 °C, chuva 60%",
+        ])
+        config = {"template": "{{clima}}"}
+        parts = automgr.preview("clima", config, clima_responses=blocks)["parts"]
+        self.assertEqual(parts, blocks)
+        self.assertTrue(all(len(x.encode("utf-8")) <= 200 for x in parts))
+
+    def test_clima_without_home_assistant_keeps_tempest_blocks_and_alerts(self):
+        blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW + ["ALERTA | RAIOS"])
+        self.assertEqual([b.split("\n")[0] for b in blocks],
+                         ["Temperatura e umidade", "Luz e vento", "Chuva", "Raios", "Alerta meteorológico"])
+        self.assertNotIn("Descargas", blocks[3])
+
+    def test_home_assistant_states_and_forecast_service(self):
+        lightning_entity = "binary_sensor.is_lightning"
+        forecast_entity = "weather.forecast_home"
+        calls = []
+
+        def fake(base, token, path, timeout, payload=None):
+            calls.append((path, payload))
+            if path.endswith(lightning_entity):
+                return {"state": "on"}
+            if path.endswith(forecast_entity):
+                return {"state": "rainy", "attributes": {"temperature": 22}}
+            return {"service_response": {forecast_entity: {"forecast": [
+                {"datetime": "2999-01-01", "condition": "pouring", "temperature": 25, "templow": 19}]}}}
+
+        with mock.patch.object(meshcmd, "_ha_request", side_effect=fake):
+            lightning, forecast = meshcmd.fetch_home_assistant_weather(
+                "http://ha:8123", "t", lightning_entity, forecast_entity)
+        self.assertEqual(lightning, "detectadas")
+        self.assertEqual(forecast[0], "Agora: Chuva, 22 °C")
+        self.assertIn("Chuva forte, 19 a 25 °C", forecast[1])
+        self.assertEqual(calls[-1][1], {"entity_id": forecast_entity, "type": "daily"})
+        with mock.patch.object(meshcmd, "_ha_request", side_effect=OSError("offline")):
+            self.assertEqual(meshcmd.fetch_home_assistant_weather("http://ha", "t", lightning_entity, forecast_entity),
+                             ("indisponível", ["Previsão indisponível"]))
+        with mock.patch.object(meshcmd, "_ha_request") as never:
+            meshcmd.fetch_home_assistant_weather("http://ha", "t", "../bad", "weather.x/../../api")
+            never.assert_not_called()
+
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"
         parts = meshcmd.split_utf8(text, 200)
