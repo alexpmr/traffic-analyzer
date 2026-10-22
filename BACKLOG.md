@@ -30,6 +30,8 @@
 
 ## P1 — CLIMA não enviou o último bloco (Previsão do tempo) — 22/10/2026
 
+- **Confirmado em campo (v1.70.1):** CLIMA com os 5 blocos; Home Assistant conectado pela tela (raios próximos/segurança e previsão), com Open-Meteo como reserva.
+
 - **Concluído na v1.69.0:** previsão do tempo pelo Open-Meteo quando o Home Assistant não está configurado ou falha; local pela posição do VHF3 ou coordenadas da tela.
 
 - **Concluído na v1.68.0:** Home Assistant configurável e testável em Automações → CLIMA; aviso quando não configurado (tela, prévia e histórico); histórico com blocos aceitos; blocos numerados no título. **Pendente de campo:** confirmar se a ordem de entrega na malha melhora; numeração já deixa a sequência explícita.
