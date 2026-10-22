@@ -37,6 +37,7 @@
 - **Automações → Meshtastic:** anúncios de novas versões estáveis, instáveis e nightly no canal primário, com as três categorias habilitadas por padrão.
 - Releases oficiais do firmware e índice oficial `https://nightly.meshtastic.org/index.json`, usado pelo Web Flasher. A primeira consulta estabelece a referência sem anunciar versões antigas. O índice nightly informa o build atual; builds substituídos entre consultas não podem ser recuperados dessa fonte.
 - Intervalo padrão de 10 minutos (configurável de 5 minutos a 24 horas), modelo com `{kind}`, `{version}` e `{url}`, prévia sem transmitir e fila/histórico persistidos. Anúncios limitados a 200 bytes; um envio por rodada, separados por pelo menos 60 segundos.
+- Botão **Enviar anúncio agora** em Automações → Meshtastic: transmite no canal primário a versão mais recente da categoria escolhida, com o mesmo modelo e envio do automático. O envio entra na fila/histórico, então o automático não o repete; respeita o intervalo mínimo de 60 segundos.
 - Não repete anúncios aceitos após reinício. Recusas explícitas têm até 3 tentativas com espera progressiva; timeout/resultado indeterminado fica para revisão, sem repetição automática. Erros das fontes têm backoff independente.
 - Utiliza o envio existente pelo MeshMonitor no canal 0; não abre outro rádio/listener. Recepção RF em outro dispositivo precisa de teste de campo, assim como a pendência anterior de PING/CLIMA (#66).
 - [Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip).
