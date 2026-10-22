@@ -1,4 +1,15 @@
-## P0 — Exclusão de nó não reflete na interface (Mapa e Nós) — 18/10/2026
+## P0 — Pedido de exclusão de nó não funciona (Mapa e Nós) — 18/10/2026, reforçado em 22/10/2026
+
+- **Relato de 22/10/2026 (v1.67.0):** o pedido de excluir nó **não funciona**: o nó não sai, mesmo após confirmar a ação. O problema não se limita à atualização visual descrita abaixo.
+- Ações envolvidas: **🗑 Excluir da base e do dispositivo** (`POST /api/node-delete-everywhere`) e **🗑 Excluir nó do banco local** (`POST /api/node-local-delete`), no menu de contexto do Mapa e da aba Nós.
+- **Hipóteses a verificar primeiro:**
+  1. `_delete_local_node` apaga apenas `topology_nodes`, `topology_edge_events`, `positions` e `packets` do `traffic.db`. O MeshMonitor continua com o nó na própria NodeDB, e o `load(false)` seguinte (ou o `topology.json` gerado pelo timer) reintroduz o nó imediatamente.
+  2. A exclusão no dispositivo usa `removeNode` pelo Virtual Node (TCPInterface na porta 4404). Confirmar se o Virtual Node do MeshMonitor repassa essa mensagem administrativa ao rádio físico; caso contrário, o rádio mantém o nó e volta a anunciá-lo ao MeshMonitor.
+  3. Erros de autenticação/CSRF, HTTP ou exclusão parcial aparecem apenas no toast do menu; registrar no log do servidor o resultado de cada etapa (local, dispositivo) para diagnóstico em campo.
+- **Critério de aceite adicional:** após o sucesso, o nó não pode voltar na próxima atualização de topologia sem nova evidência real recebida da malha depois do horário da exclusão (por exemplo, registrar o horário da exclusão e ignorar dados do nó anteriores a ele).
+
+### Relato original — exclusão de nó não reflete na interface — 18/10/2026
+
 
 - **Relato de campo:** ao selecionar um nó no **Mapa** ou na aba **Nós**, escolher **Excluir/Apagar**, confirmar a ação e concluir o fluxo, o nó continua visível na interface.
 - O defeito deve ser investigado em **duas camadas separadas**:
