@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.68.0 - 2026-10-22
+
+- Exclusão de nó corrigida: o nó excluído pelo Mapa ou pela aba Nós não volta mais na próxima leitura do MeshMonitor. A exclusão registra o horário, e o nó só reaparece com evidência real recebida depois dela (lastHeard, enlace ou traceroute novos). O resultado de cada etapa (base local e dispositivo) fica no log do serviço.
+- CLIMA com Home Assistant pela tela: em Automações → CLIMA há uma seção para URL, token (fica só no servidor e nunca é exibido) e entidades de raios e previsão, com botão Testar Home Assistant que mostra o motivo exato de falhas (ex.: token recusado, entidade não encontrada). Vale sem reiniciar o serviço e tem precedência sobre o `.env`.
+- CLIMA não omite mais o Home Assistant em silêncio: a tela, a prévia e o histórico avisam quando ele não está configurado. O histórico também registra quantos blocos foram aceitos para envio.
+- CLIMA: blocos numerados no título (ex.: Chuva (3/5)), para a sequência ficar clara mesmo quando a malha entrega fora de ordem. A prévia mostra cada mensagem separadamente, com seu tamanho em bytes.
+- CLIMA: velocidade do vento em km/h (antes m/s).
+- Atualização automática mais robusta: uma solicitação que ficava presa em pendente/em andamento deixa de bloquear o upgrade (expira em 10/30 min), e o novo `traffic-analyzer-auto-update.timer` processa solicitações a cada 15 min caso o `.path` do systemd pare de disparar. A instalação também reativa o `.path` se ele estiver em falha.
+- Testes de regressão para exclusão de nó, Home Assistant pela tela, vento em km/h e solicitação de update presa.
+
 ## 1.67.0 - 2026-10-22
 
 - CLIMA passa a ser enviado em 5 mensagens: Temperatura e umidade, Luz e vento, Chuva, Raios e Previsão do tempo.

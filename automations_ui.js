@@ -1,4 +1,4 @@
-/* Traffic Analyzer v1.67.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
+/* Traffic Analyzer v1.68.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
 (function(){
 'use strict';
 const css = [
@@ -8,7 +8,8 @@ const css = [
 '.autoCard{background:#172633;border:1px solid #345166;border-radius:10px;padding:16px;min-width:0}',
 '.autoCard h3{margin:0 0 8px}.autoCard p{line-height:1.45;color:#bfd0df;font-size:13px}',
 '.autoCard .autoState{font-weight:700;display:inline-block;padding:3px 8px;border-radius:9px;background:#344657;margin-bottom:10px}',
-'.autoCard .autoState.ok{background:#145043;color:#b6ffe1}.autoCard .autoState.off{background:#654b2c;color:#ffe0a0}',
+'.autoCard .autoState.ok,.autoDetail .autoState.ok{background:#145043;color:#b6ffe1}.autoCard .autoState.off,.autoDetail .autoState.off{background:#654b2c;color:#ffe0a0}',
+'.autoDetail .autoState{font-weight:700;display:inline-block;padding:3px 8px;border-radius:9px}',
 '.autoToolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:12px 0}',
 '.autoToolbar button{padding:8px 12px;font-weight:600}.autoDetail{margin-top:18px;background:#172633;border:1px solid #345166;border-radius:10px;padding:18px}',
 '.autoForm{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}',
@@ -142,7 +143,43 @@ function formHtml(bot,conf){
   '<button id="autoPreviewBtn" type="button">Prévia sem transmitir</button>'+
   '<button id="autoSendTest" type="button" title="Envia mensagens reais ao canal primário via MeshMonitor">Enviar teste real (canal primário)</button></div>'+
   '<div id="autoActionStatus" class="autoMsg"></div>'+
-  '<pre id="autoPreviewResult" class="autoResult">Use Prévia para revisar o texto antes de qualquer envio.</pre>';
+  '<pre id="autoPreviewResult" class="autoResult">Use Prévia para revisar o texto antes de qualquer envio.</pre>'+
+  (ping?'':homeAssistantHtml());
+}
+function homeAssistantHtml(){
+ const ha=data?.homeAssistant||{};
+ const status=ha.configured?'Configurado'+(ha.tokenSource==='env'?' pelo arquivo .env':''):'Não configurado';
+ return '<div class="autoTop" style="margin-top:18px"><h3>Home Assistant: descargas próximas e previsão do tempo</h3>'+
+  '<span class="autoState '+(ha.configured?'ok':'off')+'">'+e(status)+'</span></div>'+
+  (ha.warning?'<div class="autoBanner">'+e(ha.warning)+'</div>':'')+
+  '<div class="autoForm">'+
+  '<label class="autoField">URL do Home Assistant<input id="haUrl" maxlength="256" placeholder="http://192.168.0.10:8123" value="'+e(ha.url||'')+'"></label>'+
+  '<label class="autoField">Token de longa duração<input id="haToken" type="password" autocomplete="new-password" maxlength="1000" placeholder="'+(ha.tokenConfigured?'•••••• configurado: deixe em branco para manter':'Cole o token (Perfil → Segurança)')+'">'+
+  '<span class="autoHint">O token fica só no servidor e nunca é exibido.</span></label>'+
+  '<label class="autoField">Entidade de raios (binary_sensor)<input id="haLightning" maxlength="200" value="'+e(ha.lightningEntity||'')+'"></label>'+
+  '<label class="autoField">Entidade de previsão (weather)<input id="haForecast" maxlength="200" value="'+e(ha.forecastEntity||'')+'"></label></div>'+
+  '<div class="autoToolbar"><button id="haSave" type="button">Salvar Home Assistant</button>'+
+  '<button id="haTest" type="button">Testar Home Assistant</button>'+
+  (ha.tokenSource==='tela'?'<button id="haClear" type="button">Remover token salvo</button>':'')+'</div>'+
+  '<pre id="haResult" class="autoResult">Teste consulta o Home Assistant sem transmitir nada.</pre>';
+}
+async function saveHomeAssistant(extra){
+ if(!authCanWrite()){openAuthModal();return;}
+ const payload={url:el('haUrl').value,lightningEntity:el('haLightning').value,forecastEntity:el('haForecast').value,...extra};
+ const token=el('haToken').value.trim();if(token&&!extra)payload.token=token;
+ try{const b=await post('/api/home-assistant',payload);data.homeAssistant=b.homeAssistant;showAutomationDetails(selected,false);
+  el('haResult').textContent='Configuração do Home Assistant salva. Vale para o próximo CLIMA, sem reiniciar o serviço.';}
+ catch(ex){el('haResult').textContent='Erro: '+String(ex.message||ex);}
+}
+async function testHomeAssistant(){
+ if(!authCanWrite()){openAuthModal();return;}
+ const btn=el('haTest');btn.disabled=true;el('haResult').textContent='Consultando o Home Assistant...';
+ try{
+  const r=await authFetch('/api/home-assistant/test',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  const b=await r.json();if(!r.ok)throw Error(b.message||'HTTP '+r.status);
+  el('haResult').textContent=(b.success?'✓ ':'⚠ ')+b.message+'\n\nDescargas próximas: '+(b.lightning??'—')+'\n'+(b.forecast||[]).join('\n');
+ }catch(ex){el('haResult').textContent='Erro: '+String(ex.message||ex);}
+ finally{btn.disabled=false;}
 }
 function values(){
  const ping=selected==='ping';
@@ -166,6 +203,11 @@ function showAutomationDetails(id,updateRoute=true){
   el('autoSave').addEventListener('click',saveAutomation);
   el('autoPreviewBtn').addEventListener('click',previewAutomation);
   el('autoSendTest').addEventListener('click',testAutomation);
+  if(el('haSave')){
+   el('haSave').addEventListener('click',()=>saveHomeAssistant());
+   el('haTest').addEventListener('click',testHomeAssistant);
+   if(el('haClear'))el('haClear').addEventListener('click',()=>{if(confirm('Remover o token salvo pela tela?'))saveHomeAssistant({clearToken:true});});
+  }
   if(state())box.querySelectorAll('input,select,textarea,button').forEach(x=>x.disabled=true);
   box.scrollIntoView({block:'nearest'});
  }
@@ -214,7 +256,9 @@ async function previewAutomation(){
  const btn=el('autoPreviewBtn');btn.disabled=true;showMessage('Gerando prévia sem transmissão...',false);
  try{
   const b=await post('/api/automations/preview',{bot:selected,settings:values()});
-  el('autoPreviewResult').textContent=b.text+'\n\n---\n'+b.parts.length+' blocos · '+b.bytes+' bytes · nenhuma transmissão RF';
+  const warn=(b.warnings||[]).map(x=>'⚠ '+x+'\n\n').join('');
+  el('autoPreviewResult').textContent=warn+b.parts.map((x,i)=>'['+(i+1)+'/'+b.parts.length+' · '+new TextEncoder().encode(x).length+' bytes]\n'+x).join('\n\n')+
+   '\n\n---\n'+b.parts.length+' mensagens · nenhuma transmissão RF';
   showMessage('Prévia gerada. Nenhum pacote foi enviado.',false);
  }catch(ex){el('autoPreviewResult').textContent='';showMessage('Não foi possível gerar a prévia: '+String(ex.message||ex),true);}
  finally{btn.disabled=false;}

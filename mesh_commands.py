@@ -6,6 +6,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import re
+import urllib.error
 import urllib.request
 
 
@@ -100,6 +101,17 @@ def format_ping_message(*, destination_label: str, origin: str, message: dict,
     return "\n".join(lines)
 
 
+_WIND_MS = re.compile(r"(?<![\d.,/])(\d+(?:[.,]\d+)?(?:/\d+(?:[.,]\d+)?)*)\s*m/s\b", re.IGNORECASE)
+
+
+def _wind_kmh(text: str) -> str:
+    """Converte velocidades em m/s (inclusive "0.7/1.0/1.8m/s") para km/h."""
+    def convert(match):
+        values = [float(x.replace(",", ".")) * 3.6 for x in match.group(1).split("/")]
+        return "/".join(f"{v:.1f}" for v in values) + " km/h"
+    return _WIND_MS.sub(convert, text)
+
+
 def _expand_clima_segment(segment: str) -> str:
     """Expande rótulos compactos recebidos da API CLIMA para texto legível."""
     text = re.sub(r"\s+", " ", str(segment or "").strip())
@@ -138,7 +150,7 @@ def _expand_clima_segment(segment: str) -> str:
     text = re.sub(r"(?i)\bmin\.?\b", "mínimo", text)
     text = re.sub(r"(?i)(\d)(mm/h)\b", r"\1 mm/h", text)
     text = re.sub(r"(?i)(\d)(mm)\b", r"\1 mm", text)
-    text = re.sub(r"(?i)(\d)(m/s)\b", r"\1 m/s", text)
+    text = _wind_kmh(text)
     text = re.sub(r"(?i)(\d)(hPa)\b", r"\1 hPa", text)
     text = re.sub(r"(?i)(\d)(V)\b", r"\1 V", text)
     return text
@@ -230,8 +242,13 @@ def build_clima_blocks(responses, lightning=None, forecast=None) -> list[str]:
         blocks[3].insert(0, "Descargas próximas: " + str(lightning))
     if forecast:
         blocks[4].extend(str(x) for x in forecast if str(x).strip())
-    out = ["\n".join([CLIMA_BLOCK_TITLES[i]] + lines) for i, lines in enumerate(blocks) if lines]
-    return out + extras
+    out = ["\n".join([CLIMA_BLOCK_TITLES[i]] + lines) for i, lines in enumerate(blocks) if lines] + extras
+    # A malha pode entregar os blocos fora de ordem; a numeração no título deixa a sequência clara.
+    numbered = []
+    for index, block in enumerate(out, 1):
+        title, _, body = block.partition("\n")
+        numbered.append(f"{title} ({index}/{len(out)})" + ("\n" + body if body else ""))
+    return numbered
 
 
 def _ha_request(base: str, token: str, path: str, timeout: float, payload=None):
@@ -288,19 +305,35 @@ def format_forecast(state: dict, daily: list, today: _dt.date | None = None) -> 
     return lines
 
 
+def _ha_error(exc) -> str:
+    if isinstance(exc, urllib.error.HTTPError):
+        return {401: "token recusado (HTTP 401)", 404: "entidade não encontrada (HTTP 404)"}.get(exc.code, f"HTTP {exc.code}")
+    if isinstance(exc, urllib.error.URLError):
+        return f"Home Assistant inacessível: {exc.reason}"
+    return str(exc)[:200]
+
+
 def fetch_home_assistant_weather(base: str, token: str, lightning_entity: str, forecast_entity: str,
-                                 timeout: float = 6.0):
+                                 timeout: float = 6.0, errors: list | None = None):
     """Retorna (descargas próximas, linhas da previsão) a partir do Home Assistant.
 
     Falhas são independentes: uma entidade indisponível não impede a outra.
+    O motivo de cada falha é acrescentado a ``errors``, quando informado.
     """
+    errors = [] if errors is None else errors
     lightning = forecast = None
+    for name, entity in (("raios", lightning_entity), ("previsão", forecast_entity)):
+        if entity and not _HA_ENTITY.match(entity):
+            errors.append(f"Entidade de {name} inválida: {entity}")
     if lightning_entity and _HA_ENTITY.match(lightning_entity):
         try:
             state = str(_ha_request(base, token, "/api/states/" + lightning_entity, timeout).get("state") or "")
             lightning = {"on": "detectadas", "off": "nenhuma"}.get(state, "indisponível")
-        except Exception:
+            if lightning == "indisponível":
+                errors.append(f"{lightning_entity}: estado '{state}'")
+        except Exception as exc:
             lightning = "indisponível"
+            errors.append(f"{lightning_entity}: {_ha_error(exc)}")
     if forecast_entity and _HA_ENTITY.match(forecast_entity):
         try:
             state = _ha_request(base, token, "/api/states/" + forecast_entity, timeout)
@@ -311,11 +344,13 @@ def fetch_home_assistant_weather(base: str, token: str, lightning_entity: str, f
                     body = _ha_request(base, token, "/api/services/weather/get_forecasts?return_response", timeout,
                                        {"entity_id": forecast_entity, "type": "daily"})
                     daily = (((body or {}).get("service_response") or {}).get(forecast_entity) or {}).get("forecast")
-                except Exception:
+                except Exception as exc:
                     daily = None
+                    errors.append(f"weather.get_forecasts: {_ha_error(exc)}")
             forecast = format_forecast(state, daily if isinstance(daily, list) else []) or ["Previsão indisponível"]
-        except Exception:
+        except Exception as exc:
             forecast = ["Previsão indisponível"]
+            errors.append(f"{forecast_entity}: {_ha_error(exc)}")
     return lightning, forecast
 
 

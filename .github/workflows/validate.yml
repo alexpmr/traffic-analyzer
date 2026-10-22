@@ -906,6 +906,7 @@ jobs:
         run: |
           test -s traffic-analyzer-auto-update.service
           test -s traffic-analyzer-auto-update.path
+          grep -q 'Unit=traffic-analyzer-auto-update.service' traffic-analyzer-auto-update.timer
           grep -q 'PathExists=/var/lib/traffic-analyzer/update-request.json' traffic-analyzer-auto-update.path
           grep -q 'ExecStart=/usr/bin/python3 /opt/traffic-analyzer/auto_update.py' traffic-analyzer-auto-update.service
           grep -q 'ExecStart=/opt/traffic-analyzer/.venv/bin/python /opt/traffic-analyzer/traffic_analyzer_web.py' traffic-analyzer-map.service

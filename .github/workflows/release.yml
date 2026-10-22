@@ -1547,6 +1547,7 @@ jobs:
             traffic-analyzer-map.service \
             traffic-analyzer-auto-update.service \
             traffic-analyzer-auto-update.path \
+            traffic-analyzer-auto-update.timer \
             traffic-analyzer.timer; do
             cp "$f" /tmp/traffic-analyzer/
           done

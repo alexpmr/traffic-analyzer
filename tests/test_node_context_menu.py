@@ -66,6 +66,40 @@ class NodeContextMenuTests(unittest.TestCase):
                 web.TRAFFIC_ARCHIVE_DB = old_db
                 web.MM_SOURCE = old_source
 
+    def test_deleted_node_is_not_reinserted_by_meshmonitor_snapshot(self):
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            old_db, old_source = web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE
+            try:
+                web.TRAFFIC_ARCHIVE_DB = Path(tmp) / "traffic.db"
+                web.MM_SOURCE = "default"
+                web._archive_init()
+                old_heard = int(time.time()) - 3600
+
+                def snapshot(heard):
+                    return {"sourceId": "default", "generatedAtMs": int(time.time() * 1000),
+                            "nodes": [{"nodeNum": 10, "nodeId": "!0000000a", "longName": "A", "lastHeard": heard},
+                                      {"nodeNum": 20, "nodeId": "!00000014", "longName": "B", "lastHeard": old_heard}],
+                            "edges": [{"id": "10:20", "a": 10, "b": 20, "lastSeenMs": old_heard * 1000,
+                                       "events": [{"timestampMs": old_heard * 1000, "leg": "forward", "transport": "rf"}]}],
+                            "traces": []}
+
+                nums = lambda topo: {int(n["nodeNum"]) for n in topo["nodes"]}
+                self.assertIn(10, nums(web._topology_history_merge(snapshot(old_heard))))
+                web._delete_local_node(10)
+                merged = web._topology_history_merge(snapshot(old_heard))
+                self.assertEqual(nums(merged), {20})
+                self.assertFalse([e for e in merged["edges"] if 10 in (e["a"], e["b"])])
+                with web._archive_connect() as conn:
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM topology_nodes WHERE node_num=10").fetchone()[0], 0)
+                # Nova evidência real, posterior à exclusão, traz o nó de volta.
+                merged = web._topology_history_merge(snapshot(int(time.time()) + 5))
+                self.assertIn(10, nums(merged))
+                with web._archive_connect() as conn:
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM deleted_nodes").fetchone()[0], 0)
+            finally:
+                web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE = old_db, old_source
+
 
 if __name__ == "__main__":
     unittest.main()

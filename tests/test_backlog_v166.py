@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -53,14 +54,14 @@ class BacklogV166Tests(unittest.TestCase):
         forecast = meshcmd.format_forecast(state, daily, today=dt.date(2026, 10, 22))
         blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW, "nenhuma", forecast)
         self.assertEqual(blocks, [
-            "Temperatura e umidade\nTemperatura: 31.0 °C\nUmidade relativa: 35%\nPonto de orvalho: 13.6 °C\n"
+            "Temperatura e umidade (1/5)\nTemperatura: 31.0 °C\nUmidade relativa: 35%\nPonto de orvalho: 13.6 °C\n"
             "Pressão: 889.6 hPa\nÍndice ultravioleta: 2.7",
-            "Luz e vento\nIluminação: 26431 lux\nRadiação solar: 203 W/m²\n"
-            "Vento mínimo / médio / rajada: 0.1/0.8/1.5 m/s\nDireção do vento: 70° ENE",
-            "Chuva\nSem chuva no momento\nPrecipitação em 1 minuto: 0.0 mm\nTaxa de chuva em 10 minutos: 0.0 mm/h\n"
+            "Luz e vento (2/5)\nIluminação: 26431 lux\nRadiação solar: 203 W/m²\n"
+            "Vento mínimo / médio / rajada: 0.4/2.9/5.4 km/h\nDireção do vento: 70° ENE",
+            "Chuva (3/5)\nSem chuva no momento\nPrecipitação em 1 minuto: 0.0 mm\nTaxa de chuva em 10 minutos: 0.0 mm/h\n"
             "Acumulado de chuva em 1 hora: 0.0 mm\nAcumulado de chuva em 24 horas: 0.0 mm",
-            "Raios\nDescargas próximas: nenhuma\nRaios detectados na última hora: 0\nÚltimo raio detectado: sem registro",
-            "Previsão do tempo\nAgora: Parcialmente nublado, 31 °C\nHoje: Ensolarado, 18 a 32 °C, chuva 10%\n"
+            "Raios (4/5)\nDescargas próximas: nenhuma\nRaios detectados na última hora: 0\nÚltimo raio detectado: sem registro",
+            "Previsão do tempo (5/5)\nAgora: Parcialmente nublado, 31 °C\nHoje: Ensolarado, 18 a 32 °C, chuva 10%\n"
             "Amanhã: Chuva, 17 a 28 °C, chuva 60%",
         ])
         config = {"template": "{{clima}}"}
@@ -71,7 +72,7 @@ class BacklogV166Tests(unittest.TestCase):
     def test_clima_without_home_assistant_keeps_tempest_blocks_and_alerts(self):
         blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW + ["ALERTA | RAIOS"])
         self.assertEqual([b.split("\n")[0] for b in blocks],
-                         ["Temperatura e umidade", "Luz e vento", "Chuva", "Raios", "Alerta meteorológico"])
+                         ["Temperatura e umidade (1/5)", "Luz e vento (2/5)", "Chuva (3/5)", "Raios (4/5)", "Alerta meteorológico (5/5)"])
         self.assertNotIn("Descargas", blocks[3])
 
     def test_home_assistant_states_and_forecast_service(self):
@@ -121,6 +122,40 @@ class BacklogV166Tests(unittest.TestCase):
                                                        key: now_ms - age * 1000}))
                     web._maybe_request_auto_update(version)
                     self.assertEqual(request_file.exists(), expect, (state, age))
+
+    def test_home_assistant_settings_from_screen_never_expose_token(self):
+        env = {"url": "http://127.0.0.1:8123", "token": "", "lightningEntity": "binary_sensor.a",
+               "forecastEntity": "weather.b"}
+        with tempfile.TemporaryDirectory() as d, \
+             mock.patch.object(web, "HOME_ASSISTANT_SETTINGS_FILE", Path(d) / "ha.json"), \
+             mock.patch.object(web, "CLIMA_HOME_ASSISTANT_ENV", env):
+            public = web._home_assistant_public()
+            self.assertFalse(public["configured"]);self.assertIn("não configurado", public["warning"])
+            with self.assertRaises(ValueError):
+                web._test_home_assistant()
+            public = web._save_home_assistant({"url": "http://192.168.0.10:8123/", "token": "abc.def",
+                                               "forecastEntity": "weather.casa"})
+            self.assertTrue(public["configured"]);self.assertEqual(public["tokenSource"], "tela")
+            self.assertNotIn("abc.def", json.dumps(public))
+            config = web._home_assistant_config()
+            self.assertEqual((config["url"], config["token"], config["forecastEntity"], config["lightningEntity"]),
+                             ("http://192.168.0.10:8123", "abc.def", "weather.casa", "binary_sensor.a"))
+            web._save_home_assistant({"url": "http://192.168.0.10:8123"})
+            self.assertEqual(web._home_assistant_config()["token"], "abc.def")
+            web._save_home_assistant({"clearToken": True})
+            self.assertFalse(web._home_assistant_public()["configured"])
+            for bad in [{"url": "ftp://x"}, {"url": "http://u:p@x"}, {"forecastEntity": "weather/../x"},
+                        {"token": "com espaço"}, {"other": 1}]:
+                with self.assertRaises(ValueError):
+                    web._save_home_assistant(bad)
+
+    def test_home_assistant_test_reports_reason(self):
+        import urllib.error
+        err = urllib.error.HTTPError("http://ha/api/states/x", 401, "Unauthorized", {}, None)
+        with mock.patch.object(meshcmd, "_ha_request", side_effect=err):
+            errors = []
+            meshcmd.fetch_home_assistant_weather("http://ha", "t", "binary_sensor.a", "weather.b", errors=errors)
+        self.assertTrue(errors and all("401" in e for e in errors))
 
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"

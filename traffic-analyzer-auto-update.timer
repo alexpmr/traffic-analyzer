@@ -1,0 +1,13 @@
+[Unit]
+Description=Traffic Analyzer - reserva para solicitações de atualização não processadas
+
+# O .path dispara o updater assim que a solicitação aparece. Este timer cobre o
+# caso em que o .path deixa de disparar: sem solicitação, o updater sai na hora.
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+RandomizedDelaySec=30s
+Unit=traffic-analyzer-auto-update.service
+
+[Install]
+WantedBy=timers.target

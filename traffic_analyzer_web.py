@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.67.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.68.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.67.0"
+APP_VERSION = "1.68.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -150,7 +150,9 @@ CLIMA_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_CLIMA_COOLDOWN_SECONDS", "
 CLIMA_API_URL = str(os.getenv("TA_CLIMA_API_URL", "http://127.0.0.1:8765/clima")).strip()
 CLIMA_REPLY_GAP_SECONDS = max(0.0, min(float(os.getenv("TA_CLIMA_REPLY_GAP_SECONDS", "8")), 60.0))
 # Home Assistant: descargas próximas (bloco Raios) e previsão do tempo (bloco Previsão) do CLIMA.
-CLIMA_HOME_ASSISTANT = {
+# Valores salvos em Automações → CLIMA têm precedência sobre o .env.
+HOME_ASSISTANT_SETTINGS_FILE = Path(os.getenv("TA_HA_SETTINGS_FILE", str(TRAFFIC_ARCHIVE_DB.parent / "home-assistant.json")))
+CLIMA_HOME_ASSISTANT_ENV = {
     "url": str(os.getenv("TA_HA_URL", "http://127.0.0.1:8123")).strip(),
     "token": str(os.getenv("TA_HA_TOKEN", "")).strip(),
     "lightningEntity": str(os.getenv("TA_HA_LIGHTNING_ENTITY", "binary_sensor.alex_rodrigues_alexpmr_gmail_com_binary_sensors_is_lightning")).strip(),
@@ -6590,6 +6592,13 @@ def _delete_local_node(node_num):
         ]:
             cur = conn.execute(sql, params)
             counts[table] = max(0, int(cur.rowcount if cur.rowcount is not None else 0))
+        # Impede que o snapshot do MeshMonitor reinsira o nó sem evidência nova.
+        conn.execute(
+            """INSERT INTO deleted_nodes(source_id,node_num,deleted_at_ms) VALUES(?,?,?)
+               ON CONFLICT(source_id,node_num) DO UPDATE SET deleted_at_ms=excluded.deleted_at_ms""",
+            (source_id, n, int(time.time() * 1000)),
+        )
+    print(f"Exclusão local do nó !{n:08x}: {counts}", flush=True)
     return {"success": True, "nodeNum": n, "deleted": counts,
             "message": "Nó removido do histórico local; poderá reaparecer se for recebido novamente."}
 
@@ -6612,6 +6621,8 @@ def _delete_node_everywhere(node_num):
         local_deleted = bool(local_result.get("success"))
     except Exception as exc:
         local_error = str(exc)[:500]
+    print(f"Exclusão do nó !{n:08x}: base local={'ok' if local_deleted else 'falhou ' + local_error}; "
+          f"dispositivo={'ok' if device_deleted else 'falhou ' + device_error}", flush=True)
     return {
         "success": bool(device_deleted and local_deleted),
         "partial": bool(device_deleted != local_deleted),
@@ -6657,6 +6668,73 @@ def _automation_events(limit=80, bot=None):
     return [dict(row) for row in rows]
 
 
+def _home_assistant_config():
+    saved = _read_json_file(HOME_ASSISTANT_SETTINGS_FILE, {})
+    config = dict(CLIMA_HOME_ASSISTANT_ENV)
+    for key in ("url", "lightningEntity", "forecastEntity", "token"):
+        value = str(saved.get(key) or "").strip()
+        if value:
+            config[key] = value
+    config["tokenSource"] = "tela" if str(saved.get("token") or "").strip() else ("env" if config["token"] else "")
+    return config
+
+
+def _home_assistant_public():
+    """Configuração exibida no navegador: o token nunca sai do servidor."""
+    config = _home_assistant_config()
+    configured = bool(config["url"] and config["token"])
+    return {"url": config["url"], "lightningEntity": config["lightningEntity"],
+            "forecastEntity": config["forecastEntity"], "tokenConfigured": bool(config["token"]),
+            "tokenSource": config["tokenSource"], "configured": configured,
+            "warning": "" if configured else
+            "Home Assistant não configurado: a linha \"Descargas próximas\" e o bloco \"Previsão do tempo\" não serão enviados. Informe URL e token abaixo."}
+
+
+def _save_home_assistant(payload: dict):
+    allowed = {"url", "lightningEntity", "forecastEntity", "token", "clearToken"}
+    if set(payload) - allowed:
+        raise ValueError("Campos do Home Assistant desconhecidos")
+    saved = _read_json_file(HOME_ASSISTANT_SETTINGS_FILE, {})
+    if "url" in payload:
+        url = str(payload["url"] or "").strip().rstrip("/")
+        parsed = urllib.parse.urlsplit(url)
+        if url and (parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username
+                    or parsed.password or parsed.query or parsed.fragment or len(url) > 256):
+            raise ValueError("URL do Home Assistant inválida (use http(s)://host:porta, sem credenciais)")
+        saved["url"] = url
+    for key in ("lightningEntity", "forecastEntity"):
+        if key in payload:
+            value = str(payload[key] or "").strip()
+            if value and not re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", value):
+                raise ValueError("Entidade inválida: " + value)
+            saved[key] = value
+    if payload.get("clearToken") is True:
+        saved["token"] = ""
+    elif str(payload.get("token") or "").strip():
+        token = str(payload["token"]).strip()
+        if len(token) > 1000 or not re.fullmatch(r"[\x21-\x7e]+", token):
+            raise ValueError("Token inválido")
+        saved["token"] = token
+    saved["updatedAtMs"] = int(time.time() * 1000)
+    _write_json_file(HOME_ASSISTANT_SETTINGS_FILE, saved)
+    try:
+        HOME_ASSISTANT_SETTINGS_FILE.chmod(0o600)
+    except OSError:
+        pass
+    return _home_assistant_public()
+
+
+def _test_home_assistant():
+    config = _home_assistant_config()
+    if not (config["url"] and config["token"]):
+        raise ValueError("Informe URL e token do Home Assistant antes de testar")
+    errors = []
+    lightning, forecast = meshcmd.fetch_home_assistant_weather(
+        config["url"], config["token"], config["lightningEntity"], config["forecastEntity"], 8.0, errors)
+    return {"success": not errors, "lightning": lightning, "forecast": forecast or [], "errors": errors,
+            "message": "Home Assistant respondeu." if not errors else "Falhas: " + "; ".join(errors)}
+
+
 def _automation_ping_sample(settings):
     return meshcmd.format_ping_message(
         destination_label=settings["label"], origin="Estação exemplo [TEST] (!00000001)",
@@ -6672,7 +6750,11 @@ def _automation_preview(bot, settings=None):
     config = settings or _automation_settings()[bot]
     if bot == "ping":
         return automgr.preview(bot, config, default_ping_text=_automation_ping_sample(config))
-    return automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"], home_assistant=CLIMA_HOME_ASSISTANT))
+    result = automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"], home_assistant=_home_assistant_config()))
+    warning = _home_assistant_public()["warning"]
+    if warning:
+        result["warnings"] = [warning]
+    return result
 
 
 def _automation_test_send(bot):
@@ -6912,10 +6994,13 @@ def _mesh_command_handle(row: dict, command: str, send_func=None):
 
     if command == "clima":
         try:
-            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"], home_assistant=CLIMA_HOME_ASSISTANT)
+            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"], home_assistant=_home_assistant_config())
             parts = automgr.preview("clima", cfg, clima_responses=responses)["parts"]
             sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=cfg["replyGapSeconds"])
-            _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))
+            detail = f"{len(sent)}/{len(parts)} blocos aceitos para envio"
+            if not _home_assistant_public()["configured"]:
+                detail += "; Home Assistant não configurado: sem descargas próximas e previsão"
+            _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent), detail=detail)
         except Exception as exc:
             fallback = "CLIMA indisponível no momento."
             try:
@@ -8516,6 +8601,13 @@ def _archive_init():
         CREATE INDEX IF NOT EXISTS idx_mesh_command_time ON mesh_command_events(processed_at);
         CREATE INDEX IF NOT EXISTS idx_mesh_command_sender ON mesh_command_events(from_node,command,processed_at);
 
+        CREATE TABLE IF NOT EXISTS deleted_nodes (
+          source_id TEXT NOT NULL,
+          node_num INTEGER NOT NULL,
+          deleted_at_ms INTEGER NOT NULL,
+          PRIMARY KEY(source_id,node_num)
+        );
+
         CREATE TABLE IF NOT EXISTS topology_nodes (
           source_id TEXT NOT NULL,
           node_num INTEGER NOT NULL,
@@ -8745,9 +8837,94 @@ def _topology_event_key(source_id, edge_id, timestamp_ms, leg, trace_id, snr, tr
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _topology_node_evidence(topology: dict):
+    """Momento da observação mais recente de cada nó no snapshot (lastHeard, enlaces e traceroutes)."""
+    seen = {}
+
+    def note(num, ts):
+        try:
+            num = int(num) & 0xffffffff
+        except Exception:
+            return
+        if ts:
+            seen[num] = max(seen.get(num, 0), int(ts))
+
+    for node in topology.get("nodes", []) or []:
+        if isinstance(node, dict):
+            note(node.get("nodeNum"), _history_ts_ms(node.get("lastHeard")))
+    for edge in topology.get("edges", []) or []:
+        if not isinstance(edge, dict):
+            continue
+        ts = _history_ts_ms(edge.get("lastSeenMs"))
+        for ev in edge.get("events", []) or []:
+            if isinstance(ev, dict):
+                ts = max(ts, _history_ts_ms(ev.get("timestampMs")))
+        note(edge.get("a"), ts); note(edge.get("b"), ts)
+    for tr in topology.get("traces", []) or []:
+        if not isinstance(tr, dict):
+            continue
+        ts = _history_ts_ms(tr.get("timestampMs") or tr.get("timestamp") or tr.get("createdAt"))
+        note(tr.get("fromNodeNum"), ts); note(tr.get("toNodeNum"), ts)
+        for key in ("forwardPath", "returnPath"):
+            for point in tr.get(key, []) or []:
+                if isinstance(point, dict):
+                    note(point.get("nodeNum"), ts)
+    return seen
+
+
+def _apply_node_tombstones(topology: dict):
+    """Remove do snapshot os nós excluídos pelo administrador.
+
+    O MeshMonitor continua listando o nó após a exclusão local; sem este filtro,
+    a próxima leitura do topology.json o reinseria. O nó só volta com evidência
+    real posterior à exclusão, e então o registro de exclusão é descartado.
+    """
+    if not isinstance(topology, dict):
+        return topology
+    source_id = str(topology.get("sourceId") or MM_SOURCE)
+    with _archive_connect() as conn:
+        rows = conn.execute("SELECT node_num,deleted_at_ms FROM deleted_nodes WHERE source_id=?", (source_id,)).fetchall()
+        if not rows:
+            return topology
+        evidence = _topology_node_evidence(topology)
+        hidden = set()
+        for row in rows:
+            num = int(row["node_num"])
+            if evidence.get(num, 0) > int(row["deleted_at_ms"]):
+                conn.execute("DELETE FROM deleted_nodes WHERE source_id=? AND node_num=?", (source_id, num))
+                print(f"Nó !{num:08x} reapareceu com evidência posterior à exclusão.", flush=True)
+            else:
+                hidden.add(num)
+        conn.commit()
+    if not hidden:
+        return topology
+
+    def num_of(value):
+        try:
+            return int(value) & 0xffffffff
+        except Exception:
+            return None
+
+    def trace_nodes(tr):
+        nums = {num_of(tr.get("fromNodeNum")), num_of(tr.get("toNodeNum"))}
+        for key in ("forwardPath", "returnPath"):
+            nums.update(num_of(p.get("nodeNum")) for p in tr.get(key, []) or [] if isinstance(p, dict))
+        return nums
+
+    filtered = dict(topology)
+    filtered["nodes"] = [n for n in topology.get("nodes", []) or []
+                         if not (isinstance(n, dict) and num_of(n.get("nodeNum")) in hidden)]
+    filtered["edges"] = [e for e in topology.get("edges", []) or []
+                         if not (isinstance(e, dict) and {num_of(e.get("a")), num_of(e.get("b"))} & hidden)]
+    filtered["traces"] = [t for t in topology.get("traces", []) or []
+                          if not (isinstance(t, dict) and trace_nodes(t) & hidden)]
+    return filtered
+
+
 def _topology_history_ingest(topology: dict):
     if not isinstance(topology, dict):
         return {"nodes": 0, "events": 0}
+    topology = _apply_node_tombstones(topology)
     source_id = str(topology.get("sourceId") or MM_SOURCE)
     generated_ms = _history_ts_ms(topology.get("generatedAtMs"), int(time.time() * 1000))
     node_count = 0
@@ -9524,6 +9701,7 @@ def _topology_history_merge(raw: dict):
     if not isinstance(raw, dict):
         return {}
     try:
+        raw = _apply_node_tombstones(raw)
         _topology_history_ingest(raw)
         source_id = str(raw.get("sourceId") or MM_SOURCE)
         current_nums = set()
@@ -11639,7 +11817,8 @@ class Handler(BaseHTTPRequestHandler):
                         "liveStatus": _mesh_command_live_status(),
                         "items": [{"id": "ping", "name": "PING"}, {"id": "clima", "name": "CLIMA"}],
                         "events": _automation_events(60),
-                        "firmwareNotices":{"settings":_automatic_notice_settings(),"state":_automatic_notice_state()}}
+                        "firmwareNotices":{"settings":_automatic_notice_settings(),"state":_automatic_notice_state()},
+                        "homeAssistant":_home_assistant_public()}
                 self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
@@ -12155,6 +12334,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode('utf-8'))
             except Exception as exc:
                 self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(exc)}).encode('utf-8'))
+            return
+        if path in ("/api/home-assistant", "/api/home-assistant/test"):
+            try:
+                length=int(self.headers.get("Content-Length","0") or 0)
+                if length<=0 or length>4096: raise ValueError("Corpo da requisição inválido")
+                payload=json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload,dict): raise ValueError("Corpo da requisição inválido")
+                if path == "/api/home-assistant":
+                    body={"success":True,"homeAssistant":_save_home_assistant(payload)}
+                else:
+                    body=_test_home_assistant()
+                self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/automatic-notices/firmware-announce":
             try:

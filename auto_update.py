@@ -33,6 +33,7 @@ UNITS = [
     "traffic-analyzer-map.service",
     "traffic-analyzer-auto-update.service",
     "traffic-analyzer-auto-update.path",
+    "traffic-analyzer-auto-update.timer",
 ]
 SBIN_FILES = ["traffic-analyzer-update"]
 HEALTH_TIMEOUT = 75
@@ -171,6 +172,7 @@ def restore_backup(backup: Path) -> None:
     subprocess.run(["systemctl", "daemon-reload"], check=False)
     subprocess.run(["systemctl", "enable", "--now", "traffic-analyzer.timer"], check=False)
     subprocess.run(["systemctl", "enable", "--now", "traffic-analyzer-auto-update.path"], check=False)
+    subprocess.run(["systemctl", "enable", "--now", "traffic-analyzer-auto-update.timer"], check=False)
     subprocess.run(["systemctl", "restart", "traffic-analyzer-map.service"], check=False)
 
 

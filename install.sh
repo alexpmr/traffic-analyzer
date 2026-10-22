@@ -6,7 +6,7 @@ if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
   exit 1
 fi
 
-VERSION="1.67.0"
+VERSION="1.68.0"
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="/opt/traffic-analyzer"
 ENV_FILE="/etc/traffic-analyzer.env"
@@ -217,6 +217,7 @@ install -m 0644 "$BASE_DIR/traffic-analyzer.timer" /etc/systemd/system/
 install -m 0644 "$BASE_DIR/traffic-analyzer-map.service" /etc/systemd/system/
 install -m 0644 "$BASE_DIR/traffic-analyzer-auto-update.service" /etc/systemd/system/
 install -m 0644 "$BASE_DIR/traffic-analyzer-auto-update.path" /etc/systemd/system/
+install -m 0644 "$BASE_DIR/traffic-analyzer-auto-update.timer" /etc/systemd/system/
 
 # Evita dois servicos executando consultas ou disputando a porta 8788.
 systemctl disable --now meshmonitor-route-discovery.timer 2>/dev/null || true
@@ -234,7 +235,10 @@ fi
 
 systemctl daemon-reload
 systemctl enable --now traffic-analyzer.timer
+# Reabilita o .path mesmo se ele tiver entrado em falha (ex.: limite de disparos).
+systemctl reset-failed traffic-analyzer-auto-update.path 2>/dev/null || true
 systemctl enable --now traffic-analyzer-auto-update.path
+systemctl enable --now traffic-analyzer-auto-update.timer
 
 # Gera topology.json sem transmitir NodeInfo durante a atualizacao.
 set -a

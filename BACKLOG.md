@@ -1,5 +1,7 @@
 ## P2 — CLIMA: velocidade do vento em km/h — 22/10/2026
 
+- **Concluído na v1.68.0:** vento convertido para km/h.
+
 - **Pedido:** exibir o vento do CLIMA em **km/h** em vez de m/s.
 - Hoje a API Tempest local envia `min/med/raj 0.7/1.0/1.8m/s`, e `mesh_commands._expand_clima_segment` só formata como "Vento mínimo / médio / rajada: 0.7/1.0/1.8 m/s".
 - Converter cada valor (× 3,6) com 1 casa decimal, por exemplo `0.7/1.0/1.8 m/s` → `2.5/3.6/6.5 km/h`, e manter o texto original caso algum valor não seja numérico.
@@ -7,6 +9,8 @@
 - **Teste de regressão:** conversão dos três valores, arredondamento, e bloco Luz e vento continuando abaixo de 200 bytes.
 
 ## P1 — CLIMA não enviou o último bloco (Previsão do tempo) — 22/10/2026
+
+- **Concluído na v1.68.0:** Home Assistant configurável e testável em Automações → CLIMA; aviso quando não configurado (tela, prévia e histórico); histórico com blocos aceitos; blocos numerados no título. **Pendente de campo:** confirmar se a ordem de entrega na malha melhora; numeração já deixa a sequência explícita.
 
 - **Relato de campo (v1.67.0):** a automação CLIMA enviou os blocos anteriores, mas não o bloco 5, **Previsão do tempo**.
 - **Causa mais provável:** sem `TA_HA_TOKEN` (ou com `TA_HA_URL` vazio) em `/etc/traffic-analyzer-map.env`, o bloco 5 e a linha "Descargas próximas" do bloco Raios são **omitidos em silêncio**, por desenho da v1.67.0. Se o bloco Raios também veio sem "Descargas próximas", a causa é essa.
@@ -20,6 +24,8 @@
 - **Critério de aceite:** com o Home Assistant configurado, CLIMA envia os 5 blocos; sem configuração, o administrador vê o motivo na interface antes de testar por RF.
 
 ## P0 — Pedido de exclusão de nó não funciona (Mapa e Nós) — 18/10/2026, reforçado em 22/10/2026
+
+- **Corrigido na v1.68.0:** hipótese 1 confirmada no código: `/api/topology` reinseria o nó a partir do `topology.json` do MeshMonitor. A exclusão agora grava `deleted_nodes` com o horário; snapshots sem evidência posterior são filtrados (nó, enlaces e traceroutes) e o nó só volta com evidência nova. Resultado por etapa registrado no log. **Pendente de campo:** confirmar se o Virtual Node repassa `removeNode` ao rádio físico (hipótese 2).
 
 - **Relato de 22/10/2026 (v1.67.0):** o pedido de excluir nó **não funciona**: o nó não sai, mesmo após confirmar a ação. O problema não se limita à atualização visual descrita abaixo.
 - Ações envolvidas: **🗑 Excluir da base e do dispositivo** (`POST /api/node-delete-everywhere`) e **🗑 Excluir nó do banco local** (`POST /api/node-local-delete`), no menu de contexto do Mapa e da aba Nós.
@@ -47,6 +53,12 @@
 - Verificar se o `load(false)` atual reaplica um snapshot antigo do MeshMonitor logo após apagar do SQLite e, nesse caso, evitar que a resposta obsoleta reintroduza o nó na mesma atualização.
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
+
+## v1.68.0 — Exclusão de nó, Home Assistant pela tela e update robusto
+
+- **Concluído:** exclusão de nó não é desfeita pelo snapshot do MeshMonitor.
+- **Concluído:** Home Assistant configurável/testável em Automações → CLIMA; vento em km/h; blocos numerados.
+- **Concluído:** solicitação de update presa expira; timer de reserva para o updater.
 
 ## v1.67.0 — CLIMA em blocos e anúncio manual de firmware
 
