@@ -168,6 +168,10 @@ _update_watch_stop = threading.Event()
 _notice_lock = threading.Lock()
 ELEVATION_TILE_BASE_URL = str(os.getenv("TA_ELEVATION_TILE_BASE_URL", "https://s3.amazonaws.com/elevation-tiles-prod/terrarium")).strip().rstrip("/")
 AUTO_UPDATE_RETRY_BACKOFF_SECONDS = 6 * 3600
+# Solicitação sem progresso do updater (path unit não disparou ou execução interrompida)
+# não pode bloquear para sempre a atualização automática ao abrir a página.
+AUTO_UPDATE_PENDING_STALE_SECONDS = 10 * 60
+AUTO_UPDATE_RUNNING_STALE_SECONDS = 30 * 60
 
 AUTH_ENABLED = str(os.getenv("TA_AUTH_ENABLED", "false")).strip().lower() in {"1", "true", "yes", "on"}
 AUTH_USER = str(os.getenv("TA_AUTH_USER", "admin")).strip() or "admin"
@@ -11445,7 +11449,10 @@ def _maybe_request_auto_update(version_data: dict):
     state = str(status.get("state") or "")
     if str(status.get("targetVersion") or "") == target:
         if state in {"pending", "running"}:
-            return
+            started = float(status.get("startedAtMs") or status.get("requestedAtMs") or 0) / 1000.0
+            limit = AUTO_UPDATE_PENDING_STALE_SECONDS if state == "pending" else AUTO_UPDATE_RUNNING_STALE_SECONDS
+            if started and time.time() - started < limit:
+                return
         if state in {"failed", "rolled_back"}:
             completed = float(status.get("completedAtMs") or 0) / 1000.0
             if completed and time.time() - completed < AUTO_UPDATE_RETRY_BACKOFF_SECONDS:
