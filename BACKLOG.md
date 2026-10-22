@@ -1,3 +1,14 @@
+## P1 — CLIMA não enviou o último bloco (Previsão do tempo) — 22/10/2026
+
+- **Relato de campo (v1.67.0):** a automação CLIMA enviou os blocos anteriores, mas não o bloco 5, **Previsão do tempo**.
+- **Causa mais provável:** sem `TA_HA_TOKEN` (ou com `TA_HA_URL` vazio) em `/etc/traffic-analyzer-map.env`, o bloco 5 e a linha "Descargas próximas" do bloco Raios são **omitidos em silêncio**, por desenho da v1.67.0. Se o bloco Raios também veio sem "Descargas próximas", a causa é essa.
+- Quando o Home Assistant está configurado mas falha, o bloco é enviado como "Previsão indisponível". Portanto, ausência total do bloco indica integração não configurada, serviço não reiniciado após configurar o token, ou falha no envio da 5ª mensagem (conferir Automações → Histórico e diagnóstico).
+- **Correção proposta:**
+  1. Não omitir em silêncio: com o Home Assistant não configurado, mostrar aviso claro em Automações → CLIMA (e na prévia), indicando as variáveis que faltam.
+  2. Permitir configurar URL, token (somente gravação, nunca exibido) e entidades pela própria tela de Automações, sem editar o arquivo `.env` nem reiniciar o serviço.
+  3. Registrar no histórico de automações quantos blocos foram gerados e quantos foram aceitos, para diferenciar "não gerado" de "não transmitido".
+- **Critério de aceite:** com o Home Assistant configurado, CLIMA envia os 5 blocos; sem configuração, o administrador vê o motivo na interface antes de testar por RF.
+
 ## P0 — Pedido de exclusão de nó não funciona (Mapa e Nós) — 18/10/2026, reforçado em 22/10/2026
 
 - **Relato de 22/10/2026 (v1.67.0):** o pedido de excluir nó **não funciona**: o nó não sai, mesmo após confirmar a ação. O problema não se limita à atualização visual descrita abaixo.
