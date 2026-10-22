@@ -1,6 +1,10 @@
-# Traffic Analyzer v1.70.0
+# Traffic Analyzer v1.70.1
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.70.1
+
+- CLIMA: a linha do bloco Raios vinda da entidade `binary_sensor…_is_lightning` do Home Assistant passa a indicar a segurança: **Raios próximos: não, situação segura** ou **Raios próximos: SIM, situação de risco** (antes "Descargas próximas: nenhuma/detectadas"). Requer URL e token do Home Assistant em Automações → CLIMA.
 
 ## Novidades da v1.70.0
 

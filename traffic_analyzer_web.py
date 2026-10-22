@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.70.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.70.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.70.0"
+APP_VERSION = "1.70.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6923,7 +6923,7 @@ def _home_assistant_public():
             "forecastLocation": {"latitude": lat, "longitude": lon, "origin": origin},
             "forecastSource": "Home Assistant (Open-Meteo se falhar)" if configured else "Open-Meteo",
             "warning": "" if configured else
-            "Home Assistant não configurado: a linha \"Descargas próximas\" não será enviada. A previsão do tempo vem do Open-Meteo."}
+            "Home Assistant não configurado: a linha \"Raios próximos\" (segurança) não será enviada. A previsão do tempo vem do Open-Meteo."}
 
 
 def _save_home_assistant(payload: dict):
@@ -6981,7 +6981,7 @@ def _test_home_assistant():
         lightning, forecast = meshcmd.fetch_home_assistant_weather(
             config["url"], config["token"], config["lightningEntity"], config["forecastEntity"], 8.0, errors)
     else:
-        errors.append("Home Assistant não configurado (sem \"Descargas próximas\")")
+        errors.append("Home Assistant não configurado (sem \"Raios próximos\")")
     source = "Home Assistant"
     if not forecast or forecast == ["Previsão indisponível"]:
         lat, lon, origin = _forecast_location()

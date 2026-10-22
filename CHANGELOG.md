@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.70.1 - 2026-10-22
+
+- CLIMA: a linha do bloco Raios vinda da entidade `binary_sensor…_is_lightning` do Home Assistant passa a indicar a segurança: Raios próximos: não, situação segura ou Raios próximos: SIM, situação de risco (antes "Descargas próximas: nenhuma/detectadas"). Requer URL e token do Home Assistant em Automações → CLIMA.
+
 ## 1.70.0 - 2026-10-22
 
 - Aba Nós com seleção múltipla: um clique seleciona ou desmarca o nó; Shift+clique seleciona um intervalo; a caixa do cabeçalho seleciona todos os nós do filtro atual. A seleção se mantém ao ordenar, filtrar e atualizar.

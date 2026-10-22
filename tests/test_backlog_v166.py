@@ -52,7 +52,7 @@ class BacklogV166Tests(unittest.TestCase):
                  {"datetime": "2026-10-23T15:00:00+00:00", "condition": "rainy", "temperature": 28.4, "templow": 17,
                   "precipitation_probability": 60}]
         forecast = meshcmd.format_forecast(state, daily, today=dt.date(2026, 10, 22))
-        blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW, "nenhuma", forecast)
+        blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW, "não, situação segura", forecast)
         self.assertEqual(blocks, [
             "Temperatura e umidade (1/5)\nTemperatura: 31.0 °C\nUmidade relativa: 35%\nPonto de orvalho: 13.6 °C\n"
             "Pressão: 889.6 hPa\nÍndice ultravioleta: 2.7",
@@ -60,7 +60,7 @@ class BacklogV166Tests(unittest.TestCase):
             "Vento mínimo / médio / rajada: 0.4/2.9/5.4 km/h\nDireção do vento: 70° ENE",
             "Chuva (3/5)\nSem chuva no momento\nPrecipitação em 1 minuto: 0.0 mm\nTaxa de chuva em 10 minutos: 0.0 mm/h\n"
             "Acumulado de chuva em 1 hora: 0.0 mm\nAcumulado de chuva em 24 horas: 0.0 mm",
-            "Raios (4/5)\nDescargas próximas: nenhuma\nRaios detectados na última hora: 0\nÚltimo raio detectado: sem registro",
+            "Raios (4/5)\nRaios próximos: não, situação segura\nRaios detectados na última hora: 0\nÚltimo raio detectado: sem registro",
             "Previsão do tempo (5/5)\nAgora: Parcialmente nublado, 31 °C\nHoje: Ensolarado, 18 a 32 °C, chuva 10%\n"
             "Amanhã: Chuva, 17 a 28 °C, chuva 60%",
         ])
@@ -73,7 +73,7 @@ class BacklogV166Tests(unittest.TestCase):
         blocks = meshcmd.build_clima_blocks(self.CLIMA_RAW + ["ALERTA | RAIOS"])
         self.assertEqual([b.split("\n")[0] for b in blocks],
                          ["Temperatura e umidade (1/5)", "Luz e vento (2/5)", "Chuva (3/5)", "Raios (4/5)", "Alerta meteorológico (5/5)"])
-        self.assertNotIn("Descargas", blocks[3])
+        self.assertNotIn("Raios próximos", blocks[3])
 
     def test_home_assistant_states_and_forecast_service(self):
         lightning_entity = "binary_sensor.is_lightning"
@@ -92,7 +92,7 @@ class BacklogV166Tests(unittest.TestCase):
         with mock.patch.object(meshcmd, "_ha_request", side_effect=fake):
             lightning, forecast = meshcmd.fetch_home_assistant_weather(
                 "http://ha:8123", "t", lightning_entity, forecast_entity)
-        self.assertEqual(lightning, "detectadas")
+        self.assertEqual(lightning, "SIM, situação de risco")
         self.assertEqual(forecast[0], "Agora: Chuva, 22 °C")
         self.assertIn("Chuva forte, 19 a 25 °C", forecast[1])
         self.assertEqual(calls[-1][1], {"entity_id": forecast_entity, "type": "daily"})

@@ -1,4 +1,4 @@
-/* Traffic Analyzer v1.70.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
+/* Traffic Analyzer v1.70.1 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
 (function(){
 'use strict';
 const css = [
@@ -149,7 +149,7 @@ function formHtml(bot,conf){
 function homeAssistantHtml(){
  const ha=data?.homeAssistant||{},loc=ha.forecastLocation||{};
  const status=ha.configured?'Configurado'+(ha.tokenSource==='env'?' pelo arquivo .env':''):'Não configurado';
- return '<div class="autoTop" style="margin-top:18px"><h3>Descargas próximas (Home Assistant) e previsão do tempo</h3>'+
+ return '<div class="autoTop" style="margin-top:18px"><h3>Raios próximos: segurança (Home Assistant) e previsão do tempo</h3>'+
   '<span class="autoState '+(ha.configured?'ok':'off')+'">'+e(status)+'</span></div>'+
   (ha.warning?'<div class="autoBanner">'+e(ha.warning)+'</div>':'')+
   '<div class="autoForm">'+
@@ -183,7 +183,7 @@ async function testHomeAssistant(){
  try{
   const r=await authFetch('/api/home-assistant/test',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   const b=await r.json();if(!r.ok)throw Error(b.message||'HTTP '+r.status);
-  el('haResult').textContent=(b.success?'✓ ':'⚠ ')+b.message+'\n\nDescargas próximas: '+(b.lightning??'—')+'\n'+(b.forecast||[]).join('\n');
+  el('haResult').textContent=(b.success?'✓ ':'⚠ ')+b.message+'\n\nRaios próximos: '+(b.lightning??'—')+'\n'+(b.forecast||[]).join('\n');
  }catch(ex){el('haResult').textContent='Erro: '+String(ex.message||ex);}
  finally{btn.disabled=false;}
 }

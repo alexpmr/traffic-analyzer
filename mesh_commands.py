@@ -216,7 +216,7 @@ _HA_ENTITY = re.compile(r"^[a-z_]+\.[a-z0-9_]+$")
 def build_clima_blocks(responses, lightning=None, forecast=None) -> list[str]:
     """Organiza as respostas compactas da API CLIMA nos blocos enviados pela malha.
 
-    ``lightning`` é o texto de "Descargas próximas" e ``forecast`` as linhas da
+    ``lightning`` é a situação de "Raios próximos" e ``forecast`` as linhas da
     previsão; ambos vêm do Home Assistant e são omitidos quando ``None``.
     Mensagens que não pertencem a uma seção conhecida (alertas) viram blocos extras.
     """
@@ -240,7 +240,7 @@ def build_clima_blocks(responses, lightning=None, forecast=None) -> list[str]:
             if line and not line.startswith(_CLIMA_DROPPED):
                 blocks[index].append(line)
     if lightning is not None:
-        blocks[3].insert(0, "Descargas próximas: " + str(lightning))
+        blocks[3].insert(0, "Raios próximos: " + str(lightning))
     if forecast:
         blocks[4].extend(str(x) for x in forecast if str(x).strip())
     out = ["\n".join([CLIMA_BLOCK_TITLES[i]] + lines) for i, lines in enumerate(blocks) if lines] + extras
@@ -379,7 +379,8 @@ def fetch_home_assistant_weather(base: str, token: str, lightning_entity: str, f
     if lightning_entity and _HA_ENTITY.match(lightning_entity):
         try:
             state = str(_ha_request(base, token, "/api/states/" + lightning_entity, timeout).get("state") or "")
-            lightning = {"on": "detectadas", "off": "nenhuma"}.get(state, "indisponível")
+            # A entidade indica se há raios próximos (on = risco, off = seguro).
+            lightning = {"on": "SIM, situação de risco", "off": "não, situação segura"}.get(state, "indisponível")
             if lightning == "indisponível":
                 errors.append(f"{lightning_entity}: estado '{state}'")
         except Exception as exc:
