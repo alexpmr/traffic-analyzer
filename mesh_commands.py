@@ -7,6 +7,7 @@ import datetime as _dt
 import json
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 
 
@@ -271,13 +272,14 @@ def _num(value):
     return f"{number:.0f}"
 
 
-def format_forecast(state: dict, daily: list, today: _dt.date | None = None) -> list[str]:
+def format_forecast(state: dict, daily: list, today: _dt.date | None = None, conditions: dict | None = None) -> list[str]:
     """Linhas curtas: condição atual e previsão diária de hoje e amanhã."""
     today = today or _dt.date.today()
+    conditions = HA_CONDITIONS if conditions is None else conditions
     attrs = state.get("attributes") or {}
     unit = attrs.get("temperature_unit") or "°C"
     lines = []
-    condition = HA_CONDITIONS.get(str(state.get("state") or ""), "")
+    condition = conditions.get(str(state.get("state") or ""), "")
     temp = _num(attrs.get("temperature"))
     if condition or temp:
         lines.append("Agora: " + ", ".join(x for x in (condition, f"{temp} {unit}" if temp else "") if x))
@@ -292,7 +294,7 @@ def format_forecast(state: dict, daily: list, today: _dt.date | None = None) -> 
             continue
         label = "Hoje" if day == today else "Amanhã" if day == today + _dt.timedelta(days=1) \
             else f"{_WEEKDAYS[day.weekday()]} {day:%d/%m}"
-        parts = [HA_CONDITIONS.get(str(item.get("condition") or ""), "")]
+        parts = [conditions.get(str(item.get("condition") or ""), "")]
         high, low = _num(item.get("temperature")), _num(item.get("templow"))
         if high and low:
             parts.append(f"{low} a {high} {unit}")
@@ -303,6 +305,55 @@ def format_forecast(state: dict, daily: list, today: _dt.date | None = None) -> 
             parts.append(f"chuva {rain}%")
         lines.append(label + ": " + ", ".join(x for x in parts if x))
     return lines
+
+
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+# Códigos WMO usados pelo Open-Meteo.
+WMO_CONDITIONS = {
+    "0": "Céu limpo", "1": "Predomínio de sol", "2": "Parcialmente nublado", "3": "Nublado",
+    "45": "Neblina", "48": "Neblina", "51": "Garoa fraca", "53": "Garoa", "55": "Garoa forte",
+    "56": "Garoa congelante", "57": "Garoa congelante", "61": "Chuva fraca", "63": "Chuva", "65": "Chuva forte",
+    "66": "Chuva congelante", "67": "Chuva congelante", "71": "Neve", "73": "Neve", "75": "Neve", "77": "Neve",
+    "80": "Pancadas fracas", "81": "Pancadas de chuva", "82": "Pancadas fortes", "85": "Neve", "86": "Neve",
+    "95": "Trovoadas", "96": "Trovoadas com granizo", "99": "Trovoadas com granizo",
+}
+
+
+def fetch_open_meteo_forecast(latitude: float, longitude: float, timeout: float = 6.0,
+                              errors: list | None = None, today: _dt.date | None = None) -> list[str] | None:
+    """Previsão sem chave de API (Open-Meteo): condição atual, hoje e amanhã."""
+    errors = [] if errors is None else errors
+    try:
+        lat, lon = float(latitude), float(longitude)
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError("coordenadas fora do intervalo")
+        query = urllib.parse.urlencode({
+            "latitude": f"{lat:.4f}", "longitude": f"{lon:.4f}", "timezone": "auto", "forecast_days": 3,
+            "current": "temperature_2m,weather_code",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+        })
+        req = urllib.request.Request(OPEN_METEO_URL + "?" + query, headers={"User-Agent": "TrafficAnalyzer-MeshCommands/1"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = json.loads(resp.read(200_001))
+        current, daily = body.get("current") or {}, body.get("daily") or {}
+        state = {"state": str(current.get("weather_code", "")),
+                 "attributes": {"temperature": current.get("temperature_2m"), "temperature_unit": "°C"}}
+        column = lambda key: list(daily.get(key) or [])
+        times = column("time")
+        pad = lambda values: values + [None] * (len(times) - len(values))
+        days = [{"datetime": t, "condition": "" if c is None else str(c), "temperature": hi, "templow": lo,
+                 "precipitation_probability": rain}
+                for t, c, hi, lo, rain in zip(times, pad(column("weather_code")), pad(column("temperature_2m_max")),
+                                              pad(column("temperature_2m_min")), pad(column("precipitation_probability_max")))]
+        lines = format_forecast(state, days, today=today, conditions=WMO_CONDITIONS)
+        if not lines:
+            raise ValueError("resposta sem previsão")
+        return lines
+    except Exception as exc:
+        reason = f"HTTP {exc.code}" if isinstance(exc, urllib.error.HTTPError) else \
+            f"inacessível: {exc.reason}" if isinstance(exc, urllib.error.URLError) else str(exc)[:200]
+        errors.append("Open-Meteo: " + reason)
+        return None
 
 
 def _ha_error(exc) -> str:
@@ -354,7 +405,8 @@ def fetch_home_assistant_weather(base: str, token: str, lightning_entity: str, f
     return lightning, forecast
 
 
-def fetch_clima_responses(url: str, timeout: float = 6.0, home_assistant: dict | None = None) -> list[str]:
+def fetch_clima_responses(url: str, timeout: float = 6.0, home_assistant: dict | None = None,
+                          forecast_location: tuple | None = None) -> list[str]:
     req = urllib.request.Request(str(url), headers={"User-Agent": "TrafficAnalyzer-MeshCommands/1"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read().decode("utf-8")
@@ -367,6 +419,9 @@ def fetch_clima_responses(url: str, timeout: float = 6.0, home_assistant: dict |
     if ha.get("url") and ha.get("token"):
         lightning, forecast = fetch_home_assistant_weather(
             ha["url"], ha["token"], ha.get("lightningEntity", ""), ha.get("forecastEntity", ""), timeout)
+    # Sem previsão do Home Assistant, usa o Open-Meteo (não exige conta nem token).
+    if forecast_location and (not forecast or forecast == ["Previsão indisponível"]):
+        forecast = fetch_open_meteo_forecast(*forecast_location, timeout=timeout) or forecast
     out = build_clima_blocks([str(x) for x in responses if str(x).strip()], lightning, forecast)
     if not out:
         raise RuntimeError("API de clima não retornou mensagens")

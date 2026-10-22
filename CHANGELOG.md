@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.69.0 - 2026-10-22
+
+- Previsão do tempo sem Home Assistant: o bloco Previsão do tempo do CLIMA passa a usar o Open-Meteo (gratuito, sem conta nem token) quando o Home Assistant não está configurado ou não responde. Traz condição atual, hoje e amanhã com mínima, máxima e chance de chuva.
+- Local da previsão: coordenadas informadas em Automações → CLIMA ou, em branco, a posição do nó local (VHF3) na topologia, com Brasília como reserva.
+- O botão Testar raios e previsão mostra de qual fonte a previsão veio e o motivo de falhas, sem transmitir. O histórico registra quando a previsão não pôde ser obtida.
+- "Descargas próximas" continua dependendo do Home Assistant.
+- Testes de regressão para Open-Meteo, prioridade entre fontes e localização da previsão.
+
 ## 1.68.0 - 2026-10-22
 
 - Exclusão de nó corrigida: o nó excluído pelo Mapa ou pela aba Nós não volta mais na próxima leitura do MeshMonitor. A exclusão registra o horário, e o nó só reaparece com evidência real recebida depois dela (lastHeard, enlace ou traceroute novos). O resultado de cada etapa (base local e dispositivo) fica no log do serviço.

@@ -1,4 +1,4 @@
-/* Traffic Analyzer v1.68.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
+/* Traffic Analyzer v1.69.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
 (function(){
 'use strict';
 const css = [
@@ -147,9 +147,9 @@ function formHtml(bot,conf){
   (ping?'':homeAssistantHtml());
 }
 function homeAssistantHtml(){
- const ha=data?.homeAssistant||{};
+ const ha=data?.homeAssistant||{},loc=ha.forecastLocation||{};
  const status=ha.configured?'Configurado'+(ha.tokenSource==='env'?' pelo arquivo .env':''):'Não configurado';
- return '<div class="autoTop" style="margin-top:18px"><h3>Home Assistant: descargas próximas e previsão do tempo</h3>'+
+ return '<div class="autoTop" style="margin-top:18px"><h3>Descargas próximas (Home Assistant) e previsão do tempo</h3>'+
   '<span class="autoState '+(ha.configured?'ok':'off')+'">'+e(status)+'</span></div>'+
   (ha.warning?'<div class="autoBanner">'+e(ha.warning)+'</div>':'')+
   '<div class="autoForm">'+
@@ -158,22 +158,28 @@ function homeAssistantHtml(){
   '<span class="autoHint">O token fica só no servidor e nunca é exibido.</span></label>'+
   '<label class="autoField">Entidade de raios (binary_sensor)<input id="haLightning" maxlength="200" value="'+e(ha.lightningEntity||'')+'"></label>'+
   '<label class="autoField">Entidade de previsão (weather)<input id="haForecast" maxlength="200" value="'+e(ha.forecastEntity||'')+'"></label></div>'+
-  '<div class="autoToolbar"><button id="haSave" type="button">Salvar Home Assistant</button>'+
-  '<button id="haTest" type="button">Testar Home Assistant</button>'+
+  '<p class="autoInfo">Previsão do tempo: <b>'+e(ha.forecastSource||'Open-Meteo')+'</b>. O Open-Meteo não exige conta nem token. Local: '+
+  e(loc.origin||'—')+' ('+e(Number(loc.latitude).toFixed(4))+', '+e(Number(loc.longitude).toFixed(4))+').</p>'+
+  '<div class="autoForm"><label class="autoField">Latitude da previsão<input id="fcLat" inputmode="decimal" placeholder="automático" value="'+e(ha.forecastLatitude??'')+'"></label>'+
+  '<label class="autoField">Longitude da previsão<input id="fcLon" inputmode="decimal" placeholder="automático" value="'+e(ha.forecastLongitude??'')+'">'+
+  '<span class="autoHint">Em branco: posição do nó local na topologia ou Brasília.</span></label></div>'+
+  '<div class="autoToolbar"><button id="haSave" type="button">Salvar</button>'+
+  '<button id="haTest" type="button">Testar raios e previsão</button>'+
   (ha.tokenSource==='tela'?'<button id="haClear" type="button">Remover token salvo</button>':'')+'</div>'+
-  '<pre id="haResult" class="autoResult">Teste consulta o Home Assistant sem transmitir nada.</pre>';
+  '<pre id="haResult" class="autoResult">O teste consulta as fontes sem transmitir nada.</pre>';
 }
 async function saveHomeAssistant(extra){
  if(!authCanWrite()){openAuthModal();return;}
- const payload={url:el('haUrl').value,lightningEntity:el('haLightning').value,forecastEntity:el('haForecast').value,...extra};
+ const payload={url:el('haUrl').value,lightningEntity:el('haLightning').value,forecastEntity:el('haForecast').value,
+  forecastLatitude:el('fcLat').value.trim(),forecastLongitude:el('fcLon').value.trim(),...extra};
  const token=el('haToken').value.trim();if(token&&!extra)payload.token=token;
  try{const b=await post('/api/home-assistant',payload);data.homeAssistant=b.homeAssistant;showAutomationDetails(selected,false);
-  el('haResult').textContent='Configuração do Home Assistant salva. Vale para o próximo CLIMA, sem reiniciar o serviço.';}
+  el('haResult').textContent='Configuração salva. Vale para o próximo CLIMA, sem reiniciar o serviço.';}
  catch(ex){el('haResult').textContent='Erro: '+String(ex.message||ex);}
 }
 async function testHomeAssistant(){
  if(!authCanWrite()){openAuthModal();return;}
- const btn=el('haTest');btn.disabled=true;el('haResult').textContent='Consultando o Home Assistant...';
+ const btn=el('haTest');btn.disabled=true;el('haResult').textContent='Consultando as fontes...';
  try{
   const r=await authFetch('/api/home-assistant/test',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   const b=await r.json();if(!r.ok)throw Error(b.message||'HTTP '+r.status);

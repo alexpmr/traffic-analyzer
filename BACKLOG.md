@@ -10,6 +10,8 @@
 
 ## P1 — CLIMA não enviou o último bloco (Previsão do tempo) — 22/10/2026
 
+- **Concluído na v1.69.0:** previsão do tempo pelo Open-Meteo quando o Home Assistant não está configurado ou falha; local pela posição do VHF3 ou coordenadas da tela.
+
 - **Concluído na v1.68.0:** Home Assistant configurável e testável em Automações → CLIMA; aviso quando não configurado (tela, prévia e histórico); histórico com blocos aceitos; blocos numerados no título. **Pendente de campo:** confirmar se a ordem de entrega na malha melhora; numeração já deixa a sequência explícita.
 
 - **Relato de campo (v1.67.0):** a automação CLIMA enviou os blocos anteriores, mas não o bloco 5, **Previsão do tempo**.
@@ -53,6 +55,11 @@
 - Verificar se o `load(false)` atual reaplica um snapshot antigo do MeshMonitor logo após apagar do SQLite e, nesse caso, evitar que a resposta obsoleta reintroduza o nó na mesma atualização.
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
+
+## v1.69.0 — Previsão do tempo pelo Open-Meteo
+
+- **Concluído:** bloco Previsão do tempo enviado sem depender do Home Assistant.
+- **Confirmado em campo (v1.68.0):** exclusão de nó funcionando.
 
 ## v1.68.0 — Exclusão de nó, Home Assistant pela tela e update robusto
 

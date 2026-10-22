@@ -131,8 +131,10 @@ class BacklogV166Tests(unittest.TestCase):
              mock.patch.object(web, "CLIMA_HOME_ASSISTANT_ENV", env):
             public = web._home_assistant_public()
             self.assertFalse(public["configured"]);self.assertIn("não configurado", public["warning"])
-            with self.assertRaises(ValueError):
-                web._test_home_assistant()
+            with mock.patch.object(meshcmd, "fetch_open_meteo_forecast", return_value=["Hoje: Chuva"]) as om:
+                result = web._test_home_assistant()
+            self.assertTrue(result["success"]);self.assertIn("Open-Meteo", result["forecastSource"])
+            self.assertEqual(result["forecast"], ["Hoje: Chuva"]);om.assert_called_once()
             public = web._save_home_assistant({"url": "http://192.168.0.10:8123/", "token": "abc.def",
                                                "forecastEntity": "weather.casa"})
             self.assertTrue(public["configured"]);self.assertEqual(public["tokenSource"], "tela")
@@ -156,6 +158,61 @@ class BacklogV166Tests(unittest.TestCase):
             errors = []
             meshcmd.fetch_home_assistant_weather("http://ha", "t", "binary_sensor.a", "weather.b", errors=errors)
         self.assertTrue(errors and all("401" in e for e in errors))
+
+    def test_open_meteo_forecast_and_fallback_without_home_assistant(self):
+        import datetime as dt
+        import io
+        body = {"current": {"temperature_2m": 29.7, "weather_code": 2},
+                "daily": {"time": ["2026-10-22", "2026-10-23", "2026-10-24"], "weather_code": [3, 81, 95],
+                          "temperature_2m_max": [31.2, 27.0, 26.0], "temperature_2m_min": [18.1, 17.4, 16.0],
+                          "precipitation_probability_max": [10, 70, 90]}}
+
+        class Resp(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        with mock.patch.object(meshcmd.urllib.request, "urlopen", return_value=Resp(json.dumps(body).encode())) as op:
+            lines = meshcmd.fetch_open_meteo_forecast(-15.8, -47.9, today=dt.date(2026, 10, 22))
+        self.assertEqual(lines, ["Agora: Parcialmente nublado, 30 °C", "Hoje: Nublado, 18 a 31 °C, chuva 10%",
+                                 "Amanhã: Pancadas de chuva, 17 a 27 °C, chuva 70%"])
+        self.assertIn("latitude=-15.8000", op.call_args.args[0].full_url)
+        errors = []
+        with mock.patch.object(meshcmd.urllib.request, "urlopen", side_effect=OSError("offline")):
+            self.assertIsNone(meshcmd.fetch_open_meteo_forecast(-15.8, -47.9, errors=errors))
+        self.assertIn("Open-Meteo", errors[0])
+
+        tempest = Resp(json.dumps({"responses": self.CLIMA_RAW}).encode())
+        with mock.patch.object(meshcmd.urllib.request, "urlopen", return_value=tempest), \
+             mock.patch.object(meshcmd, "fetch_open_meteo_forecast", return_value=["Hoje: Nublado"]) as om:
+            blocks = meshcmd.fetch_clima_responses("http://127.0.0.1:8765/clima", home_assistant={},
+                                                   forecast_location=(-15.8, -47.9))
+        self.assertEqual(blocks[-1], "Previsão do tempo (5/5)\nHoje: Nublado")
+        self.assertEqual(om.call_args.args[:2], (-15.8, -47.9))
+        # Home Assistant com previsão válida tem precedência; o Open-Meteo não é consultado.
+        tempest.seek(0)
+        with mock.patch.object(meshcmd.urllib.request, "urlopen", return_value=tempest), \
+             mock.patch.object(meshcmd, "fetch_home_assistant_weather", return_value=("nenhuma", ["Hoje: Sol"])), \
+             mock.patch.object(meshcmd, "fetch_open_meteo_forecast") as om:
+            blocks = meshcmd.fetch_clima_responses("http://x", home_assistant={"url": "http://ha", "token": "t"},
+                                                   forecast_location=(1, 2))
+        om.assert_not_called();self.assertEqual(blocks[-1], "Previsão do tempo (5/5)\nHoje: Sol")
+
+    def test_forecast_location_saved_node_or_brasilia(self):
+        with tempfile.TemporaryDirectory() as d, \
+             mock.patch.object(web, "HOME_ASSISTANT_SETTINGS_FILE", Path(d) / "ha.json"), \
+             mock.patch.object(web, "TOPOLOGY_FILE", Path(d) / "topology.json"), \
+             mock.patch.object(web, "MESH_COMMAND_NODE_LABEL", "VHF3"):
+            self.assertEqual(web._forecast_location()[2], "Brasília (padrão)")
+            (Path(d) / "topology.json").write_text(json.dumps({"nodes": [
+                {"nodeNum": 1, "shortName": "VHF3", "longName": "PT2VHF-3", "latitude": -15.75, "longitude": -47.95}]}))
+            self.assertEqual(web._forecast_location(), (-15.75, -47.95, "posição do nó VHF3"))
+            web._save_home_assistant({"forecastLatitude": "-15,6", "forecastLongitude": "-48.1"})
+            self.assertEqual(web._forecast_location(), (-15.6, -48.1, "coordenadas salvas"))
+            for bad in [{"forecastLatitude": "abc", "forecastLongitude": "1"}, {"forecastLatitude": 91, "forecastLongitude": 0}]:
+                with self.assertRaises(ValueError):
+                    web._save_home_assistant(bad)
+            web._save_home_assistant({"forecastLatitude": "", "forecastLongitude": ""})
+            self.assertEqual(web._forecast_location()[2], "posição do nó VHF3")
 
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"

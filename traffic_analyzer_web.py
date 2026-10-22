@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.68.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.69.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.68.0"
+APP_VERSION = "1.69.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6676,22 +6676,52 @@ def _home_assistant_config():
         if value:
             config[key] = value
     config["tokenSource"] = "tela" if str(saved.get("token") or "").strip() else ("env" if config["token"] else "")
+    config["forecastLatitude"] = saved.get("forecastLatitude")
+    config["forecastLongitude"] = saved.get("forecastLongitude")
     return config
+
+
+FORECAST_FALLBACK_LOCATION = (-15.7939, -47.8828)  # Brasília/DF
+
+
+def _forecast_location():
+    """Local da previsão: coordenadas salvas na tela, posição do nó local (ex.: VHF3) ou Brasília."""
+    saved = _home_assistant_config()
+    try:
+        lat, lon = float(saved["forecastLatitude"]), float(saved["forecastLongitude"])
+        return lat, lon, "coordenadas salvas"
+    except (TypeError, ValueError, KeyError):
+        pass
+    label = MESH_COMMAND_NODE_LABEL.strip().lower()
+    try:
+        nodes = json.loads(TOPOLOGY_FILE.read_text(encoding="utf-8")).get("nodes") or []
+    except Exception:
+        nodes = []
+    for node in nodes:
+        names = [str(node.get(k) or "").strip().lower() for k in ("shortName", "longName", "name")]
+        if label and (label in names or any(label in n.split() for n in names)) \
+                and _history_valid_position(node.get("latitude"), node.get("longitude")):
+            return float(node["latitude"]), float(node["longitude"]), f"posição do nó {MESH_COMMAND_NODE_LABEL}"
+    return FORECAST_FALLBACK_LOCATION[0], FORECAST_FALLBACK_LOCATION[1], "Brasília (padrão)"
 
 
 def _home_assistant_public():
     """Configuração exibida no navegador: o token nunca sai do servidor."""
     config = _home_assistant_config()
     configured = bool(config["url"] and config["token"])
+    lat, lon, origin = _forecast_location()
     return {"url": config["url"], "lightningEntity": config["lightningEntity"],
             "forecastEntity": config["forecastEntity"], "tokenConfigured": bool(config["token"]),
             "tokenSource": config["tokenSource"], "configured": configured,
+            "forecastLatitude": config["forecastLatitude"], "forecastLongitude": config["forecastLongitude"],
+            "forecastLocation": {"latitude": lat, "longitude": lon, "origin": origin},
+            "forecastSource": "Home Assistant (Open-Meteo se falhar)" if configured else "Open-Meteo",
             "warning": "" if configured else
-            "Home Assistant não configurado: a linha \"Descargas próximas\" e o bloco \"Previsão do tempo\" não serão enviados. Informe URL e token abaixo."}
+            "Home Assistant não configurado: a linha \"Descargas próximas\" não será enviada. A previsão do tempo vem do Open-Meteo."}
 
 
 def _save_home_assistant(payload: dict):
-    allowed = {"url", "lightningEntity", "forecastEntity", "token", "clearToken"}
+    allowed = {"url", "lightningEntity", "forecastEntity", "token", "clearToken", "forecastLatitude", "forecastLongitude"}
     if set(payload) - allowed:
         raise ValueError("Campos do Home Assistant desconhecidos")
     saved = _read_json_file(HOME_ASSISTANT_SETTINGS_FILE, {})
@@ -6708,6 +6738,18 @@ def _save_home_assistant(payload: dict):
             if value and not re.fullmatch(r"[a-z_]+\.[a-z0-9_]+", value):
                 raise ValueError("Entidade inválida: " + value)
             saved[key] = value
+    if "forecastLatitude" in payload or "forecastLongitude" in payload:
+        lat, lon = payload.get("forecastLatitude"), payload.get("forecastLongitude")
+        if lat in (None, "") and lon in (None, ""):
+            saved["forecastLatitude"] = saved["forecastLongitude"] = None
+        else:
+            try:
+                lat, lon = float(str(lat).replace(",", ".")), float(str(lon).replace(",", "."))
+            except ValueError:
+                raise ValueError("Latitude e longitude devem ser números")
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise ValueError("Latitude/longitude fora do intervalo")
+            saved["forecastLatitude"], saved["forecastLongitude"] = round(lat, 4), round(lon, 4)
     if payload.get("clearToken") is True:
         saved["token"] = ""
     elif str(payload.get("token") or "").strip():
@@ -6725,14 +6767,24 @@ def _save_home_assistant(payload: dict):
 
 
 def _test_home_assistant():
+    """Testa as fontes do bloco de raios e da previsão, sem transmitir."""
     config = _home_assistant_config()
-    if not (config["url"] and config["token"]):
-        raise ValueError("Informe URL e token do Home Assistant antes de testar")
     errors = []
-    lightning, forecast = meshcmd.fetch_home_assistant_weather(
-        config["url"], config["token"], config["lightningEntity"], config["forecastEntity"], 8.0, errors)
-    return {"success": not errors, "lightning": lightning, "forecast": forecast or [], "errors": errors,
-            "message": "Home Assistant respondeu." if not errors else "Falhas: " + "; ".join(errors)}
+    lightning = forecast = None
+    if config["url"] and config["token"]:
+        lightning, forecast = meshcmd.fetch_home_assistant_weather(
+            config["url"], config["token"], config["lightningEntity"], config["forecastEntity"], 8.0, errors)
+    else:
+        errors.append("Home Assistant não configurado (sem \"Descargas próximas\")")
+    source = "Home Assistant"
+    if not forecast or forecast == ["Previsão indisponível"]:
+        lat, lon, origin = _forecast_location()
+        forecast = meshcmd.fetch_open_meteo_forecast(lat, lon, 8.0, errors)
+        source = f"Open-Meteo ({origin}: {lat:.4f}, {lon:.4f})"
+    return {"success": bool(forecast), "lightning": lightning, "forecast": forecast or [], "errors": errors,
+            "forecastSource": source,
+            "message": ("Previsão obtida de " + source + "." if forecast else "Nenhuma fonte de previsão respondeu.")
+                       + ("" if not errors else " Avisos: " + "; ".join(errors))}
 
 
 def _automation_ping_sample(settings):
@@ -6750,7 +6802,7 @@ def _automation_preview(bot, settings=None):
     config = settings or _automation_settings()[bot]
     if bot == "ping":
         return automgr.preview(bot, config, default_ping_text=_automation_ping_sample(config))
-    result = automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"], home_assistant=_home_assistant_config()))
+    result = automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"], home_assistant=_home_assistant_config(), forecast_location=_forecast_location()[:2]))
     warning = _home_assistant_public()["warning"]
     if warning:
         result["warnings"] = [warning]
@@ -6994,12 +7046,14 @@ def _mesh_command_handle(row: dict, command: str, send_func=None):
 
     if command == "clima":
         try:
-            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"], home_assistant=_home_assistant_config())
+            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"], home_assistant=_home_assistant_config(), forecast_location=_forecast_location()[:2])
             parts = automgr.preview("clima", cfg, clima_responses=responses)["parts"]
             sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=cfg["replyGapSeconds"])
             detail = f"{len(sent)}/{len(parts)} blocos aceitos para envio"
             if not _home_assistant_public()["configured"]:
-                detail += "; Home Assistant não configurado: sem descargas próximas e previsão"
+                detail += "; Home Assistant não configurado: sem descargas próximas"
+            if not any(p.startswith("Previsão do tempo") for p in parts):
+                detail += "; previsão do tempo indisponível (Home Assistant e Open-Meteo)"
             _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent), detail=detail)
         except Exception as exc:
             fallback = "CLIMA indisponível no momento."

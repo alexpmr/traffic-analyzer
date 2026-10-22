@@ -1,6 +1,14 @@
-# Traffic Analyzer v1.68.0
+# Traffic Analyzer v1.69.0
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.69.0
+
+- **Previsão do tempo sem Home Assistant:** o bloco **Previsão do tempo** do CLIMA passa a usar o Open-Meteo (gratuito, sem conta nem token) quando o Home Assistant não está configurado ou não responde. Traz condição atual, hoje e amanhã com mínima, máxima e chance de chuva.
+- Local da previsão: coordenadas informadas em Automações → CLIMA ou, em branco, a posição do nó local (VHF3) na topologia, com Brasília como reserva.
+- O botão **Testar raios e previsão** mostra de qual fonte a previsão veio e o motivo de falhas, sem transmitir. O histórico registra quando a previsão não pôde ser obtida.
+- "Descargas próximas" continua dependendo do Home Assistant.
+- [Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip).
 
 ## Novidades da v1.68.0
 
