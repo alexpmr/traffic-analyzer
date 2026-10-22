@@ -3,6 +3,8 @@
 - **Relato de campo (v1.67.0):** a automação CLIMA enviou os blocos anteriores, mas não o bloco 5, **Previsão do tempo**.
 - **Causa mais provável:** sem `TA_HA_TOKEN` (ou com `TA_HA_URL` vazio) em `/etc/traffic-analyzer-map.env`, o bloco 5 e a linha "Descargas próximas" do bloco Raios são **omitidos em silêncio**, por desenho da v1.67.0. Se o bloco Raios também veio sem "Descargas próximas", a causa é essa.
 - Quando o Home Assistant está configurado mas falha, o bloco é enviado como "Previsão indisponível". Portanto, ausência total do bloco indica integração não configurada, serviço não reiniciado após configurar o token, ou falha no envio da 5ª mensagem (conferir Automações → Histórico e diagnóstico).
+- **Confirmado por captura (22/10/2026):** o bloco Raios chegou sem "Descargas próximas", então o Home Assistant não estava configurado (`TA_HA_TOKEN` ausente).
+- **Achado adicional na mesma captura:** o bloco **Raios** apareceu antes do bloco **Chuva**, embora o envio seja feito na ordem Temperatura → Luz e vento → Chuva → Raios, com 8 s entre blocos. Investigar se a fila do MeshMonitor ou a retransmissão LoRa reordena mensagens maiores (Chuva tem ~175 bytes) e, se necessário, aguardar a confirmação de envio de cada bloco antes do próximo ou numerar os blocos (ex.: `1/5`).
 - **Correção proposta:**
   1. Não omitir em silêncio: com o Home Assistant não configurado, mostrar aviso claro em Automações → CLIMA (e na prévia), indicando as variáveis que faltam.
   2. Permitir configurar URL, token (somente gravação, nunca exibido) e entidades pela própria tela de Automações, sem editar o arquivo `.env` nem reiniciar o serviço.
