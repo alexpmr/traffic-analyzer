@@ -149,6 +149,13 @@ PING_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_PING_COOLDOWN_SECONDS", "30
 CLIMA_COOLDOWN_SECONDS = max(0, min(int(os.getenv("TA_CLIMA_COOLDOWN_SECONDS", "300")), 86400))
 CLIMA_API_URL = str(os.getenv("TA_CLIMA_API_URL", "http://127.0.0.1:8765/clima")).strip()
 CLIMA_REPLY_GAP_SECONDS = max(0.0, min(float(os.getenv("TA_CLIMA_REPLY_GAP_SECONDS", "8")), 60.0))
+# Home Assistant: descargas próximas (bloco Raios) e previsão do tempo (bloco Previsão) do CLIMA.
+CLIMA_HOME_ASSISTANT = {
+    "url": str(os.getenv("TA_HA_URL", "http://127.0.0.1:8123")).strip(),
+    "token": str(os.getenv("TA_HA_TOKEN", "")).strip(),
+    "lightningEntity": str(os.getenv("TA_HA_LIGHTNING_ENTITY", "binary_sensor.alex_rodrigues_alexpmr_gmail_com_binary_sensors_is_lightning")).strip(),
+    "forecastEntity": str(os.getenv("TA_HA_FORECAST_ENTITY", "weather.forecast_alex_rodrigues_alexpmr_gmail_com")).strip(),
+}
 MESH_COMMAND_NODE_LABEL = str(os.getenv("TA_MESH_COMMAND_NODE_LABEL", "VHF3")).strip() or "VHF3"
 PING_ROUTE_TIMEOUT_SECONDS = max(5, min(int(os.getenv("TA_PING_ROUTE_TIMEOUT_SECONDS", "20")), 90))
 _notice_stop = threading.Event()
@@ -6661,7 +6668,7 @@ def _automation_preview(bot, settings=None):
     config = settings or _automation_settings()[bot]
     if bot == "ping":
         return automgr.preview(bot, config, default_ping_text=_automation_ping_sample(config))
-    return automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"]))
+    return automgr.preview(bot, config, clima_responses=meshcmd.fetch_clima_responses(config["apiUrl"], home_assistant=CLIMA_HOME_ASSISTANT))
 
 
 def _automation_test_send(bot):
@@ -6901,7 +6908,7 @@ def _mesh_command_handle(row: dict, command: str, send_func=None):
 
     if command == "clima":
         try:
-            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"])
+            responses = meshcmd.fetch_clima_responses(cfg["apiUrl"], home_assistant=CLIMA_HOME_ASSISTANT)
             parts = automgr.preview("clima", cfg, clima_responses=responses)["parts"]
             sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=cfg["replyGapSeconds"])
             _mesh_command_record(row, command, "sent", response_text="\n---\n".join(sent))

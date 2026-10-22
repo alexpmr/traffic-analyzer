@@ -213,7 +213,8 @@ def _render(template, mapping):
 def render_clima(template, responses):
     if not isinstance(responses, list) or not responses:
         raise ValueError("API CLIMA não retornou mensagens")
-    return _render(template, {"clima": "\n".join(str(x).strip() for x in responses if str(x).strip())})
+    # Linha em branco separa os blocos; cada bloco é transmitido em mensagem própria.
+    return _render(template, {"clima": "\n\n".join(str(x).strip() for x in responses if str(x).strip())})
 
 
 def preview(bot, config, default_ping_text=None, clima_responses=None):
@@ -224,7 +225,10 @@ def preview(bot, config, default_ping_text=None, clima_responses=None):
         raw = render_clima(config["template"], clima_responses or [])
     else:
         raise ValueError("Automação desconhecida")
-    parts = split_utf8(raw, 200)
+    if bot == "clima":
+        parts = [part for block in re.split(r"\n\s*\n", raw) for part in split_utf8(block, 200)]
+    else:
+        parts = split_utf8(raw, 200)
     if not parts or len(parts) > 12:
         raise ValueError("Resposta excede o limite de 12 blocos Meshtastic")
     return {"text": raw, "parts": parts, "bytes": len(raw.encode("utf-8")), "transmits": False}
