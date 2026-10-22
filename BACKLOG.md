@@ -1,3 +1,21 @@
+## P2 — Aba Nós: seleção múltipla para ações em lote — 22/10/2026
+
+- **Pedido:** na aba **Nós**, permitir selecionar um ou mais nós e aplicar ações em lote (bulk).
+- **Mudança de comportamento:** hoje um clique na linha já abre os detalhes (`openNodeFromList`, linha `tr[data-node-num]`). Passa a ser:
+  - **1 clique:** seleciona/desmarca o nó (sem abrir nada);
+  - **2 cliques:** abre as propriedades (Detalhes do nó);
+  - **Ctrl/Cmd + clique:** adiciona/remove da seleção; **Shift + clique:** seleciona o intervalo;
+  - **clique direito:** mantém o menu de contexto atual; com vários nós selecionados, o menu mostra as ações em lote;
+  - **Enter** na linha focada abre as propriedades (acessibilidade).
+- **Interface:** coluna de caixas de seleção, caixa "selecionar todos" que respeita o filtro ativo, e barra de ações com contador ("3 nós selecionados") e botão para limpar a seleção. A seleção sobrevive a reordenação, filtro e atualização automática da lista; nós que deixam de existir saem da seleção.
+- **Ações em lote sugeridas:**
+  - excluir do banco local / da base e do dispositivo (uma confirmação com a lista dos nós e resultado individual por nó);
+  - favoritar/desfavoritar e ocultar/mostrar no mapa;
+  - copiar IDs/nomes e exportar CSV dos selecionados;
+  - consultas por RF (Node Info, Traceroute) em sequência, com espaçamento e limite de quantidade, para não congestionar a malha.
+- **Toque (celular):** toque seleciona; botão de detalhes por linha substitui o duplo toque, que é pouco confiável em telas pequenas.
+- **Teste de regressão:** clique simples não abre detalhes; duplo clique abre; Ctrl/Shift; selecionar todos com filtro; exclusão em lote reporta resultado por nó e os nós somem do Mapa e da aba Nós.
+
 ## P2 — CLIMA: velocidade do vento em km/h — 22/10/2026
 
 - **Concluído na v1.68.0:** vento convertido para km/h.
