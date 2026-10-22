@@ -1,4 +1,4 @@
-/* Traffic Analyzer v1.64.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
+/* Traffic Analyzer v1.67.0 — Automações PING/CLIMA/Meshtastic. Sem frameworks externos. */
 (function(){
 'use strict';
 const css = [

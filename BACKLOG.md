@@ -16,6 +16,13 @@
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
 
+## v1.67.0 — CLIMA em blocos e anúncio manual de firmware
+
+- **Concluído:** CLIMA enviado em 5 blocos (Temperatura e umidade, Luz e vento, Chuva, Raios, Previsão do tempo).
+- **Concluído:** descargas próximas e previsão do tempo pelo Home Assistant.
+- **Concluído:** botão para enviar anúncio de versão Meshtastic manualmente.
+- **Pendente de campo:** confirmar com `TA_HA_TOKEN` configurado e recepção RF real; investigar por que o anúncio automático não estava sendo transmitido.
+
 ## v1.66.2 — Traceroute em dois blocos
 
 - **Concluído:** traceroute exibido em **Rota de ida** e **Rota de volta**, em blocos visuais independentes.

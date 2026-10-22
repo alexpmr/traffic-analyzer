@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.67.0 - 2026-10-22
+
+- CLIMA passa a ser enviado em 5 mensagens: Temperatura e umidade, Luz e vento, Chuva, Raios e Previsão do tempo.
+- Bloco Raios inclui "Descargas próximas" e bloco Previsão do tempo traz condição atual, hoje e amanhã, ambos pelo Home Assistant (`TA_HA_URL`, `TA_HA_TOKEN`, `TA_HA_LIGHTNING_ENTITY`, `TA_HA_FORECAST_ENTITY`).
+- Bateria e idade dos dados da estação deixam de ser enviados no CLIMA.
+- Automações → Meshtastic: botão **Enviar anúncio agora (canal primário)** por categoria, usando a mesma outbox do anúncio automático.
+- Testes de regressão para os blocos do CLIMA, integração com Home Assistant e envio manual de anúncio.
+
 ## 1.66.2 - 2026-10-18
 
 - Formata traceroutes exibidos na aba Mensagens em dois blocos: **Rota de ida** e **Rota de volta**.
