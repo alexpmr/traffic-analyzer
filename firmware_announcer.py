@@ -100,3 +100,29 @@ def process(state,records,available,enabled,save,send,now,template):
         save(state)
         return item['status']=='sent'
     return False
+
+def latest(records,kind):
+    rows=[r for r in records if r['kind']==kind]
+    return max(rows,key=lambda r:r['published']) if rows else None
+
+def announce_now(state,record,save,send,now,template):
+    """Manual TX of one record through the same outbox, so the automatic run never repeats it."""
+    last=state.get('firmwareLastAttempt',0)
+    if now-last<60:raise ValueError(f'Aguarde {int(60-(now-last))+1} s entre anúncios')
+    text=message(record,template)
+    ledger=state.setdefault('firmwareOutbox',{})
+    item=ledger.pop(record['id'],None) or {'attempts':0,'detected':now}
+    item.update(record=record,status='sending',attempts=item.get('attempts',0)+1,manual=True)
+    item.pop('error',None);item.pop('retryAt',None)
+    ledger[record['id']]=item
+    state['firmwareLastAttempt']=now
+    save(state) # If this fails, transmit nothing.
+    try:
+        accepted=send(record,text)
+    except Exception as exc:
+        item.update(status='uncertain',error=str(exc)[:200])
+    else:
+        if accepted:item.update(status='sent',sentAt=now);state['firmwareLastSend']=now
+        else:item.update(status='failed',error='Envio recusado pelo backend')
+    save(state)
+    return {'status':item['status'],'text':text,'record':record,'error':item.get('error','')}

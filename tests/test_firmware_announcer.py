@@ -64,6 +64,19 @@ class FirmwareTests(unittest.TestCase):
         with self.assertRaises(OSError):
             f.process(self.state,[record(2)],f.KINDS,self.enabled,fail,self.send,1100,TEMPLATE)
         self.assertFalse(self.sent)
+    def test_manual_announce_uses_outbox_and_is_not_repeated_automatically(self):
+        self.run_check([record(1),record(2)])
+        self.assertEqual(f.latest([record(1),record(2)],'stable')['id'],'stable2')
+        result=f.announce_now(self.state,record(2),self.save,self.send,1100,TEMPLATE)
+        self.assertEqual(result['status'],'sent');self.assertEqual(self.disk['firmwareOutbox']['stable2']['status'],'sent')
+        self.assertEqual(self.sent[0][1],f.message(record(2)))
+        with self.assertRaises(ValueError):f.announce_now(self.state,record(2),self.save,self.send,1130,TEMPLATE)
+        self.run_check([record(1),record(2)],1300);self.assertEqual(len(self.sent),1)
+        reject=lambda *_:False
+        self.assertEqual(f.announce_now(self.state,record(1),self.save,reject,1400,TEMPLATE)['status'],'failed')
+        def fail(*_):raise TimeoutError('unknown TX outcome')
+        self.assertEqual(f.announce_now(self.state,record(1),self.save,fail,1500,TEMPLATE)['status'],'uncertain')
+        self.run_check([record(1),record(2)],1600);self.assertEqual(len(self.sent),1)
     def test_catalog_classifies_official_versions_and_rejects_bad_nightly(self):
         data=[{'id':i,'tag_name':tag,'prerelease':pre,'published_at':'2026-10-17T00:00:00Z'}
               for i,tag,pre in [(1,'v2.8.0',False),(2,'v2.9.0-beta.1',True),(3,'nightly-abc',True)]]
@@ -99,6 +112,15 @@ class IntegrationTests(unittest.TestCase):
             self.assertNotIn('nightly',state['firmwareInitialized'])
             w._run_firmware_notice_check(state,settings,1600)
             self.assertEqual(nightly.call_count,1);self.assertEqual(releases.call_count,2)
+    def test_announce_endpoint_helper_sends_latest_of_kind_on_primary_channel(self):
+        rows=[{'id':i,'tag_name':tag,'prerelease':pre,'published_at':at} for i,tag,pre,at in
+              [(1,'v2.7.0',False,'2026-09-01T00:00:00Z'),(2,'v2.7.1',False,'2026-10-01T00:00:00Z'),(3,'v2.8.0-beta.1',True,'2026-10-10T00:00:00Z')]]
+        with tempfile.TemporaryDirectory() as d,patch.object(w,'NOTICE_STATE_FILE',Path(d)/'state.json'),patch.object(w,'NOTICE_SETTINGS_FILE',Path(d)/'settings.json'),patch.object(w,'_meshtastic_releases',return_value=rows),patch.object(w,'_mm_api_post',return_value={'success':True}) as post,patch.object(w,'_record_automatic_notice'):
+            result=w._firmware_announce_now('stable',1000)
+            self.assertEqual(result['status'],'sent');self.assertIn('v2.7.1',result['text'])
+            self.assertEqual(post.call_args.args[1]['channel'],0)
+            self.assertEqual(w._automatic_notice_state()['firmwareOutbox']['github:2']['status'],'sent')
+            with self.assertRaises(ValueError):w._firmware_announce_now('bogus',2000)
     def test_transmits_only_primary_channel_and_records_accepted_not_delivery(self):
         with patch.object(w,'_mm_api_post',return_value={'success':True}) as post,patch.object(w,'_record_automatic_notice') as log:
             self.assertTrue(w._firmware_send(record(2),f.message(record(2))))

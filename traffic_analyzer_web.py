@@ -7577,6 +7577,23 @@ def _run_firmware_notice_check(state,settings,now):
     return sent,errors
 
 
+def _firmware_announce_now(kind,now):
+    if kind not in firmware_notices.KINDS:raise ValueError('Categoria inválida')
+    settings=_automatic_notice_settings()
+    if kind=='nightly':
+        records=[firmware_notices.nightly_record(firmware_notices.fetch_json(firmware_notices.NIGHTLY_URL))]
+    else:
+        records=firmware_notices.release_records(_meshtastic_releases())
+    record=firmware_notices.latest(records,kind)
+    if not record:raise ValueError('Nenhuma versão '+firmware_notices.LABELS[kind]+' encontrada na fonte oficial')
+    with _notice_lock:
+        state=_automatic_notice_state()
+        result=firmware_notices.announce_now(state,record,lambda value:_write_json_file(NOTICE_STATE_FILE,value),
+                                              _firmware_send,now,settings['meshtasticTemplate'])
+    result['state']=state
+    return result
+
+
 def _run_automatic_notice_check(force=False):
     with _notice_lock:
         settings=_automatic_notice_settings()
@@ -12124,6 +12141,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200,"application/json; charset=utf-8",json.dumps(body,ensure_ascii=False).encode('utf-8'))
             except Exception as exc:
                 self._send(500,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(exc)}).encode('utf-8'))
+            return
+        if path == "/api/automatic-notices/firmware-announce":
+            try:
+                length=int(self.headers.get("Content-Length","0") or 0)
+                if length<=0 or length>1024: raise ValueError("Corpo da requisição inválido")
+                payload=json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload,dict): raise ValueError("Corpo da requisição inválido")
+                result=_firmware_announce_now(str(payload.get("kind") or ""),time.time())
+                ok=result["status"]=="sent"
+                result.update(success=ok,message="Anúncio aceito pelo backend." if ok else result.get("error") or "Envio não confirmado")
+                self._send(200 if ok else 502,"application/json; charset=utf-8",json.dumps(result,ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(502,"application/json; charset=utf-8",json.dumps({"success":False,"message":str(e)},ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/automatic-notices/check":
             try:

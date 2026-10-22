@@ -88,6 +88,8 @@ function renderFirmwareForm(){
  '<label class="autoField">Intervalo de consulta (minutos)<input id="fwInterval" type="number" min="5" max="1440" value="'+e((cfg.pollSeconds||600)/60)+'"></label>'+
  '<label class="autoField wide">Modelo de anúncio<textarea id="fwTemplate" maxlength="250">'+e(cfg.meshtasticTemplate||'')+'</textarea><span class="autoHint">Use {kind}, {version} e {url}. Máximo de 200 bytes por anúncio.</span></label></div>'+
  '<div class="autoToolbar"><button id="fwSave">Salvar configuração</button><button id="fwPreview">Prévia sem transmitir</button><button id="fwCheck">Verificar e anunciar novos</button></div>'+
+ '<div class="autoToolbar"><label class="autoInfo">Categoria <select id="fwAnnounceKind"><option value="stable">Estável</option><option value="unstable">Instável</option><option value="nightly">Nightly</option></select></label>'+
+ '<button id="fwAnnounce" title="Transmite no canal primário a versão mais recente da categoria, como o anúncio automático">Enviar anúncio agora (canal primário)</button></div>'+
  '<pre id="fwResult" class="autoResult">'+e(st.firmwareLastError||'Envio aceito pelo backend não comprova recepção em outro rádio.')+'</pre>'+
  '<p class="autoInfo">Fila e histórico recente: sent = aceito; baseline = já existente; queued = aguardando; uncertain = resultado indeterminado, sem repetição automática.</p>'+
  '<div class="autoLogWrap"><table class="autoLog"><tbody>'+ledger.map(x=>'<tr><td>'+e(x.record?.kind)+'</td><td>'+e(x.record?.version)+'</td><td>'+e(x.status)+'</td><td>'+e(x.error||'')+'</td></tr>').join('')+'</tbody></table></div>';
@@ -99,7 +101,16 @@ function renderFirmwareForm(){
   el('fwResult').textContent=text+'\n'+new TextEncoder().encode(text).length+' bytes · nenhuma transmissão';};
  el('fwSave').onclick=async()=>{try{await post('/api/automatic-notices',payload());await loadAutomations(true);}catch(ex){el('fwResult').textContent=String(ex.message||ex);}};
  el('fwCheck').onclick=async()=>{const btn=el('fwCheck');btn.disabled=true;try{await post('/api/automatic-notices',payload());await post('/api/automatic-notices/firmware-check',{});await loadAutomations(true);}catch(ex){el('fwResult').textContent=String(ex.message||ex);}finally{btn.disabled=false;}};
- if(state())el('autoDetail').querySelectorAll('input,textarea,button').forEach(x=>x.disabled=true);
+ el('fwAnnounce').onclick=async()=>{const btn=el('fwAnnounce'),kind=el('fwAnnounceKind').value,label=el('fwAnnounceKind').selectedOptions[0].text;
+  if(!confirm('Transmitir agora no canal primário o anúncio da versão '+label+' mais recente?'))return;
+  btn.disabled=true;el('fwResult').textContent='Enviando anúncio '+label+'...';
+  let text;
+  try{await post('/api/automatic-notices',payload());const b=await post('/api/automatic-notices/firmware-announce',{kind});text=b.message+'\n'+b.text;}
+  catch(ex){text=String(ex.message||ex);}
+  // Reload the outbox so the manual send shows up in the history below.
+  try{await loadAutomations(true);}catch(_){}
+  btn.disabled=false;if(el('fwAnnounceKind'))el('fwAnnounceKind').value=kind;el('fwResult').textContent=text;};
+ if(state())el('autoDetail').querySelectorAll('input,select,textarea,button').forEach(x=>x.disabled=true);
 }
 function renderHistory(){
  const events=data?.events||[];
