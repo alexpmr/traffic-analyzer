@@ -1,3 +1,11 @@
+## P2 — CLIMA: velocidade do vento em km/h — 22/10/2026
+
+- **Pedido:** exibir o vento do CLIMA em **km/h** em vez de m/s.
+- Hoje a API Tempest local envia `min/med/raj 0.7/1.0/1.8m/s`, e `mesh_commands._expand_clima_segment` só formata como "Vento mínimo / médio / rajada: 0.7/1.0/1.8 m/s".
+- Converter cada valor (× 3,6) com 1 casa decimal, por exemplo `0.7/1.0/1.8 m/s` → `2.5/3.6/6.5 km/h`, e manter o texto original caso algum valor não seja numérico.
+- Aplicar também a outras velocidades de vento enviadas pela fonte (por exemplo, em alertas) e à previsão do Home Assistant, se ela passar a mostrar vento (usar `wind_speed_unit` da entidade).
+- **Teste de regressão:** conversão dos três valores, arredondamento, e bloco Luz e vento continuando abaixo de 200 bytes.
+
 ## P1 — CLIMA não enviou o último bloco (Previsão do tempo) — 22/10/2026
 
 - **Relato de campo (v1.67.0):** a automação CLIMA enviou os blocos anteriores, mas não o bloco 5, **Previsão do tempo**.
