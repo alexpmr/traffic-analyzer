@@ -102,6 +102,26 @@ class BacklogV166Tests(unittest.TestCase):
             meshcmd.fetch_home_assistant_weather("http://ha", "t", "../bad", "weather.x/../../api")
             never.assert_not_called()
 
+    def test_stale_pending_update_is_requested_again_when_page_checks_version(self):
+        import json
+        import time
+        version = {"success": True, "status": "ok", "updateAvailable": True, "stable": True, "latestVersion": "9.9.9"}
+        with tempfile.TemporaryDirectory() as d:
+            status_file, request_file = Path(d) / "status.json", Path(d) / "request.json"
+            with mock.patch.object(web, "UPDATE_STATUS_FILE", status_file), \
+                 mock.patch.object(web, "UPDATE_REQUEST_FILE", request_file), \
+                 mock.patch.object(web, "UPDATE_SETTINGS_FILE", Path(d) / "settings.json"):
+                now_ms = int(time.time() * 1000)
+                for state, key, age, expect in [("pending", "requestedAtMs", 60, False),
+                                                ("pending", "requestedAtMs", 11 * 60, True),
+                                                ("running", "startedAtMs", 20 * 60, False),
+                                                ("running", "startedAtMs", 31 * 60, True)]:
+                    request_file.unlink(missing_ok=True)
+                    status_file.write_text(json.dumps({"state": state, "targetVersion": "9.9.9",
+                                                       key: now_ms - age * 1000}))
+                    web._maybe_request_auto_update(version)
+                    self.assertEqual(request_file.exists(), expect, (state, age))
+
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"
         parts = meshcmd.split_utf8(text, 200)
