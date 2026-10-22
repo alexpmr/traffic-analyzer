@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.70.0 - 2026-10-22
+
+- Aba Nós com seleção múltipla: um clique seleciona ou desmarca o nó; Shift+clique seleciona um intervalo; a caixa do cabeçalho seleciona todos os nós do filtro atual. A seleção se mantém ao ordenar, filtrar e atualizar.
+- Propriedades com duplo clique: os detalhes do nó abrem com duplo clique, Enter ou o botão ▤ da linha (útil no celular). O clique simples não abre mais os detalhes.
+- Ações em lote na barra de seleção e no clique direito sobre nós selecionados: favoritar/desfavoritar, ocultar/mostrar no mapa, Node Info e Traceroute por RF (até 10 nós, um a cada 4 s, com confirmação), copiar IDs, exportar CSV e excluir do banco local ou da base e do dispositivo, com uma confirmação e resultado individual por nó.
+- Ajuda embutida atualizada com o novo comportamento da aba Nós.
+- Novo endpoint `/api/nodes-bulk-delete` (até 100 nós por vez) e testes de regressão para seleção e exclusão em lote.
+
 ## 1.69.0 - 2026-10-22
 
 - Previsão do tempo sem Home Assistant: o bloco Previsão do tempo do CLIMA passa a usar o Open-Meteo (gratuito, sem conta nem token) quando o Home Assistant não está configurado ou não responde. Traz condição atual, hoje e amanhã com mínima, máxima e chance de chuva.

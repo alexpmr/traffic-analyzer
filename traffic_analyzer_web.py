@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.69.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.70.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.69.0"
+APP_VERSION = "1.70.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -469,7 +469,7 @@ HTML = r'''<!doctype html>
   .dashTable{width:100%;border-collapse:collapse;font-size:12px;min-width:720px}.dashTable th{position:sticky;top:0;background:#17212b;color:#cbd6df;text-align:left;padding:8px;border-bottom:1px solid #405668}.dashTable td{padding:8px;border-bottom:1px solid #22313f}.dashTable tr:last-child td{border-bottom:0}
   .statsFitBody{overflow-x:hidden}.dashTable.statsFitTable,#statsPanelRouting .dashTable{min-width:0;table-layout:fixed}.dashTable.statsFitTable th,.dashTable.statsFitTable td,#statsPanelRouting .dashTable th,#statsPanelRouting .dashTable td{white-space:normal;overflow-wrap:anywhere;word-break:normal}.statsFitTable th,.statsFitTable td{padding-left:6px;padding-right:6px}#statsPanelRouting .dashSectionBody{overflow-x:hidden}
   @media(max-width:700px){.dashTable.statsFitTable,#statsPanelRouting .dashTable{font-size:11px}.dashTable.statsFitTable th,.dashTable.statsFitTable td,#statsPanelRouting .dashTable th,#statsPanelRouting .dashTable td{padding:6px 4px}}
-  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesFilter{display:flex;align-items:center;gap:4px}.nodesFilter input{width:220px;max-width:36vw}.nodesFilterClear{padding:4px 8px}.batteryGood{color:#78e7a6;font-weight:800}.batteryWarn{color:#ffd36b;font-weight:800}.batteryBad{color:#ff8d83;font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeDetailsModal{width:min(1180px,96vw);max-height:92vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
+  #viewNodes{overflow:auto;background:#0e1621}.nodesWrap{width:100%;box-sizing:border-box;padding:12px;max-width:1800px;margin:0 auto}.nodesToolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}.nodesToolbar h2{margin:0 auto 0 0;font-size:18px}.nodesColumnsMenu{position:relative}.nodesColumnsPanel{position:absolute;right:0;top:calc(100% + 5px);z-index:1200;display:none;min-width:235px;background:#17212b;border:1px solid #405668;border-radius:8px;padding:8px;box-shadow:0 10px 28px rgba(0,0,0,.38)}.nodesColumnsPanel.open{display:grid;gap:5px}.nodesColumnsPanel label{display:flex;gap:7px;align-items:center}.nodesTableWrap{overflow:auto;border:1px solid #293744;border-radius:9px;max-height:calc(100vh - 150px)}.nodesTable{width:100%;border-collapse:collapse;font-size:12px;min-width:1150px}.nodesTable th{position:sticky;top:0;z-index:3;background:#17212b;color:#cbd6df;text-align:left;padding:8px 9px;border-bottom:1px solid #405668;white-space:nowrap;cursor:pointer;user-select:none}.nodesTable th:hover{background:#20303d}.nodesTable td{padding:7px 9px;border-bottom:1px solid #22313f;white-space:nowrap}.nodesTable tbody tr{cursor:pointer}.nodesTable tbody tr:hover{background:#1b2b38}.nodesTable .nodeNameCell{font-weight:800}.nodesFilter{display:flex;align-items:center;gap:4px}.nodesFilter input{width:220px;max-width:36vw}.nodesFilterClear{padding:4px 8px}.batteryGood{color:#78e7a6;font-weight:800}.batteryWarn{color:#ffd36b;font-weight:800}.batteryBad{color:#ff8d83;font-weight:800}.nodesSort{font-size:10px;color:#7fd0ff;margin-left:4px}.nodeAge{display:inline-flex;align-items:center;gap:6px;font-weight:800}.nodeAgeDot{width:8px;height:8px;border-radius:50%;display:inline-block}.nodeAgeFresh{color:#78e7a6}.nodeAgeFresh .nodeAgeDot{background:#2ecc71}.nodeAgeWarm{color:#ffd36b}.nodeAgeWarm .nodeAgeDot{background:#f1c40f}.nodeAgeOld{color:#ff8d83}.nodeAgeOld .nodeAgeDot{background:#e74c3c}.nodeAgeUnknown{color:#8da0af}.nodeAgeUnknown .nodeAgeDot{background:#7f8c8d}.nodeOptional{display:none}.nodesShow-rssi .col-rssi,.nodesShow-channelUtilization .col-channelUtilization,.nodesShow-airUtilTx .col-airUtilTx,.nodesShow-nodeId .col-nodeId,.nodesShow-pkc .col-pkc,.nodesShow-state .col-state{display:table-cell}.nodeSelectCol{width:56px}.nodesTable th.nodeSelectCol{cursor:default}.nodesTable td.nodeSelectCol{white-space:nowrap}.nodeSelectCol input{cursor:pointer;margin:0 6px 0 0;vertical-align:middle}.nodeOpenBtn{padding:1px 6px;font-size:12px;line-height:1.2}.nodesTable tbody tr.nodeSelected{background:#173a52}.nodesTable tbody tr.nodeSelected:hover{background:#1d4562}.nodesTable tbody tr:focus{outline:2px solid #4fa3d9;outline-offset:-2px}.nodesBulkBar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 9px;padding:8px 10px;background:#15283a;border:1px solid #3c6a8c;border-radius:8px}.nodesBulkBar[hidden]{display:none}.nodesBulkBar b{margin-right:6px}.nodesBulkBar button{padding:5px 9px}.nodesBulkBar .nodesBulkDanger{background:#4b2026;border-color:#8a3a44}.nodeDetailsModal{width:min(1180px,96vw);max-height:92vh;overflow:auto}.nodeDetailsModal .nodePopup{width:100%;max-width:none;max-height:none;overflow:visible;padding-right:0}
   @media(max-width:800px){.nodesWrap{padding:8px}.nodesTableWrap{max-height:calc(100vh - 135px)}}
   .miniBars{display:flex;align-items:flex-end;gap:7px;height:130px;padding:8px 4px 22px}.miniBarWrap{flex:1;min-width:42px;text-align:center;position:relative;height:100%}.miniBar{position:absolute;bottom:19px;left:12%;right:12%;background:#3a8fbd;border-radius:4px 4px 0 0;min-height:2px}.miniBarLabel{position:absolute;bottom:0;left:0;right:0;font-size:10px;color:#91a4b3}.miniBarValue{position:absolute;bottom:calc(var(--h) + 23px);left:0;right:0;font-size:10px;color:#dbe6ee}
   .severity{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:800}.sev-critical{background:#6e2020;color:#ffb2b2}.sev-warning{background:#6a4a13;color:#ffd98a}.sev-info{background:#174f64;color:#9ce8ff}.sev-ok{background:#174f37;color:#9df2bc}
@@ -725,9 +725,24 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
       </div>
       <button id="nodesReload" type="button">Atualizar</button>
     </div>
+    <div id="nodesBulkBar" class="nodesBulkBar" hidden>
+      <b id="nodesBulkCount">0 nós selecionados</b>
+      <button type="button" data-node-bulk="favorite">☆ Favoritar</button>
+      <button type="button" data-node-bulk="unfavorite">★ Desfavoritar</button>
+      <button type="button" data-node-bulk="hide">Ocultar no mapa</button>
+      <button type="button" data-node-bulk="show">Mostrar no mapa</button>
+      <button type="button" data-node-bulk="nodeinfo">ℹ Node Info</button>
+      <button type="button" data-node-bulk="traceroute">⇢ Traceroute</button>
+      <button type="button" data-node-bulk="copy">Copiar IDs</button>
+      <button type="button" data-node-bulk="csv">Exportar CSV</button>
+      <button type="button" data-node-bulk="deleteLocal" class="nodesBulkDanger">🗑 Excluir do banco local</button>
+      <button type="button" data-node-bulk="deleteEverywhere" class="nodesBulkDanger">🗑 Excluir da base e do dispositivo</button>
+      <button type="button" data-node-bulk="clear">Limpar seleção</button>
+    </div>
     <div id="nodesTableWrap" class="nodesTableWrap">
       <table id="nodesTable" class="nodesTable">
         <thead><tr>
+          <th class="nodeSelectCol"><input id="nodesSelectAll" type="checkbox" title="Selecionar todos os nós filtrados" aria-label="Selecionar todos os nós filtrados"></th>
           <th data-node-sort="longName">Nome longo</th>
           <th data-node-sort="shortName">Nome curto</th>
           <th data-node-sort="role">Role</th>
@@ -746,7 +761,7 @@ body[data-theme="light"] .mentionSuggestions{background:#ffffff;border-color:#ae
           <th class="nodeOptional col-pkc" data-node-sort="pkc">PKC</th>
           <th class="nodeOptional col-state" data-node-sort="state">Estado</th>
         </tr></thead>
-        <tbody id="nodesRows"><tr><td colspan="17">Carregando nós...</td></tr></tbody>
+        <tbody id="nodesRows"><tr><td colspan="18">Carregando nós...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1320,7 +1335,7 @@ function renderHelp(){
       <div class="helpCallout"><b>Important:</b> the application only shows what its configured MeshMonitor source has observed. A missing link, route, position, or packet is not proof that it never existed on the mesh.</div>
       <h3>1. Map</h3><p>The Map tab shows nodes with known coordinates and observed routing relationships. Starting with v1.47.0, every observed node and link is kept in Traffic Analyzer's own historical memory until traffic.db is explicitly deleted/reset; MeshMonitor retention no longer makes an already-known link disappear. Time windows only filter the view. Node popups can be dragged by their header to avoid covering legends or map controls, while their internal content remains scrollable. Node color indicates the age of the last observed traffic. Link style also carries transport evidence: a solid line means at least one RF-confirmed observation exists in the selected period; a dashed line means only MQTT/non-RF evidence was seen. Mixed links stay solid and the popup shows the RF versus MQTT/non-RF observation counts. The RF Coverage layer composes archived receptions into a heatmap: overlapping receptions accumulate visually and each point is weighted by SNR, with RSSI as fallback. Use <b>Fit</b> to tightly frame visible nodes and <b>Refresh</b> to force topology regeneration.</p>
       <ul><li><b>History:</b> replays traceroutes on their observed timeline and allows several packets to move simultaneously. Long windows are proportionally time-compressed.</li><li><b>Live:</b> each new complete traceroute starts independently without waiting for earlier animations to finish.</li><li><b>No artificial limit:</b> there is no functional cap on packets in transit; all observed events are kept.</li><li><b>Pause:</b> freezes every visual animation. Collection and processing continue, and waiting events are released on resume.</li><li><b>Speed:</b> also affects packets already moving and the History timeline.</li><li><b>Auto Zoom:</b> can follow all nodes involved in simultaneous traceroute animations.</li></ul>
-      <h3>2. Nodes</h3><p>The Nodes tab inventories every node known to the configured MeshMonitor source. The filter narrows the list character by character. Click any column heading to sort ascending or descending. Last interaction is color-coded: green up to 1 hour, yellow from more than 1 hour through 12 hours, and red above 12 hours. Battery percentage is green at 50% or above, yellow from 20% to 49.9%, and red below 20%. Distance is calculated specifically from VHF3 when both nodes have a known position. The Columns menu can reveal RSSI, channel utilization, Air Util TX, Node ID, PKC and state. Clicking a row opens the expanded <b>Node details</b> view, reusing the same data and query logic as the map popup. The panel shows identification, position, telemetry, RF, routing, traceroute, firmware, and power information when available.</p>
+      <h3>2. Nodes</h3><p>The Nodes tab inventories every node known to the configured MeshMonitor source. The filter narrows the list character by character. Click any column heading to sort ascending or descending. Last interaction is color-coded: green up to 1 hour, yellow from more than 1 hour through 12 hours, and red above 12 hours. Battery percentage is green at 50% or above, yellow from 20% to 49.9%, and red below 20%. Distance is calculated specifically from VHF3 when both nodes have a known position. The Columns menu can reveal RSSI, channel utilization, Air Util TX, Node ID, PKC and state. A single click selects a row (Shift+click selects a range; the header checkbox selects every filtered node) and the selection bar applies bulk actions: favorite, hide on the map, Node Info/Traceroute over RF (up to 10 nodes, spaced out), copy IDs, CSV export, and deletion with a per-node result. Right-click on a selected row opens the same bulk actions. Double-click a row, press Enter, or use the ▤ button to open the expanded <b>Node details</b> view, reusing the same data and query logic as the map popup. The panel shows identification, position, telemetry, RF, routing, traceroute, firmware, and power information when available.</p>
       <h3>3. Traffic</h3><p>The Traffic tab displays RX/TX packets observed by MeshMonitor. Filters can narrow direction, packet type, and text search. Click a row to inspect the formatted payload and technical fields. Direct text-message contents remain hidden by the server privacy policy.</p>
       <h3>4. Messages</h3><p>The Messages tab works with the primary channel (channel 0). Enter sends a message; Shift+Enter inserts a line break. Delivery symbols represent protocol state/ACK and do <b>not</b> mean that a human read the message.</p>
       <h4>Reply</h4><p>Use <b>Reply</b> or double-click a message. Traffic Analyzer uses the native Meshtastic/MeshMonitor <code>replyId</code> and shows a reference to the original message in the reply bubble.</p>
@@ -1342,7 +1357,7 @@ function renderHelp(){
       <div class="helpCallout"><b>Importante:</b> a aplicação mostra somente aquilo que a fonte MeshMonitor configurada conseguiu observar. A ausência de enlace, rota, posição ou pacote não prova que o evento nunca existiu na malha.</div>
       <h3>1. Mapa</h3><p>A aba Mapa mostra nós com coordenadas conhecidas e relações de roteamento observadas. A partir da v1.47.0, cada nó e enlace observado fica na memória histórica própria do Traffic Analyzer até o traffic.db ser explicitamente apagado/resetado; a retenção do MeshMonitor não faz mais um enlace já conhecido desaparecer. As janelas de tempo apenas filtram a visualização. O popup de cada nó pode ser arrastado pelo cabeçalho para não encobrir a legenda ou outros controles, mantendo a rolagem interna do conteúdo. A cor do nó indica a idade do último tráfego observado. O estilo do enlace também representa evidência de transporte: linha contínua significa que existe ao menos uma observação RF confirmada no período; linha tracejada significa que foram observadas apenas evidências MQTT/não-RF. Enlaces mistos permanecem contínuos e o popup informa a quantidade de observações RF e MQTT/não-RF. A camada Cobertura RF compõe as recepções arquivadas em um mapa de calor: recepções sobrepostas se acumulam visualmente e cada ponto é ponderado por SNR, com RSSI como fallback. Use <b>Enquadrar</b> para ocupar a tela com os nós visíveis e <b>Atualizar</b> para forçar a regeneração da topologia.</p>
       <ul><li><b>Histórico:</b> reproduz traceroutes em ordem temporal e permite vários pacotes simultaneamente. Janelas longas têm a escala de tempo comprimida proporcionalmente.</li><li><b>Ao vivo:</b> novos traceroutes completos iniciam sua própria animação sem esperar os anteriores terminarem.</li><li><b>Sem limite artificial:</b> não há teto funcional de pacotes em trânsito; a interface acompanha todos os eventos observados.</li><li><b>Pausa:</b> congela todas as animações visuais. Coleta e processamento continuam, e o que ficou aguardando é liberado ao retomar.</li><li><b>Velocidade:</b> afeta também os pacotes que já estão se movendo e a linha do tempo do Histórico.</li><li><b>Auto Zoom:</b> opcionalmente acompanha em conjunto os nós envolvidos nas animações simultâneas.</li></ul>
-      <h3>2. Nós</h3><p>A aba Nós lista todos os nós conhecidos pela fonte MeshMonitor configurada. O filtro reduz a lista caractere por caractere enquanto você digita. Clique em qualquer título de coluna para alternar entre ordem crescente e decrescente. A última interação usa cores: verde até 1 hora, amarelo acima de 1 hora até 12 horas e vermelho acima de 12 horas. O percentual da bateria fica verde a partir de 50%, amarelo de 20% a 49,9% e vermelho abaixo de 20%. A distância é calculada especificamente em relação ao VHF3 quando os dois nós possuem posição conhecida. O menu Colunas permite exibir RSSI, utilização do canal, Air Util TX, Node ID, PKC e estado. Ao clicar em uma linha, a aplicação abre a visualização ampliada de <b>Detalhes do nó</b>, reutilizando os mesmos dados e consultas do popup do mapa. O painel mostra identificação, posição, telemetria, RF, routing, traceroute, firmware e energia conforme disponíveis.</p>
+      <h3>2. Nós</h3><p>A aba Nós lista todos os nós conhecidos pela fonte MeshMonitor configurada. O filtro reduz a lista caractere por caractere enquanto você digita. Clique em qualquer título de coluna para alternar entre ordem crescente e decrescente. A última interação usa cores: verde até 1 hora, amarelo acima de 1 hora até 12 horas e vermelho acima de 12 horas. O percentual da bateria fica verde a partir de 50%, amarelo de 20% a 49,9% e vermelho abaixo de 20%. A distância é calculada especificamente em relação ao VHF3 quando os dois nós possuem posição conhecida. O menu Colunas permite exibir RSSI, utilização do canal, Air Util TX, Node ID, PKC e estado. Um clique seleciona a linha (Shift+clique seleciona um intervalo; a caixa do cabeçalho seleciona todos os nós filtrados) e a barra de seleção aplica ações em lote: favoritar, ocultar no mapa, Node Info/Traceroute por RF (até 10 nós, espaçados), copiar IDs, exportar CSV e excluir com resultado por nó. O clique direito numa linha selecionada abre as mesmas ações. Duplo clique, Enter ou o botão ▤ abrem a visualização ampliada de <b>Detalhes do nó</b>, reutilizando os mesmos dados e consultas do popup do mapa. O painel mostra identificação, posição, telemetria, RF, routing, traceroute, firmware e energia conforme disponíveis.</p>
       <h3>3. Tráfego</h3><p>A aba Tráfego mostra pacotes RX/TX observados pelo MeshMonitor. Os filtros permitem restringir direção, tipo de pacote e busca textual. Clique em uma linha para examinar payload formatado e campos técnicos. O conteúdo de mensagens diretas permanece oculto pela política de privacidade do servidor.</p>
       <h3>4. Mensagens</h3><p>A aba Mensagens trabalha com o canal primário (canal 0). Enter envia; Shift+Enter cria uma nova linha. Os símbolos de entrega representam estado de protocolo/ACK e <b>não</b> significam que uma pessoa leu a mensagem.</p>
       <h4>Responder</h4><p>Use <b>Responder</b> ou dê duplo clique em uma mensagem. O Traffic Analyzer usa o <code>replyId</code> nativo do Meshtastic/MeshMonitor e mostra no novo balão uma referência à mensagem original.</p>
@@ -4293,6 +4308,8 @@ function batteryClass(value){
 }
 function renderNodesTable(){
   const body=document.getElementById('nodesRows');if(!body||!topology)return;
+  const known=new Set((topology.nodes||[]).map(n=>Number(n.nodeNum)));
+  for(const num of [...nodesSelected])if(!known.has(num))nodesSelected.delete(num);
   const allRows=nodeTableRows();
   const rows=allRows.filter(nodeMatchesFilter);
   rows.sort((a,b)=>nodesCompare(a,b,nodesSortKey,nodesSortDir==='asc'?1:-1));
@@ -4303,7 +4320,9 @@ function renderNodesTable(){
     const n=x.raw,ageCls=nodeAgeClass(x.lastInteraction);
     const interaction=x.lastInteraction?compactAgeFromMs(x.lastInteraction):'—';
     const position=x.lastPosition?compactAgeFromMs(x.lastPosition):'—';
-    return `<tr data-node-num="${Number(n.nodeNum)}" title="${esc(tr('Clique para abrir o mapa'))}">`+
+    const num=Number(n.nodeNum),sel=nodesSelected.has(num);
+    return `<tr data-node-num="${num}" tabindex="0" class="${sel?'nodeSelected':''}" aria-selected="${sel}" title="${esc(tr('Clique para selecionar · duplo clique para abrir os detalhes'))}">`+
+      `<td class="nodeSelectCol"><input type="checkbox" data-node-select ${sel?'checked':''} aria-label="${esc(tr('Selecionar nó'))}"><button type="button" class="nodeOpenBtn" data-node-open title="${esc(tr('Abrir detalhes do nó'))}">▤</button></td>`+
       `<td class="nodeNameCell">${esc(x.longName||'—')}</td><td>${esc(x.shortName||'—')}</td><td>${esc(x.role||'—')}</td><td>${esc(x.hardware||'—')}</td>`+
       `<td>${x.hops==null?'—':esc(x.hops)}</td><td>${x.battery==null?'—':`<span class="${batteryClass(x.battery)}">${esc(nodeFmtPercent(x.battery))}</span>`}</td><td>${x.voltage==null?'—':esc(nodeFmtNum(x.voltage,2)+' V')}</td>`+
       `<td>${x.distance==null?'—':esc(`${x.distance.toLocaleString(uiLocale(),{minimumFractionDigits:x.distance<10?1:0,maximumFractionDigits:1})} km`)}</td>`+
@@ -4313,15 +4332,31 @@ function renderNodesTable(){
       `<td class="nodeOptional col-channelUtilization">${x.channelUtilization==null?'—':esc(nodeFmtPercent(x.channelUtilization))}</td>`+
       `<td class="nodeOptional col-airUtilTx">${x.airUtilTx==null?'—':esc(nodeFmtPercent(x.airUtilTx))}</td>`+
       `<td class="nodeOptional col-nodeId">${esc(x.nodeId||'—')}</td><td class="nodeOptional col-pkc">${x.pkc==null?'—':(x.pkc?'✓':'—')}</td><td class="nodeOptional col-state">${esc(x.state||'—')}</td></tr>`;
-  }).join('')||'<tr><td colspan="17">Nenhum nó disponível.</td></tr>';
+  }).join('')||'<tr><td colspan="18">Nenhum nó disponível.</td></tr>';
+  nodesVisibleOrder=rows.map(x=>Number(x.raw.nodeNum));
   body.querySelectorAll('tr[data-node-num]').forEach(tr=>{
-    tr.addEventListener('click',()=>openNodeFromList(Number(tr.dataset.nodeNum)));
+    const num=Number(tr.dataset.nodeNum);
+    tr.addEventListener('click',event=>{
+      if(event.target.closest('[data-node-open]')){event.stopPropagation();openNodeFromList(num);return;}
+      nodesSelectClick(num,event);
+    });
+    tr.addEventListener('dblclick',event=>{
+      if(event.target.closest('[data-node-select],[data-node-open]'))return;
+      window.getSelection?.().removeAllRanges?.();openNodeFromList(num);
+    });
+    tr.addEventListener('keydown',event=>{
+      if(event.target!==tr)return;
+      if(event.key==='Enter'){event.preventDefault();openNodeFromList(num);}
+      else if(event.key===' '){event.preventDefault();nodesSelectClick(num,event);}
+    });
     tr.addEventListener('contextmenu',event=>{
       event.preventDefault();event.stopPropagation();
-      const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===Number(tr.dataset.nodeNum));
+      if(nodesSelected.size>1&&nodesSelected.has(num)){showNodesBulkMenu(event.clientX,event.clientY);return;}
+      const n=(topology?.nodes||[]).find(x=>Number(x.nodeNum)===num);
       if(n)showNodeContextMenu(n,event.clientX,event.clientY,'nodes');
     });
   });
+  updateNodesBulkBar();
   renderNodesSortIndicators();
 }
 function closeNodeDetailsModal(updateRoute=true){
@@ -4351,6 +4386,149 @@ function openNodeDetailsModal(nodeNum,updateRoute=true){
   });
 }
 function openNodeFromList(nodeNum){openNodeDetailsModal(nodeNum);}
+// Seleção múltipla da aba Nós: clique marca/desmarca, Shift+clique seleciona intervalo,
+// duplo clique (ou ▤/Enter) abre os detalhes.
+const nodesSelected=new Set();
+let nodesVisibleOrder=[],nodesSelectAnchor=null;
+const NODE_BULK_RF_MAX=10,NODE_BULK_RF_GAP_MS=4000;
+function nodesSelectClick(num,event){
+  if(event.shiftKey&&nodesSelectAnchor!=null&&nodesVisibleOrder.includes(nodesSelectAnchor)){
+    const a=nodesVisibleOrder.indexOf(nodesSelectAnchor),b=nodesVisibleOrder.indexOf(num);
+    const on=nodesSelected.has(nodesSelectAnchor);
+    for(const n of nodesVisibleOrder.slice(Math.min(a,b),Math.max(a,b)+1))on?nodesSelected.add(n):nodesSelected.delete(n);
+  }else{
+    nodesSelected.has(num)?nodesSelected.delete(num):nodesSelected.add(num);
+    nodesSelectAnchor=num;
+  }
+  syncNodesSelectionRows();
+}
+function syncNodesSelectionRows(){
+  document.querySelectorAll('#nodesRows tr[data-node-num]').forEach(tr=>{
+    const sel=nodesSelected.has(Number(tr.dataset.nodeNum));
+    tr.classList.toggle('nodeSelected',sel);tr.setAttribute('aria-selected',String(sel));
+    const cb=tr.querySelector('[data-node-select]');if(cb)cb.checked=sel;
+  });
+  updateNodesBulkBar();
+}
+function updateNodesBulkBar(){
+  const count=nodesSelected.size,bar=document.getElementById('nodesBulkBar');
+  if(bar)bar.hidden=count===0;
+  const label=document.getElementById('nodesBulkCount');
+  if(label)label.textContent=count===1?tr('1 nó selecionado'):`${count} ${tr('nós selecionados')}`;
+  const all=document.getElementById('nodesSelectAll');
+  if(all){
+    const visible=nodesVisibleOrder.filter(n=>nodesSelected.has(n)).length;
+    all.checked=visible>0&&visible===nodesVisibleOrder.length;
+    all.indeterminate=visible>0&&visible<nodesVisibleOrder.length;
+  }
+}
+function nodesSelectedList(){return [...nodesSelected].map(nodeCtxNode).filter(Boolean);}
+function nodesBulkLabel(nodes){
+  const names=nodes.slice(0,12).map(n=>'• '+String(n.longName||n.name||n.nodeId||n.nodeNum));
+  return names.join('\n')+(nodes.length>12?`\n… e mais ${nodes.length-12}`:'');
+}
+async function nodesBulkFavorite(nodes,enabled){
+  if(!authCanWrite()){openAuthModal();return;}
+  let ok=0;const failed=[];
+  for(const n of nodes){
+    try{
+      const r=await authFetch('/api/node-favorite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum),favorite:enabled})});
+      const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));
+      const s=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY);enabled?s.add(Number(n.nodeNum)):s.delete(Number(n.nodeNum));nodeCtxWriteSet(NODE_CTX_FAVORITES_KEY,s);ok++;
+    }catch(e){failed.push(String(n.shortName||n.nodeId||n.nodeNum)+': '+(e.message||e));}
+  }
+  nodeCtxToast(`${enabled?'Favoritados':'Desfavoritados'}: ${ok} de ${nodes.length}`+(failed.length?` · falhas: ${failed.join('; ')}`:''));
+}
+function nodesBulkHide(nodes,hide){
+  const s=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY);
+  for(const n of nodes)hide?s.add(Number(n.nodeNum)):s.delete(Number(n.nodeNum));
+  nodeCtxWriteSet(NODE_CTX_HIDDEN_KEY,s);render();
+  nodeCtxToast(`${nodes.length} ${hide?'nó(s) ocultado(s) no mapa':'nó(s) visível(is) no mapa'}.`);
+}
+async function nodesBulkQuery(nodes,action){
+  if(!authCanWrite()){openAuthModal();return;}
+  if(nodes.length>NODE_BULK_RF_MAX){alert(`Consultas por RF em lote são limitadas a ${NODE_BULK_RF_MAX} nós por vez, para não congestionar a malha.`);return;}
+  const label=action==='traceroute'?'Traceroute':'Node Info';
+  if(!confirm(`Enviar ${label} por RF para ${nodes.length} nó(s), um a cada ${NODE_BULK_RF_GAP_MS/1000} s?\n\n${nodesBulkLabel(nodes)}`))return;
+  let ok=0;const failed=[];
+  for(const [i,n] of nodes.entries()){
+    nodeCtxToast(`${label} ${i+1}/${nodes.length}: ${String(n.shortName||n.longName||n.nodeId)}…`);
+    try{
+      const r=await authFetch('/api/node-query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNum:Number(n.nodeNum),action})});
+      const b=await r.json();if(!r.ok||!b.success)throw new Error(b.message||b.error||('HTTP '+r.status));ok++;
+    }catch(e){failed.push(String(n.shortName||n.nodeId||n.nodeNum)+': '+(e.message||e));}
+    if(i<nodes.length-1)await new Promise(res=>setTimeout(res,NODE_BULK_RF_GAP_MS));
+  }
+  nodeCtxToast(`${label} enviado para ${ok} de ${nodes.length}. Respostas chegam pela malha.`+(failed.length?` Falhas: ${failed.join('; ')}`:''));
+}
+function nodesBulkCsv(nodes){
+  const nums=new Set(nodes.map(n=>Number(n.nodeNum)));
+  const rows=nodeTableRows().filter(x=>nums.has(Number(x.raw.nodeNum)));
+  const cols=[['Nome longo',x=>x.longName],['Nome curto',x=>x.shortName],['Node ID',x=>x.nodeId||x.raw.nodeId],['nodeNum',x=>x.raw.nodeNum],
+    ['Role',x=>x.role],['Hardware',x=>x.hardware],['Saltos',x=>x.hops],['Bateria',x=>x.battery],['Tensão',x=>x.voltage],['SNR',x=>x.snr],
+    ['Distância km',x=>x.distance==null?'':x.distance.toFixed(2)],['Última interação',x=>x.lastInteraction?new Date(x.lastInteraction).toISOString():''],
+    ['Latitude',x=>x.raw.latitude],['Longitude',x=>x.raw.longitude]];
+  const cell=v=>{const t=String(v??'');return /[",;\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;};
+  const csv='﻿'+[cols.map(c=>cell(c[0])).join(';'),...rows.map(x=>cols.map(c=>cell(c[1](x))).join(';'))].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`nos-traffic-analyzer-${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  nodeCtxToast(`${rows.length} nó(s) exportado(s) em CSV.`);
+}
+async function nodesBulkDelete(nodes,scope){
+  if(!authCanWrite()){openAuthModal();return;}
+  const where=scope==='local'?'somente do banco local do Traffic Analyzer':'da base local E da lista de nós do dispositivo Meshtastic';
+  if(!confirm(`Excluir ${nodes.length} nó(s) ${where}?\n\n${nodesBulkLabel(nodes)}\n\nO resultado de cada nó será mostrado ao final.`))return;
+  nodeCtxToast(`Excluindo ${nodes.length} nó(s)…`);
+  const r=await authFetch('/api/nodes-bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nodeNums:nodes.map(n=>Number(n.nodeNum)),scope})});
+  const b=await r.json();if(!r.ok||!Array.isArray(b.results))throw new Error(b.message||b.error||('HTTP '+r.status));
+  const hidden=nodeCtxReadSet(NODE_CTX_HIDDEN_KEY),favorites=nodeCtxReadSet(NODE_CTX_FAVORITES_KEY);
+  for(const x of b.results)if(x.localDeleted){hidden.delete(Number(x.nodeNum));favorites.delete(Number(x.nodeNum));nodesSelected.delete(Number(x.nodeNum));}
+  nodeCtxWriteSet(NODE_CTX_HIDDEN_KEY,hidden);nodeCtxWriteSet(NODE_CTX_FAVORITES_KEY,favorites);
+  closeNodeDetailsModal(false);await load(false);
+  const failed=b.results.filter(x=>!x.success).map(x=>{
+    const n=nodeCtxNode(x.nodeNum)||nodes.find(y=>Number(y.nodeNum)===Number(x.nodeNum))||{};
+    const parts=[];if(!x.localDeleted)parts.push('base local: '+(x.localError||'falhou'));if(scope!=='local'&&!x.deviceDeleted)parts.push('dispositivo: '+(x.deviceError||'falhou'));
+    return String(n.shortName||n.longName||n.nodeId||x.nodeNum)+' ('+parts.join(', ')+')';
+  });
+  const msg=`Exclusão: ${b.succeeded} de ${b.total} concluída(s).`+(failed.length?`\n\nCom falha:\n${failed.join('\n')}`:'');
+  nodeCtxToast(msg.split('\n')[0]);if(failed.length)alert(msg);
+}
+async function runNodesBulk(action){
+  const nodes=nodesSelectedList();
+  if(action==='clear'){nodesSelected.clear();syncNodesSelectionRows();return;}
+  if(!nodes.length)return;
+  try{
+    if(action==='favorite'||action==='unfavorite')await nodesBulkFavorite(nodes,action==='favorite');
+    else if(action==='hide'||action==='show')nodesBulkHide(nodes,action==='hide');
+    else if(action==='nodeinfo'||action==='traceroute')await nodesBulkQuery(nodes,action);
+    else if(action==='copy')await nodeCtxCopy(nodes.map(n=>`${n.nodeId||''}\t${n.longName||n.name||''}`).join('\n'),`${nodes.length} ID(s) copiado(s).`);
+    else if(action==='csv')nodesBulkCsv(nodes);
+    else if(action==='deleteLocal')await nodesBulkDelete(nodes,'local');
+    else if(action==='deleteEverywhere')await nodesBulkDelete(nodes,'everywhere');
+  }catch(e){nodeCtxToast(String(e?.message||e));}
+}
+function showNodesBulkMenu(x,y){
+  closeNodeContextMenu();
+  const menu=document.createElement('div');menu.id='nodeContextMenuV165';
+  Object.assign(menu.style,{position:'fixed',zIndex:'10050',left:Math.max(4,Math.min(Number(x)||4,window.innerWidth-280))+'px',top:Math.max(4,Math.min(Number(y)||4,window.innerHeight-460))+'px',width:'270px',maxHeight:'calc(100vh - 12px)',overflowY:'auto',background:'#172532',border:'1px solid #496176',borderRadius:'8px',boxShadow:'0 12px 30px rgba(0,0,0,.45)',color:'#e8edf2'});
+  const title=document.createElement('div');title.textContent=`${nodesSelected.size} ${tr('nós selecionados')}`;
+  Object.assign(title.style,{padding:'8px 10px',fontWeight:'800',fontSize:'12px',background:'#101a23',borderBottom:'1px solid #496176'});menu.appendChild(title);
+  document.querySelectorAll('#nodesBulkBar [data-node-bulk]').forEach(btn=>{
+    nodeCtxButton(menu,btn.textContent,()=>runNodesBulk(btn.dataset.nodeBulk),{danger:btn.classList.contains('nodesBulkDanger')});
+  });
+  document.body.appendChild(menu);
+  const close=e=>{if(!menu.contains(e.target)){closeNodeContextMenu();document.removeEventListener('pointerdown',close,true);}};
+  setTimeout(()=>document.addEventListener('pointerdown',close,true),0);
+  menu.addEventListener('contextmenu',e=>e.preventDefault());
+}
+document.querySelectorAll('#nodesBulkBar [data-node-bulk]').forEach(btn=>btn.addEventListener('click',()=>runNodesBulk(btn.dataset.nodeBulk)));
+document.getElementById('nodesSelectAll').addEventListener('click',e=>{
+  e.stopPropagation();
+  const allSelected=nodesVisibleOrder.length>0&&nodesVisibleOrder.every(n=>nodesSelected.has(n));
+  for(const n of nodesVisibleOrder)allSelected?nodesSelected.delete(n):nodesSelected.add(n);
+  syncNodesSelectionRows();
+});
 document.getElementById('nodesFilter').addEventListener('input',e=>{nodesFilterText=String(e.target.value||'');renderNodesTable();taSyncRoute({replace:true,view:'nodes'});});
 document.getElementById('nodesFilterClear').addEventListener('click',()=>{const el=document.getElementById('nodesFilter');el.value='';nodesFilterText='';el.focus();renderNodesTable();taSyncRoute({replace:true,view:'nodes'});});
 document.getElementById('nodesColumnsButton').addEventListener('click',e=>{
@@ -6634,6 +6812,34 @@ def _delete_node_everywhere(node_num):
         "device": device_result,
         "local": local_result,
     }
+
+
+NODE_BULK_DELETE_MAX = 100
+
+
+def _bulk_delete_nodes(node_nums, scope):
+    """Exclui vários nós, um por vez, devolvendo o resultado de cada um."""
+    if scope not in ("local", "everywhere"):
+        raise ValueError("Escopo de exclusão inválido")
+    if not isinstance(node_nums, list) or not node_nums:
+        raise ValueError("Selecione ao menos um nó")
+    nums = list(dict.fromkeys(_node_num(x) for x in node_nums))
+    if len(nums) > NODE_BULK_DELETE_MAX:
+        raise ValueError(f"Selecione no máximo {NODE_BULK_DELETE_MAX} nós por exclusão")
+    results = []
+    for n in nums:
+        if scope == "local":
+            try:
+                _delete_local_node(n)
+                results.append({"nodeNum": n, "success": True, "localDeleted": True})
+            except Exception as exc:
+                results.append({"nodeNum": n, "success": False, "localDeleted": False, "localError": str(exc)[:300]})
+        else:
+            row = _delete_node_everywhere(n)
+            results.append({k: row[k] for k in ("nodeNum", "success", "deviceDeleted", "localDeleted",
+                                                 "deviceError", "localError")})
+    ok = sum(1 for r in results if r["success"])
+    return {"success": ok == len(results), "scope": scope, "total": len(results), "succeeded": ok, "results": results}
 
 
 def _automation_defaults():
@@ -12501,6 +12707,21 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             except Exception as e:
                 self._send(502, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            return
+        if path == "/api/nodes-bulk-delete":
+            try:
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                if length <= 0 or length > 8192:
+                    raise ValueError("Corpo da requisição inválido")
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError("Corpo da requisição inválido")
+                body = _bulk_delete_nodes(payload.get("nodeNums"), str(payload.get("scope") or ""))
+                self._send(200, "application/json; charset=utf-8", json.dumps(body, ensure_ascii=False).encode("utf-8"))
+            except ValueError as e:
+                self._send(400, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
+            except Exception as e:
+                self._send(500, "application/json; charset=utf-8", json.dumps({"success": False, "message": str(e)}, ensure_ascii=False).encode("utf-8"))
             return
         if path == "/api/node-delete-everywhere":
             try:

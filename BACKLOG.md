@@ -1,5 +1,7 @@
 ## P2 — Aba Nós: seleção múltipla para ações em lote — 22/10/2026
 
+- **Concluído na v1.70.0:** clique seleciona, Shift+clique intervalo, duplo clique/Enter/▤ abre detalhes, selecionar todos do filtro, barra e menu de ações em lote (favoritos, ocultar, Node Info/Traceroute limitados a 10 nós, copiar IDs, CSV, exclusão com resultado por nó).
+
 - **Pedido:** na aba **Nós**, permitir selecionar um ou mais nós e aplicar ações em lote (bulk).
 - **Mudança de comportamento:** hoje um clique na linha já abre os detalhes (`openNodeFromList`, linha `tr[data-node-num]`). Passa a ser:
   - **1 clique:** seleciona/desmarca o nó (sem abrir nada);
@@ -73,6 +75,10 @@
 - Verificar se o `load(false)` atual reaplica um snapshot antigo do MeshMonitor logo após apagar do SQLite e, nesse caso, evitar que a resposta obsoleta reintroduza o nó na mesma atualização.
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
+
+## v1.70.0 — Seleção múltipla na aba Nós
+
+- **Concluído:** seleção múltipla, duplo clique para propriedades e ações em lote.
 
 ## v1.69.0 — Previsão do tempo pelo Open-Meteo
 

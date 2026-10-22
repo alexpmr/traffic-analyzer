@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import traffic_analyzer_web as web
@@ -99,6 +100,42 @@ class NodeContextMenuTests(unittest.TestCase):
                     self.assertEqual(conn.execute("SELECT COUNT(*) FROM deleted_nodes").fetchone()[0], 0)
             finally:
                 web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE = old_db, old_source
+
+    def test_bulk_delete_reports_each_node_and_validates_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_db, old_source = web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE
+            try:
+                web.TRAFFIC_ARCHIVE_DB = Path(tmp) / "traffic.db"
+                web.MM_SOURCE = "default"
+                web._archive_init()
+                result = web._bulk_delete_nodes([10, 20, 10], "local")
+                self.assertTrue(result["success"]);self.assertEqual(result["total"], 2)
+                with web._archive_connect() as conn:
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM deleted_nodes").fetchone()[0], 2)
+                with mock.patch.object(web, "_device_node_admin_action",
+                                       side_effect=lambda n, a: {"success": n != 30} if n != 40 else (_ for _ in ()).throw(RuntimeError("sem rádio"))):
+                    result = web._bulk_delete_nodes([30, 40, 50], "everywhere")
+                by = {r["nodeNum"]: r for r in result["results"]}
+                self.assertFalse(result["success"]);self.assertEqual(result["succeeded"], 1)
+                self.assertTrue(by[50]["success"]);self.assertFalse(by[30]["deviceDeleted"])
+                self.assertEqual(by[40]["deviceError"], "sem rádio");self.assertTrue(by[40]["localDeleted"])
+                for nums, scope in [([], "local"), (None, "local"), ([1], "tudo"), (list(range(1, 102)), "local"), (["x"], "local")]:
+                    with self.assertRaises(ValueError):
+                        web._bulk_delete_nodes(nums, scope)
+            finally:
+                web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE = old_db, old_source
+
+    def test_nodes_tab_single_click_selects_and_double_click_opens(self):
+        html = web.HTML
+        self.assertIn('id="nodesSelectAll"', html)
+        self.assertIn('id="nodesBulkBar"', html)
+        for action in ("favorite", "hide", "nodeinfo", "traceroute", "copy", "csv", "deleteLocal", "deleteEverywhere", "clear"):
+            self.assertIn(f'data-node-bulk="{action}"', html)
+        self.assertIn("nodesSelectClick(num,event);", html)
+        self.assertIn("tr.addEventListener('dblclick'", html)
+        self.assertNotIn("tr.addEventListener('click',()=>openNodeFromList", html)
+        self.assertIn("/api/nodes-bulk-delete", html)
+        self.assertIn("NODE_BULK_RF_MAX=10", html)
 
 
 if __name__ == "__main__":
