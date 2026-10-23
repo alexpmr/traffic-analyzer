@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.71.0 - 2026-10-23
+
+- PING: resposta termina com o traceroute de ida e volta até a estação, com SNR por salto (`Rota de ida` / `Rota de volta`), usando `route`, `routeBack`, `snrTowards` e `snrBack` do MeshMonitor.
+- Volta ausente aparece como "não disponível" (sem inferência); enlace direto, hops desconhecidos (`?`) e timeout tratados explicitamente.
+- Novas variáveis `{{rota_ida}}` e `{{rota_volta}}`; `{{rota}}` mantida por compatibilidade.
+- Testes de regressão para formatação, variáveis, limite de 200 bytes e coleta do traceroute.
+
 ## 1.70.1 - 2026-10-22
 
 - CLIMA: a linha do bloco Raios vinda da entidade `binary_sensor…_is_lightning` do Home Assistant passa a indicar a segurança: Raios próximos: não, situação segura ou Raios próximos: SIM, situação de risco (antes "Descargas próximas: nenhuma/detectadas"). Requer URL e token do Home Assistant em Automações → CLIMA.

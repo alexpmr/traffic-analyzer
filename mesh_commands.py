@@ -76,8 +76,68 @@ def local_time_text(timestamp_ms=None) -> str:
     return _dt.datetime.now().strftime("%H:%M:%S")
 
 
+_TRACE_PLACEHOLDERS = {0, 1, 2, 3, 255, 65535, 0xFFFFFFFF}
+_TRACE_UNKNOWN_SNR_DB = -32.0
+
+
+def _trace_list(raw) -> list:
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw) if raw.strip() else []
+        except ValueError:
+            return []
+    return raw if isinstance(raw, list) else []
+
+
+def _trace_leg(start: int, intermediate, end: int, snr_raw, label) -> str:
+    """start → intermediários → end; o SNR (valor do rádio ÷ 4) fica após o nó que recebeu."""
+    hops = []
+    for value in _trace_list(intermediate):
+        try:
+            hops.append(int(value) & 0xFFFFFFFF)
+        except (TypeError, ValueError):
+            hops.append(None)
+    snrs = _trace_list(snr_raw)
+    parts = [label(start)]
+    for idx, num in enumerate(hops + [end]):
+        name = "?" if num is None or num in _TRACE_PLACEHOLDERS else label(num)
+        try:
+            snr = float(snrs[idx]) / 4.0
+            if abs(snr - _TRACE_UNKNOWN_SNR_DB) < 1e-9:
+                raise ValueError
+            name += f" ({snr:.1f} dB)"
+        except (IndexError, TypeError, ValueError):
+            pass
+        parts.append(name)
+    text = " → ".join(parts)
+    return ("direto, " + text) if not hops else text
+
+
+def format_traceroute_lines(trace: dict | None, label, timeout_seconds: int | None = None) -> list[str]:
+    """Linhas de ida e volta de um traceroute do MeshMonitor para a resposta do PING.
+
+    ``label`` converte nodeNum em nome curto. A volta só é mostrada quando o
+    registro a traz; nunca é inferida invertendo a ida.
+    """
+    if not trace:
+        wait = f" em {int(timeout_seconds)} s" if timeout_seconds else ""
+        return [f"Traceroute: sem resposta{wait}"]
+    try:
+        start = int(trace.get("fromNodeNum")) & 0xFFFFFFFF
+        end = int(trace.get("toNodeNum")) & 0xFFFFFFFF
+    except (TypeError, ValueError):
+        return ["Traceroute: resposta inválida"]
+    lines = ["Rota de ida: " + _trace_leg(start, trace.get("route"), end, trace.get("snrTowards"), label)]
+    if _trace_list(trace.get("routeBack")) or _trace_list(trace.get("snrBack")):
+        lines.append("Rota de volta: " + _trace_leg(end, trace.get("routeBack"), start, trace.get("snrBack"), label))
+    else:
+        lines.append("Rota de volta: não disponível")
+    return lines
+
+
 def format_ping_message(*, destination_label: str, origin: str, message: dict,
-                        heard_nodes_24h: int | None, route_text: str) -> str:
+                        heard_nodes_24h: int | None, route_text: str = "",
+                        route_lines: list[str] | None = None) -> str:
     lines = [f"PING {destination_label}", f"Origem: {origin}"]
     lines.append(f"Hora: {local_time_text(message.get('receivedAt') or message.get('createdAt') or message.get('timestamp'))}")
 
@@ -98,7 +158,11 @@ def format_ping_message(*, destination_label: str, origin: str, message: dict,
     lines.append("Via: MQTT" if bool(message.get("viaMqtt")) else "Via: LoRa")
     if heard_nodes_24h is not None:
         lines.append(f"Nós ouvidos em 24 h: {int(heard_nodes_24h)}")
-    lines.append(f"Teste de rota: {route_text or 'sem resposta'}")
+    if route_lines:
+        # Traceroute de ida e volta sempre ao final da resposta.
+        lines.extend(route_lines)
+    else:
+        lines.append(f"Teste de rota: {route_text or 'sem resposta'}")
     return "\n".join(lines)
 
 

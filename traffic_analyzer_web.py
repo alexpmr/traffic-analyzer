@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.70.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.71.0 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.70.1"
+APP_VERSION = "1.71.0"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6998,7 +6998,9 @@ def _automation_ping_sample(settings):
         destination_label=settings["label"], origin="Estação exemplo [TEST] (!00000001)",
         message={"timestamp": int(time.time() * 1000), "hopStart": 3, "hopLimit": 2,
                  "rxRssi": -92, "rxSnr": 5.5, "viaMqtt": False},
-        heard_nodes_24h=42, route_text="via VHF3",
+        heard_nodes_24h=42,
+        route_lines=[f"Rota de ida: {settings['label']} → RPT1 (5.2 dB) → TEST (3.0 dB)",
+                     f"Rota de volta: TEST → RPT1 (4.8 dB) → {settings['label']} (6.1 dB)"],
     )
 
 
@@ -7148,14 +7150,11 @@ def _mesh_command_cooldown_active(row: dict, command: str) -> int:
     return max(1, remaining)
 
 
-def _mesh_command_route_text(node_num: int, timeout_seconds=None) -> str:
+def _mesh_command_route_trace(node_num: int, timeout_seconds=None):
+    """Solicita um traceroute ao nó e devolve o registro do MeshMonitor (ida e volta), ou None no timeout."""
     requested = int(time.time() * 1000)
-    try:
-        _request_node_query(node_num, "traceroute")
-    except Exception:
-        return "sem resposta"
+    _request_node_query(node_num, "traceroute")
     deadline = time.time() + (PING_ROUTE_TIMEOUT_SECONDS if timeout_seconds is None else int(timeout_seconds))
-    by_num, _ = _mesh_command_node_index()
     while time.time() < deadline and not _mesh_command_stop.is_set():
         try:
             traces = _live_traceroutes(120)
@@ -7178,27 +7177,33 @@ def _mesh_command_route_text(node_num: int, timeout_seconds=None) -> str:
                     pass
             if not ts or ts + 2000 < requested:
                 continue
-            route = trace.get("route")
-            if isinstance(route, str):
-                try:
-                    route = json.loads(route)
-                except Exception:
-                    route = []
-            route = route if isinstance(route, list) else []
-            if not route:
-                return "direto"
-            names = []
-            for value in route:
-                try:
-                    n = int(value)
-                except (TypeError, ValueError):
-                    continue
-                node = by_num.get(n, {})
-                label = str(node.get("shortName") or node.get("longName") or node.get("name") or _node_hex_id(n))
-                names.append(label)
-            return "via " + " → ".join(names) if names else "respondido"
+            return trace
         _mesh_command_stop.wait(1.0)
-    return "sem resposta"
+    return None
+
+
+def _mesh_command_route_lines(node_num, timeout_seconds, local_label):
+    """Linhas "Rota de ida"/"Rota de volta" para o final da resposta do PING."""
+    timeout = PING_ROUTE_TIMEOUT_SECONDS if timeout_seconds is None else int(timeout_seconds)
+    try:
+        trace = _mesh_command_route_trace(int(node_num), timeout)
+    except Exception:
+        return ["Traceroute: não foi possível solicitar"]
+    by_num, _ = _mesh_command_node_index()
+    local_num = None
+    try:
+        local_num = int((trace or {}).get("fromNodeNum")) & 0xFFFFFFFF
+    except (TypeError, ValueError):
+        pass
+
+    def label(num):
+        node = by_num.get(num, {})
+        name = str(node.get("shortName") or node.get("longName") or node.get("name") or "").strip()
+        if not name and num == local_num:
+            name = local_label
+        return name or _node_hex_id(num)
+
+    return meshcmd.format_traceroute_lines(trace, label, timeout)
 
 
 def _mesh_command_send_parts(parts, send_func=None, gap_seconds=None):
@@ -7234,16 +7239,15 @@ def _mesh_command_handle(row: dict, command: str, send_func=None):
         node = _mesh_command_node_for_message(row)
         origin = meshcmd.node_identity(node, str(row.get("fromNodeId") or ""))
         try:
-            node_num = int(row.get("fromNodeNum"))
-            route_text = _mesh_command_route_text(node_num, cfg["routeTimeoutSeconds"])
+            route_lines = _mesh_command_route_lines(int(row.get("fromNodeNum")), cfg["routeTimeoutSeconds"], cfg["label"])
         except (TypeError, ValueError):
-            route_text = "sem resposta"
+            route_lines = ["Traceroute: estação sem nodeNum"]
         text = meshcmd.format_ping_message(
             destination_label=cfg["label"],
             origin=origin,
             message=row,
             heard_nodes_24h=_mesh_command_heard_nodes_24h(),
-            route_text=route_text,
+            route_lines=route_lines,
         )
         parts = automgr.preview("ping", cfg, default_ping_text=text)["parts"]
         sent = _mesh_command_send_parts(parts, send_func=send_func, gap_seconds=1.5)

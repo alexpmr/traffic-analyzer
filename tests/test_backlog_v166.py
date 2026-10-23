@@ -1,5 +1,6 @@
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -213,6 +214,59 @@ class BacklogV166Tests(unittest.TestCase):
                     web._save_home_assistant(bad)
             web._save_home_assistant({"forecastLatitude": "", "forecastLongitude": ""})
             self.assertEqual(web._forecast_location()[2], "posição do nó VHF3")
+
+    def test_ping_traceroute_round_trip_lines(self):
+        vhf3, rpt1, st01 = 0x2a4a005a, 0x11110001, 0x22220002
+        names = {vhf3: "VHF3", rpt1: "RPT1", st01: "ST01"}
+        label = lambda n: names.get(n, f"!{n:08x}")
+        trace = {"fromNodeNum": vhf3, "toNodeNum": st01, "route": f"[{rpt1}]", "snrTowards": [21, 12],
+                 "routeBack": [rpt1], "snrBack": [19, 24]}
+        self.assertEqual(meshcmd.format_traceroute_lines(trace, label, 20), [
+            "Rota de ida: VHF3 → RPT1 (5.2 dB) → ST01 (3.0 dB)",
+            "Rota de volta: ST01 → RPT1 (4.8 dB) → VHF3 (6.0 dB)"])
+        # Volta ausente nunca é inferida; enlace direto; SNR desconhecido (-128/4 = -32) omitido; hop placeholder.
+        self.assertEqual(meshcmd.format_traceroute_lines(
+            {"fromNodeNum": vhf3, "toNodeNum": st01, "route": [], "snrTowards": [-128]}, label), [
+            "Rota de ida: direto, VHF3 → ST01", "Rota de volta: não disponível"])
+        self.assertEqual(meshcmd.format_traceroute_lines(
+            {"fromNodeNum": vhf3, "toNodeNum": st01, "route": [4294967295], "snrTowards": [8, 4]}, label)[0],
+            "Rota de ida: VHF3 → ? (2.0 dB) → ST01 (1.0 dB)")
+        self.assertEqual(meshcmd.format_traceroute_lines(None, label, 20), ["Traceroute: sem resposta em 20 s"])
+
+    def test_ping_message_ends_with_traceroute_and_fills_variables(self):
+        import automation_manager as automgr
+        lines = ["Rota de ida: VHF3 → RPT1 (5.2 dB) → ST01 (3.0 dB)",
+                 "Rota de volta: ST01 → RPT1 (4.8 dB) → VHF3 (6.1 dB)"]
+        text = meshcmd.format_ping_message(destination_label="VHF3", origin="ST01", message={"rxSnr": 5, "rxRssi": -90},
+                                           heard_nodes_24h=10, route_lines=lines)
+        self.assertEqual(text.splitlines()[-2:], lines)
+        self.assertNotIn("Teste de rota", text)
+        config = {"template": "{{rota_ida}} | {{rota_volta}} | {{rota}}"}
+        result = automgr.preview("ping", config, default_ping_text=text)
+        self.assertEqual(result["text"], "VHF3 → RPT1 (5.2 dB) → ST01 (3.0 dB) | ST01 → RPT1 (4.8 dB) → VHF3 (6.1 dB)"
+                                         " | VHF3 → RPT1 (5.2 dB) → ST01 (3.0 dB)")
+        full = automgr.preview("ping", {"template": "{{mensagem_padrao}}"}, default_ping_text=text)["parts"]
+        self.assertTrue(all(len(p.encode("utf-8")) <= 200 for p in full))
+        self.assertTrue(full[-1].endswith(lines[-1]))
+        timeout = meshcmd.format_ping_message(destination_label="VHF3", origin="ST01", message={}, heard_nodes_24h=None,
+                                              route_lines=["Traceroute: sem resposta em 20 s"])
+        self.assertEqual(automgr.preview("ping", {"template": "{{rota}}/{{rota_volta}}"}, default_ping_text=timeout)["text"],
+                         "sem resposta em 20 s/sem resposta em 20 s")
+
+    def test_ping_route_lines_use_live_trace_and_names(self):
+        vhf3, rpt1, st01 = 0x2a4a005a, 0x11110001, 0x22220002
+        trace = {"fromNodeNum": vhf3, "toNodeNum": st01, "route": [rpt1], "snrTowards": [20, 12], "routeBack": [rpt1],
+                 "snrBack": [16, 24], "createdAt": time.time() + 1}
+        index = ({vhf3: {}, rpt1: {"shortName": "RPT1"}, st01: {"longName": "Estação 01"}}, {})
+        with mock.patch.object(web, "_request_node_query") as request, \
+             mock.patch.object(web, "_live_traceroutes", return_value=[{"toNodeNum": 9, "createdAt": time.time()}, trace]), \
+             mock.patch.object(web, "_mesh_command_node_index", return_value=index):
+            lines = web._mesh_command_route_lines(st01, 5, "VHF3")
+        request.assert_called_once_with(st01, "traceroute")
+        self.assertEqual(lines, ["Rota de ida: VHF3 → RPT1 (5.0 dB) → Estação 01 (3.0 dB)",
+                                 "Rota de volta: Estação 01 → RPT1 (4.0 dB) → VHF3 (6.0 dB)"])
+        with mock.patch.object(web, "_request_node_query", side_effect=RuntimeError("sem rádio")):
+            self.assertEqual(web._mesh_command_route_lines(3, 5, "VHF3"), ["Traceroute: não foi possível solicitar"])
 
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"

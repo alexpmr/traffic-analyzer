@@ -20,7 +20,8 @@ _LOCK = threading.RLock()
 _VARIABLE = re.compile(r"\{\{([a-z0-9_]+)\}\}")
 _DEFAULT_PING_TEMPLATE = "{{mensagem_padrao}}"
 _DEFAULT_CLIMA_TEMPLATE = "{{clima}}"
-PING_VARIABLES = ("mensagem_padrao", "destino", "origem", "hora", "sinal", "qualidade", "saltos", "via", "nos_24h", "rota")
+PING_VARIABLES = ("mensagem_padrao", "destino", "origem", "hora", "sinal", "qualidade", "saltos", "via", "nos_24h", "rota",
+                  "rota_ida", "rota_volta")
 CLIMA_VARIABLES = ("clima",)
 AUTOMATION_IDS = ("ping", "clima")
 
@@ -188,6 +189,7 @@ def _fields(default_text):
         "origem": "Origem:", "hora": "Hora:", "sinal": "Sinal recebido:",
         "qualidade": "Qualidade do sinal:", "via": "Via:",
         "nos_24h": "Nós ouvidos em 24 h:", "rota": "Teste de rota:",
+        "rota_ida": "Rota de ida:", "rota_volta": "Rota de volta:",
     }
     mapping = {k: "não disponível" for k in PING_VARIABLES}
     mapping["mensagem_padrao"] = str(default_text)
@@ -196,6 +198,13 @@ def _fields(default_text):
         row = next((x for x in lines if x.startswith(prefix)), None)
         if row:
             mapping[key] = row[len(prefix):].strip()
+    # {{rota}} mantém compatibilidade: resume a ida (ou a falha) quando não há "Teste de rota".
+    if not any(x.startswith("Teste de rota:") for x in lines):
+        failure = next((x for x in lines if x.startswith("Traceroute:")), None)
+        if failure:
+            mapping["rota"] = mapping["rota_ida"] = mapping["rota_volta"] = failure.split(":", 1)[1].strip()
+        elif mapping["rota_ida"] != "não disponível":
+            mapping["rota"] = mapping["rota_ida"]
     hop = next((x for x in lines if x.startswith("Saltos até ")), None)
     if hop:
         mapping["saltos"] = hop.split(":", 1)[-1].strip()

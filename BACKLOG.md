@@ -1,5 +1,7 @@
 ## P2 — PING: incluir traceroute de ida e volta na resposta — 23/10/2026
 
+- **Concluído na v1.71.0:** resposta do PING termina com `Rota de ida`/`Rota de volta` e SNR por salto; volta ausente, enlace direto, hop desconhecido e timeout tratados; variáveis `{{rota_ida}}`/`{{rota_volta}}`. **Pendente de campo:** confirmar com PING real por RF.
+
 - **Pedido:** ao responder o PING, incluir ao final da mesma resposta o traceroute completo de **ida e volta** até a estação que pingou.
 - **Situação atual:** o PING já dispara um traceroute (`_mesh_command_route_text`, timeout `routeTimeoutSeconds`, padrão 20 s), mas devolve só a ida resumida em uma linha (`Teste de rota: via A → B`, ou `direto`/`sem resposta`). O campo `routeBack` e os SNRs (`snrTowards`/`snrBack`), já retornados pelo MeshMonitor, são ignorados.
 - **Proposta de formato** (mesma lógica dos blocos da aba Mensagens, v1.66.2):
@@ -95,6 +97,10 @@
 - Verificar se o `load(false)` atual reaplica um snapshot antigo do MeshMonitor logo após apagar do SQLite e, nesse caso, evitar que a resposta obsoleta reintroduza o nó na mesma atualização.
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
+
+## v1.71.0 — PING com traceroute de ida e volta
+
+- **Concluído:** rota completa de ida e volta ao final da resposta do PING.
 
 ## v1.70.0 — Seleção múltipla na aba Nós
 
