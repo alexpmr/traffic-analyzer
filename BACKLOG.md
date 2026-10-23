@@ -1,3 +1,21 @@
+## P2 — PING: incluir traceroute de ida e volta na resposta — 23/10/2026
+
+- **Pedido:** ao responder o PING, incluir ao final da mesma resposta o traceroute completo de **ida e volta** até a estação que pingou.
+- **Situação atual:** o PING já dispara um traceroute (`_mesh_command_route_text`, timeout `routeTimeoutSeconds`, padrão 20 s), mas devolve só a ida resumida em uma linha (`Teste de rota: via A → B`, ou `direto`/`sem resposta`). O campo `routeBack` e os SNRs (`snrTowards`/`snrBack`), já retornados pelo MeshMonitor, são ignorados.
+- **Proposta de formato** (mesma lógica dos blocos da aba Mensagens, v1.66.2):
+  ```
+  Rota de ida: VHF3 → RPT1 (5.2 dB) → ST01 (3.0 dB)
+  Rota de volta: ST01 → RPT1 (4.8 dB) → VHF3 (6.1 dB)
+  ```
+  - ida e volta em linhas separadas, com nome curto de cada salto e SNR quando houver;
+  - volta ausente → `Rota de volta: não disponível` (nunca inferir invertendo a ida);
+  - sem resposta no prazo → `Traceroute: sem resposta em 20 s`;
+  - enlace direto → `Rota de ida: direto (5.2 dB)`.
+- **Tamanho:** a resposta passa a ser dividida em mais mensagens de até 200 bytes, com a rota sempre ao final. Avaliar se ida e volta ficam juntas na última mensagem.
+- **Tempo de resposta:** hoje o PING já espera o traceroute antes de responder. Decidir entre manter a espera (resposta única, mais lenta) ou enviar o PING na hora e o traceroute como mensagem seguinte assim que chegar. O pedido é a resposta única, então o padrão é esperar, com o timeout configurável em Automações → PING.
+- **Variáveis do modelo:** adicionar `{{rota_ida}}` e `{{rota_volta}}` e manter `{{rota}}` por compatibilidade.
+- **Teste de regressão:** ida e volta com SNR, volta ausente, enlace direto, timeout e limite de 200 bytes por mensagem.
+
 ## P2 — Aba Nós: seleção múltipla para ações em lote — 22/10/2026
 
 - **Concluído na v1.70.0:** clique seleciona, Shift+clique intervalo, duplo clique/Enter/▤ abre detalhes, selecionar todos do filtro, barra e menu de ações em lote (favoritos, ocultar, Node Info/Traceroute limitados a 10 nós, copiar IDs, CSV, exclusão com resultado por nó).
