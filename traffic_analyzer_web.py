@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.71.2 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.71.3 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.71.2"
+APP_VERSION = "1.71.3"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -7164,12 +7164,27 @@ def _trace_has_response(trace: dict) -> bool:
 
 
 def _mesh_command_route_trace(node_num: int, timeout_seconds=None):
-    """Solicita um traceroute ao nó e devolve o registro do MeshMonitor (ida e volta), ou None no timeout."""
+    """Solicita um traceroute ao nó e devolve o registro do MeshMonitor (ida e volta), ou None no timeout.
+
+    Sem resposta na metade do prazo, repete o pedido uma vez: rádios em economia
+    de energia (ex.: Tracker) e enlaces fracos costumam perder o primeiro pedido.
+    """
     requested = int(time.time() * 1000)
     _request_node_query(node_num, "traceroute")
-    deadline = time.time() + (PING_ROUTE_TIMEOUT_SECONDS if timeout_seconds is None else int(timeout_seconds))
+    timeout = PING_ROUTE_TIMEOUT_SECONDS if timeout_seconds is None else int(timeout_seconds)
+    deadline = time.time() + timeout
+    retry_at = time.time() + timeout / 2
+    retried = False
     pending_seen = False
     while time.time() < deadline and not _mesh_command_stop.is_set():
+        if not retried and time.time() >= retry_at:
+            retried = True
+            try:
+                _request_node_query(node_num, "traceroute")
+                print(f"PING traceroute !{int(node_num) & 0xFFFFFFFF:08x}: sem resposta em {timeout // 2} s; "
+                      "segunda tentativa enviada", flush=True)
+            except Exception as exc:
+                print(f"PING traceroute !{int(node_num) & 0xFFFFFFFF:08x}: segunda tentativa falhou: {exc}", flush=True)
         try:
             traces = _live_traceroutes(120)
         except Exception:
@@ -7200,6 +7215,7 @@ def _mesh_command_route_trace(node_num: int, timeout_seconds=None):
             return trace
         _mesh_command_stop.wait(1.0)
     print(f"PING traceroute !{int(node_num) & 0xFFFFFFFF:08x}: sem resposta no prazo"
+          + (" após 2 tentativas" if retried else "")
           + (" (somente o pedido foi registrado)" if pending_seen else ""), flush=True)
     return None
 

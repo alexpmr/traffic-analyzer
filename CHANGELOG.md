@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.71.3 - 2026-10-24
+
+- PING: segunda tentativa de traceroute na metade do prazo quando não há resposta; aceita a resposta de qualquer tentativa, mantendo o prazo total.
+- Diagnóstico de campo (23/10): pedidos sem resposta permaneciam vazios no próprio MeshMonitor; causa no rádio (Tracker em economia de energia, enlaces fracos), não na leitura.
+- Testes de regressão com relógio simulado para a segunda tentativa.
+
 ## 1.71.2 - 2026-10-24
 
 - Corrige o traceroute do PING: ignora o registro do pedido (sem SNR/rota) e espera a resposta até o prazo; sem resposta, informa "Traceroute: sem resposta em N s".

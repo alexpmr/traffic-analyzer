@@ -1,6 +1,12 @@
-# Traffic Analyzer v1.71.2
+# Traffic Analyzer v1.71.3
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
+
+## Novidades da v1.71.3
+
+- **Traceroute do PING com segunda tentativa:** sem resposta na metade do prazo (ex.: 15 s de 30 s), o pedido é repetido uma única vez; uma resposta a qualquer das duas tentativas é usada. Ajuda com rádios em economia de energia (papel Tracker) e enlaces fracos, onde o primeiro pedido se perde. O prazo total configurado não muda.
+- O log do serviço indica quando a segunda tentativa foi enviada e quando nenhuma das duas teve resposta.
+- [Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip).
 
 ## Novidades da v1.71.2
 

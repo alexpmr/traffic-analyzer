@@ -284,11 +284,37 @@ class BacklogV166Tests(unittest.TestCase):
              mock.patch.object(web._mesh_command_stop, "wait"):
             lines = web._mesh_command_route_lines(vhf6, 20, "VHF3")
         self.assertEqual(lines, ["Rota de ida:", "VHF3 → VHF6: 6.5 dB", "Rota de volta:", "VHF6 → VHF3: 7.5 dB"])
-        with mock.patch.object(web, "_request_node_query"), \
+        clock = {"t": now}
+        tick = lambda seconds=1.0: clock.__setitem__("t", clock["t"] + seconds)
+        with mock.patch.object(web, "_request_node_query") as request, \
              mock.patch.object(web, "_live_traceroutes", return_value=[pending]), \
              mock.patch.object(web, "_mesh_command_node_index", return_value=index), \
-             mock.patch.object(web.time, "time", side_effect=[now, now, now + 30, now + 30]):
+             mock.patch.object(web.time, "time", side_effect=lambda: clock["t"]), \
+             mock.patch.object(web._mesh_command_stop, "wait", side_effect=tick):
             self.assertEqual(web._mesh_command_route_lines(vhf6, 20, "VHF3"), ["Traceroute: sem resposta em 20 s"])
+        # Sem resposta: uma única segunda tentativa, na metade do prazo.
+        self.assertEqual(request.call_count, 2)
+
+    def test_ping_traceroute_retry_gets_late_responder(self):
+        vhf3, vhf6 = 0x2a4a005a, 0x2a4a0006
+        start = time.time() + 1
+        clock = {"t": start}
+        pending = {"fromNodeNum": vhf3, "toNodeNum": vhf6, "route": None, "snrTowards": None, "createdAt": start}
+        answered = {"fromNodeNum": vhf3, "toNodeNum": vhf6, "route": [], "snrTowards": [25], "routeBack": [],
+                    "snrBack": [28], "createdAt": start + 15}
+        requests = []
+        # A resposta só aparece depois da segunda tentativa (rádio que dormia no primeiro pedido).
+        live = lambda limit: [pending, answered] if len(requests) > 1 else [pending]
+        index = ({vhf3: {"shortName": "VHF3"}, vhf6: {"shortName": "VHF6"}}, {})
+        with mock.patch.object(web, "_request_node_query", side_effect=lambda *a: requests.append(clock["t"])), \
+             mock.patch.object(web, "_live_traceroutes", side_effect=live), \
+             mock.patch.object(web, "_mesh_command_node_index", return_value=index), \
+             mock.patch.object(web.time, "time", side_effect=lambda: clock["t"]), \
+             mock.patch.object(web._mesh_command_stop, "wait", side_effect=lambda s=1.0: clock.__setitem__("t", clock["t"] + s)):
+            lines = web._mesh_command_route_lines(vhf6, 30, "VHF3")
+        self.assertEqual(lines, ["Rota de ida:", "VHF3 → VHF6: 6.2 dB", "Rota de volta:", "VHF6 → VHF3: 7.0 dB"])
+        self.assertEqual(len(requests), 2)
+        self.assertAlmostEqual(requests[1] - requests[0], 15, delta=1)
 
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"

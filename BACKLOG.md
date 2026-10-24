@@ -98,6 +98,11 @@
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
 
+## v1.71.3 — Segunda tentativa de traceroute no PING
+
+- **Diagnóstico (23/10):** três PINGs seguidos ficaram sem traceroute; os registros do MeshMonitor continuaram vazios, ou seja, as respostas nunca chegaram (VHF6 é Tracker, possivelmente em economia de energia; demais nós com enlaces fracos).
+- **Concluído:** segunda tentativa automática na metade do prazo. **Pendente de campo:** medir a taxa de resposta com a nova tentativa.
+
 ## v1.71.2 — Traceroute do PING espera a resposta
 
 - **Corrigido:** em campo, o PING mostrou "VHF3 → VHF6" sem SNR e sem volta; usava o registro do pedido de traceroute. Agora espera o registro com dados da resposta. **Confirmado em campo (24/10/2026):** PING do VHF6 respondido com ida e volta e SNR por enlace.
