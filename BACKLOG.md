@@ -1,3 +1,18 @@
+## P1 — Nós excluídos voltam algum tempo depois — 24/10/2026
+
+- **Relato de campo (v1.71.x):** alguns nós apagados reaparecem no Mapa/aba Nós depois de um tempo.
+- **Comportamento atual (v1.68.0):** a exclusão grava `deleted_nodes` com o horário e o nó só volta quando o snapshot do MeshMonitor traz evidência **posterior** à exclusão: `lastHeard` do nó, enlace (`lastSeenMs`/eventos) ou traceroute que o inclua. O retorno é registrado no log: `Nó !xxxxxxxx reapareceu com evidência posterior à exclusão.`
+- **Hipóteses a verificar:**
+  1. **Retorno legítimo:** o rádio continua ativo na malha e foi ouvido de novo (comportamento previsto, mas talvez não o desejado).
+  2. **Evidência indireta:** o MeshMonitor atualiza `lastHeard` por NodeInfo/NeighborInfo de terceiros, MQTT ou traceroute que apenas *passa* pelo nó, fazendo o nó voltar sem ter sido ouvido diretamente.
+  3. **Exclusão do dispositivo ineficaz:** se `removeNode` pelo Virtual Node não chegar ao rádio físico (hipótese 2 do item de exclusão), o rádio reanuncia o nó ao MeshMonitor.
+  4. **Relógio:** `lastHeard` com fuso/escala diferentes (segundos vs. ms, horário do rádio adiantado) parecendo "posterior" à exclusão.
+- **Proposta:**
+  - Registrar no log **qual** evidência trouxe o nó de volta (campo, valor e horário), e mostrar isso nos detalhes do nó.
+  - Nova ação **"Excluir e ignorar"** (lista de bloqueio permanente, por nó), separada da exclusão comum: o nó não volta até ser removido da lista, mesmo com tráfego novo. Gerenciar a lista em Configurações, com opção de desbloquear.
+  - Exigir evidência **direta** para o retorno após exclusão comum (ex.: pacote recebido do próprio nó), ignorando `lastHeard` herdado de terceiros/MQTT, se a hipótese 2 se confirmar.
+- **Teste de regressão:** nó excluído não volta por evidência indireta ou anterior; volta só por evidência direta posterior; nó na lista de ignorados nunca volta.
+
 ## P2 — PING: incluir traceroute de ida e volta na resposta — 23/10/2026
 
 - **Concluído na v1.71.0:** resposta do PING termina com `Rota de ida`/`Rota de volta` e SNR por salto; volta ausente, enlace direto, hop desconhecido e timeout tratados; variáveis `{{rota_ida}}`/`{{rota_volta}}`. **Pendente de campo:** confirmar com PING real por RF.
