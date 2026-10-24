@@ -189,7 +189,6 @@ def _fields(default_text):
         "origem": "Origem:", "hora": "Hora:", "sinal": "Sinal recebido:",
         "qualidade": "Qualidade do sinal:", "via": "Via:",
         "nos_24h": "Nós ouvidos em 24 h:", "rota": "Teste de rota:",
-        "rota_ida": "Rota de ida:", "rota_volta": "Rota de volta:",
     }
     mapping = {k: "não disponível" for k in PING_VARIABLES}
     mapping["mensagem_padrao"] = str(default_text)
@@ -198,6 +197,18 @@ def _fields(default_text):
         row = next((x for x in lines if x.startswith(prefix)), None)
         if row:
             mapping[key] = row[len(prefix):].strip()
+    # "Rota de ida:"/"Rota de volta:" seguidas de um enlace por linha.
+    for key, prefix in (("rota_ida", "Rota de ida:"), ("rota_volta", "Rota de volta:")):
+        idx = next((i for i, x in enumerate(lines) if x.startswith(prefix)), None)
+        if idx is None:
+            continue
+        inline = lines[idx][len(prefix):].strip()
+        links = []
+        for row in lines[idx + 1:]:
+            if not row.strip() or row.startswith(("Rota de ", "Traceroute:")):
+                break
+            links.append(row.strip())
+        mapping[key] = "\n".join(links) if links else (inline or "não disponível")
     # {{rota}} mantém compatibilidade: resume a ida (ou a falha) quando não há "Teste de rota".
     if not any(x.startswith("Teste de rota:") for x in lines):
         failure = next((x for x in lines if x.startswith("Traceroute:")), None)
@@ -234,10 +245,8 @@ def preview(bot, config, default_ping_text=None, clima_responses=None):
         raw = render_clima(config["template"], clima_responses or [])
     else:
         raise ValueError("Automação desconhecida")
-    if bot == "clima":
-        parts = [part for block in re.split(r"\n\s*\n", raw) for part in split_utf8(block, 200)]
-    else:
-        parts = split_utf8(raw, 200)
+    # Linha em branco separa blocos; cada bloco começa uma nova mensagem (ex.: traceroute do PING).
+    parts = [part for block in re.split(r"\n\s*\n", raw) for part in split_utf8(block, 200)]
     if not parts or len(parts) > 12:
         raise ValueError("Resposta excede o limite de 12 blocos Meshtastic")
     return {"text": raw, "parts": parts, "bytes": len(raw.encode("utf-8")), "transmits": False}

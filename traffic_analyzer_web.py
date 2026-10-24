@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.71.0 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.71.1 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.71.0"
+APP_VERSION = "1.71.1"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -6999,8 +6999,8 @@ def _automation_ping_sample(settings):
         message={"timestamp": int(time.time() * 1000), "hopStart": 3, "hopLimit": 2,
                  "rxRssi": -92, "rxSnr": 5.5, "viaMqtt": False},
         heard_nodes_24h=42,
-        route_lines=[f"Rota de ida: {settings['label']} → RPT1 (5.2 dB) → TEST (3.0 dB)",
-                     f"Rota de volta: TEST → RPT1 (4.8 dB) → {settings['label']} (6.1 dB)"],
+        route_lines=["Rota de ida:", f"{settings['label']} → RPT1: 5.5 dB", "RPT1 → TEST: -11.0 dB",
+                     "Rota de volta:", "TEST → RPT2: 6.0 dB", "RPT2 → MOVEL: -12.2 dB", f"MOVEL → {settings['label']}: 6.2 dB"],
     )
 
 

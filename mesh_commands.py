@@ -89,8 +89,8 @@ def _trace_list(raw) -> list:
     return raw if isinstance(raw, list) else []
 
 
-def _trace_leg(start: int, intermediate, end: int, snr_raw, label) -> str:
-    """start → intermediários → end; o SNR (valor do rádio ÷ 4) fica após o nó que recebeu."""
+def _trace_leg(start: int, intermediate, end: int, snr_raw, label) -> list[str]:
+    """Um enlace por linha (start → intermediários → end), com o SNR (valor do rádio ÷ 4) de quem recebeu."""
     hops = []
     for value in _trace_list(intermediate):
         try:
@@ -98,19 +98,22 @@ def _trace_leg(start: int, intermediate, end: int, snr_raw, label) -> str:
         except (TypeError, ValueError):
             hops.append(None)
     snrs = _trace_list(snr_raw)
-    parts = [label(start)]
+    name = lambda num: "?" if num is None or num in _TRACE_PLACEHOLDERS else label(num)
+    links = []
+    previous = label(start)
     for idx, num in enumerate(hops + [end]):
-        name = "?" if num is None or num in _TRACE_PLACEHOLDERS else label(num)
+        current = label(end) if idx == len(hops) else name(num)
+        line = f"{previous} → {current}"
         try:
             snr = float(snrs[idx]) / 4.0
             if abs(snr - _TRACE_UNKNOWN_SNR_DB) < 1e-9:
                 raise ValueError
-            name += f" ({snr:.1f} dB)"
+            line += f": {snr:.1f} dB"
         except (IndexError, TypeError, ValueError):
             pass
-        parts.append(name)
-    text = " → ".join(parts)
-    return ("direto, " + text) if not hops else text
+        links.append(line)
+        previous = current
+    return links
 
 
 def format_traceroute_lines(trace: dict | None, label, timeout_seconds: int | None = None) -> list[str]:
@@ -127,9 +130,9 @@ def format_traceroute_lines(trace: dict | None, label, timeout_seconds: int | No
         end = int(trace.get("toNodeNum")) & 0xFFFFFFFF
     except (TypeError, ValueError):
         return ["Traceroute: resposta inválida"]
-    lines = ["Rota de ida: " + _trace_leg(start, trace.get("route"), end, trace.get("snrTowards"), label)]
+    lines = ["Rota de ida:", *_trace_leg(start, trace.get("route"), end, trace.get("snrTowards"), label)]
     if _trace_list(trace.get("routeBack")) or _trace_list(trace.get("snrBack")):
-        lines.append("Rota de volta: " + _trace_leg(end, trace.get("routeBack"), start, trace.get("snrBack"), label))
+        lines += ["Rota de volta:", *_trace_leg(end, trace.get("routeBack"), start, trace.get("snrBack"), label)]
     else:
         lines.append("Rota de volta: não disponível")
     return lines
@@ -159,7 +162,8 @@ def format_ping_message(*, destination_label: str, origin: str, message: dict,
     if heard_nodes_24h is not None:
         lines.append(f"Nós ouvidos em 24 h: {int(heard_nodes_24h)}")
     if route_lines:
-        # Traceroute de ida e volta sempre ao final da resposta.
+        # Traceroute de ida e volta ao final, em bloco próprio (a linha em branco inicia nova mensagem).
+        lines.append("")
         lines.extend(route_lines)
     else:
         lines.append(f"Teste de rota: {route_text or 'sem resposta'}")

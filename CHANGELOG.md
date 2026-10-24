@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.71.1 - 2026-10-24
+
+- PING: traceroute com um enlace por linha (`A → B: SNR dB`), sob os títulos "Rota de ida:" e "Rota de volta:", em mensagem própria após os dados do PING.
+- `{{rota_ida}}`/`{{rota_volta}}` com um enlace por linha; linha em branco no modelo do PING inicia nova mensagem.
+- Testes atualizados com o traceroute real informado em campo.
+
 ## 1.71.0 - 2026-10-23
 
 - PING: resposta termina com o traceroute de ida e volta até a estação, com SNR por salto (`Rota de ida` / `Rota de volta`), usando `route`, `routeBack`, `snrTowards` e `snrBack` do MeshMonitor.
