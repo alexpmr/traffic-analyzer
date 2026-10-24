@@ -100,7 +100,7 @@
 
 ## v1.71.2 — Traceroute do PING espera a resposta
 
-- **Corrigido:** em campo, o PING mostrou "VHF3 → VHF6" sem SNR e sem volta; usava o registro do pedido de traceroute. Agora espera o registro com dados da resposta. **Pendente de campo:** confirmar com novo PING.
+- **Corrigido:** em campo, o PING mostrou "VHF3 → VHF6" sem SNR e sem volta; usava o registro do pedido de traceroute. Agora espera o registro com dados da resposta. **Confirmado em campo (24/10/2026):** PING do VHF6 respondido com ida e volta e SNR por enlace.
 
 ## v1.71.1 — Traceroute do PING com um enlace por linha
 
