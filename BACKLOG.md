@@ -1,5 +1,6 @@
 ## P1 — Nós excluídos voltam algum tempo depois — 24/10/2026
 
+- **Corrigido na v1.71.4:** os nós relatados (ouvidos há ~2 semanas, sem atividade nova) voltavam porque o backfill de traceroutes antigos e a recuperação do arquivo, executados a cada reinício do serviço, gravavam direto no histórico sem consultar `deleted_nodes`. Triggers no banco agora descartam qualquer dado de nó excluído com horário até a exclusão, e a inicialização remove o que já tinha voltado. **Pendente:** "Excluir e ignorar" permanente (para rádios ativos que o usuário não quer ver) e confirmação de que `removeNode` chega ao rádio físico.
 - **Relato de campo (v1.71.x):** alguns nós apagados reaparecem no Mapa/aba Nós depois de um tempo.
 - **Comportamento atual (v1.68.0):** a exclusão grava `deleted_nodes` com o horário e o nó só volta quando o snapshot do MeshMonitor traz evidência **posterior** à exclusão: `lastHeard` do nó, enlace (`lastSeenMs`/eventos) ou traceroute que o inclua. O retorno é registrado no log: `Nó !xxxxxxxx reapareceu com evidência posterior à exclusão.`
 - **Hipóteses a verificar:**

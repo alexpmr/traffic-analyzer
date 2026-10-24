@@ -101,6 +101,56 @@ class NodeContextMenuTests(unittest.TestCase):
             finally:
                 web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE = old_db, old_source
 
+    def test_deleted_node_is_not_restored_by_history_backfill_or_archive(self):
+        # Caso de campo: nós ouvidos há ~2 semanas voltavam após reinício do serviço,
+        # pelo backfill de traceroutes antigos, que gravava direto no histórico.
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            old_db, old_source = web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE
+            try:
+                web.TRAFFIC_ARCHIVE_DB = Path(tmp) / "traffic.db"
+                web.MM_SOURCE = "default"
+                web._archive_init()
+                old, node, peer = int((time.time() - 14 * 86400) * 1000), 0x11112222, 0x2a4a005a
+                trace = {"fromNodeNum": peer, "toNodeNum": node, "route": "[]", "snrTowards": "[20]",
+                         "routeBack": "[]", "snrBack": "[24]", "timestamp": old, "id": 7}
+                with web._archive_connect() as conn:
+                    web._store_trusted_analysis_traceroute(conn, trace)
+                web._delete_local_node(node)
+                count = lambda sql: web._archive_connect().execute(sql, (node, node)).fetchone()[0]
+                with web._archive_connect() as conn:
+                    web._store_trusted_analysis_traceroute(conn, trace)
+                    conn.execute("INSERT INTO packets(archive_key,source_id,timestamp,from_node,to_node,archived_at) "
+                                 "VALUES('old','default',?,?,?,1)", (old, node, peer))
+                self.assertEqual(count("SELECT COUNT(*) FROM topology_nodes WHERE node_num IN (?,?)"), 0)
+                self.assertEqual(count("SELECT COUNT(*) FROM topology_edge_events WHERE a=? OR b=?"), 0)
+                self.assertEqual(count("SELECT COUNT(*) FROM packets WHERE from_node=? OR to_node=?"), 0)
+                # Evidência real posterior à exclusão volta a gravar e encerra a exclusão.
+                with web._archive_connect() as conn:
+                    web._store_trusted_analysis_traceroute(conn, dict(trace, timestamp=int(time.time() * 1000) + 5000, id=8))
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM topology_nodes WHERE node_num=?", (node,)).fetchone()[0], 1)
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM deleted_nodes").fetchone()[0], 0)
+            finally:
+                web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE = old_db, old_source
+
+    def test_startup_cleanup_removes_nodes_that_came_back_before_the_guard(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_db, old_source = web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE
+            try:
+                web.TRAFFIC_ARCHIVE_DB = Path(tmp) / "traffic.db"
+                web.MM_SOURCE = "default"
+                web._archive_init()
+                with web._archive_connect() as conn:
+                    conn.execute("DROP TRIGGER deleted_nodes_guard_nodes")  # simula banco de antes da proteção
+                    conn.execute("INSERT INTO deleted_nodes VALUES('default',77,5000)")
+                    conn.execute("INSERT INTO topology_nodes VALUES('default',77,1,1000,NULL,'{}')")
+                web._archive_init()
+                with web._archive_connect() as conn:
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM topology_nodes WHERE node_num=77").fetchone()[0], 0)
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM deleted_nodes").fetchone()[0], 1)
+            finally:
+                web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE = old_db, old_source
+
     def test_bulk_delete_reports_each_node_and_validates_input(self):
         with tempfile.TemporaryDirectory() as tmp:
             old_db, old_source = web.TRAFFIC_ARCHIVE_DB, web.MM_SOURCE

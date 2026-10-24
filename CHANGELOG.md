@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.71.4 - 2026-10-24
+
+- Corrige nós excluídos que voltavam: `_store_trusted_analysis_traceroute` (backfill/reconciliação de traceroutes) e `_topology_history_recover_from_archive` gravavam direto em `topology_nodes`/`topology_edge_events` sem consultar `deleted_nodes`, regravando nós antigos a cada reinício.
+- Triggers SQLite descartam gravações de nós, enlaces, pacotes e posições de nós excluídos com horário até a exclusão; gravação posterior encerra a exclusão.
+- Limpeza na inicialização dos dados que voltaram antes da proteção.
+- Testes de regressão com o caso de campo (nó ouvido há 14 dias regravado pelo backfill).
+
 ## 1.71.3 - 2026-10-24
 
 - PING: segunda tentativa de traceroute na metade do prazo quando não há resposta; aceita a resposta de qualquer tentativa, mantendo o prazo total.

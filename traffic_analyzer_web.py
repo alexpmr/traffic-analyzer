@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.71.3 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.71.4 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.71.3"
+APP_VERSION = "1.71.4"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -8955,7 +8955,57 @@ def _archive_init():
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_topology_edge_direct ON topology_edge_events(source_id,direct_evidence,transport,timestamp_ms)"
         )
+        conn.executescript(_DELETED_NODES_GUARD_SQL)
+        _deleted_nodes_cleanup(conn)
     _tracklog_backfill()
+
+
+# Nós excluídos pelo administrador não podem voltar por dados antigos, venham de
+# onde vierem (snapshot, backfill de traceroutes, recuperação do arquivo, nova
+# sincronização de pacotes): o próprio banco descarta gravações com horário até
+# a exclusão. Evidência posterior grava normalmente e encerra a exclusão.
+_DELETED_NODES_GUARD_SQL = """
+CREATE TRIGGER IF NOT EXISTS deleted_nodes_guard_nodes BEFORE INSERT ON topology_nodes
+WHEN EXISTS (SELECT 1 FROM deleted_nodes d WHERE d.source_id=NEW.source_id AND d.node_num=NEW.node_num
+             AND d.deleted_at_ms >= NEW.last_seen_ms)
+BEGIN SELECT RAISE(IGNORE); END;
+
+CREATE TRIGGER IF NOT EXISTS deleted_nodes_lift_on_new_evidence AFTER INSERT ON topology_nodes
+BEGIN DELETE FROM deleted_nodes WHERE source_id=NEW.source_id AND node_num=NEW.node_num
+      AND deleted_at_ms < NEW.last_seen_ms; END;
+
+CREATE TRIGGER IF NOT EXISTS deleted_nodes_guard_edges BEFORE INSERT ON topology_edge_events
+WHEN EXISTS (SELECT 1 FROM deleted_nodes d WHERE d.source_id=NEW.source_id AND d.node_num IN (NEW.a, NEW.b)
+             AND d.deleted_at_ms >= NEW.timestamp_ms)
+BEGIN SELECT RAISE(IGNORE); END;
+
+CREATE TRIGGER IF NOT EXISTS deleted_nodes_guard_packets BEFORE INSERT ON packets
+WHEN EXISTS (SELECT 1 FROM deleted_nodes d WHERE d.source_id=NEW.source_id AND d.node_num IN (NEW.from_node, NEW.to_node)
+             AND d.deleted_at_ms >= NEW.timestamp)
+BEGIN SELECT RAISE(IGNORE); END;
+
+CREATE TRIGGER IF NOT EXISTS deleted_nodes_guard_positions BEFORE INSERT ON positions
+WHEN EXISTS (SELECT 1 FROM deleted_nodes d WHERE d.source_id=NEW.source_id AND d.node_num=NEW.node_num
+             AND d.deleted_at_ms >= NEW.timestamp)
+BEGIN SELECT RAISE(IGNORE); END;
+"""
+
+
+def _deleted_nodes_cleanup(conn):
+    """Remove dados antigos que voltaram antes da proteção (v1.68.0 a v1.71.3), nó a nó."""
+    removed = 0
+    for row in conn.execute("SELECT source_id,node_num,deleted_at_ms FROM deleted_nodes").fetchall():
+        s, n, at = row["source_id"], int(row["node_num"]), int(row["deleted_at_ms"])
+        for sql, params in (
+            ("DELETE FROM topology_nodes WHERE source_id=? AND node_num=? AND last_seen_ms<=?", (s, n, at)),
+            ("DELETE FROM topology_edge_events WHERE source_id=? AND (a=? OR b=?) AND timestamp_ms<=?", (s, n, n, at)),
+            ("DELETE FROM packets WHERE source_id=? AND (from_node=? OR to_node=?) AND timestamp<=?", (s, n, n, at)),
+            ("DELETE FROM positions WHERE source_id=? AND node_num=? AND timestamp<=?", (s, n, at)),
+        ):
+            removed += max(0, conn.execute(sql, params).rowcount or 0)
+    if removed:
+        print(f"Nós excluídos: {removed} registro(s) antigo(s) que haviam voltado foram removidos.", flush=True)
+    return removed
 
 
 def _normalize_archive_retention_days(value) -> int:
