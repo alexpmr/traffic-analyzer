@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.71.2 - 2026-10-24
+
+- Corrige o traceroute do PING: ignora o registro do pedido (sem SNR/rota) e espera a resposta até o prazo; sem resposta, informa "Traceroute: sem resposta em N s".
+- Log do serviço registra o traceroute usado ou a ausência de resposta.
+- Teste de regressão com o caso de campo (pedido registrado antes da resposta).
+
 ## 1.71.1 - 2026-10-24
 
 - PING: traceroute com um enlace por linha (`A → B: SNR dB`), sob os títulos "Rota de ida:" e "Rota de volta:", em mensagem própria após os dados do PING.

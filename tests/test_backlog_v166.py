@@ -271,6 +271,25 @@ class BacklogV166Tests(unittest.TestCase):
         with mock.patch.object(web, "_request_node_query", side_effect=RuntimeError("sem rádio")):
             self.assertEqual(web._mesh_command_route_lines(3, 5, "VHF3"), ["Traceroute: não foi possível solicitar"])
 
+    def test_ping_waits_for_traceroute_response_not_the_pending_request(self):
+        # Caso de campo: o MeshMonitor registra o pedido (sem SNR/rota) antes da resposta.
+        vhf3, vhf6 = 0x2a4a005a, 0x2a4a0006
+        now = time.time() + 1
+        pending = {"fromNodeNum": vhf3, "toNodeNum": vhf6, "route": "[]", "snrTowards": None, "createdAt": now}
+        answered = dict(pending, snrTowards=[26], routeBack=[], snrBack=[30])
+        index = ({vhf3: {"shortName": "VHF3"}, vhf6: {"shortName": "VHF6"}}, {})
+        with mock.patch.object(web, "_request_node_query"), \
+             mock.patch.object(web, "_live_traceroutes", side_effect=[[pending], [pending], [answered]]), \
+             mock.patch.object(web, "_mesh_command_node_index", return_value=index), \
+             mock.patch.object(web._mesh_command_stop, "wait"):
+            lines = web._mesh_command_route_lines(vhf6, 20, "VHF3")
+        self.assertEqual(lines, ["Rota de ida:", "VHF3 → VHF6: 6.5 dB", "Rota de volta:", "VHF6 → VHF3: 7.5 dB"])
+        with mock.patch.object(web, "_request_node_query"), \
+             mock.patch.object(web, "_live_traceroutes", return_value=[pending]), \
+             mock.patch.object(web, "_mesh_command_node_index", return_value=index), \
+             mock.patch.object(web.time, "time", side_effect=[now, now, now + 30, now + 30]):
+            self.assertEqual(web._mesh_command_route_lines(vhf6, 20, "VHF3"), ["Traceroute: sem resposta em 20 s"])
+
     def test_split_utf8_preserves_line_breaks(self):
         text = "Linha um\nLinha dois\nLinha três"
         parts = meshcmd.split_utf8(text, 200)

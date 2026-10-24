@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Interface web do Traffic Analyzer v1.71.1 para MeshMonitor."""
+"""Interface web do Traffic Analyzer v1.71.2 para MeshMonitor."""
 
 import base64
 import csv
@@ -32,7 +32,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "1.71.1"
+APP_VERSION = "1.71.2"
 try:
     _version_path = Path(__file__).with_name("VERSION")
     if _version_path.exists():
@@ -7150,11 +7150,25 @@ def _mesh_command_cooldown_active(row: dict, command: str) -> int:
     return max(1, remaining)
 
 
+def _trace_has_response(trace: dict) -> bool:
+    """Registro com dados da resposta: o pedido gravado antes da resposta não traz SNR nem rota."""
+    def items(key):
+        value = trace.get(key)
+        if isinstance(value, str):
+            try:
+                value = json.loads(value) if value.strip() else []
+            except ValueError:
+                return []
+        return value if isinstance(value, list) else []
+    return any(items(key) for key in ("snrTowards", "route", "routeBack", "snrBack"))
+
+
 def _mesh_command_route_trace(node_num: int, timeout_seconds=None):
     """Solicita um traceroute ao nó e devolve o registro do MeshMonitor (ida e volta), ou None no timeout."""
     requested = int(time.time() * 1000)
     _request_node_query(node_num, "traceroute")
     deadline = time.time() + (PING_ROUTE_TIMEOUT_SECONDS if timeout_seconds is None else int(timeout_seconds))
+    pending_seen = False
     while time.time() < deadline and not _mesh_command_stop.is_set():
         try:
             traces = _live_traceroutes(120)
@@ -7177,8 +7191,16 @@ def _mesh_command_route_trace(node_num: int, timeout_seconds=None):
                     pass
             if not ts or ts + 2000 < requested:
                 continue
+            if not _trace_has_response(trace):
+                pending_seen = True  # pedido registrado; a resposta ainda não chegou
+                continue
+            print(f"PING traceroute !{int(node_num) & 0xFFFFFFFF:08x}: route={trace.get('route')} "
+                  f"snrTowards={trace.get('snrTowards')} routeBack={trace.get('routeBack')} snrBack={trace.get('snrBack')}",
+                  flush=True)
             return trace
         _mesh_command_stop.wait(1.0)
+    print(f"PING traceroute !{int(node_num) & 0xFFFFFFFF:08x}: sem resposta no prazo"
+          + (" (somente o pedido foi registrado)" if pending_seen else ""), flush=True)
     return None
 
 

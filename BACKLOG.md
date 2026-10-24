@@ -98,6 +98,10 @@
 - **Teste de regressão obrigatório:** excluir um nó via Mapa e outro via aba Nós; em ambos os casos, validar banco, estado JS, marcador/lista, contadores e ausência após re-render sem recarregar a página.
 - **Critério de aceite:** ao confirmar a exclusão e receber sucesso local, o nó desaparece imediatamente do Mapa e da aba Nós e permanece ausente até existir nova evidência real recebida da malha.
 
+## v1.71.2 — Traceroute do PING espera a resposta
+
+- **Corrigido:** em campo, o PING mostrou "VHF3 → VHF6" sem SNR e sem volta; usava o registro do pedido de traceroute. Agora espera o registro com dados da resposta. **Pendente de campo:** confirmar com novo PING.
+
 ## v1.71.1 — Traceroute do PING com um enlace por linha
 
 - **Concluído:** formato pedido em campo, um enlace por linha com SNR em dB, em mensagem própria.
