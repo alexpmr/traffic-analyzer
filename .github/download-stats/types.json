@@ -1,0 +1,16 @@
+{
+ "types": [
+  [
+   "zip",
+   "^traffic-analyzer-.*\\.zip$"
+  ],
+  [
+   "docs",
+   "^Documentacao_Traffic_Analyzer_.*\\.pdf$"
+  ]
+ ],
+ "groups": {},
+ "total": [
+  "zip"
+ ]
+}

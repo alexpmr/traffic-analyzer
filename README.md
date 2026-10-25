@@ -2,6 +2,19 @@
 
 **Traffic Analyzer** é uma aplicação complementar ao MeshMonitor para análise de topologia e tráfego Meshtastic. Ela usa a API v1 do MeshMonitor como fonte de dados, não disputa a conexão serial/TCP com o rádio e mantém um histórico próprio para relatórios.
 
+
+## Downloads
+
+[Baixar ZIP atual](https://github.com/alexpmr/traffic-analyzer/releases/latest/download/traffic-analyzer-latest.zip) · [Todas as releases](https://github.com/alexpmr/traffic-analyzer/releases)
+
+| Downloads (todas as versões) | |
+|---|---:|
+| Pacote ZIP | ![downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Falexpmr%2Ftraffic-analyzer%2Fbadges%2Fdownloads%2Fzip.json) |
+| Documentação PDF | ![downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Falexpmr%2Ftraffic-analyzer%2Fbadges%2Fdownloads%2Fdocs.json) |
+| **Total (pacote)** | ![downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Falexpmr%2Ftraffic-analyzer%2Fbadges%2Fdownloads%2Ftotal.json) |
+
+Contagem acumulada de todas as versões, atualizada a cada hora.
+
 ## Novidades da v1.71.4
 
 - **Nós excluídos não voltam mais por dados antigos.** A cada reinício do serviço (por exemplo, após atualizar), as rotinas de recuperação do histórico (backfill de traceroutes do MeshMonitor e recuperação do arquivo de tráfego) regravavam nós e enlaces antigos sem respeitar as exclusões. Agora o próprio banco descarta qualquer gravação de nó, enlace, pacote ou posição de um nó excluído com horário até a exclusão, venha de onde vier.
