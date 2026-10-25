@@ -12,3 +12,4 @@ state.json
 topology.json
 *.zip
 .DS_Store
+.badges/
